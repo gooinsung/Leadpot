@@ -3,14 +3,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
   createLanding,
+  getForm,
   getLanding,
   listForms,
   updateLanding,
+  type FormDetail,
   type FormSummary,
   type LandingBlock,
   type LandingBlockType,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { FormRenderer } from "../components/formRenderers/FormRenderer";
 
 function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "IMAGE") return { type, url: "", alt: "" };
@@ -28,6 +31,8 @@ export function LandingEditPage() {
   const [status, setStatus] = useState("published");
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
+  const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
+  const [device, setDevice] = useState<"mobile" | "pc">("mobile");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -59,6 +64,17 @@ export function LandingEditPage() {
     if (forms.length === 0) return;
     setBlocks((prev) => prev.map((b) => (b.type === "FORM" && b.formId == null ? { ...b, formId: forms[0].id } : b)));
   }, [forms]);
+
+  // FORM 블록이 참조하는 폼 상세를 불러와 미리보기에 실제 폼을 렌더
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      blocks.filter((b) => b.type === "FORM" && b.formId != null).map((b) => Number(b.formId)),
+    ));
+    ids.forEach((fid) => {
+      if (formDetails[fid]) return;
+      getForm(fid).then((d) => setFormDetails((prev) => ({ ...prev, [fid]: d }))).catch(() => {});
+    });
+  }, [blocks, formDetails]);
 
   function patch(i: number, p: Partial<LandingBlock>) {
     setBlocks((prev) => prev.map((b, idx) => (idx === i ? { ...b, ...p } : b)));
@@ -92,10 +108,6 @@ export function LandingEditPage() {
     } finally {
       setSaving(false);
     }
-  }
-
-  function formName(formId: unknown) {
-    return forms.find((f) => f.id === formId)?.name ?? "(폼 선택 안 됨)";
   }
 
   if (loading) return <div className="page-loading">불러오는 중…</div>;
@@ -180,21 +192,45 @@ export function LandingEditPage() {
             </div>
           </div>
 
-          {/* 미리보기 (간이) */}
+          {/* 미리보기 — PC/모바일 전환 + 실제 렌더 */}
           <div className="preview-panel">
-            <div className="card-h">미리보기</div>
-            <div className="preview-frame landing-preview">
-              {blocks.map((b, i) => {
-                if (b.type === "IMAGE") return (b.url as string) ? <img key={i} className="fr-img" src={b.url as string} alt="" /> : <div key={i} className="fr-img-ph">이미지</div>;
-                if (b.type === "TEXT") return <p key={i} className="fr-text">{(b.text as string) || ""}</p>;
-                if (b.type === "HTML") return <div key={i} className="fr-html" dangerouslySetInnerHTML={{ __html: (b.html as string) || "" }} />;
-                if (b.type === "FORM") return (
-                  <div key={i} className="landing-form-slot">
-                    📋 폼: <strong>{formName(b.formId)}</strong> · {b.trigger === "overlay" ? `버튼 오버레이("${(b.buttonLabel as string) || "신청"}")` : "인라인"}
-                  </div>
-                );
-                return null;
-              })}
+            <div className="lp-preview-head">
+              <span className="card-h" style={{ margin: 0 }}>미리보기</span>
+              <div className="type-seg lp-device-seg">
+                <button className={device === "mobile" ? "on" : ""} onClick={() => setDevice("mobile")}>📱 모바일</button>
+                <button className={device === "pc" ? "on" : ""} onClick={() => setDevice("pc")}>🖥️ PC</button>
+              </div>
+            </div>
+            <div className={`lp-preview-stage ${device}`}>
+              <div className="lp-preview-device">
+                {blocks.length === 0 && <p className="dash-sub" style={{ padding: 24, textAlign: "center" }}>블록을 추가하면 미리보기가 표시됩니다.</p>}
+                {blocks.map((b, i) => {
+                  if (b.type === "IMAGE")
+                    return (b.url as string)
+                      ? <img key={i} className="landing-img" src={b.url as string} alt="" />
+                      : <div key={i} className="fr-img-ph" style={{ margin: 16 }}>이미지</div>;
+                  if (b.type === "TEXT") return <p key={i} className="landing-text">{(b.text as string) || ""}</p>;
+                  if (b.type === "HTML") return <div key={i} className="landing-html" dangerouslySetInnerHTML={{ __html: (b.html as string) || "" }} />;
+                  if (b.type === "FORM") {
+                    const fid = b.formId as number | null;
+                    const detail = fid != null ? formDetails[fid] : undefined;
+                    if (b.trigger === "overlay") {
+                      return (
+                        <div key={i} style={{ padding: "8px 16px 16px" }}>
+                          <button className="btn btn-green" style={{ width: "100%", minHeight: 48 }} disabled>{(b.buttonLabel as string) || "신청하기"}</button>
+                          <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>버튼 클릭 시 오버레이로 폼 표시</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={i} className="landing-form-card">
+                        {detail ? <FormRenderer form={detail} /> : <p className="dash-sub">폼 미리보기 불러오는 중…</p>}
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
             </div>
           </div>
         </div>

@@ -446,7 +446,56 @@ td.num {
   text-align: center;
 }
 
-/* ---------- 랜딩 편집기 미리보기 ---------- */
+/* ---------- 랜딩 편집기 미리보기 (PC/모바일 전환) ---------- */
+.lp-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.lp-device-seg {
+  margin-bottom: 0;
+}
+.lp-device-seg button {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.lp-preview-stage {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  max-height: 74vh;
+  overflow-y: auto;
+}
+.lp-preview-device {
+  background: var(--surface);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  margin: 0 auto;
+  transition: max-width 0.2s ease;
+}
+.lp-preview-stage.mobile .lp-preview-device {
+  max-width: 360px;
+}
+.lp-preview-stage.pc {
+  overflow-x: auto;
+}
+.lp-preview-stage.pc .lp-preview-device {
+  width: 720px;
+  max-width: none;
+}
+/* PC 미리보기에선 폼/텍스트가 페이지 폭에 맞춰 넓게 */
+.lp-preview-stage.pc .landing-form-card {
+  max-width: 460px;
+  margin: 16px auto;
+}
+/* 미리보기 내부 블록은 공개 랜딩과 동일한 룩을 사용 */
+.lp-preview-device .landing-form-card {
+  margin: 14px 16px;
+}
+
 .landing-form-slot {
   border: 1.5px dashed var(--green);
   background: var(--green-soft);
