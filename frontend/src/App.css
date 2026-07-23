@@ -470,6 +470,53 @@ td.num {
   margin-bottom: 18px;
 }
 
+/* 공개 폼: 모바일 최적화(99% 모바일). 입력창 16px로 iOS 자동확대 방지, 큰 탭 타깃. */
+.public-form-card .input {
+  font-size: 16px;
+  padding: 13px 14px;
+}
+.public-form-card .btn {
+  min-height: 50px;
+  font-size: 16px;
+}
+.public-form-card .fr-check {
+  font-size: 14px;
+  gap: 10px;
+}
+.public-form-card .fr-check input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.public-form-card .sfr-opt {
+  padding: 15px 16px;
+}
+@media (max-width: 640px) {
+  .public-form {
+    padding: 0;
+    align-items: stretch;
+  }
+  .public-form-card {
+    max-width: 100%;
+    min-height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+  }
+  /* 공개 동의 문서 뷰도 모바일 풀폭 */
+  .consent-view {
+    padding: 0;
+  }
+  .consent-view-inner {
+    min-height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 28px 20px;
+  }
+}
+
 /* 리드 목록 */
 .public-link {
   font-family: var(--mono);

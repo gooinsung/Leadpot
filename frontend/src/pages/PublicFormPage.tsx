@@ -37,7 +37,15 @@ export function PublicFormPage() {
 
   useEffect(() => {
     getPublicForm(Number(id))
-      .then(setForm)
+      .then((f) => {
+        setForm(f);
+        const items = (f.consentConfig?.items as ConsentItem[]) ?? [];
+        const init: Record<number, boolean> = {};
+        items.forEach((it, i) => {
+          if (it.defaultChecked) init[i] = true;
+        });
+        setAgreed(init);
+      })
       .catch(() => setError("폼을 찾을 수 없습니다."));
   }, [id]);
 
@@ -118,7 +126,6 @@ export function PublicFormPage() {
   return (
     <div className="public-form">
       <div className="public-form-card">
-        <h1 className="public-form-title">{form.name}</h1>
         {form.requirePhoneVerification && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
 
         {form.formType === "BASIC" ? (

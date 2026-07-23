@@ -9,7 +9,7 @@ export function ConsentView({ config, accent }: { config?: Record<string, unknow
       {items.map((it, i) => (
         <div className="fr-consent-row" key={i}>
           <label className="fr-check">
-            <input type="checkbox" defaultChecked={it.required} readOnly style={accent ? { accentColor: accent } : undefined} /> {it.title}{" "}
+            <input type="checkbox" defaultChecked={Boolean(it.defaultChecked)} readOnly style={accent ? { accentColor: accent } : undefined} /> {it.title}{" "}
             <span className={it.required ? "req" : "field-optional"}>({it.required ? "필수" : "선택"})</span>
           </label>
           {linkHref(it) && (

@@ -19,9 +19,9 @@ import { CompletionView } from "../components/formRenderers/CompletionView";
 
 function defaultConsentItems(): ConsentItem[] {
   return [
-    { title: "개인정보 수집 및 이용 동의", required: true, linkType: "none" },
-    { title: "개인정보 제3자 제공 동의", required: true, linkType: "none" },
-    { title: "광고성 정보 수신동의", required: false, linkType: "none" },
+    { title: "개인정보 수집 및 이용 동의", required: true, defaultChecked: true, linkType: "none" },
+    { title: "개인정보 제3자 제공 동의", required: true, defaultChecked: true, linkType: "none" },
+    { title: "광고성 정보 수신동의", required: false, defaultChecked: false, linkType: "none" },
   ];
 }
 
@@ -391,11 +391,14 @@ export function FormEditPage() {
                     />
                     <button className="btn btn-ghost btn-sm danger" onClick={() => removeConsent(i)}>삭제</button>
                   </div>
-                  <div className="block-row" style={{ alignItems: "flex-end" }}>
+                  <div className="block-row" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
                     <label className="fr-check">
                       <input type="checkbox" checked={it.required} onChange={(e) => patchConsent(i, { required: e.target.checked })} /> 필수
                     </label>
-                    <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="fr-check">
+                      <input type="checkbox" checked={Boolean(it.defaultChecked)} onChange={(e) => patchConsent(i, { defaultChecked: e.target.checked })} /> 기본 체크
+                    </label>
+                    <div className="field" style={{ flex: 1, marginBottom: 0, minWidth: 140 }}>
                       <label>보기 링크</label>
                       <select
                         className="input"

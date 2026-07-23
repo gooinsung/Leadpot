@@ -241,6 +241,7 @@ export function deleteForm(id: number): Promise<void> {
 export interface ConsentItem {
   title: string;
   required: boolean;
+  defaultChecked?: boolean; // 공개 폼에서 기본 체크 여부
   linkType: "none" | "external" | "document"; // 보기 링크 종류
   url?: string; // external 일 때
   documentId?: number | null; // document 일 때
