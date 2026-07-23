@@ -166,6 +166,12 @@ test:     테스트
 - 의사결정이 바뀌면 이 `CLAUDE.md`와 관련 `docs/*`를 **같은 PR에서** 갱신.
 - 기능 범위/우선순위 변경은 `docs/FEATURES.md`에 반영.
 
+### ⭐ 진행 기록 규칙 (필수 — 이어받기 위한 핵심)
+- **작업을 멈추거나 / 단계가 끝나거나 / 세션을 마칠 때, 반드시 [docs/PROGRESS.md](docs/PROGRESS.md)를 갱신하고 커밋한다.**
+- `PROGRESS.md`에는 항상 "지금 위치 / 방금 한 일 / **다음에 할 일** / 블로커"를 최신으로 유지한다.
+- 이어받는 세션(다른 PC 포함)은 **가장 먼저 `docs/PROGRESS.md`를 읽고** 거기 적힌 "다음에 할 일"부터 시작한다.
+- Phase 상태가 바뀌면 [docs/ROADMAP.md](docs/ROADMAP.md)의 상태표(⬜/🔄/✅)도 함께 갱신한다.
+
 ---
 
 ## 8. 개발 로드맵 (Phase)
@@ -204,7 +210,8 @@ MVP까지가 Phase 0~3. 이후 단계적 확장.
 
 ## 10. 이어받는 사람을 위한 빠른 안내
 
-1. 이 문서 → `docs/SPEC.md`(무엇을 만드는가) → `docs/FEATURES.md`(전체 기능) 순서로 읽는다.
-2. `docker-compose up` + `frontend`에서 `npm run dev`로 로컬을 띄운다.
-3. 진행 상황은 위 **Phase 표**와 커밋 히스토리로 파악한다.
+1. **가장 먼저 [docs/PROGRESS.md](docs/PROGRESS.md)를 읽는다** → "다음에 할 일"부터 이어서 시작.
+2. 배경이 필요하면 이 문서 → `docs/ROADMAP.md` → `docs/SPEC.md` → `docs/FEATURES.md` 순으로 읽는다.
+3. `docker-compose up` + `frontend`에서 `npm run dev`로 로컬을 띄운다.
 4. 새 작업은 작업 브랜치에서, 원자적 커밋으로, 문서 갱신과 함께 진행한다.
+5. **작업을 멈출 때 반드시 `docs/PROGRESS.md`를 갱신·커밋한다** (진행 기록 규칙).
