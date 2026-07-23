@@ -8,8 +8,8 @@
 
 ## 📍 지금 위치
 
-- **현재 Phase**: Phase 0 — 셋업 & 배포 파이프라인 → **로컬 스캐폴딩·검증 완료 ✅** (클라우드 배포는 계정 준비 후)
-- **다음 Phase**: Phase 1 — 인증 & 계정
+- **현재 Phase**: Phase 1 — 인증 & 계정 → **로컬 완료 ✅** (회원가입/로그인 JWT, 대시보드 골격, 세션유지)
+- **다음 Phase**: Phase 2 — 폼 빌더(★핵심)
 - **프로젝트 위치(중요)**: PC마다 다름 — 현재 gooin PC는 **`C:\Users\gooin\git\Leadpot`** / 이전 wincube PC는 `C:\Users\wincube\projects\Leadpot`
   - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
 - **결정**: Phase 1 DB 방법 = **Docker Desktop** (사용자 확정 2026-07-23). 작업 순서 = **A(디자인) 먼저 → B(Phase 1 인증)**.
@@ -52,7 +52,39 @@ npm run dev
 
 > 최상위 지침: 애매하거나 확인 필요한 결정은 임의진행 금지 → 반드시 질문.
 
+## ✅ Phase 1 완료 내역 (2026-07-23, 브랜치 `feature/phase1-auth`)
+
+- **백엔드**(Spring Boot 4 / Security 7, stateless JWT):
+  - OAuth2 Resource Server + HMAC HS256, `NimbusJwtEncoder`(발급)/`NimbusJwtDecoder`(검증)
+  - access/refresh 토큰(`token_type` 구분, refresh를 access로 악용 시 차단), BCrypt(delegating)
+  - JPA + PostgreSQL, `User`(users) 엔티티. API: `POST /api/auth/signup·login·refresh`, `GET /api/auth/me`
+  - 공통 예외/전역 핸들러(ApiError), `@Valid`, CORS를 SecurityConfig로 통합, 테스트 H2
+- **프론트**(React + react-router-dom):
+  - 토큰 저장(localStorage) + 401 자동 refresh 재발급, `AuthProvider`/`useAuth`, `ProtectedRoute` 가드
+  - `/login`·`/signup`·`/dashboard`(본인 정보·KPI 자리·예정기능), TopBar(테마·계정·로그아웃)
+- **검증**: 가입201·중복409·검증400·미인증401·/me200·로그인200·refresh200·토큰타입방어401 / 브라우저 로그인→대시보드→새로고침 세션유지→콘솔 에러0, tsc·prod 빌드 통과
+- **범위 조정**: A4(비번재설정)=이메일 준비물 필요 + FEATURES상 2차 → 보류. K1(SSL)=배포 레이어 몫 → 배포 시.
+
+## ▶️ Phase 1 로컬 실행/재현 (gooin PC 기준)
+
+```bash
+# 1) DB (Docker)
+docker compose up -d db
+# 2) 백엔드 (JAVA_HOME 지정 불필요)
+cd backend && ./gradlew bootRun     # http://localhost:8080
+# 3) 프론트
+cd frontend && npm run dev          # http://localhost:5173  → /login
+# 또는 전체를 컨테이너로: docker compose up -d --build
+```
+
 ## 👉 다음에 할 일 (여기서 이어서 — 다른 PC에서)
+
+### Phase 2 — 폼 빌더 (★핵심, 착수 전 기획 재검증 필수)
+- 착수 전 SPEC(§3 폼 유형 BASIC/STEP, §4 forms·form_blocks·form_steps)·FEATURES·BACKLOG 재정독 → 현실성 점검 → 사용자와 범위 조정 후 착수
+- 대략: 폼 CRUD(독립·재사용 M1) → 유형 확장구조(M7) → 기본형(M2)/스텝형(M3) → 항목·동의(B2) → 콘텐츠블록(M4) → 미리보기
+- ✔ 검증: 기본형·스텝형 폼 생성 → 미리보기 동작
+
+### (구) Phase 1 남은 항목 — 나중에
 
 ### A. 프론트에 디자인 시스템 적용 ✅ 완료 (2026-07-23, 브랜치 `feature/design-system`)
 - 스타일링 방식: **플레인 CSS + CSS 변수(디자인 토큰)** 확정
