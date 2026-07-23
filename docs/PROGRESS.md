@@ -50,6 +50,18 @@ npm run dev
 #   → http://localhost:5173
 ```
 
+## 🎯 다음 착수: Phase 3 — 랜딩 빌더 & 폼 연결 (기획 재검증 완료 2026-07-24)
+
+**확정 결정**:
+- **랜딩 콘텐츠 = 블록 방식**: 폼 빌더처럼 이미지/텍스트/HTML + "폼" 블록을 순서대로 배치(B3 이미지 상하배치 자연 포함). B5 요소 자동배치는 2차 제외.
+- **폼 연결 = 인라인 + CTA 오버레이 둘 다**: 폼 블록의 노출방식(inline / button_overlay) 선택.
+- **모바일 퍼스트**(최상위 원칙)로 공개 랜딩 최적화 필수.
+
+**구현 계획**:
+1. 백엔드: `landing_pages`(owner_id·title·slug unique·content_json·status) (Flyway V6), CRUD `/api/landings`(본인만 K5) + 공개 `GET /api/public/landings/{slug}`(콘텐츠 + 연결폼 정의). 폼 연결은 content_json 블록 안에 formId+trigger로 임베드(별도 landing_page_forms 테이블은 생략, MVP). 리드 제출 시 landing_page_id 채우기.
+2. 프론트: 랜딩 목록 / 랜딩 편집(블록: 이미지·텍스트·HTML·폼블록[폼 선택+inline/overlay], 실시간 미리보기 B7) / 공개 랜딩 `/p/{slug}`(모바일 최적화, 인라인 폼 + CTA 오버레이). 공개 폼 렌더링(PublicFormPage) 재사용 위해 폼 렌더 컴포넌트 추출.
+- ✔ 검증: 랜딩 생성→폼 연결→미리보기→공개 URL 제출→리드에 landing 기록
+
 ## ❓ 사용자 확인 필요 (돌아오면 이것부터 — 최상위 지침에 따라 임의진행 안 함)
 
 1. ✅ (해결) 디자인 컨셉 — 승인됨(추천대로).
