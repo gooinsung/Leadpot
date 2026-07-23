@@ -22,6 +22,8 @@
   - `docker-compose.yml`(PostgreSQL + backend, Phase 1 대비)
 - **로컬 검증 성공**: 프론트(`localhost:5173`) → 백엔드(`localhost:8080/api/health`) **연결 성공(CORS 포함)** 확인
 - **프로젝트를 로컬(`C:\Users\wincube\projects\Leadpot`)로 이전** (Drive 병목 해소). npm install 6초로 정상화.
+- **디자인 컨셉 v1 작성** ([docs/design/concept.html](design/concept.html)) — 인디고+그린, "리드를 팟에 담다" 모티프, 스타일가이드 + 화면 목업(대시보드/폼빌더/스텝폼/공개랜딩). **→ 사용자 승인 대기 중**
+- **CLAUDE.md에 최상위 지침 추가**: 애매하면 임의진행 금지, 반드시 질문.
 
 ## ▶️ 로컬 실행법 (현재 기준)
 
@@ -37,6 +39,14 @@ npm install   # 최초 1회
 npm run dev
 #   → http://localhost:5173
 ```
+
+## ❓ 사용자 확인 필요 (돌아오면 이것부터 — 최상위 지침에 따라 임의진행 안 함)
+
+1. **디자인 컨셉 승인?** `docs/design/concept.html` 방향(인디고+그린)으로 확정할지. OK면 프론트에 디자인 시스템 적용 진행.
+2. **Phase 1 DB 방법?** Docker Desktop 재부팅 완료를 기다릴지, 아니면 로컬 PostgreSQL 설치, 아니면 개발용 H2(임시)로 먼저 진행할지.
+3. (배포) Oracle VM·Cloudflare·도메인 준비 시점.
+
+> 위가 정해지기 전까지는 "명백·안전한 것"만 진행. 애매한 결정은 대기.
 
 ## 👉 다음에 할 일 (여기서 이어서) — Phase 1: 인증 & 계정
 
