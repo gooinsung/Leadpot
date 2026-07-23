@@ -1,10 +1,12 @@
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
+import { resolveStyle } from "./formStyle";
 
 /** BASIC 유형 폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
 export function BasicFormRenderer({ form }: { form: FormInput }) {
   const blocks = [...form.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
   const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";
+  const s = resolveStyle(form);
 
   return (
     <div className="fr">
@@ -12,9 +14,13 @@ export function BasicFormRenderer({ form }: { form: FormInput }) {
         <BlockView key={b.id ?? i} block={b} />
       ))}
 
-      <ConsentView config={form.consentConfig} />
+      <ConsentView config={form.consentConfig} accent={s.accentColor} />
 
-      <button className="btn btn-green" style={{ width: "100%", marginTop: 8 }} type="button">
+      <button
+        className="btn"
+        style={{ width: "100%", marginTop: 8, background: s.buttonColor, color: s.buttonText }}
+        type="button"
+      >
         {submitLabel}
       </button>
     </div>

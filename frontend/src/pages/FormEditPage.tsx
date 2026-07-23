@@ -88,6 +88,8 @@ export function FormEditPage() {
   const [consentItems, setConsentItems] = useState<ConsentItem[]>(defaultConsentItems());
   const [consentDocs, setConsentDocs] = useState<ConsentDocumentSummary[]>([]);
   const [submitLabel, setSubmitLabel] = useState("무료 상담 신청");
+  const [buttonColor, setButtonColor] = useState("#12b886");
+  const [accentColor, setAccentColor] = useState("#3a43c0");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -101,6 +103,8 @@ export function FormEditPage() {
         const items = f.consentConfig?.items as ConsentItem[] | undefined;
         setConsentItems(items && items.length ? items : defaultConsentItems());
         setSubmitLabel((f.submitButtonConfig?.label as string) || "무료 상담 신청");
+        setButtonColor((f.styleConfig?.buttonColor as string) || "#12b886");
+        setAccentColor((f.styleConfig?.accentColor as string) || "#3a43c0");
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
           const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
@@ -227,6 +231,7 @@ export function FormEditPage() {
     requirePhoneVerification: false,
     consentConfig: { items: consentItems },
     submitButtonConfig: { label: submitLabel },
+    styleConfig: { buttonColor, accentColor },
     blocks: builtBlocks,
   };
 
@@ -428,6 +433,12 @@ export function FormEditPage() {
                 <input className="input" value={submitLabel} onChange={(e) => setSubmitLabel(e.target.value)} />
               </div>
             </div>
+
+            <div className="card card-pad" style={{ marginTop: 16 }}>
+              <div className="card-h">디자인 · 색상</div>
+              <ColorField label="제출 버튼 색" value={buttonColor} onChange={setButtonColor} />
+              <ColorField label="폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
+            </div>
           </div>
 
           <div className="preview-panel">
@@ -451,6 +462,38 @@ function swap<T>(arr: T[], i: number, j: number): T[] {
 
 function blockTypeLabel(t: BlockType): string {
   return { FIELD: "입력 항목", IMAGE: "이미지", HTML: "HTML", TEXT: "텍스트", DIVIDER: "구분선", SPACER: "여백", CHOICE: "선택지" }[t];
+}
+
+const COLOR_PRESETS = ["#12b886", "#3a43c0", "#f04452", "#f5a524", "#0ea5e9", "#14172a"];
+
+/** 색상 선택 — 프리셋 스와치 + 커스텀 hex. */
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="color-field">
+      <label className="mini-label">{label}</label>
+      <div className="color-row">
+        <div className="swatches">
+          {COLOR_PRESETS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`swatch-btn ${value.toLowerCase() === c ? "on" : ""}`}
+              style={{ background: c }}
+              onClick={() => onChange(c)}
+              aria-label={c}
+            />
+          ))}
+        </div>
+        <input type="color" className="color-input" value={value} onChange={(e) => onChange(e.target.value)} />
+        <input
+          className="input hex-input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+        />
+      </div>
+    </div>
+  );
 }
 
 /** 선택박스(select) 필드의 선택지 목록 편집. block.options.choices(string[]) 에 저장. */

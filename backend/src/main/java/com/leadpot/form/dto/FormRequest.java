@@ -19,6 +19,7 @@ public record FormRequest(
         Map<String, Object> submitButtonConfig,
         Map<String, Object> successConfig,
         Map<String, Object> typeConfig,
+        Map<String, Object> styleConfig,
         @Valid List<FormBlockDto> blocks) {
 
     public List<FormBlockDto> blocksOrEmpty() {

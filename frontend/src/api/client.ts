@@ -198,6 +198,7 @@ export interface FormInput {
   submitButtonConfig?: Record<string, unknown> | null;
   successConfig?: Record<string, unknown> | null;
   typeConfig?: Record<string, unknown> | null;
+  styleConfig?: Record<string, unknown> | null;
   blocks: FormBlock[];
 }
 

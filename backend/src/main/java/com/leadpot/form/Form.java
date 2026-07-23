@@ -63,6 +63,10 @@ public class Form {
     @Column(name = "type_config")
     private Map<String, Object> typeConfig;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "style_config")
+    private Map<String, Object> styleConfig;
+
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<FormBlock> blocks = new ArrayList<>();
@@ -155,6 +159,14 @@ public class Form {
 
     public void setTypeConfig(Map<String, Object> typeConfig) {
         this.typeConfig = typeConfig;
+    }
+
+    public Map<String, Object> getStyleConfig() {
+        return styleConfig;
+    }
+
+    public void setStyleConfig(Map<String, Object> styleConfig) {
+        this.styleConfig = styleConfig;
     }
 
     public List<FormBlock> getBlocks() {

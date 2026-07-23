@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
+import { resolveStyle } from "./formStyle";
 
 interface ChoiceOption {
   label?: string;
@@ -19,6 +20,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
 
   const isContact = step >= choiceBlocks.length;
   const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";
+  const s = resolveStyle(form);
 
   function toggleOption(stepIdx: number, optIdx: number, multi: boolean) {
     setSelections((prev) => {
@@ -41,13 +43,14 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
         <span>SSL 보안연결</span>
       </div>
       <div className="sfr-progress">
-        <i style={{ width: `${((step + 1) / totalSteps) * 100}%` }} />
+        <i style={{ width: `${((step + 1) / totalSteps) * 100}%`, background: s.accentColor }} />
       </div>
 
       {!isContact ? (
         <ChoiceStep
           block={choiceBlocks[step]}
           selected={selections[step] ?? []}
+          accent={s.accentColor}
           onToggle={(optIdx, multi) => toggleOption(step, optIdx, multi)}
         />
       ) : (
@@ -62,7 +65,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
               <input className="input" placeholder={b.placeholder ?? ""} readOnly />
             </div>
           ))}
-          <ConsentView config={form.consentConfig} />
+          <ConsentView config={form.consentConfig} accent={s.accentColor} />
         </div>
       )}
 
@@ -73,11 +76,16 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
           </button>
         )}
         {isContact ? (
-          <button className="btn btn-green" type="button" style={{ flex: 1 }}>
+          <button className="btn" type="button" style={{ flex: 1, background: s.buttonColor, color: s.buttonText }}>
             {submitLabel}
           </button>
         ) : (
-          <button className="btn btn-primary" type="button" style={{ flex: 1 }} onClick={() => setStep((s) => s + 1)}>
+          <button
+            className="btn"
+            type="button"
+            style={{ flex: 1, background: s.accentColor, color: s.accentText }}
+            onClick={() => setStep((prev) => prev + 1)}
+          >
             다음
           </button>
         )}
@@ -89,10 +97,12 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
 function ChoiceStep({
   block,
   selected,
+  accent,
   onToggle,
 }: {
   block: FormBlock;
   selected: number[];
+  accent: string;
   onToggle: (optIdx: number, multi: boolean) => void;
 }) {
   const question = (block.content?.question as string) || "(질문 없음)";
@@ -110,6 +120,7 @@ function ChoiceStep({
             key={i}
             type="button"
             className={`sfr-opt ${selected.includes(i) ? "sel" : ""}`}
+            style={selected.includes(i) ? { borderColor: accent, background: `${accent}1f` } : undefined}
             onClick={() => onToggle(i, multi)}
           >
             <span className="sfr-opt-t">{o.label || `선택지 ${i + 1}`}</span>
