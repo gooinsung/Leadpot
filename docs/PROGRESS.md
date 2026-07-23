@@ -83,7 +83,10 @@ cd frontend && npm run dev          # http://localhost:5173  → /login
 
 > **2A 완료(2026-07-23, main)**: Flyway 도입(V1 users·V2 forms/form_blocks, ddl-auto=validate), Form/FormBlock 엔티티(JSONB), `/api/forms` CRUD(K5), 프론트 폼 목록·기본형 편집기(블록 추가/순서/인라인·실용형)·유형별 렌더러(M7) 실시간 미리보기.
 > **2B 완료(2026-07-23, main)**: STEP을 **별도 테이블 없이 블록으로 통합**(SPEC 개선) — `BlockType.CHOICE` + `step_no` 그룹핑(form_steps 테이블 미생성). 스텝 편집기(질문 단계·선택지·연락처 단계)·StepFormRenderer(진행바+카드선택+다음/이전). 추가로 입력 항목에 **선택박스(select)** 유형(선택지 편집 + `<select>` 렌더). 브라우저·API 검증 완료.
-> **다음 = 2C**: C1 폼 디자인 커스터마이징(버튼/강조 색상 등 — 사용자가 "적절한 수준은 Claude 판단" 위임), C2 완료페이지/리다이렉트 설정, M5 본인인증 필드 자리. 그 뒤 Phase 3(랜딩 빌더).
+> **2C 진행 중**:
+>   - ✅ **동의 기능 강화(2026-07-23)**: 동의 항목 커스텀 리스트(기본 3개: 개인정보 수집·이용/제3자 제공(필수)·광고성 수신(선택)), 항목별 '보기' 링크(외부 URL / 내부 동의문서). **동의 문서 관리 기능 신규**(consent_documents + Flyway V3 + CRUD + 공개 뷰 `/consent/:id` + 상단 내비 "동의 문서"). 브라우저·API 검증 완료.
+>   - ⏳ 남음: **C1 폼/버튼 색상 커스터마이징**(사용자 원래 요청, 수준은 Claude 판단 위임) · C2 완료페이지/리다이렉트 설정 · M5 본인인증 필드 자리.
+> 그 뒤 Phase 3(랜딩 빌더).
 > 참고: STEP `form_steps` 미생성은 의도적 설계(개선). 향후 SPEC 문서도 이 방향으로 정리 필요.
 
 **재검증 결과 확정 사항**:
