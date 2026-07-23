@@ -4,6 +4,9 @@ import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { FormsListPage } from "./pages/FormsListPage";
 import { FormEditPage } from "./pages/FormEditPage";
+import { ConsentDocsListPage } from "./pages/ConsentDocsListPage";
+import { ConsentDocEditPage } from "./pages/ConsentDocEditPage";
+import { ConsentViewPage } from "./pages/ConsentViewPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 
@@ -45,6 +48,32 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/consent-docs"
+        element={
+          <ProtectedRoute>
+            <ConsentDocsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/consent-docs/new"
+        element={
+          <ProtectedRoute>
+            <ConsentDocEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/consent-docs/:id/edit"
+        element={
+          <ProtectedRoute>
+            <ConsentDocEditPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 공개 동의 문서 뷰 (비로그인) */}
+      <Route path="/consent/:id" element={<ConsentViewPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

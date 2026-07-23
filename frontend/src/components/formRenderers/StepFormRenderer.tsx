@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
+import { ConsentView } from "./ConsentView";
 
 interface ChoiceOption {
   label?: string;
@@ -18,7 +19,6 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
 
   const isContact = step >= choiceBlocks.length;
   const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";
-  const consent = form.consentConfig ?? {};
 
   function toggleOption(stepIdx: number, optIdx: number, multi: boolean) {
     setSelections((prev) => {
@@ -62,11 +62,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
               <input className="input" placeholder={b.placeholder ?? ""} readOnly />
             </div>
           ))}
-          {"privacy" in consent && (
-            <label className="fr-check" style={{ marginTop: 6 }}>
-              <input type="checkbox" defaultChecked readOnly /> 개인정보 수집·이용에 동의합니다 <span className="req">*</span>
-            </label>
-          )}
+          <ConsentView config={form.consentConfig} />
         </div>
       )}
 

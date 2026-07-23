@@ -236,4 +236,57 @@ export function deleteForm(id: number): Promise<void> {
   return request<void>(`/api/forms/${id}`, { method: "DELETE" });
 }
 
+// ---------- 동의 항목(폼 consentConfig 안에 저장) ----------
+export interface ConsentItem {
+  title: string;
+  required: boolean;
+  linkType: "none" | "external" | "document"; // 보기 링크 종류
+  url?: string; // external 일 때
+  documentId?: number | null; // document 일 때
+}
+
+// ---------- 동의 문서(consent documents) ----------
+export interface ConsentDocumentSummary {
+  id: number;
+  title: string;
+  updatedAt: string;
+}
+
+export interface ConsentDocument {
+  id: number;
+  title: string;
+  content: string;
+  updatedAt: string;
+}
+
+export interface ConsentDocumentInput {
+  title: string;
+  content: string;
+}
+
+export function listConsentDocs(): Promise<ConsentDocumentSummary[]> {
+  return request<ConsentDocumentSummary[]>("/api/consent-documents");
+}
+
+export function getConsentDoc(id: number): Promise<ConsentDocument> {
+  return request<ConsentDocument>(`/api/consent-documents/${id}`);
+}
+
+export function createConsentDoc(input: ConsentDocumentInput): Promise<ConsentDocument> {
+  return request<ConsentDocument>("/api/consent-documents", { method: "POST", body: input });
+}
+
+export function updateConsentDoc(id: number, input: ConsentDocumentInput): Promise<ConsentDocument> {
+  return request<ConsentDocument>(`/api/consent-documents/${id}`, { method: "PUT", body: input });
+}
+
+export function deleteConsentDoc(id: number): Promise<void> {
+  return request<void>(`/api/consent-documents/${id}`, { method: "DELETE" });
+}
+
+/** 공개 조회 ('보기' 링크가 여는 페이지). 비로그인. */
+export function getPublicConsentDoc(id: number): Promise<ConsentDocument> {
+  return request<ConsentDocument>(`/api/public/consent-documents/${id}`, { auth: false });
+}
+
 export { BASE_URL };

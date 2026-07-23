@@ -1,17 +1,28 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
   createForm,
   getForm,
+  listConsentDocs,
   updateForm,
   type BlockType,
+  type ConsentDocumentSummary,
+  type ConsentItem,
   type FormBlock,
   type FormInput,
   type FormType,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
+
+function defaultConsentItems(): ConsentItem[] {
+  return [
+    { title: "개인정보 수집 및 이용 동의", required: true, linkType: "none" },
+    { title: "개인정보 제3자 제공 동의", required: true, linkType: "none" },
+    { title: "광고성 정보 수신동의", required: false, linkType: "none" },
+  ];
+}
 
 const FIELD_TYPES = [
   { value: "text", label: "한 줄 텍스트" },
@@ -74,8 +85,8 @@ export function FormEditPage() {
   ]);
   const [contactFields, setContactFields] = useState<FormBlock[]>(defaultContactFields());
 
-  const [privacy, setPrivacy] = useState(true);
-  const [marketing, setMarketing] = useState(false);
+  const [consentItems, setConsentItems] = useState<ConsentItem[]>(defaultConsentItems());
+  const [consentDocs, setConsentDocs] = useState<ConsentDocumentSummary[]>([]);
   const [submitLabel, setSubmitLabel] = useState("무료 상담 신청");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -87,8 +98,8 @@ export function FormEditPage() {
       .then((f) => {
         setName(f.name);
         setFormType(f.formType);
-        setPrivacy(Boolean(f.consentConfig?.privacy));
-        setMarketing(Boolean(f.consentConfig?.marketing));
+        const items = f.consentConfig?.items as ConsentItem[] | undefined;
+        setConsentItems(items && items.length ? items : defaultConsentItems());
         setSubmitLabel((f.submitButtonConfig?.label as string) || "무료 상담 신청");
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
@@ -112,6 +123,22 @@ export function FormEditPage() {
       .catch(() => setError("폼을 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   }, [id, isNew]);
+
+  // 동의 항목의 '보기' 링크로 연결할 내 동의 문서 목록
+  useEffect(() => {
+    listConsentDocs().then(setConsentDocs).catch(() => {});
+  }, []);
+
+  // ---- 동의 항목 편집 ----
+  function patchConsent(i: number, patch: Partial<ConsentItem>) {
+    setConsentItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+  }
+  function addConsent() {
+    setConsentItems((prev) => [...prev, { title: "새 동의 항목", required: false, linkType: "none" }]);
+  }
+  function removeConsent(i: number) {
+    setConsentItems((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   // ---- BASIC 블록 편집 ----
   function patchBlock(i: number, patch: Partial<FormBlock>) {
@@ -198,7 +225,7 @@ export function FormEditPage() {
     name,
     formType,
     requirePhoneVerification: false,
-    consentConfig: { privacy, marketing },
+    consentConfig: { items: consentItems },
     submitButtonConfig: { label: submitLabel },
     blocks: builtBlocks,
   };
@@ -334,14 +361,69 @@ export function FormEditPage() {
             )}
 
             <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">동의 · 제출</div>
-              <label className="fr-check">
-                <input type="checkbox" checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} /> 개인정보 수집·이용 동의 받기(필수)
-              </label>
-              <label className="fr-check">
-                <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} /> 마케팅 수신 동의 받기(선택)
-              </label>
-              <div className="field" style={{ marginTop: 12 }}>
+              <div className="card-h">동의 항목</div>
+              {consentItems.map((it, i) => (
+                <div className="block-editor" key={i}>
+                  <div className="block-editor-head">
+                    <input
+                      className="input"
+                      style={{ flex: 1, marginRight: 8 }}
+                      value={it.title}
+                      onChange={(e) => patchConsent(i, { title: e.target.value })}
+                    />
+                    <button className="btn btn-ghost btn-sm danger" onClick={() => removeConsent(i)}>삭제</button>
+                  </div>
+                  <div className="block-row" style={{ alignItems: "flex-end" }}>
+                    <label className="fr-check">
+                      <input type="checkbox" checked={it.required} onChange={(e) => patchConsent(i, { required: e.target.checked })} /> 필수
+                    </label>
+                    <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                      <label>보기 링크</label>
+                      <select
+                        className="input"
+                        value={it.linkType}
+                        onChange={(e) => patchConsent(i, { linkType: e.target.value as ConsentItem["linkType"] })}
+                      >
+                        <option value="none">없음</option>
+                        <option value="external">외부 URL</option>
+                        <option value="document">동의 문서</option>
+                      </select>
+                    </div>
+                  </div>
+                  {it.linkType === "external" && (
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label>URL</label>
+                      <input className="input" placeholder="https://…" value={it.url ?? ""} onChange={(e) => patchConsent(i, { url: e.target.value })} />
+                    </div>
+                  )}
+                  {it.linkType === "document" && (
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label>연결할 동의 문서</label>
+                      <select
+                        className="input"
+                        value={it.documentId ?? ""}
+                        onChange={(e) => patchConsent(i, { documentId: e.target.value ? Number(e.target.value) : null })}
+                      >
+                        <option value="">문서 선택…</option>
+                        {consentDocs.map((d) => (
+                          <option key={d.id} value={d.id}>{d.title}</option>
+                        ))}
+                      </select>
+                      <span className="field-optional" style={{ marginTop: 4 }}>
+                        <Link to="/consent-docs/new" target="_blank">+ 새 동의 문서 만들기</Link>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="add-block-row">
+                <button className="btn btn-ghost btn-sm" onClick={addConsent}>+ 동의 항목</button>
+              </div>
+            </div>
+
+            <div className="card card-pad" style={{ marginTop: 16 }}>
+              <div className="card-h">제출</div>
+              <div className="field">
                 <label>제출 버튼 문구</label>
                 <input className="input" value={submitLabel} onChange={(e) => setSubmitLabel(e.target.value)} />
               </div>

@@ -1,10 +1,10 @@
 import type { FormBlock, FormInput } from "../../api/client";
+import { ConsentView } from "./ConsentView";
 
 /** BASIC 유형 폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
 export function BasicFormRenderer({ form }: { form: FormInput }) {
   const blocks = [...form.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
   const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";
-  const consent = form.consentConfig ?? {};
 
   return (
     <div className="fr">
@@ -12,21 +12,7 @@ export function BasicFormRenderer({ form }: { form: FormInput }) {
         <BlockView key={b.id ?? i} block={b} />
       ))}
 
-      {("privacy" in consent || "marketing" in consent) && (
-        <div className="fr-consent">
-          {"privacy" in consent && (
-            <label className="fr-check">
-              <input type="checkbox" defaultChecked readOnly /> 개인정보 수집·이용에 동의합니다{" "}
-              <span className="req">*</span>
-            </label>
-          )}
-          {"marketing" in consent && (
-            <label className="fr-check">
-              <input type="checkbox" readOnly /> 마케팅 정보 수신에 동의합니다 (선택)
-            </label>
-          )}
-        </div>
-      )}
+      <ConsentView config={form.consentConfig} />
 
       <button className="btn btn-green" style={{ width: "100%", marginTop: 8 }} type="button">
         {submitLabel}

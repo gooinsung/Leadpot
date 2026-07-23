@@ -349,6 +349,52 @@ td.num {
   padding: 30px 0;
   text-align: center;
 }
+.fr-consent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fr-view-link {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: underline;
+  flex: none;
+}
+.fr-view-link:hover {
+  color: var(--indigo);
+}
+
+/* 동의 문서 공개 뷰 */
+.consent-view {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 48px 20px;
+}
+.consent-view-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 40px;
+}
+.consent-view-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+.consent-doc-body {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.consent-doc-body :where(h1, h2, h3) {
+  margin: 16px 0 8px;
+}
 
 /* 유형 세그먼트 */
 .type-seg {
