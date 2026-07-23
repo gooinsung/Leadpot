@@ -38,6 +38,7 @@ public class LeadService {
 
         Lead lead = new Lead();
         lead.setFormId(form.getId());
+        lead.setLandingPageId(req.landingPageId());
         lead.setAnswers(req.answersOrEmpty());
         lead.setConsents(req.consentsOrEmpty());
         lead.setUtm(req.utm());

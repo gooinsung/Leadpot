@@ -535,15 +535,18 @@ export function FormEditPage() {
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 켜면 제출 시 본인인증을 요구합니다. (외부 인증 연동은 추후 제공 — 지금은 옵션 자리)
               </p>
-              <label className="fr-check" style={{ marginTop: 14 }}>
-                <input type="checkbox" checked={allowSameIp} onChange={(e) => setAllowSameIp(e.target.checked)} /> 동일 IP 접수 허용
-              </label>
-              {!allowSameIp && (
-                <div className="field" style={{ marginTop: 8 }}>
-                  <label>동일 IP 차단 기간(일) — 0이면 전체 기간</label>
-                  <input className="input" type="number" min={0} value={ipDedupDays} onChange={(e) => setIpDedupDays(Number(e.target.value) || 0)} />
-                </div>
-              )}
+              <div className="dedup-row" style={{ marginTop: 14 }}>
+                <label className="fr-check">
+                  <input type="checkbox" checked={allowSameIp} onChange={(e) => setAllowSameIp(e.target.checked)} /> 동일 IP 접수 허용
+                </label>
+                {!allowSameIp && (
+                  <div className="dedup-days">
+                    <span className="dedup-days-label">차단</span>
+                    <input className="input dedup-days-input" type="number" min={0} value={ipDedupDays} onChange={(e) => setIpDedupDays(Number(e.target.value) || 0)} />
+                    <span className="dedup-days-label">일 (0=전체)</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -616,16 +619,19 @@ function DedupField({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial
   }
   return (
     <div className="select-choices">
-      <label className="fr-check">
-        <input type="checkbox" checked={allow} onChange={(e) => patchOpt({ allowDuplicate: e.target.checked })} /> 중복 허용
-      </label>
-      {!allow && (
-        <div className="field" style={{ marginTop: 8 }}>
-          <label>중복 방지 기간(일) — 0이면 전체 기간</label>
-          <input className="input" type="number" min={0} value={dedupDays} onChange={(e) => patchOpt({ dedupDays: Number(e.target.value) || 0 })} />
-          <span className="field-optional" style={{ marginTop: 4 }}>미허용 시 기간 내 같은 값이 있으면 "이미 접수된 {block.label || "항목"}입니다" 로 차단됩니다.</span>
-        </div>
-      )}
+      <div className="dedup-row">
+        <label className="fr-check">
+          <input type="checkbox" checked={allow} onChange={(e) => patchOpt({ allowDuplicate: e.target.checked })} /> 중복 허용
+        </label>
+        {!allow && (
+          <div className="dedup-days">
+            <span className="dedup-days-label">중복 방지</span>
+            <input className="input dedup-days-input" type="number" min={0} value={dedupDays}
+              onChange={(e) => patchOpt({ dedupDays: Number(e.target.value) || 0 })} />
+            <span className="dedup-days-label">일 (0=전체)</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 /** 공개 폼 제출 요청(비로그인). answers/consents 는 프론트 렌더러가 구성해 보낸다. */
 public record LeadSubmitRequest(
         @NotNull Long formId,
+        Long landingPageId,
         List<Map<String, Object>> answers,
         List<Map<String, Object>> consents,
         Map<String, Object> utm,

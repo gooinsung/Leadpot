@@ -322,6 +322,7 @@ export interface Lead {
 
 export interface LeadSubmitInput {
   formId: number;
+  landingPageId?: number | null;
   answers: LeadAnswer[];
   consents: LeadConsent[];
   utm?: Record<string, unknown> | null;
@@ -345,6 +346,58 @@ export function listLeads(formId: number): Promise<Lead[]> {
 /** 대시보드 전체 리드 수. */
 export function leadsCount(): Promise<{ total: number }> {
   return request<{ total: number }>("/api/leads/count");
+}
+
+// ---------- 랜딩페이지 ----------
+export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM";
+export interface LandingBlock {
+  type: LandingBlockType;
+  // IMAGE: {url, alt} · TEXT: {text} · HTML: {html} · FORM: {formId, trigger:"inline"|"overlay", buttonLabel}
+  [key: string]: unknown;
+}
+export interface LandingInput {
+  title: string;
+  content: LandingBlock[];
+  status?: string;
+}
+export interface LandingDetail extends LandingInput {
+  id: number;
+  slug: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface LandingSummary {
+  id: number;
+  title: string;
+  slug: string;
+  status: string;
+  updatedAt: string;
+}
+export interface PublicLanding {
+  id: number;
+  title: string;
+  content: LandingBlock[];
+  forms: Record<string, FormDetail>;
+}
+
+export function listLandings(): Promise<LandingSummary[]> {
+  return request<LandingSummary[]>("/api/landings");
+}
+export function getLanding(id: number): Promise<LandingDetail> {
+  return request<LandingDetail>(`/api/landings/${id}`);
+}
+export function createLanding(input: LandingInput): Promise<LandingDetail> {
+  return request<LandingDetail>("/api/landings", { method: "POST", body: input });
+}
+export function updateLanding(id: number, input: LandingInput): Promise<LandingDetail> {
+  return request<LandingDetail>(`/api/landings/${id}`, { method: "PUT", body: input });
+}
+export function deleteLanding(id: number): Promise<void> {
+  return request<void>(`/api/landings/${id}`, { method: "DELETE" });
+}
+export function getPublicLanding(slug: string): Promise<PublicLanding> {
+  return request<PublicLanding>(`/api/public/landings/${slug}`, { auth: false });
 }
 
 export { BASE_URL };

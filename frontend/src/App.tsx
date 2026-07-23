@@ -9,6 +9,9 @@ import { ConsentDocEditPage } from "./pages/ConsentDocEditPage";
 import { ConsentViewPage } from "./pages/ConsentViewPage";
 import { LeadsListPage } from "./pages/LeadsListPage";
 import { PublicFormPage } from "./pages/PublicFormPage";
+import { LandingsListPage } from "./pages/LandingsListPage";
+import { LandingEditPage } from "./pages/LandingEditPage";
+import { PublicLandingPage } from "./pages/PublicLandingPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 
@@ -82,9 +85,34 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/landings"
+        element={
+          <ProtectedRoute>
+            <LandingsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/landings/new"
+        element={
+          <ProtectedRoute>
+            <LandingEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/landings/:id/edit"
+        element={
+          <ProtectedRoute>
+            <LandingEditPage />
+          </ProtectedRoute>
+        }
+      />
       {/* 공개 (비로그인) */}
       <Route path="/consent/:id" element={<ConsentViewPage />} />
       <Route path="/f/:id" element={<PublicFormPage />} />
+      <Route path="/p/:slug" element={<PublicLandingPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
