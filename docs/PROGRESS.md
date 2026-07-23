@@ -8,8 +8,8 @@
 
 ## 📍 지금 위치
 
-- **현재 Phase**: Phase 2 — 폼 빌더(★핵심). **2A(코어) 로컬 완료 ✅** — 다음은 **2B 스텝형**
-- **완료**: Phase 1 인증 ✅ / Phase 2A 폼 CRUD·기본형·미리보기 ✅
+- **현재 Phase**: Phase 2 — 폼 빌더(★핵심). **2A·2B 로컬 완료 ✅** — 다음은 **2C(디자인 커스텀·완료페이지·본인인증 자리)**
+- **완료**: Phase 1 인증 ✅ / Phase 2A 폼 CRUD·기본형·미리보기 ✅ / Phase 2B 스텝형(STEP)+선택박스 ✅
 - **프로젝트 위치(중요)**: PC마다 다름 — 현재 gooin PC는 **`C:\Users\gooin\git\Leadpot`** / 이전 wincube PC는 `C:\Users\wincube\projects\Leadpot`
   - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
 - **결정**: Phase 1 DB 방법 = **Docker Desktop** (사용자 확정 2026-07-23). 작업 순서 = **A(디자인) 먼저 → B(Phase 1 인증)**.
@@ -81,9 +81,10 @@ cd frontend && npm run dev          # http://localhost:5173  → /login
 
 ### Phase 2 — 폼 빌더 (★핵심) — 기획 재검증 완료 / **2A 완료 ✅**, 다음 2B
 
-> **2A 완료(2026-07-23, 브랜치 `feature/phase1-auth`에 이어 커밋)**: Flyway 도입(V1 users·V2 forms/form_blocks, ddl-auto=validate), Form/FormBlock 엔티티(JSONB), `/api/forms` CRUD(K5), 프론트 폼 목록·기본형 편집기(블록 추가/순서/인라인·실용형)·유형별 렌더러(M7) 실시간 미리보기. 브라우저 전 흐름 검증 완료.
-> **다음 = 2B 스텝형(STEP)**: form_steps 모델 정리(SPEC의 form_blocks.step_no vs form_steps 역할 확정) → STEP 편집(단계·질문·카드 선택지) → STEP 렌더러(진행바+단계 이동) 미리보기. 착수 전 SPEC §3.2 재확인.
-> 이후 2C(C1 디자인 커스터마이징·C2 완료페이지·M5 자리) → Phase 3.
+> **2A 완료(2026-07-23, main)**: Flyway 도입(V1 users·V2 forms/form_blocks, ddl-auto=validate), Form/FormBlock 엔티티(JSONB), `/api/forms` CRUD(K5), 프론트 폼 목록·기본형 편집기(블록 추가/순서/인라인·실용형)·유형별 렌더러(M7) 실시간 미리보기.
+> **2B 완료(2026-07-23, main)**: STEP을 **별도 테이블 없이 블록으로 통합**(SPEC 개선) — `BlockType.CHOICE` + `step_no` 그룹핑(form_steps 테이블 미생성). 스텝 편집기(질문 단계·선택지·연락처 단계)·StepFormRenderer(진행바+카드선택+다음/이전). 추가로 입력 항목에 **선택박스(select)** 유형(선택지 편집 + `<select>` 렌더). 브라우저·API 검증 완료.
+> **다음 = 2C**: C1 폼 디자인 커스터마이징(버튼/강조 색상 등 — 사용자가 "적절한 수준은 Claude 판단" 위임), C2 완료페이지/리다이렉트 설정, M5 본인인증 필드 자리. 그 뒤 Phase 3(랜딩 빌더).
+> 참고: STEP `form_steps` 미생성은 의도적 설계(개선). 향후 SPEC 문서도 이 방향으로 정리 필요.
 
 **재검증 결과 확정 사항**:
 - **범위 재구성**(원래 10개 → 슬라이스): 
