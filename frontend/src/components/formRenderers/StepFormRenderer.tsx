@@ -55,7 +55,9 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
         />
       ) : (
         <div>
-          <h3 className="t-h3" style={{ marginBottom: 12 }}>연락처를 남겨주세요</h3>
+          <h3 className="t-h3" style={{ marginBottom: 12 }}>
+            {(form.typeConfig?.contactMessage as string) || "연락처를 남겨주세요"}
+          </h3>
           {contactBlocks.length === 0 && <p className="dash-sub">연락처 항목을 추가하세요.</p>}
           {contactBlocks.map((b, i) => (
             <div className="field" key={b.id ?? i}>
@@ -107,28 +109,47 @@ function ChoiceStep({
 }) {
   const question = (block.content?.question as string) || "(질문 없음)";
   const description = block.content?.description as string | undefined;
-  const multi = (block.content?.selectType as string) === "multi";
+  const answerType = (block.content?.answerType as string) || (block.content?.selectType as string) || "single";
+  const multi = answerType === "multi";
   const options = (block.content?.options as ChoiceOption[]) || [];
+  const placeholder = (block.content?.placeholder as string) || "";
 
   return (
     <div>
       <h3 className="t-h3" style={{ marginBottom: 4 }}>{question}</h3>
       {description && <p className="dash-sub" style={{ marginTop: 0, marginBottom: 12 }}>{description}</p>}
-      <div className="sfr-options">
-        {options.map((o, i) => (
-          <button
-            key={i}
-            type="button"
-            className={`sfr-opt ${selected.includes(i) ? "sel" : ""}`}
-            style={selected.includes(i) ? { borderColor: accent, background: `${accent}1f` } : undefined}
-            onClick={() => onToggle(i, multi)}
-          >
-            <span className="sfr-opt-t">{o.label || `선택지 ${i + 1}`}</span>
-            {o.desc && <span className="sfr-opt-d">{o.desc}</span>}
-          </button>
-        ))}
-        {options.length === 0 && <p className="dash-sub">선택지를 추가하세요.</p>}
-      </div>
+      {answerType === "single" || answerType === "multi" ? (
+        <div className="sfr-options">
+          {options.map((o, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`sfr-opt ${selected.includes(i) ? "sel" : ""}`}
+              style={selected.includes(i) ? { borderColor: accent, background: `${accent}1f` } : undefined}
+              onClick={() => onToggle(i, multi)}
+            >
+              <span className="sfr-opt-t">{o.label || `선택지 ${i + 1}`}</span>
+              {o.desc && <span className="sfr-opt-d">{o.desc}</span>}
+            </button>
+          ))}
+          {options.length === 0 && <p className="dash-sub">선택지를 추가하세요.</p>}
+        </div>
+      ) : answerType === "select" ? (
+        <div className="sfr-field">
+          <select className="input" defaultValue="">
+            <option value="" disabled>{placeholder || "선택하세요"}</option>
+            {options.map((o, i) => <option key={i} value={o.label}>{o.label || `선택지 ${i + 1}`}</option>)}
+          </select>
+        </div>
+      ) : answerType === "textarea" ? (
+        <div className="sfr-field">
+          <textarea className="input" rows={4} placeholder={placeholder} readOnly />
+        </div>
+      ) : (
+        <div className="sfr-field">
+          <input className="input" type={answerType === "tel" ? "tel" : answerType === "email" ? "email" : answerType === "number" ? "number" : answerType === "date" ? "date" : "text"} placeholder={placeholder} readOnly />
+        </div>
+      )}
     </div>
   );
 }

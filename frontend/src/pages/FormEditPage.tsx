@@ -35,10 +35,25 @@ const FIELD_TYPES = [
   { value: "select", label: "선택박스" },
 ];
 
+// 스텝형 단계의 답변 방식 (기본형 필드 유형과 동일 계열 + 카드 선택)
+const ANSWER_TYPES = [
+  { value: "single", label: "단일 선택(카드)" },
+  { value: "multi", label: "다중 선택(카드)" },
+  { value: "select", label: "선택박스" },
+  { value: "text", label: "텍스트" },
+  { value: "textarea", label: "장문" },
+  { value: "tel", label: "연락처" },
+  { value: "email", label: "이메일" },
+  { value: "number", label: "숫자" },
+  { value: "date", label: "날짜" },
+];
+const OPTION_ANSWER_TYPES = ["single", "multi", "select"]; // 선택지 목록이 필요한 유형
+
 interface StepData {
   question: string;
   description: string;
-  selectType: "single" | "multi";
+  answerType: string;
+  placeholder: string;
   options: { label: string; desc: string }[];
 }
 
@@ -77,7 +92,8 @@ export function FormEditPage() {
     {
       question: "현재 가장 어려운 점은 무엇인가요?",
       description: "",
-      selectType: "single",
+      answerType: "single",
+      placeholder: "",
       options: [
         { label: "선택지 1", desc: "" },
         { label: "선택지 2", desc: "" },
@@ -85,6 +101,7 @@ export function FormEditPage() {
     },
   ]);
   const [contactFields, setContactFields] = useState<FormBlock[]>(defaultContactFields());
+  const [contactMessage, setContactMessage] = useState("");
 
   const [consentItems, setConsentItems] = useState<ConsentItem[]>(defaultConsentItems());
   const [consentDocs, setConsentDocs] = useState<ConsentDocumentSummary[]>([]);
@@ -124,7 +141,8 @@ export function FormEditPage() {
             choiceBlocks.map((b) => ({
               question: (b.content?.question as string) || "",
               description: (b.content?.description as string) || "",
-              selectType: (b.content?.selectType as "single" | "multi") || "single",
+              answerType: (b.content?.answerType as string) || (b.content?.selectType as string) || "single",
+              placeholder: (b.content?.placeholder as string) || "",
               options: ((b.content?.options as { label: string; desc: string }[]) || []).map((o) => ({
                 label: o.label ?? "",
                 desc: o.desc ?? "",
@@ -132,6 +150,7 @@ export function FormEditPage() {
             })),
           );
           setContactFields(sorted.filter((b) => b.blockType === "FIELD"));
+          setContactMessage((f.typeConfig?.contactMessage as string) || "");
         } else {
           setBlocks(sorted);
         }
@@ -180,7 +199,7 @@ export function FormEditPage() {
   function addStep() {
     setSteps((prev) => [
       ...prev,
-      { question: "새 질문", description: "", selectType: "single", options: [{ label: "선택지 1", desc: "" }] },
+      { question: "새 질문", description: "", answerType: "single", placeholder: "", options: [{ label: "선택지 1", desc: "" }] },
     ]);
   }
   function removeStep(i: number) {
@@ -230,8 +249,10 @@ export function FormEditPage() {
             content: {
               question: s.question,
               description: s.description,
-              selectType: s.selectType,
-              options: s.options,
+              answerType: s.answerType,
+              selectType: s.answerType === "multi" ? "multi" : "single", // 하위호환
+              placeholder: s.placeholder,
+              options: OPTION_ANSWER_TYPES.includes(s.answerType) ? s.options : [],
             },
           })),
           ...contactFields.map((f, j) => ({ ...f, stepNo: steps.length, sortOrder: steps.length + j })),
@@ -245,6 +266,7 @@ export function FormEditPage() {
     submitButtonConfig: { label: submitLabel },
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
     styleConfig: { buttonColor, accentColor },
+    typeConfig: { contactMessage },
     blocks: builtBlocks,
   };
 
@@ -338,21 +360,33 @@ export function FormEditPage() {
                         <input className="input" value={s.description} onChange={(e) => patchStep(i, { description: e.target.value })} />
                       </div>
                       <div className="field">
-                        <label>선택 방식</label>
-                        <select className="input" value={s.selectType} onChange={(e) => patchStep(i, { selectType: e.target.value as "single" | "multi" })}>
-                          <option value="single">단일 선택</option>
-                          <option value="multi">다중 선택</option>
+                        <label>답변 방식</label>
+                        <select className="input" value={s.answerType} onChange={(e) => patchStep(i, { answerType: e.target.value })}>
+                          {ANSWER_TYPES.map((t) => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
                         </select>
                       </div>
-                      <label className="mini-label">선택지</label>
-                      {s.options.map((o, oi) => (
-                        <div className="opt-row" key={oi}>
-                          <input className="input" placeholder="선택지 제목" value={o.label} onChange={(e) => patchOption(i, oi, { label: e.target.value })} />
-                          <input className="input" placeholder="설명(선택)" value={o.desc} onChange={(e) => patchOption(i, oi, { desc: e.target.value })} />
-                          <button className="btn btn-ghost btn-sm danger" onClick={() => removeOption(i, oi)}>×</button>
+                      {OPTION_ANSWER_TYPES.includes(s.answerType) ? (
+                        <>
+                          <label className="mini-label">선택지</label>
+                          {s.options.map((o, oi) => (
+                            <div className="opt-row" key={oi}>
+                              <input className="input" placeholder="선택지 제목" value={o.label} onChange={(e) => patchOption(i, oi, { label: e.target.value })} />
+                              {s.answerType !== "select" && (
+                                <input className="input" placeholder="설명(선택)" value={o.desc} onChange={(e) => patchOption(i, oi, { desc: e.target.value })} />
+                              )}
+                              <button className="btn btn-ghost btn-sm danger" onClick={() => removeOption(i, oi)}>×</button>
+                            </div>
+                          ))}
+                          <button className="btn btn-ghost btn-sm" onClick={() => addOption(i)}>+ 선택지</button>
+                        </>
+                      ) : (
+                        <div className="field">
+                          <label>플레이스홀더(선택)</label>
+                          <input className="input" value={s.placeholder} onChange={(e) => patchStep(i, { placeholder: e.target.value })} />
                         </div>
-                      ))}
-                      <button className="btn btn-ghost btn-sm" onClick={() => addOption(i)}>+ 선택지</button>
+                      )}
                     </div>
                   ))}
                   <div className="add-block-row">
@@ -362,6 +396,10 @@ export function FormEditPage() {
 
                 <div className="card card-pad" style={{ marginTop: 16 }}>
                   <div className="card-h">마지막 단계 · 연락처</div>
+                  <div className="field">
+                    <label>상단 안내 문구(선택)</label>
+                    <input className="input" placeholder="예: 마지막 정보를 입력하면 분석 내용을 바로 보내드립니다!" value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} />
+                  </div>
                   {contactFields.map((b, i) => (
                     <div className="block-editor" key={i}>
                       <div className="block-editor-head">

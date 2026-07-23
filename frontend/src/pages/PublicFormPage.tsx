@@ -72,9 +72,15 @@ export function PublicFormPage() {
     } else {
       const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
       choiceBlocks.forEach((b, i) => {
-        const opts = (b.content?.options as { label?: string }[]) ?? [];
-        const sel = (choices[i] ?? []).map((oi) => opts[oi]?.label ?? `선택지 ${oi + 1}`);
-        out.push({ label: (b.content?.question as string) || `질문 ${i + 1}`, fieldType: "choice", value: sel.join(", ") });
+        const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
+        let value: string;
+        if (answerType === "single" || answerType === "multi") {
+          const opts = (b.content?.options as { label?: string }[]) ?? [];
+          value = (choices[i] ?? []).map((oi) => opts[oi]?.label ?? `선택지 ${oi + 1}`).join(", ");
+        } else {
+          value = values[`s${i}`] ?? "";
+        }
+        out.push({ label: (b.content?.question as string) || `질문 ${i + 1}`, fieldType: answerType, value });
       });
       sorted.filter((b) => b.blockType === "FIELD").forEach((b, i) => {
         out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: values[`c${i}`] ?? "" });
@@ -143,6 +149,7 @@ export function PublicFormPage() {
         ) : (
           <StepFlow
             sorted={sorted}
+            contactMessage={(form.typeConfig?.contactMessage as string) || ""}
             consentItems={consentItems}
             values={values}
             setVal={setVal}
@@ -232,6 +239,7 @@ function ConsentInputs({ items, agreed, setAgreed, accent }: { items: ConsentIte
 /** STEP 실제 진행 흐름 */
 function StepFlow(props: {
   sorted: FormBlock[];
+  contactMessage: string;
   consentItems: ConsentItem[];
   values: Record<string, string>;
   setVal: (k: string, v: string) => void;
@@ -247,7 +255,7 @@ function StepFlow(props: {
   submitError: string;
   onSubmit: () => void;
 }) {
-  const { sorted, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit } = props;
+  const { sorted, contactMessage, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
   const total = choiceBlocks.length + 1;
@@ -272,27 +280,47 @@ function StepFlow(props: {
       {!isContact ? (
         (() => {
           const b = choiceBlocks[step];
-          const multi = (b.content?.selectType as string) === "multi";
+          const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
+          const multi = answerType === "multi";
           const opts = (b.content?.options as { label?: string; desc?: string }[]) ?? [];
           const sel = choices[step] ?? [];
+          const placeholder = (b.content?.placeholder as string) || "";
+          const inputVal = values[`s${step}`] ?? "";
           return (
             <div>
               <h3 className="t-h3" style={{ marginBottom: 4 }}>{(b.content?.question as string) || "질문"}</h3>
               {(b.content?.description as string) && <p className="dash-sub" style={{ marginTop: 0 }}>{b.content?.description as string}</p>}
-              <div className="sfr-options">
-                {opts.map((o, i) => (
-                  <button key={i} type="button" className={`sfr-opt ${sel.includes(i) ? "sel" : ""}`} style={sel.includes(i) ? { borderColor: style.accentColor, background: `${style.accentColor}1f` } : undefined} onClick={() => toggle(step, i, multi)}>
-                    <span className="sfr-opt-t">{o.label || `선택지 ${i + 1}`}</span>
-                    {o.desc && <span className="sfr-opt-d">{o.desc}</span>}
-                  </button>
-                ))}
-              </div>
+              {answerType === "single" || answerType === "multi" ? (
+                <div className="sfr-options">
+                  {opts.map((o, i) => (
+                    <button key={i} type="button" className={`sfr-opt ${sel.includes(i) ? "sel" : ""}`} style={sel.includes(i) ? { borderColor: style.accentColor, background: `${style.accentColor}1f` } : undefined} onClick={() => toggle(step, i, multi)}>
+                      <span className="sfr-opt-t">{o.label || `선택지 ${i + 1}`}</span>
+                      {o.desc && <span className="sfr-opt-d">{o.desc}</span>}
+                    </button>
+                  ))}
+                </div>
+              ) : answerType === "select" ? (
+                <div className="sfr-field">
+                  <select className="input" value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)}>
+                    <option value="">{placeholder || "선택하세요"}</option>
+                    {opts.map((o, i) => <option key={i} value={o.label}>{o.label || `선택지 ${i + 1}`}</option>)}
+                  </select>
+                </div>
+              ) : answerType === "textarea" ? (
+                <div className="sfr-field">
+                  <textarea className="input" rows={4} placeholder={placeholder} value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)} />
+                </div>
+              ) : (
+                <div className="sfr-field">
+                  <input className="input" type={answerType === "tel" ? "tel" : answerType === "email" ? "email" : answerType === "number" ? "number" : answerType === "date" ? "date" : "text"} placeholder={placeholder} value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)} />
+                </div>
+              )}
             </div>
           );
         })()
       ) : (
         <div>
-          <h3 className="t-h3" style={{ marginBottom: 12 }}>연락처를 남겨주세요</h3>
+          <h3 className="t-h3" style={{ marginBottom: 12 }}>{contactMessage || "연락처를 남겨주세요"}</h3>
           {contactBlocks.map((b, i) => (
             <LiveField key={i} block={b} idx={1000 + i} value={values[`c${i}`] ?? ""} onChange={(v) => setVal(`c${i}`, v)} />
           ))}

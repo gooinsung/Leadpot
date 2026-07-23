@@ -727,6 +727,18 @@ td.num {
   gap: 10px;
   margin-top: 8px;
 }
+/* 스텝형 입력형(텍스트/장문/선택박스 등) — 선택지처럼 자연스러운 간격·전체 폭 */
+.sfr-field {
+  margin: 16px 0 20px;
+}
+.sfr-field .input {
+  width: 100%;
+}
+.sfr-field textarea.input {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
 
 @media (max-width: 900px) {
   .edit-grid {
