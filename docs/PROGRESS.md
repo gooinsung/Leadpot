@@ -8,8 +8,8 @@
 
 ## 📍 지금 위치
 
-- **현재 Phase**: Phase 1 — 인증 & 계정 → **로컬 완료 ✅** (회원가입/로그인 JWT, 대시보드 골격, 세션유지)
-- **다음 Phase**: Phase 2 — 폼 빌더(★핵심)
+- **현재 Phase**: Phase 2 — 폼 빌더(★핵심). **2A(코어) 로컬 완료 ✅** — 다음은 **2B 스텝형**
+- **완료**: Phase 1 인증 ✅ / Phase 2A 폼 CRUD·기본형·미리보기 ✅
 - **프로젝트 위치(중요)**: PC마다 다름 — 현재 gooin PC는 **`C:\Users\gooin\git\Leadpot`** / 이전 wincube PC는 `C:\Users\wincube\projects\Leadpot`
   - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
 - **결정**: Phase 1 DB 방법 = **Docker Desktop** (사용자 확정 2026-07-23). 작업 순서 = **A(디자인) 먼저 → B(Phase 1 인증)**.
@@ -79,7 +79,11 @@ cd frontend && npm run dev          # http://localhost:5173  → /login
 
 ## 👉 다음에 할 일 (여기서 이어서 — 다른 PC에서)
 
-### Phase 2 — 폼 빌더 (★핵심) — ✅ 기획 재검증 완료(2026-07-23), 구현 착수 대기
+### Phase 2 — 폼 빌더 (★핵심) — 기획 재검증 완료 / **2A 완료 ✅**, 다음 2B
+
+> **2A 완료(2026-07-23, 브랜치 `feature/phase1-auth`에 이어 커밋)**: Flyway 도입(V1 users·V2 forms/form_blocks, ddl-auto=validate), Form/FormBlock 엔티티(JSONB), `/api/forms` CRUD(K5), 프론트 폼 목록·기본형 편집기(블록 추가/순서/인라인·실용형)·유형별 렌더러(M7) 실시간 미리보기. 브라우저 전 흐름 검증 완료.
+> **다음 = 2B 스텝형(STEP)**: form_steps 모델 정리(SPEC의 form_blocks.step_no vs form_steps 역할 확정) → STEP 편집(단계·질문·카드 선택지) → STEP 렌더러(진행바+단계 이동) 미리보기. 착수 전 SPEC §3.2 재확인.
+> 이후 2C(C1 디자인 커스터마이징·C2 완료페이지·M5 자리) → Phase 3.
 
 **재검증 결과 확정 사항**:
 - **범위 재구성**(원래 10개 → 슬라이스): 
