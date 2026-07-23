@@ -84,6 +84,7 @@ public class FormService {
         form.setSuccessConfig(req.successConfig());
         form.setTypeConfig(req.typeConfig());
         form.setStyleConfig(req.styleConfig());
+        form.setSettingsConfig(req.settingsConfig());
         List<FormBlock> blocks = req.blocksOrEmpty().stream().map(FormBlockDto::toEntity).toList();
         form.replaceBlocks(blocks);
     }

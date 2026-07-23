@@ -113,6 +113,8 @@ export function FormEditPage() {
   const [successMessage, setSuccessMessage] = useState("빠른 시일 내에 연락드리겠습니다.");
   const [redirectUrl, setRedirectUrl] = useState("");
   const [requirePhone, setRequirePhone] = useState(false);
+  const [allowSameIp, setAllowSameIp] = useState(true);
+  const [ipDedupDays, setIpDedupDays] = useState(0);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -134,6 +136,8 @@ export function FormEditPage() {
         setSuccessMessage((sc?.message as string) ?? "빠른 시일 내에 연락드리겠습니다.");
         setRedirectUrl((sc?.redirectUrl as string) || "");
         setRequirePhone(Boolean(f.requirePhoneVerification));
+        setAllowSameIp(f.settingsConfig?.allowSameIp !== false);
+        setIpDedupDays(Number(f.settingsConfig?.ipDedupDays) || 0);
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
           const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
@@ -267,6 +271,7 @@ export function FormEditPage() {
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
     styleConfig: { buttonColor, accentColor },
     typeConfig: { contactMessage },
+    settingsConfig: { allowSameIp, ipDedupDays },
     blocks: builtBlocks,
   };
 
@@ -530,6 +535,15 @@ export function FormEditPage() {
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 켜면 제출 시 본인인증을 요구합니다. (외부 인증 연동은 추후 제공 — 지금은 옵션 자리)
               </p>
+              <label className="fr-check" style={{ marginTop: 14 }}>
+                <input type="checkbox" checked={allowSameIp} onChange={(e) => setAllowSameIp(e.target.checked)} /> 동일 IP 접수 허용
+              </label>
+              {!allowSameIp && (
+                <div className="field" style={{ marginTop: 8 }}>
+                  <label>동일 IP 차단 기간(일) — 0이면 전체 기간</label>
+                  <input className="input" type="number" min={0} value={ipDedupDays} onChange={(e) => setIpDedupDays(Number(e.target.value) || 0)} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -589,6 +603,29 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
           spellCheck={false}
         />
       </div>
+    </div>
+  );
+}
+
+/** 항목별 중복 방지 설정: 중복 허용 여부 + 유효 기간(일). block.options 에 저장. */
+function DedupField({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial<FormBlock>) => void }) {
+  const allow = block.options?.allowDuplicate !== false; // 기본 허용
+  const dedupDays = Number(block.options?.dedupDays) || 0;
+  function patchOpt(patch: Record<string, unknown>) {
+    onPatch({ options: { ...(block.options ?? {}), ...patch } });
+  }
+  return (
+    <div className="select-choices">
+      <label className="fr-check">
+        <input type="checkbox" checked={allow} onChange={(e) => patchOpt({ allowDuplicate: e.target.checked })} /> 중복 허용
+      </label>
+      {!allow && (
+        <div className="field" style={{ marginTop: 8 }}>
+          <label>중복 방지 기간(일) — 0이면 전체 기간</label>
+          <input className="input" type="number" min={0} value={dedupDays} onChange={(e) => patchOpt({ dedupDays: Number(e.target.value) || 0 })} />
+          <span className="field-optional" style={{ marginTop: 4 }}>미허용 시 기간 내 같은 값이 있으면 "이미 접수된 {block.label || "항목"}입니다" 로 차단됩니다.</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -653,6 +690,7 @@ function BlockFields({
             <input className="input" value={block.placeholder ?? ""} onChange={(e) => onPatch({ placeholder: e.target.value })} />
           </div>
           {block.fieldType === "select" && <SelectChoicesEditor block={block} onPatch={onPatch} />}
+          <DedupField block={block} onPatch={onPatch} />
         </div>
       );
     case "IMAGE":

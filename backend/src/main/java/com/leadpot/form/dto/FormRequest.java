@@ -20,6 +20,7 @@ public record FormRequest(
         Map<String, Object> successConfig,
         Map<String, Object> typeConfig,
         Map<String, Object> styleConfig,
+        Map<String, Object> settingsConfig,
         @Valid List<FormBlockDto> blocks) {
 
     public List<FormBlockDto> blocksOrEmpty() {

@@ -1,5 +1,7 @@
 package com.leadpot.lead;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +34,7 @@ public class LeadService {
     public Long submit(LeadSubmitRequest req, Visitor visitor) {
         Form form = formService.getEntity(req.formId());
         validate(form, req);
+        checkDuplicates(form, req, visitor);
 
         Lead lead = new Lead();
         lead.setFormId(form.getId());
@@ -96,6 +99,53 @@ public class LeadService {
                 throw new InvalidSubmissionException("필수 동의 항목에 동의해주세요.");
             }
         }
+    }
+
+    /** 중복 제출 방지(K3): 항목별 중복 불허(기간 내) + 폼 레벨 동일 IP 접수 불허. */
+    private void checkDuplicates(Form form, LeadSubmitRequest req, Visitor visitor) {
+        List<Map<String, Object>> answers = req.answersOrEmpty();
+
+        // 1) 항목별 중복 검사 — options.allowDuplicate == false 인 FIELD
+        form.getBlocks().stream()
+                .filter(b -> "FIELD".equals(b.getBlockType().name()) && b.getOptions() != null
+                        && Boolean.FALSE.equals(b.getOptions().get("allowDuplicate")))
+                .forEach(b -> {
+                    String label = b.getLabel();
+                    String value = answers.stream()
+                            .filter(a -> label != null && label.equals(str(a.get("label"))))
+                            .map(a -> str(a.get("value"))).findFirst().orElse("");
+                    if (value.isBlank()) return;
+                    Instant after = windowStart(days(b.getOptions().get("dedupDays")));
+                    boolean dup = leadRepository.findByFormIdAndCreatedAtGreaterThanEqual(form.getId(), after)
+                            .stream().anyMatch(l -> l.getAnswers() != null && l.getAnswers().stream()
+                                    .anyMatch(a -> label.equals(str(a.get("label"))) && value.equals(str(a.get("value")))));
+                    if (dup) {
+                        throw new InvalidSubmissionException("이미 접수된 " + label + "입니다.");
+                    }
+                });
+
+        // 2) 동일 IP 접수 불허 — settingsConfig.allowSameIp == false
+        Map<String, Object> settings = form.getSettingsConfig();
+        if (settings != null && Boolean.FALSE.equals(settings.get("allowSameIp"))
+                && visitor.ip() != null && !visitor.ip().isBlank()) {
+            Instant after = windowStart(days(settings.get("ipDedupDays")));
+            if (leadRepository.existsByFormIdAndSubmitterIpAndCreatedAtGreaterThanEqual(form.getId(), visitor.ip(), after)) {
+                throw new InvalidSubmissionException("이미 접수된 요청입니다. (동일 IP에서 중복 제출)");
+            }
+        }
+    }
+
+    private static int days(Object o) {
+        if (o instanceof Number n) return n.intValue();
+        try {
+            return o == null ? 0 : Integer.parseInt(o.toString());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static Instant windowStart(int days) {
+        return days > 0 ? Instant.now().minus(days, ChronoUnit.DAYS) : Instant.EPOCH;
     }
 
     private static String str(Object o) {

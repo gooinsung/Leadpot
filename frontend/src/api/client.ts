@@ -199,6 +199,7 @@ export interface FormInput {
   successConfig?: Record<string, unknown> | null;
   typeConfig?: Record<string, unknown> | null;
   styleConfig?: Record<string, unknown> | null;
+  settingsConfig?: Record<string, unknown> | null;
   blocks: FormBlock[];
 }
 
