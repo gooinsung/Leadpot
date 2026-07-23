@@ -8,8 +8,8 @@
 
 ## 📍 지금 위치
 
-- **현재 Phase**: Phase 2 — 폼 빌더(★핵심). **2A·2B 로컬 완료 ✅** — 다음은 **2C(디자인 커스텀·완료페이지·본인인증 자리)**
-- **완료**: Phase 1 인증 ✅ / Phase 2A 폼 CRUD·기본형·미리보기 ✅ / Phase 2B 스텝형(STEP)+선택박스 ✅
+- **현재 Phase**: Phase 2 — 폼 빌더(★핵심) **전체 완료 ✅ (2A·2B·2C)** — 다음은 **Phase 3(랜딩 빌더 & 폼 연결)**
+- **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ (기본형·스텝형·선택박스·동의 항목/문서·색상 커스텀·완료페이지·본인인증 자리)
 - **프로젝트 위치(중요)**: PC마다 다름 — 현재 gooin PC는 **`C:\Users\gooin\git\Leadpot`** / 이전 wincube PC는 `C:\Users\wincube\projects\Leadpot`
   - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
 - **결정**: Phase 1 DB 방법 = **Docker Desktop** (사용자 확정 2026-07-23). 작업 순서 = **A(디자인) 먼저 → B(Phase 1 인증)**.
@@ -86,8 +86,13 @@ cd frontend && npm run dev          # http://localhost:5173  → /login
 > **2C 진행 중**:
 >   - ✅ **동의 기능 강화(2026-07-23)**: 동의 항목 커스텀 리스트(기본 3개: 개인정보 수집·이용/제3자 제공(필수)·광고성 수신(선택)), 항목별 '보기' 링크(외부 URL / 내부 동의문서). **동의 문서 관리 기능 신규**(consent_documents + Flyway V3 + CRUD + 공개 뷰 `/consent/:id` + 상단 내비 "동의 문서"). 브라우저·API 검증 완료.
 >   - ✅ **C1 색상 커스터마이징(2026-07-23)**: forms.style_config(jsonb, Flyway V4). 편집기 '디자인·색상'에서 제출 버튼 색 + 폼 포인트(강조) 색을 프리셋/컬러픽커/hex로 지정 → 렌더러(버튼·진행바·선택·다음·동의 체크박스) 반영. 저장 영속 검증.
->   - ⏳ 남음: **C2 완료페이지/리다이렉트 설정** · M5 본인인증 필드 자리.
-> 그 뒤 Phase 3(랜딩 빌더).
+>   - ✅ **C2 완료페이지/리다이렉트 + M5 본인인증 자리(2026-07-23)**: success_config(감사 메시지/리다이렉트) 편집+CompletionView 미리보기, require_phone_verification 토글(외부 연동은 추후). 기존 컬럼 재사용(마이그레이션 불필요). 영속 검증.
+> **→ Phase 2 전체 완료.** 다음은 **Phase 3(랜딩 빌더 & 폼 연결: B1 단순랜딩·B3 이미지 상하배치·B5 요소 자동배치·B7 미리보기 + 랜딩에 폼 연결)**. 착수 전 SPEC(§4 landing_pages·landing_page_forms)·FEATURES(B)·ROADMAP 재정독하여 기획 재검증부터.
+
+## 🔌 현재 폼 API 요약 (Phase 3에서 랜딩이 폼을 연결할 때 참고)
+- `GET/POST /api/forms`, `GET/PUT/DELETE /api/forms/{id}` (본인만). Form: formType(BASIC/STEP), blocks(FIELD/IMAGE/HTML/TEXT/DIVIDER/CHOICE, select 필드 choices), consentConfig.items, submitButtonConfig, successConfig(mode message/redirect), styleConfig(buttonColor/accentColor), requirePhoneVerification
+- `GET/POST /api/consent-documents` (본인) + `GET /api/public/consent-documents/{id}` (공개). 공개 뷰 `/consent/:id`
+- 유형별 렌더러: `frontend/src/components/formRenderers/`(FormRenderer→Basic/Step + ConsentView/CompletionView/formStyle). **Phase 4 공개 폼 렌더에서 재사용 가능.**
 > 참고: STEP `form_steps` 미생성은 의도적 설계(개선). 향후 SPEC 문서도 이 방향으로 정리 필요.
 
 **재검증 결과 확정 사항**:
