@@ -1,0 +1,278 @@
+/* ============================================================
+   Leadpot 기본 스타일 + 재사용 컴포넌트 클래스
+   토큰(tokens.css)을 사용한다. 컴포넌트에서 반복되는 UI는 여기에 정의.
+   출처 스타일: docs/design/concept.html
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--text);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--indigo);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+code {
+  font-family: var(--mono);
+}
+
+/* ---------- 레이아웃 ---------- */
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--indigo);
+  margin-bottom: 10px;
+}
+
+/* ---------- 상단바 ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+/* ---------- 버튼 ---------- */
+.btn {
+  font: inherit;
+  font-weight: 650;
+  font-size: 14px;
+  border-radius: 10px;
+  padding: 10px 18px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-primary {
+  background: var(--indigo);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--indigo-strong);
+}
+.btn-green {
+  background: var(--green);
+  color: #06281f;
+}
+.btn-green:hover {
+  background: var(--green-strong);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.theme-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+}
+.theme-btn:hover {
+  background: var(--surface-2);
+}
+.theme-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+/* ---------- 카드 ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-pad {
+  padding: 20px;
+}
+.card-h {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* ---------- 뱃지 (리드 상태 등) ---------- */
+.badge {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.b-normal {
+  background: var(--green-soft);
+  color: var(--green-strong);
+}
+.b-wait {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.b-bad {
+  background: var(--rose-soft);
+  color: var(--rose);
+}
+
+/* ---------- 알약 태그 ---------- */
+.pill {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.pill.i {
+  background: var(--indigo-soft);
+  border-color: transparent;
+  color: var(--indigo-strong);
+}
+.pill.g {
+  background: var(--green-soft);
+  border-color: transparent;
+  color: var(--green-strong);
+}
+
+/* ---------- 입력 폼 ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.field .req {
+  color: var(--rose);
+}
+.input {
+  font: inherit;
+  font-size: 14px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo) 22%, transparent);
+}
+.input::placeholder {
+  color: color-mix(in srgb, var(--muted) 75%, transparent);
+}
+
+/* ---------- 코드/데이터 ---------- */
+.code-block {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

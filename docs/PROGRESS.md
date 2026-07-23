@@ -54,11 +54,16 @@ npm run dev
 
 ## 👉 다음에 할 일 (여기서 이어서 — 다른 PC에서)
 
-### A. 프론트에 디자인 시스템 적용 (백엔드 불필요 · 승인 완료 · 바로 진행 가능)
-- 스타일링 방식: **플레인 CSS + CSS 변수(디자인 토큰)** 로 결정 (Tailwind 선호 시 변경 가능)
-- Pretendard 폰트 적용 (index.html), `src/styles/` 에 concept.html 팔레트로 토큰(light/dark) 정의
-- 현재 `index.css`/`App.css`의 Vite 기본 스타일 정리, `App.tsx` health 화면을 Leadpot 브랜드로 리스타일
-- 참고 원본: [docs/design/concept.html](design/concept.html) (컬러/타이포/컴포넌트/목업)
+### A. 프론트에 디자인 시스템 적용 ✅ 완료 (2026-07-23, 브랜치 `feature/design-system`)
+- 스타일링 방식: **플레인 CSS + CSS 변수(디자인 토큰)** 확정
+- `src/styles/tokens.css`(concept.html 팔레트 light/dark/data-theme), `src/styles/base.css`(reset + 버튼/카드/뱃지/입력/알약 등 재사용 컴포넌트)
+- `index.html`: lang=ko, title "Leadpot · 리드팟", **Pretendard(jsdelivr CDN)** + preconnect, theme-color/description
+- `App.tsx`: Vite 인라인 스타일 제거 → 브랜드 셸(상단바+로고 마크+테마전환) + 브랜드화된 health 카드
+- `src/lib/useTheme.ts`: system→dark→light 순환 토글, localStorage 저장
+- `public/favicon.svg`: Vite 로고 → Leadpot 팟 마크로 교체. Vite 잔재 에셋(react/vite/hero/icons) 삭제
+- 검증: `npx tsc -b` exit 0, dev 서버 렌더 OK, 콘솔 에러 0, 테마 토글 동작(다크 배경 #0e1020) 확인
+- 참고 원본: [docs/design/concept.html](design/concept.html)
+- ⏳ 남은 것: `feature/design-system` → `main` PR 병합 (사용자 확인 후)
 
 ### B. Phase 1 — 인증 & 계정 (DB 방법 확정 후)
 - PostgreSQL 준비 → 백엔드에 Spring Data JPA + PostgreSQL 드라이버 + Spring Security(JWT) 추가

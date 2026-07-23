@@ -1,0 +1,114 @@
+/* ============================================================
+   Leadpot 디자인 토큰 (CSS 변수)
+   출처: docs/design/concept.html (승인된 디자인 컨셉 v1)
+   - 브랜드: 인디고 #3A43C0 / 그린 #12B886 ("리드를 팟에 담다")
+   - 라이트/다크 자동 대응 + data-theme 수동 오버라이드
+   ============================================================ */
+
+:root {
+  /* Brand */
+  --indigo: #3a43c0;
+  --indigo-strong: #2d35a3;
+  --indigo-soft: #ecedf9;
+  --green: #12b886;
+  --green-strong: #0e9d73;
+  --green-soft: #e2f7ef;
+
+  /* Neutrals — 인디고 쪽으로 살짝 치우친 쿨 슬레이트 */
+  --bg: #f5f6fc;
+  --surface: #ffffff;
+  --surface-2: #eef0f9;
+  --border: #e2e5f2;
+  --text: #191c2e;
+  --muted: #5b6180;
+  --ink: #14172a;
+
+  /* Semantic */
+  --amber: #f5a524;
+  --amber-soft: #fdf1dc;
+  --rose: #f04452;
+  --rose-soft: #fde5e7;
+
+  /* System */
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 23, 42, 0.14);
+  --shadow-lg: 0 24px 60px -24px rgba(29, 35, 120, 0.34);
+  --sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  --maxw: 1080px;
+
+  color-scheme: light dark;
+}
+
+/* 시스템 다크모드 (사용자가 수동 지정하지 않았을 때) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --indigo: #7c85f4;
+    --indigo-strong: #6a74ef;
+    --indigo-soft: #23264a;
+    --green: #2dd4a0;
+    --green-strong: #24bd8e;
+    --green-soft: #14312a;
+    --bg: #0e1020;
+    --surface: #171a2e;
+    --surface-2: #1e2240;
+    --border: #2a2f4f;
+    --text: #e9ebf7;
+    --muted: #9aa0c0;
+    --ink: #e9ebf7;
+    --amber: #f7b955;
+    --amber-soft: #35290f;
+    --rose: #ff6b76;
+    --rose-soft: #3a1a1f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* 수동 라이트 지정 (시스템이 다크여도 우선) */
+:root[data-theme="light"] {
+  --indigo: #3a43c0;
+  --indigo-strong: #2d35a3;
+  --indigo-soft: #ecedf9;
+  --green: #12b886;
+  --green-strong: #0e9d73;
+  --green-soft: #e2f7ef;
+  --bg: #f5f6fc;
+  --surface: #ffffff;
+  --surface-2: #eef0f9;
+  --border: #e2e5f2;
+  --text: #191c2e;
+  --muted: #5b6180;
+  --ink: #14172a;
+  --amber: #f5a524;
+  --amber-soft: #fdf1dc;
+  --rose: #f04452;
+  --rose-soft: #fde5e7;
+  --shadow: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 23, 42, 0.14);
+  --shadow-lg: 0 24px 60px -24px rgba(29, 35, 120, 0.34);
+}
+
+/* 수동 다크 지정 (시스템이 라이트여도 우선) */
+:root[data-theme="dark"] {
+  --indigo: #7c85f4;
+  --indigo-strong: #6a74ef;
+  --indigo-soft: #23264a;
+  --green: #2dd4a0;
+  --green-strong: #24bd8e;
+  --green-soft: #14312a;
+  --bg: #0e1020;
+  --surface: #171a2e;
+  --surface-2: #1e2240;
+  --border: #2a2f4f;
+  --text: #e9ebf7;
+  --muted: #9aa0c0;
+  --ink: #e9ebf7;
+  --amber: #f7b955;
+  --amber-soft: #35290f;
+  --rose: #ff6b76;
+  --rose-soft: #3a1a1f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+}
