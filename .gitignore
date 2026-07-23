@@ -1,0 +1,45 @@
+# ===== 환경변수/시크릿 (절대 커밋 금지) =====
+.env
+.env.*
+!.env.example
+*.local
+
+# ===== Node / 프론트엔드 =====
+node_modules/
+dist/
+build/
+.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+coverage/
+
+# ===== Java / Spring / Gradle =====
+target/
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+*.jar
+*.war
+hs_err_pid*
+
+# ===== Docker / DB 데이터 =====
+pgdata/
+postgres-data/
+*.pid
+
+# ===== IDE / 에디터 =====
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
