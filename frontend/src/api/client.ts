@@ -172,4 +172,68 @@ export function getMe(): Promise<AuthUser> {
   return request<AuthUser>("/api/auth/me");
 }
 
+// ---------- 폼(Form) ----------
+export type FormType = "BASIC" | "STEP";
+export type BlockType = "FIELD" | "IMAGE" | "HTML" | "TEXT" | "DIVIDER" | "SPACER";
+
+export interface FormBlock {
+  id?: number;
+  stepNo?: number | null;
+  sortOrder: number;
+  blockType: BlockType;
+  fieldType?: string | null;
+  label?: string | null;
+  required?: boolean;
+  uniqueCheck?: boolean;
+  placeholder?: string | null;
+  options?: Record<string, unknown> | null;
+  content?: Record<string, unknown> | null;
+}
+
+export interface FormInput {
+  name: string;
+  formType: FormType;
+  requirePhoneVerification?: boolean;
+  consentConfig?: Record<string, unknown> | null;
+  submitButtonConfig?: Record<string, unknown> | null;
+  successConfig?: Record<string, unknown> | null;
+  typeConfig?: Record<string, unknown> | null;
+  blocks: FormBlock[];
+}
+
+export interface FormDetail extends FormInput {
+  id: number;
+  requirePhoneVerification: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FormSummary {
+  id: number;
+  name: string;
+  formType: FormType;
+  blockCount: number;
+  updatedAt: string;
+}
+
+export function listForms(): Promise<FormSummary[]> {
+  return request<FormSummary[]>("/api/forms");
+}
+
+export function getForm(id: number): Promise<FormDetail> {
+  return request<FormDetail>(`/api/forms/${id}`);
+}
+
+export function createForm(input: FormInput): Promise<FormDetail> {
+  return request<FormDetail>("/api/forms", { method: "POST", body: input });
+}
+
+export function updateForm(id: number, input: FormInput): Promise<FormDetail> {
+  return request<FormDetail>(`/api/forms/${id}`, { method: "PUT", body: input });
+}
+
+export function deleteForm(id: number): Promise<void> {
+  return request<void>(`/api/forms/${id}`, { method: "DELETE" });
+}
+
 export { BASE_URL };

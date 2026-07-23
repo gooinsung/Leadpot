@@ -24,7 +24,7 @@ export function DashboardPage() {
   ];
 
   const upcoming = [
-    { title: "폼 빌더", desc: "기본형·스텝형 폼을 만들어 재사용", phase: "Phase 2" },
+    { title: "스텝형 폼", desc: "단계별 선택형(대화형 퍼널) 폼", phase: "Phase 2B" },
     { title: "랜딩 빌더", desc: "이미지·텍스트 구성 + 폼 연결", phase: "Phase 3" },
     { title: "공개 페이지 & 수집", desc: "공개 URL로 리드 수집", phase: "Phase 4" },
     { title: "리드 관리 & CSV", desc: "목록·상태·내보내기", phase: "Phase 5" },

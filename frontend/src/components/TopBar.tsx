@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { useTheme, type Theme } from "../lib/useTheme";
 import { LeadpotMark } from "./LeadpotMark";
@@ -17,10 +17,22 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="wrap topbar-in">
-        <Link to="/" className="brand" style={{ textDecoration: "none" }}>
-          <LeadpotMark />
-          Leadpot
-        </Link>
+        <div className="topbar-left">
+          <Link to="/" className="brand" style={{ textDecoration: "none" }}>
+            <LeadpotMark />
+            Leadpot
+          </Link>
+          {user && (
+            <nav className="topbar-nav">
+              <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+                대시보드
+              </NavLink>
+              <NavLink to="/forms" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+                폼
+              </NavLink>
+            </nav>
+          )}
+        </div>
         <div className="topbar-actions">
           {user && <span className="topbar-email">{user.email}</span>}
           <button className="theme-btn" type="button" onClick={toggle}>
