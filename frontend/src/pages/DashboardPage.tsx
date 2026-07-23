@@ -1,33 +1,32 @@
 import { useEffect, useState } from "react";
-import { getHealth } from "../api/client";
+import { useNavigate } from "react-router-dom";
+import { getHealth, leadsCount, listForms } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { TopBar } from "../components/TopBar";
 
 type HealthState = "checking" | "ok" | "error";
 
-/** 대시보드 골격(Phase 1). 로그인한 본인 정보만 표시(K5). 폼/랜딩/리드는 이후 Phase 에서 채운다. */
+/** 대시보드. 로그인한 본인 데이터만 표시(K5). */
 export function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [health, setHealth] = useState<HealthState>("checking");
+  const [totalLeads, setTotalLeads] = useState<number | null>(null);
+  const [formCount, setFormCount] = useState<number | null>(null);
 
   useEffect(() => {
-    getHealth()
-      .then(() => setHealth("ok"))
-      .catch(() => setHealth("error"));
+    getHealth().then(() => setHealth("ok")).catch(() => setHealth("error"));
+    leadsCount().then((r) => setTotalLeads(r.total)).catch(() => setTotalLeads(0));
+    listForms().then((f) => setFormCount(f.length)).catch(() => setFormCount(0));
   }, []);
 
-  const kpis = [
-    { label: "총 리드", value: "0" },
-    { label: "오늘 유입", value: "0" },
-    { label: "폼", value: "0" },
-    { label: "랜딩페이지", value: "0" },
-  ];
+  const num = (v: number | null) => (v == null ? "…" : v.toLocaleString("ko-KR"));
 
   const upcoming = [
-    { title: "스텝형 폼", desc: "단계별 선택형(대화형 퍼널) 폼", phase: "Phase 2B" },
     { title: "랜딩 빌더", desc: "이미지·텍스트 구성 + 폼 연결", phase: "Phase 3" },
-    { title: "공개 페이지 & 수집", desc: "공개 URL로 리드 수집", phase: "Phase 4" },
-    { title: "리드 관리 & CSV", desc: "목록·상태·내보내기", phase: "Phase 5" },
+    { title: "리드 상태·CSV", desc: "상담 상태 관리·엑셀 내보내기", phase: "Phase 5" },
+    { title: "구글시트·알림 연동", desc: "접수 시 시트 전송·텔레그램/카톡 알림", phase: "추후" },
+    { title: "통계", desc: "유입·전환·UTM 캠페인 분석", phase: "Phase 6" },
   ];
 
   return (
@@ -48,12 +47,22 @@ export function DashboardPage() {
         </div>
 
         <div className="kpis">
-          {kpis.map((k) => (
-            <div className="kpi card" key={k.label}>
-              <div className="k-label">{k.label}</div>
-              <div className="k-val">{k.value}</div>
-            </div>
-          ))}
+          <div className="kpi card row-click" onClick={() => navigate("/forms")}>
+            <div className="k-label">총 리드</div>
+            <div className="k-val">{num(totalLeads)}</div>
+          </div>
+          <div className="kpi card">
+            <div className="k-label">오늘 유입</div>
+            <div className="k-val">-</div>
+          </div>
+          <div className="kpi card row-click" onClick={() => navigate("/forms")}>
+            <div className="k-label">폼</div>
+            <div className="k-val">{num(formCount)}</div>
+          </div>
+          <div className="kpi card">
+            <div className="k-label">랜딩페이지</div>
+            <div className="k-val">-</div>
+          </div>
         </div>
 
         <section className="card card-pad upcoming">

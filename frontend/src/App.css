@@ -446,6 +446,86 @@ td.num {
   text-align: center;
 }
 
+/* 공개 폼(/f/:id) */
+.public-form {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 40px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.public-form-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  padding: 28px;
+}
+.public-form-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+
+/* 리드 목록 */
+.public-link {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--indigo);
+  word-break: break-all;
+}
+.leads {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lead-card {
+  padding: 16px 18px;
+}
+.lead-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.lead-time {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lead-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.lead-answer {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+.lead-a-label {
+  min-width: 110px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.lead-a-value {
+  color: var(--text);
+  font-weight: 600;
+}
+.lead-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* 유형 세그먼트 */
 .type-seg {
   display: inline-flex;

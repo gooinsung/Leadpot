@@ -7,6 +7,8 @@ import { FormEditPage } from "./pages/FormEditPage";
 import { ConsentDocsListPage } from "./pages/ConsentDocsListPage";
 import { ConsentDocEditPage } from "./pages/ConsentDocEditPage";
 import { ConsentViewPage } from "./pages/ConsentViewPage";
+import { LeadsListPage } from "./pages/LeadsListPage";
+import { PublicFormPage } from "./pages/PublicFormPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 
@@ -72,8 +74,17 @@ function App() {
           </ProtectedRoute>
         }
       />
-      {/* 공개 동의 문서 뷰 (비로그인) */}
+      <Route
+        path="/forms/:id/leads"
+        element={
+          <ProtectedRoute>
+            <LeadsListPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 공개 (비로그인) */}
       <Route path="/consent/:id" element={<ConsentViewPage />} />
+      <Route path="/f/:id" element={<PublicFormPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

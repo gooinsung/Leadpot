@@ -33,6 +33,21 @@ public class FormService {
         return FormResponse.from(form);
     }
 
+    /** 공개 렌더용 조회 — 소유자 검증 없이 id 로 폼 정의를 반환(비로그인 공개 폼). */
+    @Transactional(readOnly = true)
+    public FormResponse getPublic(Long id) {
+        Form form = formRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("폼을 찾을 수 없습니다."));
+        return FormResponse.from(form);
+    }
+
+    /** 리드 저장 시 소유권/상태 확인용 — 폼 엔티티 로드(없으면 404). */
+    @Transactional(readOnly = true)
+    public Form getEntity(Long id) {
+        return formRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("폼을 찾을 수 없습니다."));
+    }
+
     @Transactional
     public FormResponse create(Long ownerId, FormRequest req) {
         Form form = new Form(ownerId, req.name().trim(), req.formType());

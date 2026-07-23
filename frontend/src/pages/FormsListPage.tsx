@@ -79,6 +79,9 @@ export function FormsListPage() {
                     <td className="num">{f.blockCount}</td>
                     <td className="num">{new Date(f.updatedAt).toLocaleString("ko-KR")}</td>
                     <td onClick={(e) => e.stopPropagation()}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/leads`)}>
+                        리드
+                      </button>
                       <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/edit`)}>
                         편집
                       </button>

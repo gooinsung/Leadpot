@@ -290,4 +290,59 @@ export function getPublicConsentDoc(id: number): Promise<ConsentDocument> {
   return request<ConsentDocument>(`/api/public/consent-documents/${id}`, { auth: false });
 }
 
+// ---------- 리드(수집 데이터) ----------
+export interface LeadAnswer {
+  label: string;
+  fieldType?: string;
+  value: string;
+}
+export interface LeadConsent {
+  title: string;
+  required: boolean;
+  agreed: boolean;
+}
+export interface Lead {
+  id: number;
+  formId: number;
+  answers: LeadAnswer[];
+  consents: LeadConsent[] | null;
+  status: string;
+  phoneVerified: boolean;
+  submitterIp: string | null;
+  device: string | null;
+  os: string | null;
+  browser: string | null;
+  language: string | null;
+  referer: string | null;
+  utm: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface LeadSubmitInput {
+  formId: number;
+  answers: LeadAnswer[];
+  consents: LeadConsent[];
+  utm?: Record<string, unknown> | null;
+}
+
+/** 공개 폼 렌더 데이터(비로그인). */
+export function getPublicForm(id: number): Promise<FormDetail> {
+  return request<FormDetail>(`/api/public/forms/${id}`, { auth: false });
+}
+
+/** 공개 폼 제출(비로그인). */
+export function submitLead(input: LeadSubmitInput): Promise<{ id: number; ok: boolean }> {
+  return request<{ id: number; ok: boolean }>("/api/public/leads", { method: "POST", body: input, auth: false });
+}
+
+/** 특정 폼의 리드 목록(본인 폼만). */
+export function listLeads(formId: number): Promise<Lead[]> {
+  return request<Lead[]>(`/api/leads?formId=${formId}`);
+}
+
+/** 대시보드 전체 리드 수. */
+export function leadsCount(): Promise<{ total: number }> {
+  return request<{ total: number }>("/api/leads/count");
+}
+
 export { BASE_URL };

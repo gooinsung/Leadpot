@@ -49,4 +49,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiError.of(HttpStatus.NOT_FOUND.value(), "NOT_FOUND", e.getMessage()));
     }
+
+    @ExceptionHandler(InvalidSubmissionException.class)
+    public ResponseEntity<ApiError> handleInvalidSubmission(InvalidSubmissionException e) {
+        return ResponseEntity.badRequest()
+                .body(ApiError.of(HttpStatus.BAD_REQUEST.value(), "INVALID_SUBMISSION", e.getMessage()));
+    }
 }
