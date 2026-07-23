@@ -21,11 +21,12 @@ coverage/
 target/
 build/
 .gradle/
-!gradle/wrapper/gradle-wrapper.jar
 *.class
 *.jar
 *.war
 hs_err_pid*
+# Gradle wrapper jar 는 반드시 커밋 (clone 후 gradlew 실행에 필요)
+!**/gradle/wrapper/gradle-wrapper.jar
 
 # ===== Docker / DB 데이터 =====
 pgdata/
