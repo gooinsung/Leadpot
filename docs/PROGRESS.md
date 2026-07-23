@@ -10,8 +10,9 @@
 
 - **현재 Phase**: Phase 0 — 셋업 & 배포 파이프라인 → **로컬 스캐폴딩·검증 완료 ✅** (클라우드 배포는 계정 준비 후)
 - **다음 Phase**: Phase 1 — 인증 & 계정
-- **프로젝트 위치(중요)**: **`C:\Users\wincube\projects\Leadpot`** (로컬)
+- **프로젝트 위치(중요)**: PC마다 다름 — 현재 gooin PC는 **`C:\Users\gooin\git\Leadpot`** / 이전 wincube PC는 `C:\Users\wincube\projects\Leadpot`
   - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
+- **결정**: Phase 1 DB 방법 = **Docker Desktop** (사용자 확정 2026-07-23). 작업 순서 = **A(디자인) 먼저 → B(Phase 1 인증)**.
 
 ## ✅ 방금까지 한 일 (2026-07-23)
 
@@ -24,6 +25,9 @@
 - **프로젝트를 로컬(`C:\Users\wincube\projects\Leadpot`)로 이전** (Drive 병목 해소). npm install 6초로 정상화.
 - **디자인 컨셉 v1 작성 + 승인 완료** ([docs/design/concept.html](design/concept.html)) — 인디고+그린, "리드를 팟에 담다" 모티프, 스타일가이드 + 화면 목업(대시보드/폼빌더/스텝폼/공개랜딩). 사용자: "추천대로 진행"(언제든 변경 가능). 공유 링크: claude.ai/code/artifact/167af033-401e-41b1-ab3b-ddedc908d492
 - **CLAUDE.md에 최상위 지침 추가**: 애매하면 임의진행 금지, 반드시 질문.
+- **gooin PC 환경 세팅 완료 (2026-07-23)**: Java 21(`C:\Program Files\Java\jdk-21`, PATH·JAVA_HOME 정상), **Docker Desktop v4.83.0 설치**(WSL2 Ubuntu 기반, 엔진 29.6.2 + Compose v5.3.1), Node v22.17.0.
+  - **전체 스택 스모크 테스트 성공**: `docker compose up -d --build` → `leadpot-db`(healthy)+`leadpot-backend`(Up) → `http://localhost:8080/api/health` `{"status":"UP"}` 확인. (검증 후 `docker compose stop`으로 정지해둠)
+  - 프론트 `npm install` 완료. → 이 PC에서 `frontend`는 `npm run dev`, 백엔드는 `docker compose up -d` 또는 `cd backend && ./gradlew bootRun`(JAVA_HOME 수동지정 불필요)으로 바로 실행 가능.
 
 ## ▶️ 로컬 실행법 (현재 기준)
 
@@ -43,7 +47,7 @@ npm run dev
 ## ❓ 사용자 확인 필요 (돌아오면 이것부터 — 최상위 지침에 따라 임의진행 안 함)
 
 1. ✅ (해결) 디자인 컨셉 — 승인됨(추천대로).
-2. **Phase 1 DB 방법?** Docker Desktop 재부팅 완료를 기다릴지 / 로컬 PostgreSQL 설치 / 개발용 H2(임시)로 먼저 진행 — **택1 필요** (Phase 1 백엔드 착수 전제).
+2. ✅ (해결) Phase 1 DB 방법 = **Docker Desktop** 확정 + gooin PC에 설치·검증 완료.
 3. (배포) Oracle VM·Cloudflare·도메인 준비 시점.
 
 > 최상위 지침: 애매하거나 확인 필요한 결정은 임의진행 금지 → 반드시 질문.
@@ -76,8 +80,8 @@ npm run dev
 
 ## 🚧 블로커 / 준비물
 
-- **Docker Desktop**: 설치 로그만 있고 미완 → **재부팅 후 완료 필요** (Phase 1 Postgres/컨테이너용). 또는 로컬 Postgres 설치.
-- **JDK 21**: `C:\Users\wincube\.jdks\ms-21.0.11` 사용 중(정상). PATH/JAVA_HOME 기본값은 아직 Java 8 → gradlew 실행 시 JAVA_HOME 명시.
+- ✅ (해소) **Docker Desktop**: gooin PC 설치·기동·스모크 테스트 완료.
+- ✅ (해소) **JDK 21**: gooin PC는 `C:\Program Files\Java\jdk-21` PATH·JAVA_HOME 정상 → gradlew 바로 실행. (※ wincube PC는 여전히 JAVA_HOME 수동지정 필요)
 - **배포(Phase 0 잔여)**: Cloudflare Pages(프론트) + Oracle VM(백엔드) 실제 배포는 계정 준비되면.
 
 ## 🔗 참고
