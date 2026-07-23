@@ -79,10 +79,25 @@ cd frontend && npm run dev          # http://localhost:5173  → /login
 
 ## 👉 다음에 할 일 (여기서 이어서 — 다른 PC에서)
 
-### Phase 2 — 폼 빌더 (★핵심, 착수 전 기획 재검증 필수)
-- 착수 전 SPEC(§3 폼 유형 BASIC/STEP, §4 forms·form_blocks·form_steps)·FEATURES·BACKLOG 재정독 → 현실성 점검 → 사용자와 범위 조정 후 착수
-- 대략: 폼 CRUD(독립·재사용 M1) → 유형 확장구조(M7) → 기본형(M2)/스텝형(M3) → 항목·동의(B2) → 콘텐츠블록(M4) → 미리보기
-- ✔ 검증: 기본형·스텝형 폼 생성 → 미리보기 동작
+### Phase 2 — 폼 빌더 (★핵심) — ✅ 기획 재검증 완료(2026-07-23), 구현 착수 대기
+
+**재검증 결과 확정 사항**:
+- **범위 재구성**(원래 10개 → 슬라이스): 
+  - **2A(이번 집중, 코어)**: M1 폼 CRUD(독립·재사용) + M7 유형 확장구조 + M2 기본형(BASIC) + B2 항목/동의 + M4 콘텐츠블록 + 미리보기
+  - **2B**: M3 스텝형(STEP) + 미리보기 (form_blocks/form_steps 역할 정리 포함)
+  - **2C(후순위)**: C1 폼 디자인 커스터마이징, C2 완료페이지/리다이렉트 설정, M5 본인인증 필드 자리(연동X)
+  - **M6 외부임베드 → Phase 4(공개·수집)로 이동** (공개 렌더 필요 → 정합)
+- **빌더 UX = 실용형**(항목/블록 추가 + 위/아래 순서 + 인라인 편집). 드래그앤드롭은 2차 고도화.
+- **DB 스키마 = Flyway 마이그레이션 도입** (지금부터. ddl-auto=update → validate 로 전환)
+
+**2A 실행계획(착수 시)**:
+1. 백엔드: Flyway 도입(`V1__init_users.sql`로 기존 users 반영 → `V2__forms.sql`) + `spring.jpa.hibernate.ddl-auto=validate`
+2. 엔티티/모델: `Form`(owner_id, name, form_type, *_config JSONB) + `FormBlock`(sort_order, block_type, FIELD/IMAGE/HTML/TEXT/DIVIDER…) — JSONB는 `@JdbcTypeCode(SqlTypes.JSON)`
+3. API: `GET/POST /api/forms`, `GET/PUT/DELETE /api/forms/{id}` (소유자 K5 필터)
+4. 프론트: 폼 목록 / 폼 편집(BASIC: 항목·콘텐츠블록 추가·순서·필수/동의) / 미리보기 렌더러(유형별 렌더러 구조 M7)
+- ✔ 2A 검증: 기본형 폼 생성 → 항목/블록 편집 → 저장 → 미리보기 동작 (본인 폼만 접근)
+
+> 착수 전 H2 테스트에서 JSONB/Flyway 호환 처리 필요(테스트는 Flyway off + H2, 또는 Testcontainers 검토).
 
 ### (구) Phase 1 남은 항목 — 나중에
 
