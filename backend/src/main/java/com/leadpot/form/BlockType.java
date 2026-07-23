@@ -9,5 +9,6 @@ public enum BlockType {
     HTML,    // HTML 블록
     TEXT,    // 텍스트 블록
     DIVIDER, // 구분선
-    SPACER   // 여백
+    SPACER,  // 여백
+    CHOICE   // STEP 단계의 질문 + 카드형 선택지 (content: question/description/selectType/options)
 }

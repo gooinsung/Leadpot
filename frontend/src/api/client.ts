@@ -174,7 +174,7 @@ export function getMe(): Promise<AuthUser> {
 
 // ---------- 폼(Form) ----------
 export type FormType = "BASIC" | "STEP";
-export type BlockType = "FIELD" | "IMAGE" | "HTML" | "TEXT" | "DIVIDER" | "SPACER";
+export type BlockType = "FIELD" | "IMAGE" | "HTML" | "TEXT" | "DIVIDER" | "SPACER" | "CHOICE";
 
 export interface FormBlock {
   id?: number;

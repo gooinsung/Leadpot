@@ -1,5 +1,6 @@
 import type { FormInput } from "../../api/client";
 import { BasicFormRenderer } from "./BasicFormRenderer";
+import { StepFormRenderer } from "./StepFormRenderer";
 
 /**
  * 유형별 폼 렌더러 분기(M7 확장 구조).
@@ -10,11 +11,7 @@ export function FormRenderer({ form }: { form: FormInput }) {
     case "BASIC":
       return <BasicFormRenderer form={form} />;
     case "STEP":
-      return (
-        <div className="fr-placeholder">
-          선택형(스텝) 미리보기는 Phase 2B 에서 제공됩니다.
-        </div>
-      );
+      return <StepFormRenderer form={form} />;
     default:
       return null;
   }

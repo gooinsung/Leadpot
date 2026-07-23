@@ -350,6 +350,120 @@ td.num {
   text-align: center;
 }
 
+/* 유형 세그먼트 */
+.type-seg {
+  display: inline-flex;
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+  margin-bottom: 20px;
+}
+.type-seg button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.type-seg button.on {
+  background: var(--surface);
+  color: var(--indigo-strong);
+  box-shadow: var(--shadow);
+}
+
+.mini-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 6px 0 8px;
+}
+.opt-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.opt-row .input {
+  flex: 1;
+}
+.select-choices {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+/* 스텝 렌더러 */
+.sfr-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.sfr-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.sfr-progress i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+.t-h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.sfr-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+.sfr-opt {
+  text-align: left;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 15px;
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sfr-opt:hover {
+  border-color: var(--indigo);
+}
+.sfr-opt.sel {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+.sfr-opt-t {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.sfr-opt-d {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.sfr-nav {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
 @media (max-width: 900px) {
   .edit-grid {
     grid-template-columns: 1fr;

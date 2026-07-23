@@ -67,6 +67,7 @@ function FieldView({ block }: { block: FormBlock }) {
   const type = block.fieldType || "text";
   const inputType =
     type === "email" ? "email" : type === "tel" || type === "phone010" ? "tel" : type === "number" ? "number" : type === "date" ? "date" : "text";
+  const choices = (block.options?.choices as string[]) ?? [];
   return (
     <div className="field">
       <label>
@@ -74,6 +75,15 @@ function FieldView({ block }: { block: FormBlock }) {
       </label>
       {type === "textarea" ? (
         <textarea className="input" placeholder={block.placeholder ?? ""} rows={3} readOnly />
+      ) : type === "select" ? (
+        <select className="input" defaultValue="">
+          <option value="" disabled>
+            {block.placeholder || "선택하세요"}
+          </option>
+          {choices.map((c, i) => (
+            <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>
+          ))}
+        </select>
       ) : (
         <input className="input" type={inputType} placeholder={block.placeholder ?? ""} readOnly />
       )}
