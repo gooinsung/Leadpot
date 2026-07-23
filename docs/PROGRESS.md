@@ -8,8 +8,10 @@
 
 ## 📍 지금 위치
 
-- **현재 Phase**: Phase 2 — 폼 빌더(★핵심) **전체 완료 ✅ (2A·2B·2C)** — 다음은 **Phase 3(랜딩 빌더 & 폼 연결)**
-- **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ (기본형·스텝형·선택박스·동의 항목/문서·색상 커스텀·완료페이지·본인인증 자리)
+- **현재 위치**: **핵심 루프(폼 공개→제출→리드 수집→조회) 완성 ✅** — 실제 데이터가 쌓임(방문자정보 포함)
+- **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ / **리드 수집(Phase 4 앞당김) ✅**
+- **다음 후보**: Phase 3 랜딩 빌더 / 리드 관리 고도화(상태변경·CSV·중복방지) / 연동(구글시트·텔레그램·카톡 알림) — 택1
+  - 사용자 요청 보류 항목: **구글시트 자동연동 + 텔레그램/카톡 알림**(선택형 on/off). 리드 저장 훅 자리 마련됨(`LeadService.submit` TODO). 텔레그램·구글시트 무료, 카톡 알림톡은 사업자+유료.
 - **프로젝트 위치(중요)**: PC마다 다름 — 현재 gooin PC는 **`C:\Users\gooin\git\Leadpot`** / 이전 wincube PC는 `C:\Users\wincube\projects\Leadpot`
   - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
 - **결정**: Phase 1 DB 방법 = **Docker Desktop** (사용자 확정 2026-07-23). 작업 순서 = **A(디자인) 먼저 → B(Phase 1 인증)**.
@@ -88,6 +90,15 @@ cd frontend && npm run dev          # http://localhost:5173  → /login
 >   - ✅ **C1 색상 커스터마이징(2026-07-23)**: forms.style_config(jsonb, Flyway V4). 편집기 '디자인·색상'에서 제출 버튼 색 + 폼 포인트(강조) 색을 프리셋/컬러픽커/hex로 지정 → 렌더러(버튼·진행바·선택·다음·동의 체크박스) 반영. 저장 영속 검증.
 >   - ✅ **C2 완료페이지/리다이렉트 + M5 본인인증 자리(2026-07-23)**: success_config(감사 메시지/리다이렉트) 편집+CompletionView 미리보기, require_phone_verification 토글(외부 연동은 추후). 기존 컬럼 재사용(마이그레이션 불필요). 영속 검증.
 > **→ Phase 2 전체 완료.** 다음은 **Phase 3(랜딩 빌더 & 폼 연결: B1 단순랜딩·B3 이미지 상하배치·B5 요소 자동배치·B7 미리보기 + 랜딩에 폼 연결)**. 착수 전 SPEC(§4 landing_pages·landing_page_forms)·FEATURES(B)·ROADMAP 재정독하여 기획 재검증부터.
+
+## ✅ 리드 수집 핵심 루프 (2026-07-23, main)
+- **leads 테이블(Flyway V5)** + Lead 엔티티: answers/consents/utm(JSONB) + 방문자정보(submitter_ip·device·os·browser·language·referer)
+- **공개**: `GET /api/public/forms/{id}`(렌더 데이터), `POST /api/public/leads`(제출) — 필수항목/필수동의 서버검증, UA 파싱(UserAgentParser), X-Forwarded-For, UTM 수집
+- **조회**: `GET /api/leads?formId=`(본인 폼만 K5), `GET /api/leads/count`
+- **프론트**: 공개 폼 `/f/{id}`(실제 입력·제출·완료화면/리다이렉트, BASIC/STEP, 색상 반영), 리드 목록 `/forms/{id}/leads`(답변+방문자정보 카드 + 공개링크 복사/열기), 대시보드 실제 리드 수, 폼 목록 '리드' 버튼
+- **검증**: 제출201·필수누락400·조회(device/os/browser/ip/lang/referer/utm)·카운트 / 브라우저 실제 제출→완료화면→목록 표시(한글 정상)
+- **통합 훅 자리**: `LeadService.submit()` 끝에 TODO — 추후 구글시트 append / 텔레그램·카톡 알림 발송 지점
+- **보류(Phase 5/후속)**: 리드 상태변경·CSV·중복방지(K3)·IP차단(K2)·휴지통. landing_page_id는 nullable(Phase 3 랜딩 붙으면 채움)
 
 ## 🔌 현재 폼 API 요약 (Phase 3에서 랜딩이 폼을 연결할 때 참고)
 - `GET/POST /api/forms`, `GET/PUT/DELETE /api/forms/{id}` (본인만). Form: formType(BASIC/STEP), blocks(FIELD/IMAGE/HTML/TEXT/DIVIDER/CHOICE, select 필드 choices), consentConfig.items, submitButtonConfig, successConfig(mode message/redirect), styleConfig(buttonColor/accentColor), requirePhoneVerification
