@@ -54,6 +54,7 @@ interface StepData {
   description: string;
   answerType: string;
   placeholder: string;
+  required: boolean;
   options: { label: string; desc: string }[];
 }
 
@@ -94,6 +95,7 @@ export function FormEditPage() {
       description: "",
       answerType: "single",
       placeholder: "",
+      required: true,
       options: [
         { label: "선택지 1", desc: "" },
         { label: "선택지 2", desc: "" },
@@ -147,6 +149,7 @@ export function FormEditPage() {
               description: (b.content?.description as string) || "",
               answerType: (b.content?.answerType as string) || (b.content?.selectType as string) || "single",
               placeholder: (b.content?.placeholder as string) || "",
+              required: b.content?.required === true,
               options: ((b.content?.options as { label: string; desc: string }[]) || []).map((o) => ({
                 label: o.label ?? "",
                 desc: o.desc ?? "",
@@ -203,7 +206,7 @@ export function FormEditPage() {
   function addStep() {
     setSteps((prev) => [
       ...prev,
-      { question: "새 질문", description: "", answerType: "single", placeholder: "", options: [{ label: "선택지 1", desc: "" }] },
+      { question: "새 질문", description: "", answerType: "single", placeholder: "", required: true, options: [{ label: "선택지 1", desc: "" }] },
     ]);
   }
   function removeStep(i: number) {
@@ -256,6 +259,7 @@ export function FormEditPage() {
               answerType: s.answerType,
               selectType: s.answerType === "multi" ? "multi" : "single", // 하위호환
               placeholder: s.placeholder,
+              required: s.required,
               options: OPTION_ANSWER_TYPES.includes(s.answerType) ? s.options : [],
             },
           })),
@@ -372,6 +376,9 @@ export function FormEditPage() {
                           ))}
                         </select>
                       </div>
+                      <label className="fr-check" style={{ marginBottom: 10 }}>
+                        <input type="checkbox" checked={s.required} onChange={(e) => patchStep(i, { required: e.target.checked })} /> 필수 (답해야 다음 단계로 진행)
+                      </label>
                       {OPTION_ANSWER_TYPES.includes(s.answerType) ? (
                         <>
                           <label className="mini-label">선택지</label>

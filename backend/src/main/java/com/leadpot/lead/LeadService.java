@@ -93,6 +93,19 @@ public class LeadService {
                     }
                 });
 
+        // STEP 필수 질문(CHOICE, content.required=true) 검증 — 질문(label) 기준
+        form.getBlocks().stream()
+                .filter(b -> "CHOICE".equals(b.getBlockType().name()) && b.getContent() != null
+                        && Boolean.TRUE.equals(b.getContent().get("required")))
+                .forEach(b -> {
+                    String q = str(b.getContent().get("question"));
+                    boolean filled = answers.stream().anyMatch(a ->
+                            !q.isBlank() && q.equals(str(a.get("label"))) && !str(a.get("value")).isBlank());
+                    if (!filled) {
+                        throw new InvalidSubmissionException("'" + q + "' 질문에 응답해주세요.");
+                    }
+                });
+
         for (Map<String, Object> c : req.consentsOrEmpty()) {
             boolean required = Boolean.TRUE.equals(c.get("required"));
             boolean agreed = Boolean.TRUE.equals(c.get("agreed"));

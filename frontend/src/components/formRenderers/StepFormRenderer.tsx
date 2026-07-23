@@ -116,7 +116,9 @@ function ChoiceStep({
 
   return (
     <div>
-      <h3 className="t-h3" style={{ marginBottom: 4 }}>{question}</h3>
+      <h3 className="t-h3" style={{ marginBottom: 4 }}>
+        {question} {block.content?.required === true && <span className="req">*</span>}
+      </h3>
       {description && <p className="dash-sub" style={{ marginTop: 0, marginBottom: 12 }}>{description}</p>}
       {answerType === "single" || answerType === "multi" ? (
         <div className="sfr-options">

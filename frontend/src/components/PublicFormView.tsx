@@ -237,13 +237,34 @@ function StepFlow(props: {
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
   const total = choiceBlocks.length + 1;
   const isContact = step >= choiceBlocks.length;
+  const [stepError, setStepError] = useState("");
 
   function toggle(si: number, oi: number, multi: boolean) {
+    setStepError("");
     setChoices((prev) => {
       const cur = prev[si] ?? [];
       const next = multi ? (cur.includes(oi) ? cur.filter((x) => x !== oi) : [...cur, oi]) : [oi];
       return { ...prev, [si]: next };
     });
+  }
+
+  // 필수 단계 미응답 시 다음으로 진행 차단
+  function goNext() {
+    const b = choiceBlocks[step];
+    const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
+    const required = b.content?.required === true;
+    const isChoice = answerType === "single" || answerType === "multi";
+    const answered = isChoice ? (choices[step] ?? []).length > 0 : (values[`s${step}`] ?? "").trim() !== "";
+    if (required && !answered) {
+      setStepError(isChoice ? "이 항목을 선택해주세요." : "이 항목을 입력해주세요.");
+      return;
+    }
+    setStepError("");
+    setStep((s) => s + 1);
+  }
+  function goPrev() {
+    setStepError("");
+    setStep((s) => s - 1);
   }
 
   return (
@@ -265,7 +286,9 @@ function StepFlow(props: {
           const inputVal = values[`s${step}`] ?? "";
           return (
             <div>
-              <h3 className="t-h3" style={{ marginBottom: 4 }}>{(b.content?.question as string) || "질문"}</h3>
+              <h3 className="t-h3" style={{ marginBottom: 4 }}>
+                {(b.content?.question as string) || "질문"} {b.content?.required === true && <span className="req">*</span>}
+              </h3>
               {(b.content?.description as string) && <p className="dash-sub" style={{ marginTop: 0 }}>{b.content?.description as string}</p>}
               {answerType === "single" || answerType === "multi" ? (
                 <div className="sfr-options">
@@ -306,14 +329,15 @@ function StepFlow(props: {
         </div>
       )}
 
+      {stepError && <p className="auth-error" style={{ marginTop: 12 }}>{stepError}</p>}
       <div className="sfr-nav">
-        {step > 0 && <button className="btn btn-ghost" type="button" onClick={() => setStep((s) => s - 1)}>이전</button>}
+        {step > 0 && <button className="btn btn-ghost" type="button" onClick={goPrev}>이전</button>}
         {isContact ? (
           <button className="btn" type="button" style={{ flex: 1, background: style.buttonColor, color: style.buttonText }} disabled={submitting} onClick={onSubmit}>
             {submitting ? "제출 중…" : submitLabel}
           </button>
         ) : (
-          <button className="btn" type="button" style={{ flex: 1, background: style.accentColor, color: style.accentText }} onClick={() => setStep((s) => s + 1)}>다음</button>
+          <button className="btn" type="button" style={{ flex: 1, background: style.accentColor, color: style.accentText }} onClick={goNext}>다음</button>
         )}
       </div>
     </div>
