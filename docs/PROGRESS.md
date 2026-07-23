@@ -8,34 +8,54 @@
 
 ## 📍 지금 위치
 
-- **현재 Phase**: Phase 0 — 프로젝트 셋업 & 배포 파이프라인
-- **상태**: 🔄 진행중 (막 시작)
+- **현재 Phase**: Phase 0 — 셋업 & 배포 파이프라인 → **로컬 스캐폴딩·검증 완료 ✅** (클라우드 배포는 계정 준비 후)
+- **다음 Phase**: Phase 1 — 인증 & 계정
+- **프로젝트 위치(중요)**: **`C:\Users\wincube\projects\Leadpot`** (로컬)
+  - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
 
 ## ✅ 방금까지 한 일 (2026-07-23)
 
-- 기획·분석·설계 문서 전체 작성 (CLAUDE / SPEC / FEATURES / BACKLOG / DBCART-ANALYSIS / ROADMAP)
-- 1차 범위 34개 확정
-- Git 저장소 연결 및 문서 첫 커밋/푸시 (https://github.com/gooinsung/Leadpot)
-- 로컬 환경 점검: Node 22 ✅ / **JDK 8 ⚠️(21 필요)** / **Docker 미설치 ⚠️**
+- 기획·분석·설계 문서 전체 작성 + 1차 34개 확정 + GitHub 저장소 세팅
+- **Phase 0 스캐폴딩 완료**:
+  - 프론트(React+Vite+TS): 백엔드 연결 확인 화면, api 클라이언트, `.env.example`
+  - 백엔드(Spring Boot 4 / Java 21): `/api/health` + CORS 설정, Dockerfile(멀티스테이지)
+  - `docker-compose.yml`(PostgreSQL + backend, Phase 1 대비)
+- **로컬 검증 성공**: 프론트(`localhost:5173`) → 백엔드(`localhost:8080/api/health`) **연결 성공(CORS 포함)** 확인
+- **프로젝트를 로컬(`C:\Users\wincube\projects\Leadpot`)로 이전** (Drive 병목 해소). npm install 6초로 정상화.
 
-## 👉 다음에 할 일 (여기서 이어서)
+## ▶️ 로컬 실행법 (현재 기준)
 
-1. **(사용자 준비물)** 백엔드 검증을 위해 설치 필요:
-   - **JDK 21** (Eclipse Temurin 등) — Spring Boot 3.x 실행에 필수
-   - **Docker Desktop** — PostgreSQL 및 컨테이너 실행용
-2. **프론트 스켈레톤 생성** (React+Vite TS) — Node만 있으면 되므로 바로 진행/검증 가능
-3. **백엔드 스켈레톤 생성** (Spring Boot, Gradle, Java21) + `/api/health`
-4. **docker-compose.yml** (Spring + PostgreSQL) 구성
-5. **로컬 검증**: 프론트에서 `/api/health` 호출 성공 확인
-6. (이후) 배포 파이프라인: Cloudflare Pages(프론트) + Oracle VM(백엔드) — 계정 준비되면
+```bash
+# 백엔드 (JDK 21 경로 지정해서 실행)
+cd C:/Users/wincube/projects/Leadpot/backend
+JAVA_HOME="C:/Users/wincube/.jdks/ms-21.0.11" ./gradlew bootRun
+#   → http://localhost:8080/api/health
+
+# 프론트
+cd C:/Users/wincube/projects/Leadpot/frontend
+npm install   # 최초 1회
+npm run dev
+#   → http://localhost:5173
+```
+
+## 👉 다음에 할 일 (여기서 이어서) — Phase 1: 인증 & 계정
+
+1. **PostgreSQL 준비** (Phase 1은 DB 필요):
+   - Docker Desktop 설치 완료(재부팅) 후 `docker compose up db` 로 Postgres 기동, **또는** 로컬 Postgres 설치
+2. 백엔드에 **Spring Data JPA + PostgreSQL 드라이버 + Spring Security(JWT)** 추가 (build.gradle)
+3. **users 테이블 + 엔티티** (id, email, password_hash, name, role, plan, created_at)
+4. **회원가입/로그인 API** (BCrypt 해시, JWT 발급), 비밀번호 재설정(A4)
+5. 프론트: **로그인/회원가입 화면 + 토큰 저장 + 인증 가드 + 빈 대시보드**
+6. 리드/데이터 **접근 권한(K5)**: 본인 소유 리소스만 접근
+7. ✔ 검증: 가입 → 로그인 → 내 데이터만 보이는 대시보드 진입
 
 ## 🚧 블로커 / 준비물
 
-- JDK 21 미설치 → 백엔드 빌드·실행 불가 (설치 필요)
-- Docker 미설치 → docker-compose 실행 불가 (설치 필요)
-- Oracle Cloud VM / Cloudflare 계정 → 배포 단계에서 필요
+- **Docker Desktop**: 설치 로그만 있고 미완 → **재부팅 후 완료 필요** (Phase 1 Postgres/컨테이너용). 또는 로컬 Postgres 설치.
+- **JDK 21**: `C:\Users\wincube\.jdks\ms-21.0.11` 사용 중(정상). PATH/JAVA_HOME 기본값은 아직 Java 8 → gradlew 실행 시 JAVA_HOME 명시.
+- **배포(Phase 0 잔여)**: Cloudflare Pages(프론트) + Oracle VM(백엔드) 실제 배포는 계정 준비되면.
 
 ## 🔗 참고
 
-- 브랜치: `main`
-- 최근 커밋: `docs: 프로젝트 기획·설계 문서 초기 커밋 (Leadpot)`
+- 저장소: https://github.com/gooinsung/Leadpot · 브랜치: `main`
+- 백엔드 스택 확인: Spring Boot **4.1.0**, Java 21, Gradle 9.5.1 (starter: webmvc + actuator)

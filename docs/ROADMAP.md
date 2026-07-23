@@ -30,8 +30,8 @@
 
 | Phase | 내용 | 포함 기능 | 상태 |
 |---|---|---|:---:|
-| **0** | 셋업 & 배포 파이프라인 | 모노레포·스켈레톤·PostgreSQL·/api/health·CF Pages+Oracle VM 배포·CORS | ⬜ |
-| **1** | 인증 & 계정 | A1, A2, A4, K5, K1 | ⬜ |
+| **0** | 셋업 & 배포 파이프라인 | 로컬 스켈레톤·/api/health·CORS 검증 ✅ / 클라우드 배포는 계정 준비 후 | 🔄 (로컬 완료) |
+| **1** | 인증 & 계정 | A1, A2, A4, K5, K1 | ⬜ ← **다음** |
 | **2** | 폼 빌더 ★핵심 | M1, M2, M7, B2, M4, C1, M3, C2, M6, M5(옵션자리) | ⬜ |
 | **3** | 랜딩 빌더 & 폼 연결 | B1, B3, B5, B7 | ⬜ |
 | **4** | 공개 페이지 & 수집 | D1, J(방문자정보), D2 | ⬜ |
@@ -61,6 +61,8 @@
 - [x] 기획·분석·설계 문서화 (CLAUDE/SPEC/FEATURES/BACKLOG/DBCART-ANALYSIS/ROADMAP)
 - [x] 1차 범위 확정 (위 34개)
 - [x] Git 저장소 연결: https://github.com/gooinsung/Leadpot
-- [ ] **다음 할 일: Phase 0 — 프로젝트 셋업 & 배포 파이프라인**
+- [x] Phase 0 로컬 스캐폴딩·검증 (프론트↔백엔드 /api/health 연결 성공)
+- [x] 프로젝트 로컬 이전 (`C:\Users\wincube\projects\Leadpot`) — Drive 병목 해소
+- [ ] **다음 할 일: Phase 1 — 인증 & 계정** (상세는 [PROGRESS.md](PROGRESS.md))
 
-> 준비물(사용자 계정 작업): GitHub(완료), Oracle Cloud VM, Cloudflare 계정, 도메인(선택), 이메일 발송(비번재설정용).
+> 준비물(사용자 계정 작업): GitHub(완료), Docker Desktop(재부팅 후 완료), Oracle Cloud VM, Cloudflare 계정, 도메인(선택), 이메일 발송(비번재설정용).
