@@ -22,7 +22,7 @@
   - `docker-compose.yml`(PostgreSQL + backend, Phase 1 대비)
 - **로컬 검증 성공**: 프론트(`localhost:5173`) → 백엔드(`localhost:8080/api/health`) **연결 성공(CORS 포함)** 확인
 - **프로젝트를 로컬(`C:\Users\wincube\projects\Leadpot`)로 이전** (Drive 병목 해소). npm install 6초로 정상화.
-- **디자인 컨셉 v1 작성** ([docs/design/concept.html](design/concept.html)) — 인디고+그린, "리드를 팟에 담다" 모티프, 스타일가이드 + 화면 목업(대시보드/폼빌더/스텝폼/공개랜딩). **→ 사용자 승인 대기 중**
+- **디자인 컨셉 v1 작성 + 승인 완료** ([docs/design/concept.html](design/concept.html)) — 인디고+그린, "리드를 팟에 담다" 모티프, 스타일가이드 + 화면 목업(대시보드/폼빌더/스텝폼/공개랜딩). 사용자: "추천대로 진행"(언제든 변경 가능). 공유 링크: claude.ai/code/artifact/167af033-401e-41b1-ab3b-ddedc908d492
 - **CLAUDE.md에 최상위 지침 추가**: 애매하면 임의진행 금지, 반드시 질문.
 
 ## ▶️ 로컬 실행법 (현재 기준)
@@ -42,13 +42,28 @@ npm run dev
 
 ## ❓ 사용자 확인 필요 (돌아오면 이것부터 — 최상위 지침에 따라 임의진행 안 함)
 
-1. **디자인 컨셉 승인?** `docs/design/concept.html` 방향(인디고+그린)으로 확정할지. OK면 프론트에 디자인 시스템 적용 진행.
-2. **Phase 1 DB 방법?** Docker Desktop 재부팅 완료를 기다릴지, 아니면 로컬 PostgreSQL 설치, 아니면 개발용 H2(임시)로 먼저 진행할지.
+1. ✅ (해결) 디자인 컨셉 — 승인됨(추천대로).
+2. **Phase 1 DB 방법?** Docker Desktop 재부팅 완료를 기다릴지 / 로컬 PostgreSQL 설치 / 개발용 H2(임시)로 먼저 진행 — **택1 필요** (Phase 1 백엔드 착수 전제).
 3. (배포) Oracle VM·Cloudflare·도메인 준비 시점.
 
-> 위가 정해지기 전까지는 "명백·안전한 것"만 진행. 애매한 결정은 대기.
+> 최상위 지침: 애매하거나 확인 필요한 결정은 임의진행 금지 → 반드시 질문.
 
-## 👉 다음에 할 일 (여기서 이어서) — Phase 1: 인증 & 계정
+## 👉 다음에 할 일 (여기서 이어서 — 다른 PC에서)
+
+### A. 프론트에 디자인 시스템 적용 (백엔드 불필요 · 승인 완료 · 바로 진행 가능)
+- 스타일링 방식: **플레인 CSS + CSS 변수(디자인 토큰)** 로 결정 (Tailwind 선호 시 변경 가능)
+- Pretendard 폰트 적용 (index.html), `src/styles/` 에 concept.html 팔레트로 토큰(light/dark) 정의
+- 현재 `index.css`/`App.css`의 Vite 기본 스타일 정리, `App.tsx` health 화면을 Leadpot 브랜드로 리스타일
+- 참고 원본: [docs/design/concept.html](design/concept.html) (컬러/타이포/컴포넌트/목업)
+
+### B. Phase 1 — 인증 & 계정 (DB 방법 확정 후)
+- PostgreSQL 준비 → 백엔드에 Spring Data JPA + PostgreSQL 드라이버 + Spring Security(JWT) 추가
+- users 엔티티 → 회원가입/로그인(BCrypt+JWT) → 비번재설정(A4)
+- 프론트: 로그인/회원가입 화면 + 토큰 저장 + 인증 가드 + 대시보드 골격
+- 리드 접근 권한(K5): 본인 리소스만
+- ✔ 검증: 가입 → 로그인 → 내 데이터만 보이는 대시보드
+
+### (원래 Phase 1 메모)
 
 1. **PostgreSQL 준비** (Phase 1은 DB 필요):
    - Docker Desktop 설치 완료(재부팅) 후 `docker compose up db` 로 Postgres 기동, **또는** 로컬 Postgres 설치
