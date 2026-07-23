@@ -396,6 +396,56 @@ td.num {
   margin: 16px 0 8px;
 }
 
+/* 완료 화면 미리보기 */
+.completion {
+  text-align: center;
+  padding: 20px 8px;
+}
+.completion-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+.completion-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+.completion-msg {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+.completion-note {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  text-align: center;
+}
+.completion-url {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--indigo);
+  word-break: break-all;
+}
+.phone-verify-note {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--indigo-strong);
+  background: var(--indigo-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
 /* 유형 세그먼트 */
 .type-seg {
   display: inline-flex;

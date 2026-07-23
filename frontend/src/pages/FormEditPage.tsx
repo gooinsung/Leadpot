@@ -15,6 +15,7 @@ import {
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
+import { CompletionView } from "../components/formRenderers/CompletionView";
 
 function defaultConsentItems(): ConsentItem[] {
   return [
@@ -90,6 +91,11 @@ export function FormEditPage() {
   const [submitLabel, setSubmitLabel] = useState("무료 상담 신청");
   const [buttonColor, setButtonColor] = useState("#12b886");
   const [accentColor, setAccentColor] = useState("#3a43c0");
+  const [successMode, setSuccessMode] = useState<"message" | "redirect">("message");
+  const [successTitle, setSuccessTitle] = useState("신청이 완료되었습니다");
+  const [successMessage, setSuccessMessage] = useState("빠른 시일 내에 연락드리겠습니다.");
+  const [redirectUrl, setRedirectUrl] = useState("");
+  const [requirePhone, setRequirePhone] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -105,6 +111,12 @@ export function FormEditPage() {
         setSubmitLabel((f.submitButtonConfig?.label as string) || "무료 상담 신청");
         setButtonColor((f.styleConfig?.buttonColor as string) || "#12b886");
         setAccentColor((f.styleConfig?.accentColor as string) || "#3a43c0");
+        const sc = f.successConfig;
+        setSuccessMode((sc?.mode as "message" | "redirect") || "message");
+        setSuccessTitle((sc?.title as string) || "신청이 완료되었습니다");
+        setSuccessMessage((sc?.message as string) ?? "빠른 시일 내에 연락드리겠습니다.");
+        setRedirectUrl((sc?.redirectUrl as string) || "");
+        setRequirePhone(Boolean(f.requirePhoneVerification));
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
           const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
@@ -228,9 +240,10 @@ export function FormEditPage() {
   const formData: FormInput = {
     name,
     formType,
-    requirePhoneVerification: false,
+    requirePhoneVerification: requirePhone,
     consentConfig: { items: consentItems },
     submitButtonConfig: { label: submitLabel },
+    successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
     styleConfig: { buttonColor, accentColor },
     blocks: builtBlocks,
   };
@@ -439,12 +452,55 @@ export function FormEditPage() {
               <ColorField label="제출 버튼 색" value={buttonColor} onChange={setButtonColor} />
               <ColorField label="폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
             </div>
+
+            <div className="card card-pad" style={{ marginTop: 16 }}>
+              <div className="card-h">제출 완료 후</div>
+              <div className="field">
+                <label>완료 처리</label>
+                <select className="input" value={successMode} onChange={(e) => setSuccessMode(e.target.value as "message" | "redirect")}>
+                  <option value="message">감사 메시지 표시</option>
+                  <option value="redirect">다른 링크로 이동</option>
+                </select>
+              </div>
+              {successMode === "message" ? (
+                <>
+                  <div className="field">
+                    <label>완료 제목</label>
+                    <input className="input" value={successTitle} onChange={(e) => setSuccessTitle(e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>안내 문구</label>
+                    <textarea className="input" rows={2} value={successMessage} onChange={(e) => setSuccessMessage(e.target.value)} />
+                  </div>
+                </>
+              ) : (
+                <div className="field">
+                  <label>이동할 URL</label>
+                  <input className="input" placeholder="https://…" value={redirectUrl} onChange={(e) => setRedirectUrl(e.target.value)} />
+                </div>
+              )}
+            </div>
+
+            <div className="card card-pad" style={{ marginTop: 16 }}>
+              <div className="card-h">옵션</div>
+              <label className="fr-check">
+                <input type="checkbox" checked={requirePhone} onChange={(e) => setRequirePhone(e.target.checked)} /> 휴대폰 본인인증 사용
+              </label>
+              <p className="dash-sub" style={{ marginTop: 6 }}>
+                켜면 제출 시 본인인증을 요구합니다. (외부 인증 연동은 추후 제공 — 지금은 옵션 자리)
+              </p>
+            </div>
           </div>
 
           <div className="preview-panel">
             <div className="card-h">미리보기</div>
             <div className="preview-frame">
+              {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
               <FormRenderer form={formData} />
+            </div>
+            <div className="card-h" style={{ marginTop: 18 }}>완료 화면</div>
+            <div className="preview-frame">
+              <CompletionView config={formData.successConfig} accent={accentColor} />
             </div>
           </div>
         </div>
