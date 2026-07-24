@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteLanding, listLandings, type LandingSummary } from "../api/client";
+import { useAuth } from "../lib/authContext";
+import { publicSiteUrl } from "../lib/site";
 import { TopBar } from "../components/TopBar";
 
 export function LandingsListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const sub = user?.subdomain ?? "";
   const [items, setItems] = useState<LandingSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,11 +60,14 @@ export function LandingsListPage() {
                 {items.map((l) => (
                   <tr key={l.id} className="row-click" onClick={() => navigate(`/landings/${l.id}/edit`)}>
                     <td>{l.title}</td>
-                    <td className="num">/p/{l.slug}</td>
+                    <td className="num">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
                     <td><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
                     <td className="num">{new Date(l.updatedAt).toLocaleString("ko-KR")}</td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/p/${l.slug}`, "_blank")}>열기</button>
+                      {l.status === "published" && sub && (
+                        <button className="btn btn-ghost btn-sm" onClick={() => window.open(publicSiteUrl(sub, l.id), "_blank")}>공개 열기</button>
+                      )}
+                      <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/p/${l.slug}`, "_blank")}>미리보기</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/landings/${l.id}/edit`)}>편집</button>
                       <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(l.id, l.title)}>삭제</button>
                     </td>

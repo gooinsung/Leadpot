@@ -46,8 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((next: AuthUser) => {
+    setUser(next);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

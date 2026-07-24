@@ -13,5 +13,7 @@ public interface LandingPageRepository extends JpaRepository<LandingPage, Long> 
 
     Optional<LandingPage> findBySlug(String slug);
 
+    Optional<LandingPage> findBySlugAndOwnerId(String slug, Long ownerId);
+
     boolean existsBySlug(String slug);
 }

@@ -55,4 +55,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ApiError.of(HttpStatus.BAD_REQUEST.value(), "INVALID_SUBMISSION", e.getMessage()));
     }
+
+    @ExceptionHandler(InvalidSubdomainException.class)
+    public ResponseEntity<ApiError> handleInvalidSubdomain(InvalidSubdomainException e) {
+        return ResponseEntity.badRequest()
+                .body(ApiError.of(HttpStatus.BAD_REQUEST.value(), "INVALID_SUBDOMAIN", e.getMessage()));
+    }
+
+    @ExceptionHandler(SubdomainTakenException.class)
+    public ResponseEntity<ApiError> handleSubdomainTaken(SubdomainTakenException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(HttpStatus.CONFLICT.value(), "SUBDOMAIN_TAKEN", e.getMessage()));
+    }
 }

@@ -31,6 +31,10 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    /** 공개 라우팅용 서브도메인({subdomain}.도메인/{랜딩}). 가입 시 랜덤 부여, 이후 변경 가능(unique). */
+    @Column(nullable = false, unique = true, length = 30)
+    private String subdomain;
+
     @Column(nullable = false)
     private String name;
 
@@ -76,6 +80,14 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getSubdomain() {
+        return subdomain;
+    }
+
+    public void setSubdomain(String subdomain) {
+        this.subdomain = subdomain;
     }
 
     public String getName() {

@@ -1,6 +1,7 @@
 package com.leadpot.common.security;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -118,7 +119,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins));
+        // 설정된 오리진 + 서브도메인 공개 페이지(로컬 *.localhost). 배포 시 APP_CORS_ALLOWED_ORIGINS 에
+        // https://*.도메인 패턴을 추가하면 운영 서브도메인도 허용된다. (allowedOriginPatterns 는 와일드카드 지원)
+        List<String> originPatterns = new ArrayList<>(Arrays.asList(allowedOrigins));
+        originPatterns.add("http://*.localhost:5173");
+        config.setAllowedOriginPatterns(originPatterns);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

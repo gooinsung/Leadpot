@@ -7,6 +7,7 @@ export interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>;
   signup: (input: SignupInput) => Promise<void>;
   logout: () => void;
+  updateUser: (user: AuthUser) => void; // 계정 정보 부분 갱신(서브도메인 변경 등)
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

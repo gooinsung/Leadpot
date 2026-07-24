@@ -61,6 +61,11 @@
   font-size: 13px;
   margin-bottom: 12px;
 }
+.auth-ok {
+  color: var(--green, #2fa36b);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
 .field-error {
   color: var(--rose);
   font-size: 12px;

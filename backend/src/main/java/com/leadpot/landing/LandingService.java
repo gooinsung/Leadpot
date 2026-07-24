@@ -3,11 +3,14 @@ package com.leadpot.landing;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.auth.User;
+import com.leadpot.auth.UserRepository;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.FormRepository;
 import com.leadpot.form.dto.FormResponse;
@@ -22,10 +25,13 @@ public class LandingService {
 
     private final LandingPageRepository landingRepository;
     private final FormRepository formRepository;
+    private final UserRepository userRepository;
 
-    public LandingService(LandingPageRepository landingRepository, FormRepository formRepository) {
+    public LandingService(LandingPageRepository landingRepository, FormRepository formRepository,
+            UserRepository userRepository) {
         this.landingRepository = landingRepository;
         this.formRepository = formRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional(readOnly = true)
@@ -62,15 +68,47 @@ public class LandingService {
         landingRepository.delete(load(ownerId, id));
     }
 
-    /** 공개 렌더: 슬러그로 랜딩 + FORM 블록이 참조하는 폼 정의를 함께 반환. */
+    /**
+     * 공개 렌더: 서브도메인으로 소유자를 찾고, 식별자(숫자=랜딩번호 / 문자=슬러그)로 랜딩을 해석.
+     * 공개 접근은 published 만 허용(비공개는 존재를 드러내지 않도록 404).
+     */
     @Transactional(readOnly = true)
-    public PublicLandingResponse getPublic(String slug) {
-        LandingPage landing = landingRepository.findBySlug(slug)
+    public PublicLandingResponse getPublicBySite(String subdomain, String identifier) {
+        User owner = userRepository.findBySubdomain(subdomain == null ? "" : subdomain.toLowerCase())
                 .orElseThrow(() -> new NotFoundException("페이지를 찾을 수 없습니다."));
-        // 비공개(draft) 페이지는 공개 접근 차단 — 존재를 드러내지 않도록 동일한 404.
+        LandingPage landing = resolveLanding(owner.getId(), identifier)
+                .orElseThrow(() -> new NotFoundException("페이지를 찾을 수 없습니다."));
         if (!"published".equals(landing.getStatus())) {
             throw new NotFoundException("페이지를 찾을 수 없습니다.");
         }
+        return buildPublic(landing);
+    }
+
+    /**
+     * 소유자 미리보기: 기존 /p/{slug} 경로용. 로그인한 본인 소유 랜딩만(draft 포함) 반환.
+     * 남의 슬러그이거나 존재하지 않으면 404(존재 비노출).
+     */
+    @Transactional(readOnly = true)
+    public PublicLandingResponse getPreview(Long ownerId, String slug) {
+        LandingPage landing = landingRepository.findBySlugAndOwnerId(slug, ownerId)
+                .orElseThrow(() -> new NotFoundException("페이지를 찾을 수 없습니다."));
+        return buildPublic(landing);
+    }
+
+    /** 식별자 해석: 숫자면 랜딩번호(id), 아니면 슬러그. 항상 소유자 범위 내에서. */
+    private Optional<LandingPage> resolveLanding(Long ownerId, String identifier) {
+        if (identifier != null && identifier.matches("\\d+")) {
+            try {
+                return landingRepository.findByIdAndOwnerId(Long.valueOf(identifier), ownerId);
+            } catch (NumberFormatException e) {
+                return Optional.empty();
+            }
+        }
+        return landingRepository.findBySlugAndOwnerId(identifier, ownerId);
+    }
+
+    /** FORM 블록이 참조하는 폼 정의를 함께 묶어 공개 응답 생성. */
+    private PublicLandingResponse buildPublic(LandingPage landing) {
         Map<Long, FormResponse> forms = new LinkedHashMap<>();
         for (Map<String, Object> block : landing.getContent()) {
             if ("FORM".equals(String.valueOf(block.get("type")))) {

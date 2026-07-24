@@ -130,6 +130,7 @@ export interface AuthUser {
   email: string;
   name: string;
   phone: string | null;
+  subdomain: string;
   role: Role;
   plan: Plan;
   createdAt: string;
@@ -170,6 +171,11 @@ export function login(input: LoginInput): Promise<TokenResponse> {
 
 export function getMe(): Promise<AuthUser> {
   return request<AuthUser>("/api/auth/me");
+}
+
+/** 내 서브도메인 변경(로그인 필요). 갱신된 계정 정보 반환. */
+export function updateSubdomain(subdomain: string): Promise<AuthUser> {
+  return request<AuthUser>("/api/auth/subdomain", { method: "PATCH", body: { subdomain } });
 }
 
 // ---------- 폼(Form) ----------
@@ -429,8 +435,17 @@ export function updateLanding(id: number, input: LandingInput): Promise<LandingD
 export function deleteLanding(id: number): Promise<void> {
   return request<void>(`/api/landings/${id}`, { method: "DELETE" });
 }
-export function getPublicLanding(slug: string): Promise<PublicLanding> {
-  return request<PublicLanding>(`/api/public/landings/${slug}`, { auth: false });
+/** 공개 사이트 해석(비로그인): {subdomain}.도메인/{랜딩번호|슬러그}. published 만 열림. */
+export function resolveSite(subdomain: string, identifier: string): Promise<PublicLanding> {
+  return request<PublicLanding>(
+    `/api/public/sites/${encodeURIComponent(subdomain)}/${encodeURIComponent(identifier)}`,
+    { auth: false },
+  );
+}
+
+/** 소유자 미리보기(/p/{slug}, 로그인·본인만, draft 포함). 남의 것/없으면 404. */
+export function getLandingPreview(slug: string): Promise<PublicLanding> {
+  return request<PublicLanding>(`/api/landings/preview/${encodeURIComponent(slug)}`);
 }
 
 // ---------- 통계 ----------

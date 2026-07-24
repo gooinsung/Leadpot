@@ -11,6 +11,8 @@ import com.leadpot.auth.dto.UserResponse;
 import com.leadpot.common.error.EmailAlreadyUsedException;
 import com.leadpot.common.error.InvalidCredentialsException;
 import com.leadpot.common.error.InvalidRefreshTokenException;
+import com.leadpot.common.error.InvalidSubdomainException;
+import com.leadpot.common.error.SubdomainTakenException;
 import com.leadpot.common.security.JwtService;
 
 /** 인증 관련 비즈니스 로직: 회원가입 · 로그인 · 토큰 재발급. */
@@ -38,8 +40,40 @@ public class AuthService {
                 passwordEncoder.encode(req.password()),
                 req.name().trim(),
                 normalizePhone(req.phone()));
+        user.setSubdomain(generateUniqueSubdomain());
         userRepository.save(user);
         return buildTokens(user);
+    }
+
+    /** 서브도메인 변경(형식·예약어·중복 검증). 본인 것과 동일하면 통과. */
+    @Transactional
+    public UserResponse updateSubdomain(Long userId, String raw) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new InvalidCredentialsException("계정을 찾을 수 없습니다."));
+        String s = Subdomains.normalize(raw);
+        if (!Subdomains.isValidFormat(s)) {
+            throw new InvalidSubdomainException(
+                    "서브도메인은 소문자·숫자·하이픈 3~30자여야 하며, 하이픈으로 시작하거나 끝날 수 없습니다.");
+        }
+        if (Subdomains.isReserved(s)) {
+            throw new InvalidSubdomainException("사용할 수 없는 서브도메인입니다.");
+        }
+        if (!s.equals(user.getSubdomain()) && userRepository.existsBySubdomain(s)) {
+            throw new SubdomainTakenException("이미 사용 중인 서브도메인입니다.");
+        }
+        user.setSubdomain(s);
+        return UserResponse.from(user);
+    }
+
+    /** 가입 시 유일한 랜덤 서브도메인 생성. */
+    private String generateUniqueSubdomain() {
+        for (int i = 0; i < 10; i++) {
+            String s = Subdomains.random();
+            if (!userRepository.existsBySubdomain(s)) {
+                return s;
+            }
+        }
+        throw new IllegalStateException("서브도메인 생성에 실패했습니다. 다시 시도해주세요.");
     }
 
     @Transactional(readOnly = true)

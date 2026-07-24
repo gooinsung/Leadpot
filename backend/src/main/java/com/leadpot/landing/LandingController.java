@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.leadpot.landing.dto.LandingRequest;
 import com.leadpot.landing.dto.LandingResponse;
 import com.leadpot.landing.dto.LandingSummary;
+import com.leadpot.landing.dto.PublicLandingResponse;
 
 import jakarta.validation.Valid;
 
@@ -46,6 +47,12 @@ public class LandingController {
     @GetMapping("/{id}")
     public LandingResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         return landingService.get(userId(jwt), id);
+    }
+
+    /** 소유자 미리보기(/p/{slug} 용): 본인 소유 랜딩만 렌더 데이터로 반환(draft 포함). */
+    @GetMapping("/preview/{slug}")
+    public PublicLandingResponse preview(@AuthenticationPrincipal Jwt jwt, @PathVariable String slug) {
+        return landingService.getPreview(userId(jwt), slug);
     }
 
     @PutMapping("/{id}")

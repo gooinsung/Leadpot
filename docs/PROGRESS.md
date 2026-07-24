@@ -8,27 +8,33 @@
 
 ## 📍 지금 위치
 
+- **⚠️ 진행 중(미검증) — 서브도메인 관리(D3)**: 코드 작성 완료, **로컬 빌드/검증 아직 못 함**. 작업하던 gooinsung PC(`C:\Users\gooinsung\git\Leadpot`)에 **Java·Docker·node_modules가 없어** gradlew/tsc/docker 모두 실행 불가. → **Java 21 + Docker + `npm install` 있는 환경에서 빌드·검증 필요**. 브랜치 `feature/d3-subdomain`에 커밋됨.
 - **현재 위치**: **핵심 루프(폼 공개→제출→리드 수집→조회) 완성 ✅** — 실제 데이터가 쌓임(방문자정보 포함) + **통계 대시보드 ✅**
 - **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ / **리드 수집(Phase 4 앞당김) ✅** / **Phase 3 랜딩 빌더 & 폼 연결 ✅** / **리드 상태변경·CSV 내보내기 ✅** / **이미지 업로드 R2 연동(경로 구조화 landing-image/YYYY/MM/DD) ✅** / **통계 고도화(방문 추적+전환율+순방문·트래픽 분리+일/주/월+호버툴팁+기간/대상 필터+랜딩/폼별) ✅** / **동의문서 이름/제목/내용 분리 ✅**
 - **추가 폼 개선(2026-07-24)**: 공개 폼 이름 숨김 · 동의 항목 기본체크 설정 · 공개 폼 모바일 최적화(1차) · **스텝형 답변 방식 확장**(카드 단일/다중 + 선택박스·텍스트·장문·연락처·이메일·숫자·날짜) · **마지막 단계 커스텀 안내문구**(typeConfig.contactMessage) · 스텝 입력형 간격 개선 · **중복 제출 방지(K3)**: 항목별 중복허용/유효기간 + 폼 동일IP 접수허용(settings_config, Flyway V6)
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐ 바로 다음 작업 = **서브도메인 관리(D3)** (사용자 지정, 2026-07-24)
-> 사용자가 원하는 URL 구조: `{사용자서브도메인}.우리도메인/{랜딩번호}` (예: `bali.lead-pot.com/12`). 서브도메인 기본은 랜덤 문자열, 사용자가 직접 변경 가능(디비카트 예: `https://1784785934139289.dbcart.net/`).
-> **착수 전 사용자에게 확정받을 결정 3가지** (이전 세션에 질문했으나 사용자가 닫음 → 재개 시 다시 물어볼 것):
->   1. **루트 동작**(`sub.도메인/` 랜딩번호 없이): 대표 랜딩 1개 표시 vs 최근 공개 랜딩 vs 404
->   2. **경로 식별자**: 랜딩번호(숫자) vs 슬러그(문자) vs 둘 다
->   3. **기존 `/p/{slug}` 유지 여부**: 폴백 유지(권장) vs 서브도메인으로 완전 대체
-> **구현 플랜**(앱-사이드는 지금 가능, DNS/SSL은 배포 시점):
->   - 백엔드: `User.subdomain`(unique, 가입 시 랜덤 부여, 예약어 www·api·app·admin 등 차단) + 마이그레이션(다음 **V10**). 공개 조회를 `(서브도메인→소유자)+(랜딩번호/슬러그→랜딩)`로 해석하는 엔드포인트. 설정 화면에서 서브도메인 변경(중복 검사).
->   - 프론트: `location.hostname`에서 서브도메인 파싱 → 해석 API 호출. 계정 설정에 서브도메인 편집 UI.
->   - **로컬 검증**: `*.localhost`가 127.0.0.1로 잡히므로 `bali.localhost:5173/12` 로 실동작 확인 가능.
->   - **배포 시(사용자 리소스)**: 도메인 구입 + `*.도메인` 와일드카드 DNS + 와일드카드 SSL(Cloudflare 무료) + 서브도메인 SPA 서빙.
+> ### ⭐ 바로 다음 작업 = **D3 서브도메인 빌드·검증** (코드는 작성됨, 미검증)
+> **결정 확정됨(2026-07-24)**: ① 루트(식별자 없음)=**404** · ② 경로 식별자=**랜딩번호(숫자)+슬러그(문자) 둘 다** · ③ 기존 `/p/{slug}`=**소유자 전용 미리보기(로그인·본인만, draft 포함)로 변경**, 공개 접속은 서브도메인 URL로. DB 전략=**로컬 유지(PC마다 독립)**, 배포 시 Oracle VM Docker Postgres 또는 Neon.
 >
-> **그 다음(혼자 가능)**: M8 HTML 요소 라이브러리 → 폼 외부 임베드(M6) → **광고 픽셀 I1(구글·메타·틱톡·당근·카카오 — 픽셀 ID만 입력받아 공개 페이지에 스크립트 삽입, 자율 가능)** → IP차단(K2) → 리드 검색·필터·휴지통(E4).
+> **⚠️ 이어받는 사람은 먼저 빌드/검증부터** (이 PC엔 Java·Docker·node_modules 없어 못 돌림):
+>   1. `cd frontend && npm install && npx tsc -b` (또는 `npm run build`) — 타입체크
+>   2. Java 21 환경에서 `cd backend && ./gradlew build` — 컴파일+테스트(H2 contextLoads)
+>   3. **DB 초기화(로컬)**: `docker compose down -v` 로 pgdata 볼륨 삭제 → `docker compose up -d db` 재기동(Flyway V1~**V10** 새로 적용). ※ 사용자가 "싹 초기화" 승인함.
+>   4. 백엔드 기동 후 API 스모크: 가입→응답 user.subdomain 랜덤부여 확인 / `PATCH /api/auth/subdomain` 정상·예약어(admin 등)400·중복409 / `GET /api/public/sites/{sub}/{id or slug}` published만 200·draft 404 / `GET /api/landings/preview/{slug}` 본인 200(draft 포함)·타인/비로그인 404
+>   5. **브라우저 로컬 검증**: `frontend`에서 `npm run dev` 후 **`http://{내서브도메인}.localhost:5173/{랜딩번호}`** 접속 → 공개 랜딩 열림·방문 1회 기록. 대시보드 "계정 설정·서브도메인"에서 변경 후 새 주소로 열림. `/p/{slug}`는 로그인 소유자만(미리보기 배너 표시), 비로그인/타인은 404.
+>
+> **구현 요약(이번 세션 작성분)** — 브랜치 `feature/d3-subdomain`:
+>   - 백엔드: Flyway **V10**(`users.subdomain` unique + 기존행 랜덤 백필), `User.subdomain`, `Subdomains`(형식·예약어·랜덤), 가입 시 자동부여, `PATCH /api/auth/subdomain`, `UserResponse.subdomain`, 공개 해석 `GET /api/public/sites/{subdomain}/{identifier}`, 소유자 미리보기 `GET /api/landings/preview/{slug}`, `PublicLandingController` 삭제→`PublicSiteController` 신설, CORS `http://*.localhost:5173` 허용(배포 시 `https://*.도메인` 추가).
+>   - 프론트: `lib/site.ts`(`currentSubdomain`/`publicSiteUrl`), `api`(resolveSite·getLandingPreview·updateSubdomain·`AuthUser.subdomain`), `App` 서브도메인 분기 라우팅, `components/LandingView`(렌더 추출), `pages/PublicSitePage`, `/p/:slug`→소유자 미리보기, 대시보드 계정설정 UI, `AuthContext.updateUser`, 랜딩목록 "공개 열기(서브도메인)/미리보기(/p)" 분리.
+>   - **아직 안 한 것**: 빌드·타입체크·DB초기화·API/브라우저 스모크 전부(위 1~5). SPEC/FEATURES 문서에 D3 반영도 미완.
+>
+> **배포 시(사용자 리소스, 나중)**: 도메인 구입 + `*.도메인` 와일드카드 DNS + 와일드카드 SSL(Cloudflare 무료) + 서브도메인에서 SPA 서빙 + `APP_CORS_ALLOWED_ORIGINS`에 `https://*.도메인` 추가.
+>
+> **그 다음(혼자 가능)**: M8 HTML 요소 라이브러리 → 폼 외부 임베드(M6) → **광고 픽셀 I1** → IP차단(K2) → 리드 검색·필터·휴지통(E4).
 > 사용자 리소스 필요(나중): 구글시트/텔레그램/카톡 연동, SMS 본인인증, 클라우드 배포, 도메인/와일드카드 SSL, 결제.
-> ✅ Flyway 현재 **V9(consent_document_name)** 까지 사용중(다음 **V10**).
+> ✅ Flyway 이번 세션에 **V10(user_subdomain)** 추가(미적용·미검증. 적용 후 다음 V11).
 - **다음 후보**: Phase 3 랜딩 빌더 / 리드 관리 고도화(상태변경·CSV·중복방지) / 연동(구글시트·텔레그램·카톡 알림) — 택1
 - **플랜에 추가된 항목(지금 X, 나중에)**:
   - 📱 **모바일 퍼스트(최상위 원칙, CLAUDE.md §0)**: 공개 화면은 99% 모바일 → 모바일 최적화 최우선. 공개 폼은 1차 적용 완료, **랜딩(Phase 3)·기타 공개 화면도 모바일 우선으로 만들 것**.

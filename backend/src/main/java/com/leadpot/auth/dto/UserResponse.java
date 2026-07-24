@@ -12,6 +12,7 @@ public record UserResponse(
         String email,
         String name,
         String phone,
+        String subdomain,
         Role role,
         Plan plan,
         Instant createdAt) {
@@ -22,6 +23,7 @@ public record UserResponse(
                 user.getEmail(),
                 user.getName(),
                 user.getPhone(),
+                user.getSubdomain(),
                 user.getRole(),
                 user.getPlan(),
                 user.getCreatedAt());

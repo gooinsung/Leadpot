@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getHealth, leadsCount, listForms } from "../api/client";
+import { ApiError, getHealth, leadsCount, listForms, updateSubdomain } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { TopBar } from "../components/TopBar";
 
@@ -8,17 +8,42 @@ type HealthState = "checking" | "ok" | "error";
 
 /** 대시보드. 로그인한 본인 데이터만 표시(K5). */
 export function DashboardPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [health, setHealth] = useState<HealthState>("checking");
   const [totalLeads, setTotalLeads] = useState<number | null>(null);
   const [formCount, setFormCount] = useState<number | null>(null);
+
+  // 서브도메인 편집
+  const [sub, setSub] = useState("");
+  const [savingSub, setSavingSub] = useState(false);
+  const [subMsg, setSubMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   useEffect(() => {
     getHealth().then(() => setHealth("ok")).catch(() => setHealth("error"));
     leadsCount().then((r) => setTotalLeads(r.total)).catch(() => setTotalLeads(0));
     listForms().then((f) => setFormCount(f.length)).catch(() => setFormCount(0));
   }, []);
+
+  useEffect(() => {
+    setSub(user?.subdomain ?? "");
+  }, [user?.subdomain]);
+
+  const saveSubdomain = async () => {
+    const value = sub.trim().toLowerCase();
+    if (!value || value === user?.subdomain) return;
+    setSavingSub(true);
+    setSubMsg(null);
+    try {
+      const updated = await updateSubdomain(value);
+      updateUser(updated);
+      setSubMsg({ type: "ok", text: "서브도메인을 변경했습니다." });
+    } catch (e) {
+      setSubMsg({ type: "err", text: e instanceof ApiError ? e.message : "변경에 실패했습니다." });
+    } finally {
+      setSavingSub(false);
+    }
+  };
 
   const num = (v: number | null) => (v == null ? "…" : v.toLocaleString("ko-KR"));
 
@@ -64,6 +89,34 @@ export function DashboardPage() {
             <div className="k-val">-</div>
           </div>
         </div>
+
+        <section className="card card-pad" style={{ marginBottom: 24 }}>
+          <div className="card-h">계정 설정 · 서브도메인</div>
+          <p className="dash-sub" style={{ marginTop: 4 }}>
+            공개 페이지 주소에 쓰이는 내 서브도메인입니다. 소문자·숫자·하이픈 3~30자.
+          </p>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
+            <input
+              className="input"
+              style={{ maxWidth: 220 }}
+              value={sub}
+              onChange={(e) => setSub(e.target.value)}
+              placeholder="예: my-brand"
+              spellCheck={false}
+              autoCapitalize="none"
+            />
+            <button className="btn btn-primary" type="button" onClick={saveSubdomain} disabled={savingSub || !sub.trim() || sub.trim() === user?.subdomain}>
+              {savingSub ? "저장 중…" : "변경"}
+            </button>
+          </div>
+          {subMsg && (
+            <p className={subMsg.type === "err" ? "auth-error" : "auth-ok"} style={{ marginTop: 8 }}>{subMsg.text}</p>
+          )}
+          <p className="dash-sub" style={{ marginTop: 12, fontSize: 13 }}>
+            공개 URL 예시: <code>{(sub || user?.subdomain || "sub")}.lead-pot.com/{"{랜딩번호}"}</code>
+            {" "}· 로컬 확인: <code>{(sub || user?.subdomain || "sub")}.localhost:5173/{"{랜딩번호}"}</code>
+          </p>
+        </section>
 
         <section className="card card-pad upcoming">
           <div className="card-h">곧 추가될 기능</div>

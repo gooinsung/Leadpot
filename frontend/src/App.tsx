@@ -12,11 +12,25 @@ import { PublicFormPage } from "./pages/PublicFormPage";
 import { LandingsListPage } from "./pages/LandingsListPage";
 import { LandingEditPage } from "./pages/LandingEditPage";
 import { PublicLandingPage } from "./pages/PublicLandingPage";
+import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { currentSubdomain } from "./lib/site";
 import "./App.css";
 
 function App() {
+  // 사용자 서브도메인({subdomain}.도메인)으로 접속한 경우 → 공개 사이트 전용 라우팅.
+  const subdomain = currentSubdomain();
+  if (subdomain) {
+    return (
+      <Routes>
+        <Route path="/:identifier" element={<PublicSitePage subdomain={subdomain} />} />
+        {/* 루트(식별자 없음) 및 기타 경로 → 404 (사용자 확정) */}
+        <Route path="*" element={<SiteNotFound />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

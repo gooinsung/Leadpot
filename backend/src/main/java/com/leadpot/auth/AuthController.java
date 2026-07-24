@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.leadpot.auth.dto.LoginRequest;
 import com.leadpot.auth.dto.RefreshRequest;
 import com.leadpot.auth.dto.SignupRequest;
+import com.leadpot.auth.dto.SubdomainRequest;
 import com.leadpot.auth.dto.TokenResponse;
 import com.leadpot.auth.dto.UserResponse;
 
@@ -48,5 +50,13 @@ public class AuthController {
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal Jwt jwt) {
         Long userId = Long.valueOf(jwt.getSubject());
         return ResponseEntity.ok(authService.me(userId));
+    }
+
+    /** 내 서브도메인 변경(로그인 필요). */
+    @PatchMapping("/subdomain")
+    public ResponseEntity<UserResponse> updateSubdomain(@AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody SubdomainRequest request) {
+        Long userId = Long.valueOf(jwt.getSubject());
+        return ResponseEntity.ok(authService.updateSubdomain(userId, request.subdomain()));
     }
 }
