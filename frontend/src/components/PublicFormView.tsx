@@ -21,6 +21,24 @@ function parseUtm(): Record<string, string> {
   return utm;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TEL_RE = /^[0-9+\-()\s]+$/;
+const NUMBER_RE = /^-?\d+(\.\d+)?$/;
+
+/** 항목 유형별 유효성 검사. 에러 메시지(문자열) 또는 null(통과) 반환. */
+function fieldError(fieldType: string, value: string, required: boolean, label: string): string | null {
+  const v = (value ?? "").trim();
+  const name = label && label.trim() ? label : "이 항목";
+  if (!v) return required ? `'${name}' 항목을 입력해주세요.` : null;
+  if (fieldType === "email" && !EMAIL_RE.test(v)) return `'${name}' 이메일 형식이 올바르지 않습니다.`;
+  if (fieldType === "tel") {
+    const digits = v.replace(/\D/g, "");
+    if (!TEL_RE.test(v) || digits.length < 9 || digits.length > 15) return `'${name}' 연락처는 숫자로 올바르게 입력해주세요.`;
+  }
+  if (fieldType === "number" && !NUMBER_RE.test(v)) return `'${name}' 는 숫자만 입력할 수 있습니다.`;
+  return null;
+}
+
 /**
  * 실제 제출 가능한 공개 폼 렌더러(비로그인).
  * 단독 공개 폼(/f/{id})과 랜딩(/p/{slug}) 인라인·오버레이에서 공용으로 사용.
@@ -91,11 +109,46 @@ export function PublicFormView({
     return consentItems.map((it, i) => ({ title: it.title, required: it.required, agreed: Boolean(agreed[i]) }));
   }
 
+  /** 제출 전 전체 검증(필수·형식·동의). 에러 메시지 또는 null. */
+  function validateAll(): string | null {
+    if (consentItems.some((it, i) => it.required && !agreed[i])) return "필수 동의 항목에 동의해주세요.";
+    if (form.formType === "BASIC") {
+      for (let i = 0; i < sorted.length; i++) {
+        const b = sorted[i];
+        if (b.blockType !== "FIELD") continue;
+        const e = fieldError(b.fieldType || "text", values[`f${i}`] ?? "", !!b.required, b.label || "");
+        if (e) return e;
+      }
+    } else {
+      const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
+      for (let i = 0; i < choiceBlocks.length; i++) {
+        const b = choiceBlocks[i];
+        const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
+        const required = b.content?.required === true;
+        const label = (b.content?.question as string) || "질문";
+        if (answerType === "single" || answerType === "multi") {
+          if (required && (choices[i] ?? []).length === 0) return `'${label}' 항목을 선택해주세요.`;
+        } else {
+          const e = fieldError(answerType, values[`s${i}`] ?? "", required, label);
+          if (e) return e;
+        }
+      }
+      const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
+      for (let i = 0; i < contactBlocks.length; i++) {
+        const b = contactBlocks[i];
+        const e = fieldError(b.fieldType || "text", values[`c${i}`] ?? "", !!b.required, b.label || "");
+        if (e) return e;
+      }
+    }
+    return null;
+  }
+
   async function onSubmit(e?: FormEvent) {
     e?.preventDefault();
     setSubmitError("");
-    if (consentItems.some((it, i) => it.required && !agreed[i])) {
-      setSubmitError("필수 동의 항목에 동의해주세요.");
+    const err = validateAll();
+    if (err) {
+      setSubmitError(err);
       return;
     }
     setSubmitting(true);
@@ -186,7 +239,7 @@ function LiveField({ block, idx, value, onChange }: { block: FormBlock; idx: num
           {choices.map((c, i) => <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>)}
         </select>
       ) : (
-        <input id={`fld-${idx}`} className="input" type={inputType} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input id={`fld-${idx}`} className="input" type={inputType} inputMode={type === "tel" ? "tel" : type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
     </div>
   );
@@ -248,16 +301,24 @@ function StepFlow(props: {
     });
   }
 
-  // 필수 단계 미응답 시 다음으로 진행 차단
+  // 필수 미응답·형식 오류 시 다음 단계로 진행 차단
   function goNext() {
     const b = choiceBlocks[step];
     const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
     const required = b.content?.required === true;
     const isChoice = answerType === "single" || answerType === "multi";
-    const answered = isChoice ? (choices[step] ?? []).length > 0 : (values[`s${step}`] ?? "").trim() !== "";
-    if (required && !answered) {
-      setStepError(isChoice ? "이 항목을 선택해주세요." : "이 항목을 입력해주세요.");
-      return;
+    if (isChoice) {
+      if (required && (choices[step] ?? []).length === 0) {
+        setStepError("이 항목을 선택해주세요.");
+        return;
+      }
+    } else {
+      const label = (b.content?.question as string) || "";
+      const e = fieldError(answerType, values[`s${step}`] ?? "", required, label);
+      if (e) {
+        setStepError(e);
+        return;
+      }
     }
     setStepError("");
     setStep((s) => s + 1);
@@ -312,7 +373,7 @@ function StepFlow(props: {
                 </div>
               ) : (
                 <div className="sfr-field">
-                  <input className="input" type={answerType === "tel" ? "tel" : answerType === "email" ? "email" : answerType === "number" ? "number" : answerType === "date" ? "date" : "text"} placeholder={placeholder} value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)} />
+                  <input className="input" type={answerType === "tel" ? "tel" : answerType === "email" ? "email" : answerType === "number" ? "number" : answerType === "date" ? "date" : "text"} inputMode={answerType === "tel" ? "tel" : answerType === "number" ? "numeric" : answerType === "email" ? "email" : undefined} placeholder={placeholder} value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)} />
                 </div>
               )}
             </div>

@@ -215,6 +215,19 @@ public class LeadService {
                     }
                 });
 
+        // 형식 검증(이메일/전화/숫자) — 폼 정의의 유형 기준(클라이언트 값 신뢰하지 않음). 값이 있을 때만.
+        form.getBlocks().stream()
+                .filter(b -> "FIELD".equals(b.getBlockType().name()))
+                .forEach(b -> checkFormat(b.getFieldType(), valueByLabel(answers, b.getLabel()), b.getLabel()));
+        form.getBlocks().stream()
+                .filter(b -> "CHOICE".equals(b.getBlockType().name()) && b.getContent() != null)
+                .forEach(b -> {
+                    Object at = b.getContent().get("answerType");
+                    if (at == null) at = b.getContent().get("selectType");
+                    String q = str(b.getContent().get("question"));
+                    checkFormat(str(at), valueByLabel(answers, q), q);
+                });
+
         for (Map<String, Object> c : req.consentsOrEmpty()) {
             boolean required = Boolean.TRUE.equals(c.get("required"));
             boolean agreed = Boolean.TRUE.equals(c.get("agreed"));
@@ -273,6 +286,51 @@ public class LeadService {
 
     private static String str(Object o) {
         return o == null ? "" : o.toString();
+    }
+
+    /** answers 배열에서 label 로 값 찾기(첫 매치). */
+    private static String valueByLabel(List<Map<String, Object>> answers, String label) {
+        if (label == null || label.isBlank()) return "";
+        return answers.stream()
+                .filter(a -> label.equals(str(a.get("label"))))
+                .map(a -> str(a.get("value")))
+                .findFirst().orElse("");
+    }
+
+    private static final java.util.regex.Pattern EMAIL_RE =
+            java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    private static final java.util.regex.Pattern TEL_RE =
+            java.util.regex.Pattern.compile("^[0-9+\\-()\\s]+$");
+    private static final java.util.regex.Pattern NUMBER_RE =
+            java.util.regex.Pattern.compile("^-?\\d+(\\.\\d+)?$");
+
+    /** 유형별 형식 검증(이메일/전화/숫자). 값이 비어 있으면 통과(필수 검증은 별도). */
+    private void checkFormat(String fieldType, String value, String label) {
+        String v = value == null ? "" : value.trim();
+        if (v.isEmpty()) return;
+        String type = fieldType == null ? "" : fieldType;
+        String name = (label == null || label.isBlank()) ? "이 항목" : label;
+        switch (type) {
+            case "email" -> {
+                if (!EMAIL_RE.matcher(v).matches()) {
+                    throw new InvalidSubmissionException("'" + name + "' 이메일 형식이 올바르지 않습니다.");
+                }
+            }
+            case "tel" -> {
+                String digits = v.replaceAll("\\D", "");
+                if (!TEL_RE.matcher(v).matches() || digits.length() < 9 || digits.length() > 15) {
+                    throw new InvalidSubmissionException("'" + name + "' 연락처는 숫자로 올바르게 입력해주세요.");
+                }
+            }
+            case "number" -> {
+                if (!NUMBER_RE.matcher(v).matches()) {
+                    throw new InvalidSubmissionException("'" + name + "' 는 숫자만 입력할 수 있습니다.");
+                }
+            }
+            default -> {
+                // text/textarea/select/date/single/multi 등은 형식 제약 없음
+            }
+        }
     }
 
     private static String cut(String s, int max) {
