@@ -21,6 +21,7 @@ public record FormRequest(
         Map<String, Object> typeConfig,
         Map<String, Object> styleConfig,
         Map<String, Object> settingsConfig,
+        Map<String, Object> trackingConfig,
         @Valid List<FormBlockDto> blocks) {
 
     public List<FormBlockDto> blocksOrEmpty() {

@@ -10,6 +10,7 @@ import {
 } from "../api/client";
 import { resolveStyle } from "./formRenderers/formStyle";
 import { CompletionView } from "./formRenderers/CompletionView";
+import { firePixelLead } from "../lib/pixels";
 
 function parseUtm(): Record<string, string> {
   const p = new URLSearchParams(window.location.search);
@@ -47,10 +48,12 @@ export function PublicFormView({
   form,
   landingPageId,
   onSubmitted,
+  trackingConfig,
 }: {
   form: FormDetail;
   landingPageId?: number | null;
   onSubmitted?: () => void;
+  trackingConfig?: Record<string, unknown> | null; // 리드 제출 시 전환(Lead) 발사할 픽셀
 }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [choices, setChoices] = useState<Record<number, number[]>>({});
@@ -154,6 +157,7 @@ export function PublicFormView({
     setSubmitting(true);
     try {
       await submitLead({ formId: form.id, landingPageId: landingPageId ?? null, answers: buildAnswers(), consents: buildConsents(), utm: parseUtm() });
+      firePixelLead(trackingConfig); // 전환(Lead) 픽셀 발사 — 각 플랫폼이 클릭ID로 자체 귀속
       const success = form.successConfig;
       if (success?.mode === "redirect" && success?.redirectUrl) {
         window.location.href = success.redirectUrl as string;

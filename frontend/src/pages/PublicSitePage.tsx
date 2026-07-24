@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { resolveSite, recordVisit, type PublicLanding } from "../api/client";
 import { parseUtm } from "../lib/utm";
+import { initPixels } from "../lib/pixels";
 import { LandingView } from "../components/LandingView";
 
 /** 공개 사이트 페이지: {subdomain}.도메인/{랜딩번호|슬러그}. published 만 열림. 방문 1회 기록. */
@@ -22,6 +23,7 @@ export function PublicSitePage({ subdomain }: { subdomain: string }) {
         if (!visited.current) {
           visited.current = true;
           recordVisit({ landingPageId: l.id, utm: parseUtm() });
+          initPixels(l.tracking);
         }
       })
       .catch(() => setError("페이지를 찾을 수 없습니다."));

@@ -51,6 +51,7 @@ public class LandingService {
         LandingPage landing = new LandingPage(ownerId, req.title().trim(), resolveSlug(req.slug(), req.title(), null));
         landing.setContent(req.contentOrEmpty());
         landing.setStatus(status(req.status()));
+        landing.setTracking(req.tracking());
         landingRepository.save(landing);
         return LandingResponse.from(landing);
     }
@@ -65,6 +66,7 @@ public class LandingService {
         }
         landing.setContent(req.contentOrEmpty());
         landing.setStatus(status(req.status()));
+        landing.setTracking(req.tracking());
         return LandingResponse.from(landing);
     }
 
@@ -123,7 +125,7 @@ public class LandingService {
                 }
             }
         }
-        return new PublicLandingResponse(landing.getId(), landing.getTitle(), landing.getContent(), forms);
+        return new PublicLandingResponse(landing.getId(), landing.getTitle(), landing.getContent(), forms, landing.getTracking());
     }
 
     private LandingPage load(Long ownerId, Long id) {

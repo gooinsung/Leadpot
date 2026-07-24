@@ -206,6 +206,7 @@ export interface FormInput {
   typeConfig?: Record<string, unknown> | null;
   styleConfig?: Record<string, unknown> | null;
   settingsConfig?: Record<string, unknown> | null;
+  trackingConfig?: Record<string, unknown> | null; // 광고 픽셀 {google,meta,tiktok,kakao,daangn}
   blocks: FormBlock[];
 }
 
@@ -462,6 +463,7 @@ export interface LandingInput {
   content: LandingBlock[];
   status?: string;
   slug?: string; // 미지정 시 서버가 자동 생성. 지정 시 소문자·숫자·하이픈 3~120자.
+  tracking?: Record<string, unknown> | null; // 광고 픽셀 {google,meta,tiktok,kakao,daangn}
 }
 export interface LandingDetail extends LandingInput {
   id: number;
@@ -482,6 +484,7 @@ export interface PublicLanding {
   title: string;
   content: LandingBlock[];
   forms: Record<string, FormDetail>;
+  tracking?: Record<string, unknown> | null;
 }
 
 export function listLandings(): Promise<LandingSummary[]> {

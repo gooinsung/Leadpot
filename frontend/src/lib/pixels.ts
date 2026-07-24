@@ -1,0 +1,137 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * 광고 픽셀(I1) — 공개 페이지에서 여러 플랫폼 픽셀을 동시에 삽입.
+ * initPixels: 페이지 로드 1회(스크립트 삽입 + PageView).
+ * firePixelLead: 리드 제출 성공 시 각 플랫폼 전환(Lead) 이벤트.
+ *
+ * 전환 귀속은 각 플랫폼이 클릭ID(fbclid/gclid/ttclid)·쿠키로 자체 판단하므로,
+ * 설정된 픽셀은 모두 발사한다(표준). "매칭 플랫폼만 발사"는 하지 않는다.
+ */
+
+export interface PixelConfig {
+  google?: string; // gtag ID (G-XXXX / AW-XXXX)
+  meta?: string; // Meta(Facebook) Pixel ID
+  tiktok?: string; // TikTok Pixel ID
+  kakao?: string; // Kakao 픽셀 트랙 ID
+  daangn?: string; // 당근(Karrot) 픽셀 ID
+}
+
+function val(cfg: unknown, key: string): string {
+  if (!cfg || typeof cfg !== "object") return "";
+  const v = (cfg as Record<string, unknown>)[key];
+  return v == null ? "" : String(v).trim();
+}
+
+let initialized = false;
+
+/** 공개 페이지 로드 시 1회: 설정된 픽셀 스크립트 삽입 + PageView. */
+export function initPixels(cfg: unknown): void {
+  if (initialized || !cfg) return;
+  const google = val(cfg, "google");
+  const meta = val(cfg, "meta");
+  const tiktok = val(cfg, "tiktok");
+  const kakao = val(cfg, "kakao");
+  const daangn = val(cfg, "daangn");
+  if (!(google || meta || tiktok || kakao || daangn)) return;
+  initialized = true;
+
+  const w = window as any;
+  const d = document;
+
+  if (meta) {
+    try {
+      (function (f: any, b: any, e: string, v: string) {
+        if (f.fbq) return;
+        const n: any = (f.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        });
+        if (!f._fbq) f._fbq = n;
+        n.push = n; n.loaded = true; n.version = "2.0"; n.queue = [];
+        const t = b.createElement(e); t.async = true; t.src = v;
+        const s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+      })(w, d, "script", "https://connect.facebook.net/en_US/fbevents.js");
+      w.fbq("init", meta);
+      w.fbq("track", "PageView");
+    } catch { /* 픽셀 실패는 무시 */ }
+  }
+
+  if (google) {
+    try {
+      const s = d.createElement("script");
+      s.async = true;
+      s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(google);
+      d.head.appendChild(s);
+      w.dataLayer = w.dataLayer || [];
+      w.gtag = w.gtag || function () { w.dataLayer.push(arguments); };
+      w.gtag("js", new Date());
+      w.gtag("config", google);
+    } catch { /* ignore */ }
+  }
+
+  if (tiktok) {
+    try {
+      (function (w2: any, d2: any, t: string) {
+        w2.TiktokAnalyticsObject = t;
+        const ttq: any = (w2[t] = w2[t] || []);
+        ttq.methods = ["page", "track", "identify", "instances", "debug", "on", "off", "once", "ready", "alias", "group", "enableCookie", "disableCookie", "holdConsent", "revokeConsent", "grantConsent"];
+        ttq.setAndDefer = function (o: any, e: string) {
+          o[e] = function () { o.push([e].concat(Array.prototype.slice.call(arguments, 0))); };
+        };
+        for (let i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+        ttq.load = function (e: string) {
+          const r = "https://analytics.tiktok.com/i18n/pixel/events.js";
+          ttq._i = ttq._i || {}; ttq._i[e] = []; ttq._i[e]._u = r;
+          ttq._t = ttq._t || {}; ttq._t[e] = +new Date();
+          const o = d2.createElement("script");
+          o.type = "text/javascript"; o.async = true;
+          o.src = r + "?sdkid=" + e + "&lib=" + t;
+          const a = d2.getElementsByTagName("script")[0];
+          a.parentNode.insertBefore(o, a);
+        };
+        ttq.load(tiktok);
+        ttq.page();
+      })(w, d, "ttq");
+    } catch { /* ignore */ }
+  }
+
+  if (kakao) {
+    try {
+      const s = d.createElement("script");
+      s.async = true;
+      s.src = "//t1.daumcdn.net/kas/static/kp.js";
+      s.onload = function () { try { w.kakaoPixel && w.kakaoPixel(kakao).pageView(); } catch { /* ignore */ } };
+      d.head.appendChild(s);
+    } catch { /* ignore */ }
+  }
+
+  if (daangn) {
+    try {
+      const s = d.createElement("script");
+      s.async = true;
+      s.src = "https://web-pixel.business.daangn.com/0.0/karrot-pixel.umd.js";
+      s.onload = function () {
+        try {
+          w.karrotPixel && w.karrotPixel.init && w.karrotPixel.init(daangn);
+          w.karrotPixel && w.karrotPixel.track && w.karrotPixel.track("ViewPage");
+        } catch { /* ignore */ }
+      };
+      d.head.appendChild(s);
+    } catch { /* ignore */ }
+  }
+}
+
+/** 리드 제출 성공 시: 각 플랫폼 전환(Lead) 이벤트 발사. */
+export function firePixelLead(cfg: unknown): void {
+  if (!cfg) return;
+  const w = window as any;
+  const google = val(cfg, "google");
+  const meta = val(cfg, "meta");
+  const tiktok = val(cfg, "tiktok");
+  const kakao = val(cfg, "kakao");
+  const daangn = val(cfg, "daangn");
+  try { if (meta && w.fbq) w.fbq("track", "Lead"); } catch { /* ignore */ }
+  try { if (google && w.gtag) w.gtag("event", "generate_lead"); } catch { /* ignore */ }
+  try { if (tiktok && w.ttq) w.ttq.track("SubmitForm"); } catch { /* ignore */ }
+  try { if (kakao && w.kakaoPixel) w.kakaoPixel(kakao).completeRegistration(); } catch { /* ignore */ }
+  try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track("SubmitApplication"); } catch { /* ignore */ }
+}

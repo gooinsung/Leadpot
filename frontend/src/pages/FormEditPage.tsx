@@ -17,6 +17,7 @@ import { TopBar } from "../components/TopBar";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
 import { ImageUploadField } from "../components/ImageUploadField";
+import { PixelFields } from "../components/PixelFields";
 
 function defaultConsentItems(): ConsentItem[] {
   return [
@@ -118,6 +119,7 @@ export function FormEditPage() {
   const [requirePhone, setRequirePhone] = useState(false);
   const [allowSameIp, setAllowSameIp] = useState(true);
   const [ipDedupDays, setIpDedupDays] = useState(0);
+  const [tracking, setTracking] = useState<Record<string, unknown> | null>(null); // 광고 픽셀
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -141,6 +143,7 @@ export function FormEditPage() {
         setRequirePhone(Boolean(f.requirePhoneVerification));
         setAllowSameIp(f.settingsConfig?.allowSameIp !== false);
         setIpDedupDays(Number(f.settingsConfig?.ipDedupDays) || 0);
+        setTracking(f.trackingConfig ?? null);
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
           const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
@@ -277,6 +280,7 @@ export function FormEditPage() {
     styleConfig: { buttonColor, accentColor },
     typeConfig: { contactMessage },
     settingsConfig: { allowSameIp, ipDedupDays },
+    trackingConfig: tracking ?? undefined,
     blocks: builtBlocks,
   };
 
@@ -555,6 +559,11 @@ export function FormEditPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="card card-pad" style={{ marginTop: 16 }}>
+              <div className="card-h">광고 픽셀 (선택)</div>
+              <PixelFields value={tracking} onChange={setTracking} />
             </div>
           </div>
 

@@ -44,6 +44,11 @@ public class LandingPage {
     @Column(nullable = false, length = 20)
     private String status = "published";
 
+    /** 광고 픽셀 ID들: {google, meta, tiktok, kakao, daangn}. 공개 랜딩에서 스크립트 삽입(I1). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column
+    private Map<String, Object> tracking;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -99,6 +104,14 @@ public class LandingPage {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Map<String, Object> getTracking() {
+        return tracking;
+    }
+
+    public void setTracking(Map<String, Object> tracking) {
+        this.tracking = tracking;
     }
 
     public Instant getCreatedAt() {

@@ -11,7 +11,8 @@ public record LandingRequest(
         @NotBlank @Size(max = 255) String title,
         List<Map<String, Object>> content,
         String status,
-        @Size(max = 120) String slug) {
+        @Size(max = 120) String slug,
+        Map<String, Object> tracking) {
 
     public List<Map<String, Object>> contentOrEmpty() {
         return content == null ? List.of() : content;

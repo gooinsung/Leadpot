@@ -19,6 +19,7 @@ public record FormResponse(
         Map<String, Object> typeConfig,
         Map<String, Object> styleConfig,
         Map<String, Object> settingsConfig,
+        Map<String, Object> trackingConfig,
         List<FormBlockDto> blocks,
         Instant createdAt,
         Instant updatedAt) {
@@ -36,6 +37,7 @@ public record FormResponse(
                 form.getTypeConfig(),
                 form.getStyleConfig(),
                 form.getSettingsConfig(),
+                form.getTrackingConfig(),
                 blocks,
                 form.getCreatedAt(),
                 form.getUpdatedAt());

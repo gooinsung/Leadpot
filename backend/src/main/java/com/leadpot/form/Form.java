@@ -71,6 +71,11 @@ public class Form {
     @Column(name = "settings_config")
     private Map<String, Object> settingsConfig;
 
+    /** 광고 픽셀 ID들: {google, meta, tiktok, kakao, daangn}. 공개 페이지에서 스크립트 삽입(I1). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tracking_config")
+    private Map<String, Object> trackingConfig;
+
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<FormBlock> blocks = new ArrayList<>();
@@ -179,6 +184,14 @@ public class Form {
 
     public void setSettingsConfig(Map<String, Object> settingsConfig) {
         this.settingsConfig = settingsConfig;
+    }
+
+    public Map<String, Object> getTrackingConfig() {
+        return trackingConfig;
+    }
+
+    public void setTrackingConfig(Map<String, Object> trackingConfig) {
+        this.trackingConfig = trackingConfig;
     }
 
     public List<FormBlock> getBlocks() {

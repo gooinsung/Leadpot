@@ -10,5 +10,6 @@ public record PublicLandingResponse(
         Long id,
         String title,
         List<Map<String, Object>> content,
-        Map<Long, FormResponse> forms) {
+        Map<Long, FormResponse> forms,
+        Map<String, Object> tracking) {
 }

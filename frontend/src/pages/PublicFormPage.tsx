@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getPublicForm, recordVisit, type FormDetail } from "../api/client";
 import { parseUtm } from "../lib/utm";
+import { initPixels } from "../lib/pixels";
 import { PublicFormView } from "../components/PublicFormView";
 
 /** 리드폼 단독 공개 페이지 (/f/{id}). 모바일 최적화된 카드 안에 실제 제출 가능한 리드폼을 렌더. */
@@ -18,6 +19,7 @@ export function PublicFormPage() {
         if (!visited.current) {
           visited.current = true;
           recordVisit({ formId: f.id, utm: parseUtm() });
+          initPixels(f.trackingConfig);
         }
       })
       .catch(() => setError("리드폼을 찾을 수 없습니다."));
@@ -36,7 +38,7 @@ export function PublicFormPage() {
   return (
     <div className="public-form">
       <div className="public-form-card">
-        <PublicFormView form={form} />
+        <PublicFormView form={form} trackingConfig={form.trackingConfig} />
       </div>
     </div>
   );
