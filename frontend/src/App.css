@@ -245,21 +245,132 @@ td.num {
   display: flex;
   align-items: flex-end;
   gap: 3px;
-  height: 140px;
+  height: 150px;
   padding-top: 8px;
 }
 .day-bar-wrap {
+  position: relative;
   flex: 1;
+  min-width: 3px;
   height: 100%;
-  display: flex;
-  align-items: flex-end;
 }
 .day-bar {
-  width: 100%;
+  position: absolute;
+  bottom: 0;
   min-height: 2px;
-  background: var(--indigo-strong);
   border-radius: 3px 3px 0 0;
   transition: height 0.2s;
+}
+/* 방문(연한 배경 막대, 전폭) + 리드(진한 막대, 가운데 좁게) 오버레이 */
+.day-bar-v {
+  left: 0;
+  right: 0;
+  background: var(--indigo-soft);
+}
+.day-bar-l {
+  left: 22%;
+  right: 22%;
+  background: var(--indigo-strong);
+}
+.chart-legend {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.chart-legend .lg {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-left: 8px;
+}
+.chart-legend .lg-v {
+  background: var(--indigo-soft);
+}
+.chart-legend .lg-l {
+  background: var(--indigo-strong);
+}
+
+/* 필터바 */
+.stats-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  align-items: center;
+  margin-top: 4px;
+}
+.sf-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sf-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.sf-dates {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.sf-dates input,
+.stats-filter select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.seg button {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--muted);
+  border: none;
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+}
+.seg button:first-child {
+  border-left: none;
+}
+.seg button.on {
+  background: var(--indigo-soft);
+  color: var(--indigo-strong);
+}
+
+/* 엔티티 표(랜딩별/폼별) */
+.stats-table-scroll {
+  overflow-x: auto;
+}
+.stats-table {
+  width: 100%;
+  font-size: 13px;
+}
+.stats-table th,
+.stats-table td {
+  padding: 9px 10px;
+}
+.stats-table .et-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
 }
 .bar-list {
   display: flex;

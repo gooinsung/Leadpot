@@ -435,21 +435,55 @@ export interface StatCount {
   key: string;
   count: number;
 }
-export interface StatFormCount {
-  formId: number;
+export interface StatDayPoint {
+  date: string;
+  visits: number;
+  leads: number;
+}
+export interface StatEntityCount {
+  id: number | null;
   name: string;
-  count: number;
+  visits: number;
+  leads: number;
+  conversionRate: number;
 }
 export interface StatsOverview {
-  total: number;
-  byDay: StatCount[];
+  from: string;
+  to: string;
+  summary: { visits: number; leads: number; conversionRate: number };
+  byDay: StatDayPoint[];
   byDevice: StatCount[];
+  byOs: StatCount[];
+  byBrowser: StatCount[];
   byUtmSource: StatCount[];
+  byUtmMedium: StatCount[];
+  byUtmCampaign: StatCount[];
   byReferer: StatCount[];
-  byForm: StatFormCount[];
+  byStatus: StatCount[];
+  byLanding: StatEntityCount[];
+  byForm: StatEntityCount[];
 }
-export function getStats(): Promise<StatsOverview> {
-  return request<StatsOverview>("/api/stats/overview");
+export interface StatsFilter {
+  from?: string;
+  to?: string;
+  landingId?: number | null;
+  formId?: number | null;
+}
+export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
+  const p = new URLSearchParams();
+  if (filter.from) p.set("from", filter.from);
+  if (filter.to) p.set("to", filter.to);
+  if (filter.landingId != null) p.set("landingId", String(filter.landingId));
+  if (filter.formId != null) p.set("formId", String(filter.formId));
+  const qs = p.toString();
+  return request<StatsOverview>(`/api/stats/overview${qs ? `?${qs}` : ""}`);
+}
+
+/** 공개 방문 기록(비로그인, best-effort). 공개 랜딩/폼 진입 시 1회 호출. */
+export function recordVisit(input: { landingPageId?: number | null; formId?: number | null; utm?: Record<string, string> }): void {
+  request<void>("/api/public/visits", { method: "POST", body: input, auth: false }).catch(() => {
+    /* 방문 기록 실패는 무시 */
+  });
 }
 
 // ---------- 이미지 업로드 ----------

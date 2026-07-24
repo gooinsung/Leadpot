@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getPublicForm, type FormDetail } from "../api/client";
+import { getPublicForm, recordVisit, type FormDetail } from "../api/client";
+import { parseUtm } from "../lib/utm";
 import { PublicFormView } from "../components/PublicFormView";
 
 /** 폼 단독 공개 페이지 (/f/{id}). 모바일 최적화된 카드 안에 실제 제출 가능한 폼을 렌더. */
@@ -8,10 +9,17 @@ export function PublicFormPage() {
   const { id } = useParams();
   const [form, setForm] = useState<FormDetail | null>(null);
   const [error, setError] = useState("");
+  const visited = useRef(false);
 
   useEffect(() => {
     getPublicForm(Number(id))
-      .then(setForm)
+      .then((f) => {
+        setForm(f);
+        if (!visited.current) {
+          visited.current = true;
+          recordVisit({ formId: f.id, utm: parseUtm() });
+        }
+      })
       .catch(() => setError("폼을 찾을 수 없습니다."));
   }, [id]);
 

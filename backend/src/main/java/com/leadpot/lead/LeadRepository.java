@@ -25,4 +25,10 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 본인 소유 폼들의 전체 리드 (통계 집계용)
     @Query("select l from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId)")
     List<Lead> findAllByOwner(@Param("ownerId") Long ownerId);
+
+    // 본인 소유 리드 + 기간(반열림 [from, to)) — 통계 필터용
+    @Query("select l from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
+            + "and l.createdAt >= :from and l.createdAt < :to")
+    List<Lead> findByOwnerBetween(@Param("ownerId") Long ownerId,
+            @Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
 }

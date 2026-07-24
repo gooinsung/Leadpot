@@ -1,6 +1,7 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParams } from "react-router-dom";
-import { getPublicLanding, type FormDetail, type LandingBlock, type PublicLanding } from "../api/client";
+import { getPublicLanding, recordVisit, type FormDetail, type LandingBlock, type PublicLanding } from "../api/client";
+import { parseUtm } from "../lib/utm";
 import { PublicFormView } from "../components/PublicFormView";
 
 /** 블록 여백(위/아래/좌우, px) → 인라인 스타일. */
@@ -15,10 +16,17 @@ export function PublicLandingPage() {
   const [landing, setLanding] = useState<PublicLanding | null>(null);
   const [error, setError] = useState("");
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
+  const visited = useRef(false);
 
   useEffect(() => {
     getPublicLanding(String(slug))
-      .then(setLanding)
+      .then((l) => {
+        setLanding(l);
+        if (!visited.current) {
+          visited.current = true;
+          recordVisit({ landingPageId: l.id, utm: parseUtm() });
+        }
+      })
       .catch(() => setError("페이지를 찾을 수 없습니다."));
   }, [slug]);
 
