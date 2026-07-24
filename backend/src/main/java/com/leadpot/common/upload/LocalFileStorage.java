@@ -23,8 +23,13 @@ public class LocalFileStorage implements FileStorage {
 
     @Override
     public String store(String filename, byte[] content, String contentType) throws IOException {
-        Files.createDirectories(dir);
-        Files.write(dir.resolve(filename).normalize(), content);
+        Path target = dir.resolve(filename).normalize();
+        // 경로 탈출 방지: 반드시 업로드 디렉터리 하위여야 함
+        if (!target.startsWith(dir)) {
+            throw new IOException("잘못된 저장 경로입니다.");
+        }
+        Files.createDirectories(target.getParent()); // 중첩 경로(landing-image/2026/07/24) 생성
+        Files.write(target, content);
         return ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/uploads/").path(filename).toUriString();
     }
