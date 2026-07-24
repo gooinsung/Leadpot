@@ -11,7 +11,7 @@ import com.leadpot.form.dto.FormRequest;
 import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
 
-/** 폼 CRUD. 모든 조회/수정은 소유자(ownerId) 기준으로 제한한다(K5). */
+/** 리드폼 CRUD. 모든 조회/수정은 소유자(ownerId) 기준으로 제한한다(K5). */
 @Service
 public class FormService {
 
@@ -33,19 +33,19 @@ public class FormService {
         return FormResponse.from(form);
     }
 
-    /** 공개 렌더용 조회 — 소유자 검증 없이 id 로 폼 정의를 반환(비로그인 공개 폼). */
+    /** 공개 렌더용 조회 — 소유자 검증 없이 id 로 리드폼 정의를 반환(비로그인 공개 리드폼). */
     @Transactional(readOnly = true)
     public FormResponse getPublic(Long id) {
         Form form = formRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("폼을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
         return FormResponse.from(form);
     }
 
-    /** 리드 저장 시 소유권/상태 확인용 — 폼 엔티티 로드(없으면 404). */
+    /** 리드 저장 시 소유권/상태 확인용 — 리드폼 엔티티 로드(없으면 404). */
     @Transactional(readOnly = true)
     public Form getEntity(Long id) {
         return formRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("폼을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
     }
 
     @Transactional
@@ -73,10 +73,10 @@ public class FormService {
 
     private Form load(Long ownerId, Long id) {
         return formRepository.findByIdAndOwnerId(id, ownerId)
-                .orElseThrow(() -> new NotFoundException("폼을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
     }
 
-    /** 요청의 설정/블록을 폼에 반영. */
+    /** 요청의 설정/블록을 리드폼에 반영. */
     private void apply(Form form, FormRequest req) {
         form.setRequirePhoneVerification(Boolean.TRUE.equals(req.requirePhoneVerification()));
         form.setConsentConfig(req.consentConfig());

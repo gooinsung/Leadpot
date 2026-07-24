@@ -442,7 +442,7 @@ td.num {
   color: var(--indigo-strong);
 }
 
-/* 엔티티 표(랜딩별/폼별) */
+/* 엔티티 표(랜딩별/리드폼별) */
 .stats-table-scroll {
   overflow-x: auto;
 }
@@ -511,7 +511,7 @@ td.num {
   }
 }
 
-/* ---------- 폼 편집기 ---------- */
+/* ---------- 리드폼 편집기 ---------- */
 .form-edit {
   flex: 1;
   padding-top: 32px;
@@ -576,7 +576,7 @@ td.num {
   padding: 22px;
 }
 
-/* ---------- 폼 렌더러(미리보기) ---------- */
+/* ---------- 리드폼 렌더러(미리보기) ---------- */
 .fr-img {
   width: 100%;
   border-radius: 10px;
@@ -765,7 +765,7 @@ td.num {
   width: 100%;
   max-width: 100%;
 }
-/* PC 미리보기에선 폼/텍스트가 페이지 폭에 맞춰 넓게 */
+/* PC 미리보기에선 리드폼/텍스트가 페이지 폭에 맞춰 넓게 */
 .lp-preview-stage.pc .landing-form-card {
   max-width: 460px;
   margin: 16px auto;
@@ -876,7 +876,7 @@ td.num {
   .landing-overlay-card { border-radius: 18px; }
 }
 
-/* 공개 폼(/f/:id) */
+/* 공개 리드폼(/f/:id) */
 .public-form {
   min-height: 100vh;
   background: var(--bg);
@@ -900,7 +900,7 @@ td.num {
   margin-bottom: 18px;
 }
 
-/* 공개 폼: 모바일 최적화(99% 모바일). 입력창 16px로 iOS 자동확대 방지, 큰 탭 타깃. */
+/* 공개 리드폼: 모바일 최적화(99% 모바일). 입력창 16px로 iOS 자동확대 방지, 큰 탭 타깃. */
 .public-form-card .input {
   font-size: 16px;
   padding: 13px 14px;

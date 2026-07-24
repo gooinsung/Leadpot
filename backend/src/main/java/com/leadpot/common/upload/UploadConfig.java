@@ -10,7 +10,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/** 업로드된 파일을 /uploads/** 로 정적 서빙한다(비로그인 접근 — 공개 폼/랜딩 이미지). */
+/** 업로드된 파일을 /uploads/** 로 정적 서빙한다(비로그인 접근 — 공개 리드폼/랜딩 이미지). */
 @Configuration
 public class UploadConfig implements WebMvcConfigurer {
 

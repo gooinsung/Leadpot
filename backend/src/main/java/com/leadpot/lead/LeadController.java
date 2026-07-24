@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.leadpot.lead.dto.LeadResponse;
 
-/** 리드 조회·관리 API (로그인 필요, 본인 폼의 리드만 K5). */
+/** 리드 조회·관리 API (로그인 필요, 본인 리드폼의 리드만 K5). */
 @RestController
 @RequestMapping("/api/leads")
 public class LeadController {
@@ -48,7 +48,7 @@ public class LeadController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 폼의 리드 CSV 내보내기 (엑셀 호환 UTF-8 BOM). */
+    /** 리드폼의 리드 CSV 내보내기 (엑셀 호환 UTF-8 BOM). */
     @GetMapping("/export")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId) {
         String csv = leadService.exportCsv(userId(jwt), formId);

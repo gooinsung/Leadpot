@@ -38,7 +38,7 @@ export function LandingsListPage() {
           <div>
             <p className="eyebrow">랜딩페이지</p>
             <h1 className="dash-title">내 랜딩</h1>
-            <p className="dash-sub">이미지·텍스트로 페이지를 구성하고 폼을 연결해 공개합니다.</p>
+            <p className="dash-sub">이미지·텍스트로 페이지를 구성하고 리드폼을 연결해 공개합니다.</p>
           </div>
           <button className="btn btn-primary" onClick={() => navigate("/landings/new")}>+ 새 랜딩</button>
         </div>

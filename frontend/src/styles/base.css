@@ -233,7 +233,7 @@ code {
   color: var(--green-strong);
 }
 
-/* ---------- 입력 폼 ---------- */
+/* ---------- 입력 리드폼 ---------- */
 .field {
   display: flex;
   flex-direction: column;

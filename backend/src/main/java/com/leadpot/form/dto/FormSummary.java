@@ -5,7 +5,7 @@ import java.time.Instant;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormType;
 
-/** 폼 목록용 요약 응답. */
+/** 리드폼 목록용 요약 응답. */
 public record FormSummary(
         Long id,
         String name,

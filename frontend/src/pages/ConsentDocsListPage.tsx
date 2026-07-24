@@ -35,7 +35,7 @@ export function ConsentDocsListPage() {
           <div>
             <p className="eyebrow">동의 문서</p>
             <h1 className="dash-title">동의·약관 문서</h1>
-            <p className="dash-sub">폼의 동의 항목 '보기' 링크로 연결할 문서를 만듭니다.</p>
+            <p className="dash-sub">리드폼의 동의 항목 '보기' 링크로 연결할 문서를 만듭니다.</p>
           </div>
           <button className="btn btn-primary" onClick={() => navigate("/consent-docs/new")}>
             + 새 문서

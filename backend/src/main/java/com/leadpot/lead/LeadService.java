@@ -21,7 +21,7 @@ import com.leadpot.form.dto.FormResponse;
 import com.leadpot.lead.dto.LeadResponse;
 import com.leadpot.lead.dto.LeadSubmitRequest;
 
-/** 리드 수집(공개 제출) + 조회(본인 폼만 K5). */
+/** 리드 수집(공개 제출) + 조회(본인 리드폼만 K5). */
 @Service
 public class LeadService {
 
@@ -91,7 +91,7 @@ public class LeadService {
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.of("Asia/Seoul"));
 
-    /** 리드 상태 변경 (본인 폼의 리드만 K5). */
+    /** 리드 상태 변경 (본인 리드폼의 리드만 K5). */
     @Transactional
     public void updateStatus(Long ownerId, Long leadId, String status) {
         if (!STATUSES.contains(status)) {
@@ -103,11 +103,11 @@ public class LeadService {
         lead.setStatus(status);
     }
 
-    /** 폼의 리드를 CSV 로 내보낸다(본인 폼만). 항목 컬럼은 폼 정의 순서. */
+    /** 리드폼의 리드를 CSV 로 내보낸다(본인 리드폼만). 항목 컬럼은 리드폼 정의 순서. */
     @Transactional(readOnly = true)
     public String exportCsv(Long ownerId, Long formId) {
         FormResponse form = formService.get(ownerId, formId); // 소유권 확인
-        // 답변 컬럼(폼 블록 순서): FIELD label / CHOICE question
+        // 답변 컬럼(리드폼 블록 순서): FIELD label / CHOICE question
         List<String> answerCols = form.blocks().stream()
                 .filter(b -> b.blockType() == com.leadpot.form.BlockType.FIELD
                         || b.blockType() == com.leadpot.form.BlockType.CHOICE)
@@ -215,7 +215,7 @@ public class LeadService {
                     }
                 });
 
-        // 형식 검증(이메일/전화/숫자) — 폼 정의의 유형 기준(클라이언트 값 신뢰하지 않음). 값이 있을 때만.
+        // 형식 검증(이메일/전화/숫자) — 리드폼 정의의 유형 기준(클라이언트 값 신뢰하지 않음). 값이 있을 때만.
         form.getBlocks().stream()
                 .filter(b -> "FIELD".equals(b.getBlockType().name()))
                 .forEach(b -> checkFormat(b.getFieldType(), valueByLabel(answers, b.getLabel()), b.getLabel()));
@@ -237,7 +237,7 @@ public class LeadService {
         }
     }
 
-    /** 중복 제출 방지(K3): 항목별 중복 불허(기간 내) + 폼 레벨 동일 IP 접수 불허. */
+    /** 중복 제출 방지(K3): 항목별 중복 불허(기간 내) + 리드폼 레벨 동일 IP 접수 불허. */
     private void checkDuplicates(Form form, LeadSubmitRequest req, Visitor visitor) {
         List<Map<String, Object>> answers = req.answersOrEmpty();
 

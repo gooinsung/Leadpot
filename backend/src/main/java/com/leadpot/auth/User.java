@@ -14,8 +14,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * 계정(User). 폼·랜딩·리드를 소유하는 로그인 주체.
- * 한 계정으로 여러 랜딩/폼을 운영한다(A2 다계정·멀티 랜딩). 리소스 접근은 소유자 기준으로 제한(K5).
+ * 계정(User). 리드폼·랜딩·리드를 소유하는 로그인 주체.
+ * 한 계정으로 여러 랜딩/리드폼을 운영한다(A2 다계정·멀티 랜딩). 리소스 접근은 소유자 기준으로 제한(K5).
  */
 @Entity
 @Table(name = "users")

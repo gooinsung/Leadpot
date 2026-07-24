@@ -11,7 +11,7 @@ import com.leadpot.form.FormRepository;
 import com.leadpot.landing.LandingPageRepository;
 import com.leadpot.lead.UserAgentParser;
 
-/** 방문(유입) 기록. 공개 랜딩/폼 열람 시 best-effort 로 남긴다(실패해도 페이지엔 영향 없음). */
+/** 방문(유입) 기록. 공개 랜딩/리드폼 열람 시 best-effort 로 남긴다(실패해도 페이지엔 영향 없음). */
 @Service
 public class VisitService {
 
@@ -32,7 +32,7 @@ public class VisitService {
 
     @Transactional
     public void record(Long landingPageId, Long formId, Map<String, Object> utm, Visitor visitor) {
-        // 소유자 해석: 랜딩 우선, 없으면 폼. 둘 다 못 찾으면 기록하지 않는다.
+        // 소유자 해석: 랜딩 우선, 없으면 리드폼. 둘 다 못 찾으면 기록하지 않는다.
         Long ownerId = null;
         if (landingPageId != null) {
             ownerId = landingRepository.findById(landingPageId).map(l -> l.getOwnerId()).orElse(null);

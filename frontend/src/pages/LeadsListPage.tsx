@@ -68,19 +68,19 @@ export function LeadsListPage() {
             <p className="dash-sub">총 {leads.length}건 수집됨 · 백엔드 API <code>{BASE_URL}</code></p>
           </div>
           <div className="edit-actions">
-            <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/edit`)}>폼 편집</button>
+            <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/edit`)}>리드폼 편집</button>
             <button className="btn btn-ghost" onClick={copyLink}>{copied ? "복사됨!" : "공개 링크 복사"}</button>
             {leads.length > 0 && (
               <button className="btn btn-ghost" onClick={() => downloadLeadsCsv(formId, form?.name || "leads")}>CSV 내보내기</button>
             )}
-            <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 폼 열기</button>
+            <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 리드폼 열기</button>
           </div>
         </div>
 
         <div className="card card-pad" style={{ marginBottom: 20 }}>
           <div className="card-h">공개 링크</div>
           <code className="public-link">{publicUrl}</code>
-          <p className="dash-sub" style={{ marginTop: 8 }}>이 링크를 공유하면 방문자가 폼을 제출할 수 있고, 제출 데이터가 아래에 쌓입니다.</p>
+          <p className="dash-sub" style={{ marginTop: 8 }}>이 링크를 공유하면 방문자가 리드폼을 제출할 수 있고, 제출 데이터가 아래에 쌓입니다.</p>
         </div>
 
         {loading ? (
@@ -88,7 +88,7 @@ export function LeadsListPage() {
         ) : leads.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 수집된 리드가 없습니다.</p>
-            <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 폼 열어서 테스트 제출</button>
+            <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 리드폼 열어서 테스트 제출</button>
           </div>
         ) : (
           <div className="leads">

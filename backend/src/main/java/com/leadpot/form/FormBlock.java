@@ -17,7 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 /**
- * 폼 본문의 한 블록. 입력 항목(FIELD)이거나 콘텐츠(IMAGE/HTML/TEXT/DIVIDER/SPACER).
+ * 리드폼 본문의 한 블록. 입력 항목(FIELD)이거나 콘텐츠(IMAGE/HTML/TEXT/DIVIDER/SPACER).
  * sort_order 로 정렬되며, STEP 유형에서는 step_no 로 단계에 그룹핑된다(2B).
  */
 @Entity

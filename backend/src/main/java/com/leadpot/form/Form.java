@@ -23,7 +23,7 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 /**
- * 독립 폼(재사용). 랜딩과 별개로 만들어 여러 랜딩에서 연결해 쓴다(M1).
+ * 독립 리드폼(재사용). 랜딩과 별개로 만들어 여러 랜딩에서 연결해 쓴다(M1).
  * form_type 으로 유형을 확장한다(M7). 본문은 정렬된 블록 배열(blocks).
  */
 @Entity

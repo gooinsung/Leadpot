@@ -8,7 +8,7 @@ function blockStyle(b: LandingBlock): CSSProperties {
   return { marginTop: px(b.mt), marginBottom: px(b.mb), marginLeft: px(b.mx), marginRight: px(b.mx) };
 }
 
-/** 공개 랜딩 렌더(모바일 최적화). 블록 렌더 + 인라인 폼 / CTA 오버레이. 데이터 로딩은 상위 페이지가 담당. */
+/** 공개 랜딩 렌더(모바일 최적화). 블록 렌더 + 인라인 리드폼 / CTA 오버레이. 데이터 로딩은 상위 페이지가 담당. */
 export function LandingView({ landing }: { landing: PublicLanding }) {
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
 
@@ -52,7 +52,7 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
         <div className="landing-overlay" onClick={() => setOverlayForm(null)}>
           <div className="landing-overlay-card" onClick={(e) => e.stopPropagation()}>
             <button className="landing-overlay-close" type="button" onClick={() => setOverlayForm(null)} aria-label="닫기">×</button>
-            <PublicFormView form={overlayForm} landingPageId={landing.id} onSubmitted={() => { /* 완료 화면은 폼 내부에서 표시 */ }} />
+            <PublicFormView form={overlayForm} landingPageId={landing.id} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
           </div>
         </div>
       )}

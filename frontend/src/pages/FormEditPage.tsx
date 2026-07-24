@@ -80,7 +80,7 @@ export function FormEditPage() {
   const isNew = !id;
   const navigate = useNavigate();
 
-  const [name, setName] = useState("새 폼");
+  const [name, setName] = useState("새 리드폼");
   const [formType, setFormType] = useState<FormType>("BASIC");
 
   // BASIC: 평면 블록 배열
@@ -163,7 +163,7 @@ export function FormEditPage() {
           setBlocks(sorted);
         }
       })
-      .catch(() => setError("폼을 불러오지 못했습니다."))
+      .catch(() => setError("리드폼을 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   }, [id, isNew]);
 
@@ -302,13 +302,13 @@ export function FormEditPage() {
       <main className="wrap form-edit">
         <div className="dash-head">
           <div>
-            <p className="eyebrow">{isNew ? "새 폼" : "폼 편집"}</p>
+            <p className="eyebrow">{isNew ? "새 리드폼" : "리드폼 편집"}</p>
             <input className="input form-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="edit-actions">
             <button className="btn btn-ghost" onClick={() => navigate("/forms")}>취소</button>
             <button className="btn btn-primary" onClick={onSave} disabled={saving}>
-              {saving ? "저장 중…" : "폼 저장"}
+              {saving ? "저장 중…" : "리드폼 저장"}
             </button>
           </div>
         </div>
@@ -504,7 +504,7 @@ export function FormEditPage() {
             <div className="card card-pad" style={{ marginTop: 16 }}>
               <div className="card-h">디자인 · 색상</div>
               <ColorField label="제출 버튼 색" value={buttonColor} onChange={setButtonColor} />
-              <ColorField label="폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
+              <ColorField label="리드폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }}>

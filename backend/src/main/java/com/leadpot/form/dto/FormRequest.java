@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/** 폼 생성/수정 요청. */
+/** 리드폼 생성/수정 요청. */
 public record FormRequest(
         @NotBlank @Size(max = 255) String name,
         @NotNull FormType formType,

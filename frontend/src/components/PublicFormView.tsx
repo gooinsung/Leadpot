@@ -40,8 +40,8 @@ function fieldError(fieldType: string, value: string, required: boolean, label: 
 }
 
 /**
- * 실제 제출 가능한 공개 폼 렌더러(비로그인).
- * 단독 공개 폼(/f/{id})과 랜딩(/p/{slug}) 인라인·오버레이에서 공용으로 사용.
+ * 실제 제출 가능한 공개 리드폼 렌더러(비로그인).
+ * 단독 공개 리드폼(/f/{id})과 랜딩(/p/{slug}) 인라인·오버레이에서 공용으로 사용.
  */
 export function PublicFormView({
   form,

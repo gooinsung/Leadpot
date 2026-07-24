@@ -178,7 +178,7 @@ export function updateSubdomain(subdomain: string): Promise<AuthUser> {
   return request<AuthUser>("/api/auth/subdomain", { method: "PATCH", body: { subdomain } });
 }
 
-// ---------- 폼(Form) ----------
+// ---------- 리드폼(Form) ----------
 export type FormType = "BASIC" | "STEP";
 export type BlockType = "FIELD" | "IMAGE" | "HTML" | "TEXT" | "DIVIDER" | "SPACER" | "CHOICE";
 
@@ -244,11 +244,11 @@ export function deleteForm(id: number): Promise<void> {
   return request<void>(`/api/forms/${id}`, { method: "DELETE" });
 }
 
-// ---------- 동의 항목(폼 consentConfig 안에 저장) ----------
+// ---------- 동의 항목(리드폼 consentConfig 안에 저장) ----------
 export interface ConsentItem {
   title: string;
   required: boolean;
-  defaultChecked?: boolean; // 공개 폼에서 기본 체크 여부
+  defaultChecked?: boolean; // 공개 리드폼에서 기본 체크 여부
   linkType: "none" | "external" | "document"; // 보기 링크 종류
   url?: string; // external 일 때
   documentId?: number | null; // document 일 때
@@ -337,17 +337,17 @@ export interface LeadSubmitInput {
   utm?: Record<string, unknown> | null;
 }
 
-/** 공개 폼 렌더 데이터(비로그인). */
+/** 공개 리드폼 렌더 데이터(비로그인). */
 export function getPublicForm(id: number): Promise<FormDetail> {
   return request<FormDetail>(`/api/public/forms/${id}`, { auth: false });
 }
 
-/** 공개 폼 제출(비로그인). */
+/** 공개 리드폼 제출(비로그인). */
 export function submitLead(input: LeadSubmitInput): Promise<{ id: number; ok: boolean }> {
   return request<{ id: number; ok: boolean }>("/api/public/leads", { method: "POST", body: input, auth: false });
 }
 
-/** 특정 폼의 리드 목록(본인 폼만). */
+/** 특정 리드폼의 리드 목록(본인 리드폼만). */
 export function listLeads(formId: number): Promise<Lead[]> {
   return request<Lead[]>(`/api/leads?formId=${formId}`);
 }
@@ -369,7 +369,7 @@ export function updateLeadStatus(id: number, status: string): Promise<void> {
   return request<void>(`/api/leads/${id}/status`, { method: "PATCH", body: { status } });
 }
 
-/** 폼의 리드를 CSV 로 내려받기(엑셀 호환). */
+/** 리드폼의 리드를 CSV 로 내려받기(엑셀 호환). */
 export async function downloadLeadsCsv(formId: number, formName: string): Promise<void> {
   const tokens = getTokens();
   const res = await fetch(`${BASE_URL}/api/leads/export?formId=${formId}`, {
@@ -499,7 +499,7 @@ export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
   return request<StatsOverview>(`/api/stats/overview${qs ? `?${qs}` : ""}`);
 }
 
-/** 공개 방문 기록(비로그인, best-effort). 공개 랜딩/폼 진입 시 1회 호출. */
+/** 공개 방문 기록(비로그인, best-effort). 공개 랜딩/리드폼 진입 시 1회 호출. */
 export function recordVisit(input: { landingPageId?: number | null; formId?: number | null; utm?: Record<string, string> }): void {
   request<void>("/api/public/visits", { method: "POST", body: input, auth: false }).catch(() => {
     /* 방문 기록 실패는 무시 */

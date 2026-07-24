@@ -20,7 +20,7 @@ import com.leadpot.landing.dto.LandingResponse;
 import com.leadpot.landing.dto.LandingSummary;
 import com.leadpot.landing.dto.PublicLandingResponse;
 
-/** 랜딩 CRUD(본인만 K5) + 공개 렌더(FORM 블록의 폼 정의 함께 반환). */
+/** 랜딩 CRUD(본인만 K5) + 공개 렌더(FORM 블록의 리드폼 정의 함께 반환). */
 @Service
 public class LandingService {
 
@@ -112,7 +112,7 @@ public class LandingService {
         return landingRepository.findBySlugAndOwnerId(identifier, ownerId);
     }
 
-    /** FORM 블록이 참조하는 폼 정의를 함께 묶어 공개 응답 생성. */
+    /** FORM 블록이 참조하는 리드폼 정의를 함께 묶어 공개 응답 생성. */
     private PublicLandingResponse buildPublic(LandingPage landing) {
         Map<Long, FormResponse> forms = new LinkedHashMap<>();
         for (Map<String, Object> block : landing.getContent()) {

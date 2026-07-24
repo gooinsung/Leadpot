@@ -7,7 +7,7 @@ import com.leadpot.form.FormBlock;
 
 import jakarta.validation.constraints.NotNull;
 
-/** 폼 본문 블록 요청/응답 공용 DTO. */
+/** 리드폼 본문 블록 요청/응답 공용 DTO. */
 public record FormBlockDto(
         Long id,
         Integer stepNo,
@@ -36,7 +36,7 @@ public record FormBlockDto(
                 b.getContent());
     }
 
-    /** 요청 DTO → 새 엔티티(폼 연결은 Form.replaceBlocks 에서 수행). 누락된 boolean/int 는 기본값 처리. */
+    /** 요청 DTO → 새 엔티티(리드폼 연결은 Form.replaceBlocks 에서 수행). 누락된 boolean/int 는 기본값 처리. */
     public FormBlock toEntity() {
         FormBlock b = new FormBlock();
         b.setStepNo(stepNo);

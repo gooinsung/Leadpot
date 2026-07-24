@@ -16,8 +16,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * 리드(수집 데이터). 방문자가 공개 폼을 제출하면 생성된다.
- * 폼 항목이 가변이라 제출 값은 answers(JSONB)로 저장하고, 방문자 정보도 함께 기록한다.
+ * 리드(수집 데이터). 방문자가 공개 리드폼을 제출하면 생성된다.
+ * 리드폼 항목이 가변이라 제출 값은 answers(JSONB)로 저장하고, 방문자 정보도 함께 기록한다.
  */
 @Entity
 @Table(name = "leads")

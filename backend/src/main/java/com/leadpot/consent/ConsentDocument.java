@@ -13,7 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * 동의/약관 문서. 폼의 동의 항목 '보기' 링크로 연결한다. 소유자(owner)만 관리(K5), 내용 조회는 공개.
+ * 동의/약관 문서. 리드폼의 동의 항목 '보기' 링크로 연결한다. 소유자(owner)만 관리(K5), 내용 조회는 공개.
  */
 @Entity
 @Table(name = "consent_documents")

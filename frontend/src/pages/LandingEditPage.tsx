@@ -73,13 +73,13 @@ export function LandingEditPage() {
       .finally(() => setLoading(false));
   }, [id, isNew]);
 
-  // FORM 블록의 기본 formId 를 폼 목록 로드 후 채움(신규)
+  // FORM 블록의 기본 formId 를 리드폼 목록 로드 후 채움(신규)
   useEffect(() => {
     if (forms.length === 0) return;
     setBlocks((prev) => prev.map((b) => (b.type === "FORM" && b.formId == null ? { ...b, formId: forms[0].id } : b)));
   }, [forms]);
 
-  // FORM 블록이 참조하는 폼 상세를 불러와 미리보기에 실제 폼을 렌더
+  // FORM 블록이 참조하는 리드폼 상세를 불러와 미리보기에 실제 리드폼을 렌더
   useEffect(() => {
     const ids = Array.from(new Set(
       blocks.filter((b) => b.type === "FORM" && b.formId != null).map((b) => Number(b.formId)),
@@ -202,9 +202,9 @@ export function LandingEditPage() {
                   {b.type === "FORM" && (
                     <>
                       <div className="field">
-                        <label>연결할 폼</label>
+                        <label>연결할 리드폼</label>
                         <select className="input" value={(b.formId as number) ?? ""} onChange={(e) => patch(i, { formId: e.target.value ? Number(e.target.value) : null })}>
-                          <option value="">폼 선택…</option>
+                          <option value="">리드폼 선택…</option>
                           {forms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                         </select>
                       </div>
@@ -232,7 +232,7 @@ export function LandingEditPage() {
                 <button className="btn btn-ghost btn-sm" onClick={() => add("IMAGE")}>+ 이미지</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => add("TEXT")}>+ 텍스트</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => add("HTML")}>+ HTML</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => add("FORM")}>+ 폼</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => add("FORM")}>+ 리드폼</button>
               </div>
             </div>
           </div>
@@ -264,13 +264,13 @@ export function LandingEditPage() {
                       return (
                         <div key={i} style={{ padding: "8px 16px 16px", ...ms }}>
                           <button className="btn btn-green" style={{ width: "100%", minHeight: 48 }} disabled>{(b.buttonLabel as string) || "신청하기"}</button>
-                          <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>버튼 클릭 시 오버레이로 폼 표시</p>
+                          <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>버튼 클릭 시 오버레이로 리드폼 표시</p>
                         </div>
                       );
                     }
                     return (
                       <div key={i} className="landing-form-card" style={ms}>
-                        {detail ? <FormRenderer form={detail} /> : <p className="dash-sub">폼 미리보기 불러오는 중…</p>}
+                        {detail ? <FormRenderer form={detail} /> : <p className="dash-sub">리드폼 미리보기 불러오는 중…</p>}
                       </div>
                     );
                   }
@@ -286,5 +286,5 @@ export function LandingEditPage() {
 }
 
 function blockLabel(t: LandingBlockType): string {
-  return { IMAGE: "이미지", TEXT: "텍스트", HTML: "HTML", FORM: "폼" }[t];
+  return { IMAGE: "이미지", TEXT: "텍스트", HTML: "HTML", FORM: "리드폼" }[t];
 }

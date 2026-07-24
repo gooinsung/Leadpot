@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getPublicConsentDoc, type ConsentDocument } from "../api/client";
 
-/** 동의 문서 공개 뷰(/consent/:id) — 비로그인. 폼의 '보기' 링크가 여는 페이지. */
+/** 동의 문서 공개 뷰(/consent/:id) — 비로그인. 리드폼의 '보기' 링크가 여는 페이지. */
 export function ConsentViewPage() {
   const { id } = useParams();
   const [doc, setDoc] = useState<ConsentDocument | null>(null);

@@ -22,7 +22,7 @@ import com.leadpot.lead.LeadRepository;
 import com.leadpot.visit.Visit;
 import com.leadpot.visit.VisitRepository;
 
-/** 리드·방문 데이터 기반 통계 집계(본인 소유만 K5). 기간·대상(랜딩/폼) 필터 지원. */
+/** 리드·방문 데이터 기반 통계 집계(본인 소유만 K5). 기간·대상(랜딩/리드폼) 필터 지원. */
 @Service
 public class StatsService {
 
@@ -61,7 +61,7 @@ public class StatsService {
         Instant fromInstant = from.atStartOfDay(KST).toInstant();
         Instant toInstant = to.plusDays(1).atStartOfDay(KST).toInstant(); // 반열림 [from, to+1)
 
-        // 대상 필터(랜딩/폼) 적용해 로드
+        // 대상 필터(랜딩/리드폼) 적용해 로드
         final Long fLanding = landingId;
         final Long fForm = formId;
         List<Lead> leads = leadRepository.findByOwnerBetween(ownerId, fromInstant, toInstant).stream()
@@ -141,15 +141,15 @@ public class StatsService {
 
     private List<StatsResponse.EntityCount> byLanding(List<Lead> leads, List<Visit> visits, Map<Long, String> names) {
         return byEntity(leads, visits, l -> nz(l.getLandingPageId()), v -> nz(v.getLandingPageId()),
-                id -> id == -1L ? "랜딩 없음(직접 폼)" : names.getOrDefault(id, "(삭제된 랜딩)"));
+                id -> id == -1L ? "랜딩 없음(직접 리드폼)" : names.getOrDefault(id, "(삭제된 랜딩)"));
     }
 
     private List<StatsResponse.EntityCount> byForm(List<Lead> leads, List<Visit> visits, Map<Long, String> names) {
         return byEntity(leads, visits, l -> nz(l.getFormId()), v -> nz(v.getFormId()),
-                id -> id == -1L ? "폼 없음" : names.getOrDefault(id, "(삭제된 폼)"));
+                id -> id == -1L ? "리드폼 없음" : names.getOrDefault(id, "(삭제된 리드폼)"));
     }
 
-    /** 대상(랜딩/폼)별 순방문/총트래픽/리드/전환율 집계. */
+    /** 대상(랜딩/리드폼)별 순방문/총트래픽/리드/전환율 집계. */
     private List<StatsResponse.EntityCount> byEntity(List<Lead> leads, List<Visit> visits,
             Function<Lead, Long> leadKey, Function<Visit, Long> visitKey, Function<Long, String> nameFn) {
         Map<Long, List<Visit>> visitsByKey = new LinkedHashMap<>();

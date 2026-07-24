@@ -15,7 +15,7 @@ export function FormsListPage() {
     try {
       setForms(await listForms());
     } catch {
-      setError("폼 목록을 불러오지 못했습니다.");
+      setError("리드폼 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -26,7 +26,7 @@ export function FormsListPage() {
   }, []);
 
   async function onDelete(id: number, name: string) {
-    if (!window.confirm(`'${name}' 폼을 삭제할까요?`)) return;
+    if (!window.confirm(`'${name}' 리드폼을 삭제할까요?`)) return;
     await deleteForm(id);
     load();
   }
@@ -37,12 +37,12 @@ export function FormsListPage() {
       <main className="wrap dashboard">
         <div className="dash-head">
           <div>
-            <p className="eyebrow">폼 관리</p>
-            <h1 className="dash-title">내 폼</h1>
-            <p className="dash-sub">랜딩과 별개로 폼을 만들어 여러 곳에서 재사용합니다.</p>
+            <p className="eyebrow">리드폼 관리</p>
+            <h1 className="dash-title">내 리드폼</h1>
+            <p className="dash-sub">랜딩과 별개로 리드폼을 만들어 여러 곳에서 재사용합니다.</p>
           </div>
           <button className="btn btn-primary" onClick={() => navigate("/forms/new")}>
-            + 새 폼 만들기
+            + 새 리드폼 만들기
           </button>
         </div>
 
@@ -52,9 +52,9 @@ export function FormsListPage() {
           <p className="auth-error">{error}</p>
         ) : forms.length === 0 ? (
           <div className="card card-pad empty-state">
-            <p>아직 만든 폼이 없습니다.</p>
+            <p>아직 만든 리드폼이 없습니다.</p>
             <button className="btn btn-primary" onClick={() => navigate("/forms/new")}>
-              첫 폼 만들기
+              첫 리드폼 만들기
             </button>
           </div>
         ) : (

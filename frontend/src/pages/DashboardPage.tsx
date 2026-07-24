@@ -48,7 +48,7 @@ export function DashboardPage() {
   const num = (v: number | null) => (v == null ? "…" : v.toLocaleString("ko-KR"));
 
   const upcoming = [
-    { title: "랜딩 빌더", desc: "이미지·텍스트 구성 + 폼 연결", phase: "Phase 3" },
+    { title: "랜딩 빌더", desc: "이미지·텍스트 구성 + 리드폼 연결", phase: "Phase 3" },
     { title: "리드 상태·CSV", desc: "상담 상태 관리·엑셀 내보내기", phase: "Phase 5" },
     { title: "구글시트·알림 연동", desc: "접수 시 시트 전송·텔레그램/카톡 알림", phase: "추후" },
     { title: "통계", desc: "유입·전환·UTM 캠페인 분석", phase: "Phase 6" },
@@ -81,7 +81,7 @@ export function DashboardPage() {
             <div className="k-val">-</div>
           </div>
           <div className="kpi card row-click" onClick={() => navigate("/forms")}>
-            <div className="k-label">폼</div>
+            <div className="k-label">리드폼</div>
             <div className="k-val">{num(formCount)}</div>
           </div>
           <div className="kpi card">

@@ -14,7 +14,7 @@ import com.leadpot.lead.dto.LeadSubmitRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
-/** 공개 폼 제출 수신(비로그인). 방문자 정보를 헤더에서 추출해 함께 저장. */
+/** 공개 리드폼 제출 수신(비로그인). 방문자 정보를 헤더에서 추출해 함께 저장. */
 @RestController
 @RequestMapping("/api/public/leads")
 public class PublicLeadController {

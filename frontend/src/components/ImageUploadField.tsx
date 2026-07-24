@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from "react";
 import { ApiError, uploadImage } from "../api/client";
 
-/** 이미지 입력 — 파일 업로드(로컬/VM 저장) + URL 직접 입력 겸용. 폼·랜딩 이미지 블록 공용. */
+/** 이미지 입력 — 파일 업로드(로컬/VM 저장) + URL 직접 입력 겸용. 리드폼·랜딩 이미지 블록 공용. */
 export function ImageUploadField({
   url,
   alt,

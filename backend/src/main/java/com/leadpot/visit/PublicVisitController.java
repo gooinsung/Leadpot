@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-/** 공개 방문 기록(비로그인). 공개 랜딩/폼이 열릴 때 프론트가 1회 호출. best-effort → 항상 204. */
+/** 공개 방문 기록(비로그인). 공개 랜딩/리드폼이 열릴 때 프론트가 1회 호출. best-effort → 항상 204. */
 @RestController
 @RequestMapping("/api/public/visits")
 public class PublicVisitController {

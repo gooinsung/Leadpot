@@ -7,7 +7,7 @@ import java.util.Map;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormType;
 
-/** 폼 상세 응답. */
+/** 리드폼 상세 응답. */
 public record FormResponse(
         Long id,
         String name,

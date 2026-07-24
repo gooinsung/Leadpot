@@ -21,7 +21,7 @@ import com.leadpot.form.dto.FormSummary;
 
 import jakarta.validation.Valid;
 
-/** 폼 관리 API (로그인 필요). 본인 소유 폼만 접근한다(K5). */
+/** 리드폼 관리 API (로그인 필요). 본인 소유 리드폼만 접근한다(K5). */
 @RestController
 @RequestMapping("/api/forms")
 public class FormController {

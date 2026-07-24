@@ -206,7 +206,7 @@ export function StatsPage() {
               <TrendChart buckets={buckets} />
             </section>
 
-            {/* 랜딩별 / 폼별 */}
+            {/* 랜딩별 / 리드폼별 */}
             <div className="stats-grid">
               <EntityTable title="랜딩페이지별" rows={stats.byLanding} onPick={(id) => setTarget(id == null ? "all" : `landing:${id}`)} />
               <EntityTable title="리드폼별" rows={stats.byForm} onPick={(id) => setTarget(id == null ? "all" : `form:${id}`)} />

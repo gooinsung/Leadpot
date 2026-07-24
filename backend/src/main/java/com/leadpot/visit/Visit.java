@@ -15,7 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * 방문(유입) 로그. 공개 랜딩/폼이 열릴 때 남는다. 전환율(방문→접수) 통계에 사용.
+ * 방문(유입) 로그. 공개 랜딩/리드폼이 열릴 때 남는다. 전환율(방문→접수) 통계에 사용.
  * 개인정보 최소화: 원본 IP 대신 해시만 저장한다.
  */
 @Entity

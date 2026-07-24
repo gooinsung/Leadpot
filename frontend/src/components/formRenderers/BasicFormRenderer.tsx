@@ -2,7 +2,7 @@ import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
 import { resolveStyle } from "./formStyle";
 
-/** BASIC 유형 폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
+/** BASIC 유형 리드폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
 export function BasicFormRenderer({ form }: { form: FormInput }) {
   const blocks = [...form.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
   const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";

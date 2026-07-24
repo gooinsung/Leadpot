@@ -7,7 +7,7 @@ export interface ResolvedStyle {
   accentText: string;
 }
 
-/** 폼 styleConfig 에서 색상을 해석(기본값 포함)하고 대비 텍스트 색을 계산. */
+/** 리드폼 styleConfig 에서 색상을 해석(기본값 포함)하고 대비 텍스트 색을 계산. */
 export function resolveStyle(form: FormInput): ResolvedStyle {
   const buttonColor = (form.styleConfig?.buttonColor as string) || "#12b886";
   const accentColor = (form.styleConfig?.accentColor as string) || "#3a43c0";

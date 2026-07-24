@@ -17,8 +17,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * 랜딩페이지. 이미지/텍스트/HTML + '폼' 블록을 순서대로 배치한 공개 페이지(블록 방식).
- * 폼은 content 안의 FORM 블록이 formId + trigger(inline|overlay)로 참조(폼 재사용 M1).
+ * 랜딩페이지. 이미지/텍스트/HTML + '리드폼' 블록을 순서대로 배치한 공개 페이지(블록 방식).
+ * 리드폼은 content 안의 FORM 블록이 formId + trigger(inline|overlay)로 참조(리드폼 재사용 M1).
  */
 @Entity
 @Table(name = "landing_pages")
