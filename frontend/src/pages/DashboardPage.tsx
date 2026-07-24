@@ -104,6 +104,7 @@ export function DashboardPage() {
               placeholder="예: my-brand"
               spellCheck={false}
               autoCapitalize="none"
+              maxLength={30}
             />
             <button className="btn btn-primary" type="button" onClick={saveSubdomain} disabled={savingSub || !sub.trim() || sub.trim() === user?.subdomain}>
               {savingSub ? "저장 중…" : "변경"}
@@ -114,7 +115,6 @@ export function DashboardPage() {
           )}
           <p className="dash-sub" style={{ marginTop: 12, fontSize: 13, overflowWrap: "anywhere", wordBreak: "break-all" }}>
             공개 URL 예시: <code>{(sub || user?.subdomain || "sub")}.lead-pot.com/{"{랜딩번호}"}</code>
-            {" "}· 로컬 확인: <code>{(sub || user?.subdomain || "sub")}.localhost:5173/{"{랜딩번호}"}</code>
           </p>
         </section>
 
