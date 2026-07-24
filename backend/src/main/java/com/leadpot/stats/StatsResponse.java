@@ -19,16 +19,22 @@ public record StatsResponse(
         List<EntityCount> byLanding,
         List<EntityCount> byForm) {
 
-    /** 요약 지표. conversionRate = 리드/방문 * 100 (방문 0이면 0). */
-    public record Summary(long visits, long leads, double conversionRate) {
+    /**
+     * 요약 지표.
+     * uniqueVisits = 고유 방문(IP 해시 distinct), totalVisits = 총 트래픽(중복 포함 전체 접속).
+     * conversionRate = 리드/순방문 * 100 (순방문 0이면 0).
+     */
+    public record Summary(long uniqueVisits, long totalVisits, long leads, double conversionRate) {
     }
 
+    /** 일별: visits = 총 트래픽(중복 포함), leads = 접수. */
     public record DayPoint(String date, long visits, long leads) {
     }
 
     public record Count(String key, long count) {
     }
 
-    public record EntityCount(Long id, String name, long visits, long leads, double conversionRate) {
+    public record EntityCount(Long id, String name, long uniqueVisits, long totalVisits, long leads,
+            double conversionRate) {
     }
 }

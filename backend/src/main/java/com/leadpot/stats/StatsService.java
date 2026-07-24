@@ -86,10 +86,12 @@ public class StatsService {
         long totalVisits = visits.size();
         long totalLeads = leads.size();
 
+        long uniqueVisits = uniqueCount(visits);
+
         return new StatsResponse(
                 from.toString(),
                 to.toString(),
-                new StatsResponse.Summary(totalVisits, totalLeads, rate(totalLeads, totalVisits)),
+                new StatsResponse.Summary(uniqueVisits, totalVisits, totalLeads, rate(totalLeads, uniqueVisits)),
                 byDay(leads, visits, from, to),
                 leadCounts(leads, l -> blankTo(l.getDevice(), "기타")),
                 leadCounts(leads, l -> blankTo(l.getOs(), "기타")),
@@ -138,28 +140,47 @@ public class StatsService {
     }
 
     private List<StatsResponse.EntityCount> byLanding(List<Lead> leads, List<Visit> visits, Map<Long, String> names) {
-        Map<Long, long[]> m = new LinkedHashMap<>(); // key: landingId(nullable→-1), [visits, leads]
-        visits.forEach(v -> m.computeIfAbsent(nz(v.getLandingPageId()), k -> new long[2])[0]++);
-        leads.forEach(l -> m.computeIfAbsent(nz(l.getLandingPageId()), k -> new long[2])[1]++);
-        return toEntityCounts(m, id -> id == -1L ? "랜딩 없음(직접 폼)" : names.getOrDefault(id, "(삭제된 랜딩)"));
+        return byEntity(leads, visits, l -> nz(l.getLandingPageId()), v -> nz(v.getLandingPageId()),
+                id -> id == -1L ? "랜딩 없음(직접 폼)" : names.getOrDefault(id, "(삭제된 랜딩)"));
     }
 
     private List<StatsResponse.EntityCount> byForm(List<Lead> leads, List<Visit> visits, Map<Long, String> names) {
-        Map<Long, long[]> m = new LinkedHashMap<>();
-        visits.forEach(v -> m.computeIfAbsent(nz(v.getFormId()), k -> new long[2])[0]++);
-        leads.forEach(l -> m.computeIfAbsent(nz(l.getFormId()), k -> new long[2])[1]++);
-        return toEntityCounts(m, id -> id == -1L ? "폼 없음" : names.getOrDefault(id, "(삭제된 폼)"));
+        return byEntity(leads, visits, l -> nz(l.getFormId()), v -> nz(v.getFormId()),
+                id -> id == -1L ? "폼 없음" : names.getOrDefault(id, "(삭제된 폼)"));
     }
 
-    private List<StatsResponse.EntityCount> toEntityCounts(Map<Long, long[]> m, Function<Long, String> nameFn) {
-        return m.entrySet().stream()
-                .map(e -> {
-                    Long id = e.getKey() == -1L ? null : e.getKey();
-                    long v = e.getValue()[0], le = e.getValue()[1];
-                    return new StatsResponse.EntityCount(id, nameFn.apply(e.getKey()), v, le, rate(le, v));
+    /** 대상(랜딩/폼)별 순방문/총트래픽/리드/전환율 집계. */
+    private List<StatsResponse.EntityCount> byEntity(List<Lead> leads, List<Visit> visits,
+            Function<Lead, Long> leadKey, Function<Visit, Long> visitKey, Function<Long, String> nameFn) {
+        Map<Long, List<Visit>> visitsByKey = new LinkedHashMap<>();
+        Map<Long, Long> leadsByKey = new LinkedHashMap<>();
+        for (Visit v : visits) visitsByKey.computeIfAbsent(visitKey.apply(v), k -> new ArrayList<>()).add(v);
+        for (Lead l : leads) leadsByKey.merge(leadKey.apply(l), 1L, Long::sum);
+
+        java.util.Set<Long> keys = new java.util.LinkedHashSet<>();
+        keys.addAll(visitsByKey.keySet());
+        keys.addAll(leadsByKey.keySet());
+
+        return keys.stream()
+                .map(key -> {
+                    List<Visit> vs = visitsByKey.getOrDefault(key, List.of());
+                    long total = vs.size();
+                    long unique = uniqueCount(vs);
+                    long le = leadsByKey.getOrDefault(key, 0L);
+                    Long id = key == -1L ? null : key;
+                    return new StatsResponse.EntityCount(id, nameFn.apply(key), unique, total, le, rate(le, unique));
                 })
-                .sorted((a, b) -> Long.compare(b.leads() + b.visits(), a.leads() + a.visits()))
+                .sorted((a, b) -> Long.compare(b.leads() + b.totalVisits(), a.leads() + a.totalVisits()))
                 .toList();
+    }
+
+    /** 고유 방문 수 = IP 해시 distinct(해시 없는 방문은 식별 불가라 제외). */
+    private static long uniqueCount(List<Visit> visits) {
+        java.util.Set<String> ips = new java.util.HashSet<>();
+        for (Visit v : visits) {
+            if (v.getIpHash() != null && !v.getIpHash().isBlank()) ips.add(v.getIpHash());
+        }
+        return ips.size();
     }
 
     private static double rate(long leads, long visits) {

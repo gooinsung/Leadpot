@@ -253,6 +253,68 @@ td.num {
   flex: 1;
   min-width: 3px;
   height: 100%;
+  cursor: default;
+}
+.day-bar-wrap::after {
+  /* 호버 영역을 넓혀 얇은 막대도 잘 잡히도록 */
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.day-bar-wrap.on .day-bar-v {
+  filter: brightness(0.94);
+}
+.day-tip {
+  position: absolute;
+  bottom: 102%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--surface);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+.day-tip-t {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.trend {
+  display: flex;
+  flex-direction: column;
+}
+.day-axis {
+  display: flex;
+  gap: 3px;
+  margin-top: 6px;
+}
+.day-axis-l {
+  flex: 1;
+  min-width: 3px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.seg-sm button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.k-hint {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  vertical-align: middle;
 }
 .day-bar {
   position: absolute;

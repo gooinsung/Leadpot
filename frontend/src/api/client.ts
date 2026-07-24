@@ -443,14 +443,15 @@ export interface StatDayPoint {
 export interface StatEntityCount {
   id: number | null;
   name: string;
-  visits: number;
+  uniqueVisits: number;
+  totalVisits: number;
   leads: number;
   conversionRate: number;
 }
 export interface StatsOverview {
   from: string;
   to: string;
-  summary: { visits: number; leads: number; conversionRate: number };
+  summary: { uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number };
   byDay: StatDayPoint[];
   byDevice: StatCount[];
   byOs: StatCount[];
