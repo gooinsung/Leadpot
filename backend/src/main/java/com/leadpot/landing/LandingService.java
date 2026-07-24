@@ -67,6 +67,10 @@ public class LandingService {
     public PublicLandingResponse getPublic(String slug) {
         LandingPage landing = landingRepository.findBySlug(slug)
                 .orElseThrow(() -> new NotFoundException("페이지를 찾을 수 없습니다."));
+        // 비공개(draft) 페이지는 공개 접근 차단 — 존재를 드러내지 않도록 동일한 404.
+        if (!"published".equals(landing.getStatus())) {
+            throw new NotFoundException("페이지를 찾을 수 없습니다.");
+        }
         Map<Long, FormResponse> forms = new LinkedHashMap<>();
         for (Map<String, Object> block : landing.getContent()) {
             if ("FORM".equals(String.valueOf(block.get("type")))) {
