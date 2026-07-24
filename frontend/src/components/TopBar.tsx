@@ -36,6 +36,9 @@ export function TopBar() {
               <NavLink to="/consent-docs" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
                 동의 문서
               </NavLink>
+              <NavLink to="/stats" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+                통계
+              </NavLink>
             </nav>
           )}
         </div>

@@ -12,6 +12,7 @@ import { PublicFormPage } from "./pages/PublicFormPage";
 import { LandingsListPage } from "./pages/LandingsListPage";
 import { LandingEditPage } from "./pages/LandingEditPage";
 import { PublicLandingPage } from "./pages/PublicLandingPage";
+import { StatsPage } from "./pages/StatsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 
@@ -106,6 +107,14 @@ function App() {
         element={
           <ProtectedRoute>
             <LandingEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/stats"
+        element={
+          <ProtectedRoute>
+            <StatsPage />
           </ProtectedRoute>
         }
       />

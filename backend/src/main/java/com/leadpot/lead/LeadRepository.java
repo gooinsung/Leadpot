@@ -21,4 +21,8 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 본인 소유 폼들의 전체 리드 수 (대시보드용, K5)
     @Query("select count(l) from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId)")
     long countByOwner(@Param("ownerId") Long ownerId);
+
+    // 본인 소유 폼들의 전체 리드 (통계 집계용)
+    @Query("select l from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId)")
+    List<Lead> findAllByOwner(@Param("ownerId") Long ownerId);
 }

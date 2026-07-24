@@ -430,6 +430,28 @@ export function getPublicLanding(slug: string): Promise<PublicLanding> {
   return request<PublicLanding>(`/api/public/landings/${slug}`, { auth: false });
 }
 
+// ---------- 통계 ----------
+export interface StatCount {
+  key: string;
+  count: number;
+}
+export interface StatFormCount {
+  formId: number;
+  name: string;
+  count: number;
+}
+export interface StatsOverview {
+  total: number;
+  byDay: StatCount[];
+  byDevice: StatCount[];
+  byUtmSource: StatCount[];
+  byReferer: StatCount[];
+  byForm: StatFormCount[];
+}
+export function getStats(): Promise<StatsOverview> {
+  return request<StatsOverview>("/api/stats/overview");
+}
+
 // ---------- 이미지 업로드 ----------
 /** 이미지 파일 업로드(로그인 필요) → 절대 URL 반환. */
 export async function uploadImage(file: File): Promise<{ url: string }> {

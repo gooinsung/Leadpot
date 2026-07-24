@@ -234,6 +234,83 @@ td.num {
   color: var(--muted);
 }
 
+/* ---------- 통계 ---------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+.day-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 140px;
+  padding-top: 8px;
+}
+.day-bar-wrap {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.day-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--indigo-strong);
+  border-radius: 3px 3px 0 0;
+  transition: height 0.2s;
+}
+.bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-weight: 600;
+}
+.bar-track {
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--indigo-strong);
+  border-radius: 999px;
+  min-width: 3px;
+}
+.bar-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bar-pct {
+  color: var(--muted);
+  font-weight: 500;
+}
+@media (max-width: 720px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .bar-row {
+    grid-template-columns: 90px 1fr auto;
+  }
+}
+
 /* ---------- 폼 편집기 ---------- */
 .form-edit {
   flex: 1;
@@ -481,11 +558,12 @@ td.num {
   max-width: 360px;
 }
 .lp-preview-stage.pc {
-  overflow-x: auto;
+  overflow-x: hidden;
 }
+/* PC 미리보기: 패널 폭에 꽉 채우되 넘치지 않도록(좌우 스크롤 방지) */
 .lp-preview-stage.pc .lp-preview-device {
-  width: 720px;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
 }
 /* PC 미리보기에선 폼/텍스트가 페이지 폭에 맞춰 넓게 */
 .lp-preview-stage.pc .landing-form-card {
