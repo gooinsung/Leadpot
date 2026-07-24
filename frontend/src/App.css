@@ -40,13 +40,13 @@
 }
 .auth-card {
   width: 100%;
-  max-width: 520px;
+  max-width: 720px;
 }
 .auth-card.card-pad {
-  padding: 44px 44px 40px;
+  padding: 60px 72px 56px;
 }
 .auth-title {
-  font-size: 34px;
+  font-size: 40px;
   font-weight: 800;
   margin-top: 6px;
   line-height: 1.2;
