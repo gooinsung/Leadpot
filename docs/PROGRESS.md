@@ -20,40 +20,32 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐ 바로 다음 작업 = **D3 마무리(PR 병합·문서 반영) → 다음 기능**
-> **D3 검증 완료(2026-07-24)** — 결정 확정: ① 루트=**404** · ② 식별자=**번호+슬러그 둘 다** · ③ `/p/{slug}`=**소유자 전용 미리보기(draft 포함)**, 공개는 서브도메인 URL. DB=**Neon 공유**.
-> **✅ 검증 결과**: 백엔드 build+test 통과 / 가입 랜덤부여·변경200·예약어400·형식400·중복409 / 공개해석 번호200·슬러그200·draft404·없음404 / 미리보기 소유자200·비로그인401·타인404 / 브라우저 `{sub}.localhost:5173/{id}` 렌더·루트404.
-> **남은 마무리**: (a) `feature/d3-subdomain` → `main` PR 병합, (b) SPEC(§4)·FEATURES(D)·ROADMAP에 D3 상태/설계 반영, (c) 배포 시 와일드카드 DNS·SSL(사용자 리소스).
+> ### ⭐ 바로 다음 작업 = **IP 차단(K2)** — 내일(2026-07-25~) 새 세션에서 여기부터 시작
+> 관리자가 특정 IP를 차단하면 그 IP의 공개 리드폼 제출(`POST /api/public/leads`)을 거부한다. 스팸/장난 제출 방어. 중복방지(K3, `settingsConfig.allowSameIp`)·E4 옆에 자연스럽게 이어짐.
+> - **착수 전(§0) 사용자와 확정**: 차단 단위 = **계정 전체 vs 리드폼별** / IP 대역(CIDR) 지원 여부 / 차단 사유 메모 필요 여부.
+> - **구현 스케치**: `ip_blocks` 테이블(또는 계정·폼 설정 JSON) + Flyway **V13** / `LeadService.submit` 초입 또는 `checkDuplicates` 옆에서 차단 IP면 `InvalidSubmissionException` / 관리 UI(대시보드 또는 리드폼 설정). 제출 IP는 `X-Forwarded-For`→ `leads.submitter_ip`(원문 저장) 기준으로 비교(방문 테이블은 해시라 부적합).
 >
-> **구현 요약(작성분)** — 브랜치 `feature/d3-subdomain`:
->   - 백엔드: Flyway **V10**(`users.subdomain` unique + 기존행 랜덤 백필), `User.subdomain`, `Subdomains`(형식·예약어·랜덤), 가입 시 자동부여, `PATCH /api/auth/subdomain`, `UserResponse.subdomain`, 공개 해석 `GET /api/public/sites/{subdomain}/{identifier}`, 소유자 미리보기 `GET /api/landings/preview/{slug}`, `PublicLandingController` 삭제→`PublicSiteController` 신설, CORS `http://*.localhost:5173` 허용(배포 시 `https://*.도메인` 추가).
->   - 프론트: `lib/site.ts`(`currentSubdomain`/`publicSiteUrl`), `api`(resolveSite·getLandingPreview·updateSubdomain·`AuthUser.subdomain`), `App` 서브도메인 분기 라우팅, `components/LandingView`(렌더 추출), `pages/PublicSitePage`, `/p/:slug`→소유자 미리보기, 대시보드 계정설정 UI, `AuthContext.updateUser`, 랜딩목록 "공개 열기(서브도메인)/미리보기(/p)" 분리.
->   - **아직 안 한 것**: 빌드·타입체크·DB초기화·API/브라우저 스모크 전부(위 1~5). SPEC/FEATURES 문서에 D3 반영도 미완.
+> **그 다음(혼자 가능)**: HTML 요소 라이브러리(M8) → 리드폼 외부 임베드(M6) → 마케팅 나머지(I3 SEO·I4 전환분석·I5 요소 클릭).
+> **마무리성**: `feature/d3-subdomain` → `main` **PR 병합**(이번 세션 전 작업이 이 브랜치에만 있음) + SPEC/FEATURES에 D3·E4·엑셀·I1 반영.
+> **사용자 리소스 필요(나중)**: 구글시트/텔레그램/카톡 연동, SMS 본인인증, 클라우드 배포·도메인·와일드카드 SSL, 결제.
+> ✅ Flyway 현재 **V12(tracking_pixels)** 까지 적용됨(다음 **V13**). DB=Neon 공유.
 >
-> **배포 시(사용자 리소스, 나중)**: 도메인 구입 + `*.도메인` 와일드카드 DNS + 와일드카드 SSL(Cloudflare 무료) + 서브도메인에서 SPA 서빙 + `APP_CORS_ALLOWED_ORIGINS`에 `https://*.도메인` 추가.
->
-> **그 다음(혼자 가능)**: IP차단(K2) → HTML 요소 라이브러리(M8) → 리드폼 외부 임베드(M6). (~~E4~~·~~엑셀 양식/가져오기~~·~~광고 픽셀 I1~~ ✅ 완료)
-> 사용자 리소스 필요(나중): 구글시트/텔레그램/카톡 연동, SMS 본인인증, 클라우드 배포, 도메인/와일드카드 SSL, 결제.
-> ✅ Flyway 현재 **V11(lead_soft_delete)** 까지 적용됨(다음 V12). DB는 Neon 공유.
->
-> **✅ 최근 완료(이번 세션 추가분, 브랜치 feature/d3-subdomain)**:
->   - **폼 입력 유효성 검사**(이메일/전화/숫자, 프론트+백엔드) — 연락처 문자 통과 버그 수정
+> **✅ 이번 세션(2026-07-24~25) 완료 — 전부 브랜치 `feature/d3-subdomain`(미병합)**:
+>   - **D3 서브도메인**: 가입 시 랜덤 부여·변경(예약어/중복 검증)·공개 해석(`/api/public/sites/{sub}/{id|slug}`)·소유자 미리보기(`/p/{slug}`). 결정: 루트=404 / 식별자=번호+슬러그 / DB=Neon 공유. 검증 완료.
+>   - **폼 입력 유효성**(이메일/전화/숫자, 프론트+백엔드) — 연락처 문자 통과 버그 수정
 >   - **랜딩 slug 직접 지정**(형식·중복 검증)
->   - **UI**: 로그인/회원가입 확대, 입력·긴URL 레이아웃 흔들림 방지
->   - **'폼' → '리드폼' 전면 리네임**(UI·에러메시지)
->   - **리드 관리 고도화 E4**: 검색·상태필터·휴지통(soft delete)·복원·영구삭제. Flyway V11. API 스모크 통과.
->   - **리드폼 양식(엑셀/CSV) 다운로드 + 일괄 가져오기**(Apache POI, 행별 검증)
->   - **광고 픽셀 I1**: 리드폼/랜딩별 구글·메타·틱톡·카카오·당근. Flyway V12. PageView+Lead 발사(플랫폼 자체 귀속).
->   - **레이아웃 폭 확대**: `--maxw` 1280→1680, 인증 카드 720px. (사용자 강한 선호 — 넓게)
-> ✅ Flyway 현재 **V12(tracking_pixels)** 까지 적용됨(다음 V13).
-- **다음 후보**: Phase 3 랜딩 빌더 / 리드 관리 고도화(상태변경·CSV·중복방지) / 연동(구글시트·텔레그램·카톡 알림) — 택1
+>   - **'폼'→'리드폼' 전면 리네임** · 로그인/회원가입 확대 · **전체 폭 확대**(`--maxw` 1680, 인증카드 720)
+>   - **리드 관리 E4**: 검색·상태필터·휴지통(soft delete)·복원·영구삭제 (Flyway V11)
+>   - **엑셀/CSV 양식 다운로드 + 일괄 가져오기**(Apache POI, 행별 필수·형식 검증)
+>   - **광고 픽셀 I1**: 리드폼/랜딩별 구글·메타·틱톡·카카오·당근, PageView+Lead 발사 (Flyway V12)
+>   - 대시보드 서브도메인 입력 30자 제한 + URL 예시 정리
 - **플랜에 추가된 항목(지금 X, 나중에)**:
   - 📱 **모바일 퍼스트(최상위 원칙, CLAUDE.md §0)**: 공개 화면은 99% 모바일 → 모바일 최적화 최우선. 공개 폼은 1차 적용 완료, **랜딩(Phase 3)·기타 공개 화면도 모바일 우선으로 만들 것**.
   - 🌐 **사용자별 서브도메인(D3)**: `bali.lead-pot.com` + `.../landing/{landingId}`. 와일드카드 DNS/SSL + 서브도메인 라우팅. (D2 커스텀도메인과 연계, 배포·도메인 준비 후)
   - 🔌 **구글시트 자동연동 + 텔레그램/카톡 알림**(선택형 on/off): 리드 저장 훅 자리 마련됨(`LeadService.submit` TODO). 텔레그램·구글시트 무료, 카톡 알림톡은 사업자+유료. M5 본인인증은 SMS OTP 수준(장난번호 거르기).
   - 🧩 **재사용 HTML 요소 라이브러리(M8, 요소 생성기)**: 플로팅/고정 헤더·푸터·CTA·신청현황 등을 미리 만들어 저장 → 랜딩·폼 HTML 블록에 꺼내 삽입. `html_components` 엔티티 + 관리 페이지(동의문서 패턴). 정적 요소 먼저, 동적(신청현황=실시간 리드 수 등)은 2단계. 상세는 BACKLOG M8.
-- **프로젝트 위치(중요)**: PC마다 다름 — 현재 gooin PC는 **`C:\Users\gooin\git\Leadpot`** / 이전 wincube PC는 `C:\Users\wincube\projects\Leadpot`
-  - Google Drive 폴더는 npm/빌드 병목 때문에 **로컬로 이전함**. 동기화는 **GitHub가 정본**.
+- **프로젝트 위치(중요)**: PC마다 다름 — 현재 작업 PC(gooinsung/insung-book)는 **`C:\Users\gooinsung\git\Leadpot`**. 동기화는 **GitHub가 정본**(코드), **DB는 Neon 공유**라 어느 PC에서 켜도 같은 데이터.
+  - ⚠️ 새 PC 세팅 시: JDK21 설치 + `npm install` + `C:\Temp` 생성 + 사용자 env `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:\Temp` + `backend/application-local.properties`(Neon 접속정보, gitignore됨—별도 공유 필요). 상세는 위 "지금 위치" 참고.
 - **결정**: Phase 1 DB 방법 = **Docker Desktop** (사용자 확정 2026-07-23). 작업 순서 = **A(디자인) 먼저 → B(Phase 1 인증)**.
 
 ## ✅ 방금까지 한 일 (2026-07-24 · 3차)
