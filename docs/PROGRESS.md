@@ -8,24 +8,24 @@
 
 ## 📍 지금 위치
 
-- **⚠️ 진행 중(미검증) — 서브도메인 관리(D3)**: 코드 작성 완료, **로컬 빌드/검증 아직 못 함**. 작업하던 gooinsung PC(`C:\Users\gooinsung\git\Leadpot`)에 **Java·Docker·node_modules가 없어** gradlew/tsc/docker 모두 실행 불가. → **Java 21 + Docker + `npm install` 있는 환경에서 빌드·검증 필요**. 브랜치 `feature/d3-subdomain`에 커밋됨.
+- **✅ 서브도메인 관리(D3) 검증 완료 (2026-07-24, gooinsung PC)**: 백엔드 빌드+테스트 통과 / API 스모크 전부 통과 / 브라우저에서 `{sub}.localhost:5173/{id}` 공개 렌더·루트 404 확인. 브랜치 `feature/d3-subdomain`(코드 커밋 ce10518).
+  - **DB = Neon(무료 호스팅 Postgres)로 전환** — "모든 환경 공유 DB 한 대". 접속정보는 `backend/application-local.properties`(**gitignore됨·커밋금지**)에 저장, profile `local`로 기동. Flyway V1~V10 Neon에 적용됨(리전 ap-southeast-1).
+  - **⚙️ 이 PC 환경 세팅(gooinsung PC = `C:\Users\gooinsung\git\Leadpot`)**: JDK21(`C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`, winget) 설치, `npm install` 완료. Docker/WSL은 미설치(Neon 쓰므로 불필요).
+  - **❗ 로컬 실행 필수 플래그**: 이 PC는 기본 임시폴더 경로가 길어 JDK21 NIO의 AF_UNIX self-pipe가 실패("Unable to establish loopback connection") → **사용자 환경변수 `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:\Temp` 설정으로 해결**(설정 완료). 새 셸부터 자동 적용. (Java NIO 서버 전반에 필요)
+  - **▶️ 로컬 실행법(현재)**: `C:\Temp` 존재 + 위 env 적용 상태에서 — 백엔드 `cd backend; $env:SPRING_PROFILES_ACTIVE='local'; .\gradlew.bat bootRun` (→ :8080, Neon 연결) / 프론트 `cd frontend; npm run dev` (→ :5173). 서브도메인 테스트는 `http://{내서브도메인}.localhost:5173/{랜딩번호}`.
+  - **남은 것**: `feature/d3-subdomain` → `main` PR 병합 / SPEC·FEATURES 문서에 D3 반영 / 배포용 와일드카드 DNS·SSL(사용자 리소스, 나중).
 - **현재 위치**: **핵심 루프(폼 공개→제출→리드 수집→조회) 완성 ✅** — 실제 데이터가 쌓임(방문자정보 포함) + **통계 대시보드 ✅**
 - **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ / **리드 수집(Phase 4 앞당김) ✅** / **Phase 3 랜딩 빌더 & 폼 연결 ✅** / **리드 상태변경·CSV 내보내기 ✅** / **이미지 업로드 R2 연동(경로 구조화 landing-image/YYYY/MM/DD) ✅** / **통계 고도화(방문 추적+전환율+순방문·트래픽 분리+일/주/월+호버툴팁+기간/대상 필터+랜딩/폼별) ✅** / **동의문서 이름/제목/내용 분리 ✅**
 - **추가 폼 개선(2026-07-24)**: 공개 폼 이름 숨김 · 동의 항목 기본체크 설정 · 공개 폼 모바일 최적화(1차) · **스텝형 답변 방식 확장**(카드 단일/다중 + 선택박스·텍스트·장문·연락처·이메일·숫자·날짜) · **마지막 단계 커스텀 안내문구**(typeConfig.contactMessage) · 스텝 입력형 간격 개선 · **중복 제출 방지(K3)**: 항목별 중복허용/유효기간 + 폼 동일IP 접수허용(settings_config, Flyway V6)
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐ 바로 다음 작업 = **D3 서브도메인 빌드·검증** (코드는 작성됨, 미검증)
-> **결정 확정됨(2026-07-24)**: ① 루트(식별자 없음)=**404** · ② 경로 식별자=**랜딩번호(숫자)+슬러그(문자) 둘 다** · ③ 기존 `/p/{slug}`=**소유자 전용 미리보기(로그인·본인만, draft 포함)로 변경**, 공개 접속은 서브도메인 URL로. DB 전략=**로컬 유지(PC마다 독립)**, 배포 시 Oracle VM Docker Postgres 또는 Neon.
+> ### ⭐ 바로 다음 작업 = **D3 마무리(PR 병합·문서 반영) → 다음 기능**
+> **D3 검증 완료(2026-07-24)** — 결정 확정: ① 루트=**404** · ② 식별자=**번호+슬러그 둘 다** · ③ `/p/{slug}`=**소유자 전용 미리보기(draft 포함)**, 공개는 서브도메인 URL. DB=**Neon 공유**.
+> **✅ 검증 결과**: 백엔드 build+test 통과 / 가입 랜덤부여·변경200·예약어400·형식400·중복409 / 공개해석 번호200·슬러그200·draft404·없음404 / 미리보기 소유자200·비로그인401·타인404 / 브라우저 `{sub}.localhost:5173/{id}` 렌더·루트404.
+> **남은 마무리**: (a) `feature/d3-subdomain` → `main` PR 병합, (b) SPEC(§4)·FEATURES(D)·ROADMAP에 D3 상태/설계 반영, (c) 배포 시 와일드카드 DNS·SSL(사용자 리소스).
 >
-> **⚠️ 이어받는 사람은 먼저 빌드/검증부터** (이 PC엔 Java·Docker·node_modules 없어 못 돌림):
->   1. `cd frontend && npm install && npx tsc -b` (또는 `npm run build`) — 타입체크
->   2. Java 21 환경에서 `cd backend && ./gradlew build` — 컴파일+테스트(H2 contextLoads)
->   3. **DB 초기화(로컬)**: `docker compose down -v` 로 pgdata 볼륨 삭제 → `docker compose up -d db` 재기동(Flyway V1~**V10** 새로 적용). ※ 사용자가 "싹 초기화" 승인함.
->   4. 백엔드 기동 후 API 스모크: 가입→응답 user.subdomain 랜덤부여 확인 / `PATCH /api/auth/subdomain` 정상·예약어(admin 등)400·중복409 / `GET /api/public/sites/{sub}/{id or slug}` published만 200·draft 404 / `GET /api/landings/preview/{slug}` 본인 200(draft 포함)·타인/비로그인 404
->   5. **브라우저 로컬 검증**: `frontend`에서 `npm run dev` 후 **`http://{내서브도메인}.localhost:5173/{랜딩번호}`** 접속 → 공개 랜딩 열림·방문 1회 기록. 대시보드 "계정 설정·서브도메인"에서 변경 후 새 주소로 열림. `/p/{slug}`는 로그인 소유자만(미리보기 배너 표시), 비로그인/타인은 404.
->
-> **구현 요약(이번 세션 작성분)** — 브랜치 `feature/d3-subdomain`:
+> **구현 요약(작성분)** — 브랜치 `feature/d3-subdomain`:
 >   - 백엔드: Flyway **V10**(`users.subdomain` unique + 기존행 랜덤 백필), `User.subdomain`, `Subdomains`(형식·예약어·랜덤), 가입 시 자동부여, `PATCH /api/auth/subdomain`, `UserResponse.subdomain`, 공개 해석 `GET /api/public/sites/{subdomain}/{identifier}`, 소유자 미리보기 `GET /api/landings/preview/{slug}`, `PublicLandingController` 삭제→`PublicSiteController` 신설, CORS `http://*.localhost:5173` 허용(배포 시 `https://*.도메인` 추가).
 >   - 프론트: `lib/site.ts`(`currentSubdomain`/`publicSiteUrl`), `api`(resolveSite·getLandingPreview·updateSubdomain·`AuthUser.subdomain`), `App` 서브도메인 분기 라우팅, `components/LandingView`(렌더 추출), `pages/PublicSitePage`, `/p/:slug`→소유자 미리보기, 대시보드 계정설정 UI, `AuthContext.updateUser`, 랜딩목록 "공개 열기(서브도메인)/미리보기(/p)" 분리.
 >   - **아직 안 한 것**: 빌드·타입체크·DB초기화·API/브라우저 스모크 전부(위 1~5). SPEC/FEATURES 문서에 D3 반영도 미완.
