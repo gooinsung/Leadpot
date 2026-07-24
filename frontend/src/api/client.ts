@@ -398,6 +398,7 @@ export interface LandingInput {
   title: string;
   content: LandingBlock[];
   status?: string;
+  slug?: string; // 미지정 시 서버가 자동 생성. 지정 시 소문자·숫자·하이픈 3~120자.
 }
 export interface LandingDetail extends LandingInput {
   id: number;

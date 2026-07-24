@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
+import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.FormRepository;
 import com.leadpot.form.dto.FormResponse;
@@ -47,7 +48,7 @@ public class LandingService {
 
     @Transactional
     public LandingResponse create(Long ownerId, LandingRequest req) {
-        LandingPage landing = new LandingPage(ownerId, req.title().trim(), generateSlug(req.title()));
+        LandingPage landing = new LandingPage(ownerId, req.title().trim(), resolveSlug(req.slug(), req.title(), null));
         landing.setContent(req.contentOrEmpty());
         landing.setStatus(status(req.status()));
         landingRepository.save(landing);
@@ -58,6 +59,10 @@ public class LandingService {
     public LandingResponse update(Long ownerId, Long id, LandingRequest req) {
         LandingPage landing = load(ownerId, id);
         landing.setTitle(req.title().trim());
+        // slug 를 보낸 경우에만 변경(형식·중복 검사, 자기 자신 제외). 미지정이면 기존 유지.
+        if (req.slug() != null && !req.slug().isBlank()) {
+            landing.setSlug(resolveSlug(req.slug(), req.title(), landing.getId()));
+        }
         landing.setContent(req.contentOrEmpty());
         landing.setStatus(status(req.status()));
         return LandingResponse.from(landing);
@@ -128,6 +133,25 @@ public class LandingService {
 
     private String status(String s) {
         return "draft".equals(s) ? "draft" : "published";
+    }
+
+    /** 사용자가 지정한 slug 를 검증·중복확인 후 반환. 미지정이면 제목 기반 자동 생성. */
+    private String resolveSlug(String requested, String title, Long excludeId) {
+        if (requested == null || requested.isBlank()) {
+            return generateSlug(title);
+        }
+        String s = requested.trim().toLowerCase();
+        if (!s.matches("^[a-z0-9][a-z0-9-]{1,118}[a-z0-9]$")) {
+            throw new InvalidSubmissionException(
+                    "주소(slug)는 소문자·숫자·하이픈 3~120자여야 하며, 하이픈으로 시작하거나 끝날 수 없습니다.");
+        }
+        boolean taken = landingRepository.findBySlug(s)
+                .map(l -> excludeId == null || !l.getId().equals(excludeId))
+                .orElse(false);
+        if (taken) {
+            throw new InvalidSubmissionException("이미 사용 중인 주소(slug)입니다.");
+        }
+        return s;
     }
 
     /** 슬러그 생성: 제목의 영숫자 기반 + 랜덤 접미. 한글 제목 등은 landing-xxxx 형태. 유일성 보장. */
