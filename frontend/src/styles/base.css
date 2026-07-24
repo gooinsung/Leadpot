@@ -50,6 +50,9 @@ a:hover {
 
 code {
   font-family: var(--mono);
+  /* 긴 URL/토큰이 컨테이너를 넓히지 않도록 줄바꿈 허용 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ---------- 레이아웃 ---------- */
@@ -252,6 +255,17 @@ code {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
+  /* 폭을 항상 컨테이너 기준으로 고정 — 입력 내용/플렉스 내재크기에 따라
+     레이아웃이 흔들리지 않도록(min-width:0 로 플렉스 오버플로우 방지). */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+/* select/textarea 도 동일하게 고정 */
+select.input,
+textarea.input {
+  width: 100%;
+  max-width: 100%;
 }
 .input:focus {
   outline: none;

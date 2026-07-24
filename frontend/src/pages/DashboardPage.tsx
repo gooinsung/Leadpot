@@ -98,7 +98,7 @@ export function DashboardPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
             <input
               className="input"
-              style={{ maxWidth: 220 }}
+              style={{ width: 260, maxWidth: "100%" }}
               value={sub}
               onChange={(e) => setSub(e.target.value)}
               placeholder="예: my-brand"
@@ -112,7 +112,7 @@ export function DashboardPage() {
           {subMsg && (
             <p className={subMsg.type === "err" ? "auth-error" : "auth-ok"} style={{ marginTop: 8 }}>{subMsg.text}</p>
           )}
-          <p className="dash-sub" style={{ marginTop: 12, fontSize: 13 }}>
+          <p className="dash-sub" style={{ marginTop: 12, fontSize: 13, overflowWrap: "anywhere", wordBreak: "break-all" }}>
             공개 URL 예시: <code>{(sub || user?.subdomain || "sub")}.lead-pot.com/{"{랜딩번호}"}</code>
             {" "}· 로컬 확인: <code>{(sub || user?.subdomain || "sub")}.localhost:5173/{"{랜딩번호}"}</code>
           </p>
