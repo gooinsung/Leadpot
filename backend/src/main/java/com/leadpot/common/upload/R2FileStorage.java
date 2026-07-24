@@ -47,7 +47,13 @@ public class R2FileStorage implements FileStorage {
     @Override
     public String store(String filename, byte[] content, String contentType) {
         s3.putObject(
-                PutObjectRequest.builder().bucket(bucket).key(filename).contentType(contentType).build(),
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(filename)
+                        .contentType(contentType)
+                        // 파일명이 UUID(불변)라 장기 캐싱 안전 → 브라우저/CDN 재요청 최소화
+                        .cacheControl("public, max-age=31536000, immutable")
+                        .build(),
                 RequestBody.fromBytes(content));
         return publicBaseUrl + "/" + filename;
     }
