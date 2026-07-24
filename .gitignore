@@ -38,6 +38,11 @@ data/
 backend/data/
 uploads/
 
+# ===== 로컬 시크릿 설정 (R2 키 등, 절대 커밋 금지) =====
+application-local.properties
+**/application-local.properties
+*.env.ps1
+
 # ===== IDE / 에디터 =====
 .idea/
 *.iml
