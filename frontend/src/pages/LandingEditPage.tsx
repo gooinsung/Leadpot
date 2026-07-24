@@ -14,6 +14,7 @@ import {
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
+import { ImageUploadField } from "../components/ImageUploadField";
 
 function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "IMAGE") return { type, url: "", alt: "" };
@@ -149,10 +150,7 @@ export function LandingEditPage() {
                     </div>
                   </div>
                   {b.type === "IMAGE" && (
-                    <>
-                      <div className="field"><label>이미지 URL</label><input className="input" value={(b.url as string) ?? ""} onChange={(e) => patch(i, { url: e.target.value })} /></div>
-                      <div className="field"><label>대체 텍스트</label><input className="input" value={(b.alt as string) ?? ""} onChange={(e) => patch(i, { alt: e.target.value })} /></div>
-                    </>
+                    <ImageUploadField url={(b.url as string) ?? ""} alt={(b.alt as string) ?? ""} onChange={(p) => patch(i, p)} />
                   )}
                   {b.type === "TEXT" && (
                     <div className="field"><label>텍스트</label><textarea className="input" rows={2} value={(b.text as string) ?? ""} onChange={(e) => patch(i, { text: e.target.value })} /></div>

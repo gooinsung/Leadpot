@@ -32,9 +32,14 @@ services:
       SPRING_DATASOURCE_PASSWORD: "leadpot"
       # 로컬 개발용 기본 시크릿. 운영 배포 시 반드시 강한 값으로 교체한다.
       APP_JWT_SECRET: "dev-only-secret-please-change-in-prod-leadpot-hs256-0123456789"
+      # 업로드 이미지 저장 위치(컨테이너 내부) — 아래 볼륨에 영속. 후기 R2/S3로 교체.
+      APP_UPLOADS_DIR: "/app/uploads"
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   pgdata:
+  uploads:

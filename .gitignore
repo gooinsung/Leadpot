@@ -33,6 +33,11 @@ pgdata/
 postgres-data/
 *.pid
 
+# ===== 업로드 파일 (로컬 개발) =====
+data/
+backend/data/
+uploads/
+
 # ===== IDE / 에디터 =====
 .idea/
 *.iml

@@ -771,6 +771,23 @@ td.num {
   border-top: 1px dashed var(--border);
 }
 
+/* 이미지 업로드 필드 */
+.img-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.img-upload-btn {
+  cursor: pointer;
+}
+.img-upload-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
 /* 중복 방지 설정 — 체크 + 기간을 한 줄로(레이아웃 흔들림 최소화) */
 .dedup-row {
   display: flex;

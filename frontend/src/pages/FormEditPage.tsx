@@ -16,6 +16,7 @@ import {
 import { TopBar } from "../components/TopBar";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
+import { ImageUploadField } from "../components/ImageUploadField";
 
 function defaultConsentItems(): ConsentItem[] {
   return [
@@ -708,16 +709,11 @@ function BlockFields({
       );
     case "IMAGE":
       return (
-        <div className="block-fields">
-          <div className="field">
-            <label>이미지 URL</label>
-            <input className="input" value={(block.content?.url as string) ?? ""} onChange={(e) => onContent({ url: e.target.value })} />
-          </div>
-          <div className="field">
-            <label>대체 텍스트</label>
-            <input className="input" value={(block.content?.alt as string) ?? ""} onChange={(e) => onContent({ alt: e.target.value })} />
-          </div>
-        </div>
+        <ImageUploadField
+          url={(block.content?.url as string) ?? ""}
+          alt={(block.content?.alt as string) ?? ""}
+          onChange={onContent}
+        />
       );
     case "HTML":
       return (

@@ -400,4 +400,21 @@ export function getPublicLanding(slug: string): Promise<PublicLanding> {
   return request<PublicLanding>(`/api/public/landings/${slug}`, { auth: false });
 }
 
+// ---------- 이미지 업로드 ----------
+/** 이미지 파일 업로드(로그인 필요) → 절대 URL 반환. */
+export async function uploadImage(file: File): Promise<{ url: string }> {
+  const tokens = getTokens();
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE_URL}/api/uploads`, {
+    method: "POST",
+    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+    body: fd,
+  });
+  if (!res.ok) throw await parseError(res);
+  const data = (await res.json()) as { url: string };
+  // 백엔드는 상대 경로(/uploads/..)를 주므로 API 오리진과 합쳐 절대 URL 로 저장
+  return { url: `${BASE_URL}${data.url}` };
+}
+
 export { BASE_URL };
