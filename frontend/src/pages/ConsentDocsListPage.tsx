@@ -54,7 +54,8 @@ export function ConsentDocsListPage() {
             <table>
               <thead>
                 <tr>
-                  <th>제목</th>
+                  <th>이름 (관리용)</th>
+                  <th>공개 제목</th>
                   <th>수정일</th>
                   <th></th>
                 </tr>
@@ -62,13 +63,14 @@ export function ConsentDocsListPage() {
               <tbody>
                 {docs.map((d) => (
                   <tr key={d.id} className="row-click" onClick={() => navigate(`/consent-docs/${d.id}/edit`)}>
+                    <td style={{ fontWeight: 600 }}>{d.name || d.title}</td>
                     <td>{d.title}</td>
                     <td className="num">{new Date(d.updatedAt).toLocaleString("ko-KR")}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/consent/${d.id}`, "_blank")}>
                         보기
                       </button>
-                      <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(d.id, d.title)}>
+                      <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(d.id, d.name || d.title)}>
                         삭제
                       </button>
                     </td>

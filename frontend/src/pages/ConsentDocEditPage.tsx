@@ -8,6 +8,7 @@ export function ConsentDocEditPage() {
   const isNew = !id;
   const navigate = useNavigate();
 
+  const [name, setName] = useState("");
   const [title, setTitle] = useState("개인정보 수집 및 이용 동의");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(!isNew);
@@ -18,6 +19,7 @@ export function ConsentDocEditPage() {
     if (isNew) return;
     getConsentDoc(Number(id))
       .then((d) => {
+        setName(d.name);
         setTitle(d.title);
         setContent(d.content);
       })
@@ -27,10 +29,12 @@ export function ConsentDocEditPage() {
 
   async function onSave() {
     setError("");
+    if (!name.trim()) { setError("관리용 이름을 입력해주세요."); return; }
+    if (!title.trim()) { setError("공개 제목을 입력해주세요."); return; }
     setSaving(true);
     try {
-      if (isNew) await createConsentDoc({ title, content });
-      else await updateConsentDoc(Number(id), { title, content });
+      if (isNew) await createConsentDoc({ name, title, content });
+      else await updateConsentDoc(Number(id), { name, title, content });
       navigate("/consent-docs");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");
@@ -48,7 +52,12 @@ export function ConsentDocEditPage() {
         <div className="dash-head">
           <div>
             <p className="eyebrow">{isNew ? "새 동의 문서" : "동의 문서 편집"}</p>
-            <input className="input form-name" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input
+              className="input form-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="관리용 이름 (예: A상품 이용 동의)"
+            />
           </div>
           <div className="edit-actions">
             <button className="btn btn-ghost" onClick={() => navigate("/consent-docs")}>취소</button>
@@ -62,6 +71,14 @@ export function ConsentDocEditPage() {
 
         <div className="edit-grid">
           <div className="card card-pad">
+            <div className="card-h">공개 제목 (방문자에게 노출)</div>
+            <input
+              className="input"
+              style={{ marginBottom: 18 }}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예: 개인정보 수집 및 이용 동의"
+            />
             <div className="card-h">내용 (HTML 사용 가능)</div>
             <textarea
               className="input"

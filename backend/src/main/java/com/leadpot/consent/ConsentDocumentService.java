@@ -41,7 +41,7 @@ public class ConsentDocumentService {
 
     @Transactional
     public ConsentDocumentResponse create(Long ownerId, ConsentDocumentRequest req) {
-        ConsentDocument doc = new ConsentDocument(ownerId, req.title().trim(), req.content());
+        ConsentDocument doc = new ConsentDocument(ownerId, req.name().trim(), req.title().trim(), req.content());
         repository.save(doc);
         return ConsentDocumentResponse.from(doc);
     }
@@ -49,6 +49,7 @@ public class ConsentDocumentService {
     @Transactional
     public ConsentDocumentResponse update(Long ownerId, Long id, ConsentDocumentRequest req) {
         ConsentDocument doc = loadOwned(ownerId, id);
+        doc.setName(req.name().trim());
         doc.setTitle(req.title().trim());
         doc.setContent(req.content());
         return ConsentDocumentResponse.from(doc);

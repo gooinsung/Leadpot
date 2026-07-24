@@ -251,18 +251,21 @@ export interface ConsentItem {
 // ---------- 동의 문서(consent documents) ----------
 export interface ConsentDocumentSummary {
   id: number;
+  name: string;
   title: string;
   updatedAt: string;
 }
 
 export interface ConsentDocument {
   id: number;
+  name: string;
   title: string;
   content: string;
   updatedAt: string;
 }
 
 export interface ConsentDocumentInput {
+  name: string;
   title: string;
   content: string;
 }

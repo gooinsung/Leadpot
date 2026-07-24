@@ -26,6 +26,11 @@ public class ConsentDocument {
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
 
+    /** 관리용 이름(내부 식별, 공개 노출 안 함). 예: "A상품 이용 동의" */
+    @Column(nullable = false)
+    private String name = "";
+
+    /** 공개 노출용 제목. 예: "개인정보 수집 및 이용 동의" */
     @Column(nullable = false)
     private String title;
 
@@ -43,8 +48,9 @@ public class ConsentDocument {
     protected ConsentDocument() {
     }
 
-    public ConsentDocument(Long ownerId, String title, String content) {
+    public ConsentDocument(Long ownerId, String name, String title, String content) {
         this.ownerId = ownerId;
+        this.name = name == null ? "" : name;
         this.title = title;
         this.content = content == null ? "" : content;
     }
@@ -55,6 +61,14 @@ public class ConsentDocument {
 
     public Long getOwnerId() {
         return ownerId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name == null ? "" : name;
     }
 
     public String getTitle() {
