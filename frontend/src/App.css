@@ -239,6 +239,7 @@ td.num {
   flex: 1;
   padding-top: 32px;
   padding-bottom: 56px;
+  max-width: 1440px; /* 편집 화면은 더 넓게 사용 */
 }
 .form-name {
   font-size: 22px;
@@ -253,8 +254,8 @@ td.num {
 }
 .edit-grid {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) 560px;
+  gap: 28px;
   align-items: start;
 }
 .block-editor {
@@ -783,6 +784,34 @@ td.num {
   margin-top: 6px;
   padding-top: 12px;
   border-top: 1px dashed var(--border);
+}
+
+/* 블록 여백(margin) 설정 */
+.block-margins {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.block-margins .mini-label {
+  width: 100%;
+  margin: 0 0 2px;
+}
+.block-margin-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.block-margin-item span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.block-margin-item input {
+  width: 66px;
+  text-align: center;
 }
 
 /* 이미지 업로드 필드 */

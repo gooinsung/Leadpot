@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
@@ -15,12 +15,19 @@ import {
 import { TopBar } from "../components/TopBar";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 
 function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "IMAGE") return { type, url: "", alt: "" };
   if (type === "TEXT") return { type, text: "텍스트를 입력하세요" };
   if (type === "HTML") return { type, html: "<p>내용</p>" };
   return { type: "FORM", formId: forms[0]?.id ?? null, trigger: "inline", buttonLabel: "상담 신청하기" };
+}
+
+/** 블록 여백(위/아래/좌우, px) → 인라인 스타일. 미리보기·공개 랜딩 공용 개념. */
+function blockStyle(b: LandingBlock): CSSProperties {
+  const px = (v: unknown) => (v == null || v === "" ? undefined : `${Number(v)}px`);
+  return { marginTop: px(b.mt), marginBottom: px(b.mb), marginLeft: px(b.mx), marginRight: px(b.mx) };
 }
 
 export function LandingEditPage() {
@@ -37,6 +44,8 @@ export function LandingEditPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [dirty, setDirty] = useState(false); // 저장 안 한 변경 여부
+  useUnsavedGuard(dirty);
 
   useEffect(() => {
     listForms().then(setForms).catch(() => {});
@@ -78,15 +87,19 @@ export function LandingEditPage() {
   }, [blocks, formDetails]);
 
   function patch(i: number, p: Partial<LandingBlock>) {
+    setDirty(true);
     setBlocks((prev) => prev.map((b, idx) => (idx === i ? { ...b, ...p } : b)));
   }
   function add(type: LandingBlockType) {
+    setDirty(true);
     setBlocks((prev) => [...prev, newBlock(type, forms)]);
   }
   function remove(i: number) {
+    setDirty(true);
     setBlocks((prev) => prev.filter((_, idx) => idx !== i));
   }
   function move(i: number, dir: -1 | 1) {
+    setDirty(true);
     setBlocks((prev) => {
       const j = i + dir;
       if (j < 0 || j >= prev.length) return prev;
@@ -96,6 +109,11 @@ export function LandingEditPage() {
     });
   }
 
+  function cancel() {
+    if (dirty && !window.confirm("저장하지 않은 변경사항이 있습니다. 나가시겠어요?")) return;
+    navigate("/landings");
+  }
+
   async function onSave() {
     setError("");
     setSaving(true);
@@ -103,6 +121,7 @@ export function LandingEditPage() {
       const payload = { title, content: blocks, status };
       if (isNew) await createLanding(payload);
       else await updateLanding(Number(id), payload);
+      setDirty(false);
       navigate("/landings");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");
@@ -120,14 +139,14 @@ export function LandingEditPage() {
         <div className="dash-head">
           <div>
             <p className="eyebrow">{isNew ? "새 랜딩" : "랜딩 편집"}</p>
-            <input className="input form-name" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input className="input form-name" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} />
           </div>
           <div className="edit-actions">
-            <select className="input" style={{ width: 110 }} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select className="input" style={{ width: 110 }} value={status} onChange={(e) => { setStatus(e.target.value); setDirty(true); }}>
               <option value="published">공개</option>
               <option value="draft">비공개</option>
             </select>
-            <button className="btn btn-ghost" onClick={() => navigate("/landings")}>취소</button>
+            <button className="btn btn-ghost" onClick={cancel}>취소</button>
             <button className="btn btn-primary" onClick={onSave} disabled={saving}>{saving ? "저장 중…" : "랜딩 저장"}</button>
           </div>
         </div>
@@ -179,6 +198,12 @@ export function LandingEditPage() {
                       )}
                     </>
                   )}
+                  <div className="block-margins">
+                    <span className="mini-label">여백(px) — 플로팅 헤더 대비 상단 여백 등</span>
+                    <div className="block-margin-item"><span>위</span><input className="input" type="number" min={0} value={(b.mt as number) ?? ""} onChange={(e) => patch(i, { mt: e.target.value ? Number(e.target.value) : undefined })} /></div>
+                    <div className="block-margin-item"><span>아래</span><input className="input" type="number" min={0} value={(b.mb as number) ?? ""} onChange={(e) => patch(i, { mb: e.target.value ? Number(e.target.value) : undefined })} /></div>
+                    <div className="block-margin-item"><span>좌우</span><input className="input" type="number" min={0} value={(b.mx as number) ?? ""} onChange={(e) => patch(i, { mx: e.target.value ? Number(e.target.value) : undefined })} /></div>
+                  </div>
                 </div>
               ))}
               <div className="add-block-row">
@@ -203,25 +228,26 @@ export function LandingEditPage() {
               <div className="lp-preview-device">
                 {blocks.length === 0 && <p className="dash-sub" style={{ padding: 24, textAlign: "center" }}>블록을 추가하면 미리보기가 표시됩니다.</p>}
                 {blocks.map((b, i) => {
+                  const ms = blockStyle(b);
                   if (b.type === "IMAGE")
                     return (b.url as string)
-                      ? <img key={i} className="landing-img" src={b.url as string} alt="" />
-                      : <div key={i} className="fr-img-ph" style={{ margin: 16 }}>이미지</div>;
-                  if (b.type === "TEXT") return <p key={i} className="landing-text">{(b.text as string) || ""}</p>;
-                  if (b.type === "HTML") return <div key={i} className="landing-html" dangerouslySetInnerHTML={{ __html: (b.html as string) || "" }} />;
+                      ? <img key={i} className="landing-img" src={b.url as string} alt="" style={ms} />
+                      : <div key={i} className="fr-img-ph" style={{ margin: 16, ...ms }}>이미지</div>;
+                  if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
+                  if (b.type === "HTML") return <div key={i} className="landing-html" style={ms} dangerouslySetInnerHTML={{ __html: (b.html as string) || "" }} />;
                   if (b.type === "FORM") {
                     const fid = b.formId as number | null;
                     const detail = fid != null ? formDetails[fid] : undefined;
                     if (b.trigger === "overlay") {
                       return (
-                        <div key={i} style={{ padding: "8px 16px 16px" }}>
+                        <div key={i} style={{ padding: "8px 16px 16px", ...ms }}>
                           <button className="btn btn-green" style={{ width: "100%", minHeight: 48 }} disabled>{(b.buttonLabel as string) || "신청하기"}</button>
                           <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>버튼 클릭 시 오버레이로 폼 표시</p>
                         </div>
                       );
                     }
                     return (
-                      <div key={i} className="landing-form-card">
+                      <div key={i} className="landing-form-card" style={ms}>
                         {detail ? <FormRenderer form={detail} /> : <p className="dash-sub">폼 미리보기 불러오는 중…</p>}
                       </div>
                     );
