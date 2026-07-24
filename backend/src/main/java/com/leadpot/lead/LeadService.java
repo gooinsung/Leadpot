@@ -66,11 +66,59 @@ public class LeadService {
         return lead.getId();
     }
 
+    /** 리드 목록. trashed=휴지통 여부, status=상태 필터(빈값=전체), q=답변 값/라벨 부분검색. */
     @Transactional(readOnly = true)
-    public List<LeadResponse> list(Long ownerId, Long formId) {
+    public List<LeadResponse> list(Long ownerId, Long formId, String status, String q, boolean trashed) {
         formService.get(ownerId, formId); // 소유권 확인(아니면 404)
-        return leadRepository.findByFormIdOrderByCreatedAtDesc(formId)
-                .stream().map(LeadResponse::from).toList();
+        List<Lead> base = trashed
+                ? leadRepository.findByFormIdAndDeletedAtIsNotNullOrderByCreatedAtDesc(formId)
+                : leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId);
+        String st = status == null ? "" : status.trim();
+        String needle = q == null ? "" : q.trim().toLowerCase();
+        return base.stream()
+                .filter(l -> st.isEmpty() || st.equals(l.getStatus()))
+                .filter(l -> needle.isEmpty() || matchesQuery(l, needle))
+                .map(LeadResponse::from).toList();
+    }
+
+    /** 답변 값/라벨에 검색어(소문자)가 포함되는지. */
+    private static boolean matchesQuery(Lead l, String needle) {
+        if (l.getAnswers() == null) return false;
+        for (Map<String, Object> a : l.getAnswers()) {
+            if (str(a.get("value")).toLowerCase().contains(needle)
+                    || str(a.get("label")).toLowerCase().contains(needle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 휴지통으로 이동(soft delete). 본인 리드폼의 리드만 K5. */
+    @Transactional
+    public void softDelete(Long ownerId, Long leadId) {
+        Lead lead = requireOwnedLead(ownerId, leadId);
+        if (lead.getDeletedAt() == null) {
+            lead.setDeletedAt(Instant.now());
+        }
+    }
+
+    /** 휴지통에서 복원. */
+    @Transactional
+    public void restore(Long ownerId, Long leadId) {
+        requireOwnedLead(ownerId, leadId).setDeletedAt(null);
+    }
+
+    /** 영구 삭제(휴지통에서 완전 제거). 되돌릴 수 없음. */
+    @Transactional
+    public void permanentDelete(Long ownerId, Long leadId) {
+        leadRepository.delete(requireOwnedLead(ownerId, leadId));
+    }
+
+    private Lead requireOwnedLead(Long ownerId, Long leadId) {
+        Lead lead = leadRepository.findById(leadId)
+                .orElseThrow(() -> new NotFoundException("리드를 찾을 수 없습니다."));
+        formService.get(ownerId, lead.getFormId()); // 소유권 확인(아니면 404)
+        return lead;
     }
 
     @Transactional(readOnly = true)
@@ -121,7 +169,7 @@ public class LeadService {
         sb.append(row(concat(List.of("접수일시", "상태"), answerCols,
                 List.of("기기", "OS", "브라우저", "IP", "유입경로", "UTM"))));
 
-        for (Lead l : leadRepository.findByFormIdOrderByCreatedAtDesc(formId)) {
+        for (Lead l : leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId)) {
             Map<String, String> ans = new LinkedHashMap<>();
             if (l.getAnswers() != null) {
                 for (Map<String, Object> a : l.getAnswers()) {
@@ -252,7 +300,7 @@ public class LeadService {
                             .map(a -> str(a.get("value"))).findFirst().orElse("");
                     if (value.isBlank()) return;
                     Instant after = windowStart(days(b.getOptions().get("dedupDays")));
-                    boolean dup = leadRepository.findByFormIdAndCreatedAtGreaterThanEqual(form.getId(), after)
+                    boolean dup = leadRepository.findByFormIdAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(form.getId(), after)
                             .stream().anyMatch(l -> l.getAnswers() != null && l.getAnswers().stream()
                                     .anyMatch(a -> label.equals(str(a.get("label"))) && value.equals(str(a.get("value")))));
                     if (dup) {
@@ -265,7 +313,7 @@ public class LeadService {
         if (settings != null && Boolean.FALSE.equals(settings.get("allowSameIp"))
                 && visitor.ip() != null && !visitor.ip().isBlank()) {
             Instant after = windowStart(days(settings.get("ipDedupDays")));
-            if (leadRepository.existsByFormIdAndSubmitterIpAndCreatedAtGreaterThanEqual(form.getId(), visitor.ip(), after)) {
+            if (leadRepository.existsByFormIdAndSubmitterIpAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(form.getId(), visitor.ip(), after)) {
                 throw new InvalidSubmissionException("이미 접수된 요청입니다. (동일 IP에서 중복 제출)");
             }
         }

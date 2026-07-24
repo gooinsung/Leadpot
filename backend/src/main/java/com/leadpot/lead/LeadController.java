@@ -9,9 +9,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,8 +33,11 @@ public class LeadController {
     }
 
     @GetMapping
-    public List<LeadResponse> list(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId) {
-        return leadService.list(userId(jwt), formId);
+    public List<LeadResponse> list(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false, defaultValue = "false") boolean trashed) {
+        return leadService.list(userId(jwt), formId, status, q, trashed);
     }
 
     @GetMapping("/count")
@@ -45,6 +50,27 @@ public class LeadController {
     public ResponseEntity<Void> updateStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         leadService.updateStatus(userId(jwt), id, body.get("status"));
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 휴지통으로 이동(soft delete). */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> softDelete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        leadService.softDelete(userId(jwt), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 휴지통에서 복원. */
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<Void> restore(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        leadService.restore(userId(jwt), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 영구 삭제(되돌릴 수 없음). */
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<Void> permanentDelete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        leadService.permanentDelete(userId(jwt), id);
         return ResponseEntity.noContent().build();
     }
 

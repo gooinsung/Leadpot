@@ -79,6 +79,10 @@ public class Lead {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** 휴지통(soft delete). null 이면 정상, 값이 있으면 삭제된(휴지통) 리드. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     public Long getId() {
         return id;
     }
@@ -205,5 +209,13 @@ public class Lead {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

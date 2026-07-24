@@ -347,9 +347,34 @@ export function submitLead(input: LeadSubmitInput): Promise<{ id: number; ok: bo
   return request<{ id: number; ok: boolean }>("/api/public/leads", { method: "POST", body: input, auth: false });
 }
 
-/** 특정 리드폼의 리드 목록(본인 리드폼만). */
-export function listLeads(formId: number): Promise<Lead[]> {
-  return request<Lead[]>(`/api/leads?formId=${formId}`);
+export interface LeadFilter {
+  status?: string; // NEW/IN_PROGRESS/DONE/SPAM (빈값=전체)
+  q?: string; // 답변 값/라벨 부분검색
+  trashed?: boolean; // true 면 휴지통 리드
+}
+
+/** 특정 리드폼의 리드 목록(본인 리드폼만). 상태·검색·휴지통 필터. */
+export function listLeads(formId: number, filter: LeadFilter = {}): Promise<Lead[]> {
+  const p = new URLSearchParams({ formId: String(formId) });
+  if (filter.status) p.set("status", filter.status);
+  if (filter.q) p.set("q", filter.q);
+  if (filter.trashed) p.set("trashed", "true");
+  return request<Lead[]>(`/api/leads?${p.toString()}`);
+}
+
+/** 리드를 휴지통으로 이동(soft delete). */
+export function deleteLead(id: number): Promise<void> {
+  return request<void>(`/api/leads/${id}`, { method: "DELETE" });
+}
+
+/** 휴지통에서 복원. */
+export function restoreLead(id: number): Promise<void> {
+  return request<void>(`/api/leads/${id}/restore`, { method: "POST" });
+}
+
+/** 영구 삭제(되돌릴 수 없음). */
+export function permanentDeleteLead(id: number): Promise<void> {
+  return request<void>(`/api/leads/${id}/permanent`, { method: "DELETE" });
 }
 
 /** 대시보드 전체 리드 수. */
