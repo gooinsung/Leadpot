@@ -412,9 +412,8 @@ export async function uploadImage(file: File): Promise<{ url: string }> {
     body: fd,
   });
   if (!res.ok) throw await parseError(res);
-  const data = (await res.json()) as { url: string };
-  // 백엔드는 상대 경로(/uploads/..)를 주므로 API 오리진과 합쳐 절대 URL 로 저장
-  return { url: `${BASE_URL}${data.url}` };
+  // 백엔드가 절대 URL(로컬=서버주소 / R2=공개베이스URL)을 반환
+  return (await res.json()) as { url: string };
 }
 
 export { BASE_URL };
