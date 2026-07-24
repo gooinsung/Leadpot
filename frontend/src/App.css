@@ -103,11 +103,11 @@
 .kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 28px;
+  gap: 18px;
+  margin-bottom: 32px;
 }
 .kpi {
-  padding: 16px 18px;
+  padding: 22px 24px;
 }
 .k-label {
   font-size: 13px;
