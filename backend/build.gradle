@@ -17,6 +17,11 @@ repositories {
 	mavenCentral()
 }
 
+// 한글 소스 리터럴이 플랫폼 기본 인코딩(윈도우 MS949 등)으로 깨지지 않도록 UTF-8 고정
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
