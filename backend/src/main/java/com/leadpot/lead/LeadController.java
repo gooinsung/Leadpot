@@ -1,5 +1,6 @@
 package com.leadpot.lead;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.leadpot.lead.dto.ImportResult;
 import com.leadpot.lead.dto.LeadResponse;
 
 /** 리드 조회·관리 API (로그인 필요, 본인 리드폼의 리드만 K5). */
@@ -27,9 +30,11 @@ import com.leadpot.lead.dto.LeadResponse;
 public class LeadController {
 
     private final LeadService leadService;
+    private final LeadExcelService excelService;
 
-    public LeadController(LeadService leadService) {
+    public LeadController(LeadService leadService, LeadExcelService excelService) {
         this.leadService = leadService;
+        this.excelService = excelService;
     }
 
     @GetMapping
@@ -87,6 +92,31 @@ public class LeadController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"leads_" + formId + ".csv\"")
                 .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
                 .body(out);
+    }
+
+    /** 리드폼 기본 양식 다운로드(format=xlsx|csv). 헤더=리드폼 항목 라벨. */
+    @GetMapping("/template")
+    public ResponseEntity<byte[]> template(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestParam(required = false, defaultValue = "xlsx") String format) {
+        List<String> cols = leadService.templateColumns(userId(jwt), formId);
+        boolean csv = "csv".equalsIgnoreCase(format);
+        byte[] body = csv ? excelService.templateCsv(cols) : excelService.templateXlsx(cols);
+        String ext = csv ? "csv" : "xlsx";
+        String contentType = csv
+                ? "text/csv; charset=UTF-8"
+                : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"lead_template_" + formId + "." + ext + "\"")
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(body);
+    }
+
+    /** 엑셀/CSV 파일로 리드 일괄 등록. 결과 요약(등록/실패/사유) 반환. */
+    @PostMapping("/import")
+    public ImportResult importLeads(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        List<Map<String, String>> rows = excelService.parse(file.getOriginalFilename(), file.getBytes());
+        return leadService.importRows(userId(jwt), formId, rows);
     }
 
     private Long userId(Jwt jwt) {

@@ -18,6 +18,7 @@ import com.leadpot.form.Form;
 import com.leadpot.form.FormService;
 import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormResponse;
+import com.leadpot.lead.dto.ImportResult;
 import com.leadpot.lead.dto.LeadResponse;
 import com.leadpot.lead.dto.LeadSubmitRequest;
 
@@ -191,6 +192,86 @@ public class LeadService {
             sb.append(row(cells));
         }
         return sb.toString();
+    }
+
+    /** 가져오기 양식의 컬럼(라벨) 목록 — 본인 리드폼만. */
+    @Transactional(readOnly = true)
+    public List<String> templateColumns(Long ownerId, Long formId) {
+        return answerColumnLabels(formService.get(ownerId, formId));
+    }
+
+    /** FIELD 라벨 / CHOICE 질문을 순서대로(중복 제거). */
+    private static List<String> answerColumnLabels(FormResponse form) {
+        return form.blocks().stream()
+                .filter(b -> b.blockType() == com.leadpot.form.BlockType.FIELD
+                        || b.blockType() == com.leadpot.form.BlockType.CHOICE)
+                .map(LeadService::columnLabel)
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    /** 엑셀/CSV 행 목록을 리드로 일괄 등록(본인 리드폼만 K5). 행별 검증 실패는 건너뛰고 사유 수집. */
+    @Transactional
+    public ImportResult importRows(Long ownerId, Long formId, List<Map<String, String>> rows) {
+        FormResponse form = formService.get(ownerId, formId); // 소유권 확인(아니면 404)
+        List<String> cols = answerColumnLabels(form);
+        Map<String, String> typeByLabel = new LinkedHashMap<>();
+        Map<String, Boolean> requiredByLabel = new LinkedHashMap<>();
+        for (FormBlockDto b : form.blocks()) {
+            String label = columnLabel(b);
+            if (label.isBlank()) {
+                continue;
+            }
+            if (b.blockType() == com.leadpot.form.BlockType.FIELD) {
+                typeByLabel.put(label, b.fieldType() == null ? "text" : b.fieldType());
+                requiredByLabel.put(label, Boolean.TRUE.equals(b.required()));
+            } else if (b.blockType() == com.leadpot.form.BlockType.CHOICE) {
+                Object at = b.content() == null ? null : b.content().get("answerType");
+                if (at == null && b.content() != null) {
+                    at = b.content().get("selectType");
+                }
+                typeByLabel.put(label, at == null ? "text" : at.toString());
+                requiredByLabel.put(label, b.content() != null && Boolean.TRUE.equals(b.content().get("required")));
+            }
+        }
+
+        int created = 0;
+        List<String> errors = new java.util.ArrayList<>();
+        int rownum = 1; // 헤더가 1행, 데이터는 2행부터
+        for (Map<String, String> row : rows) {
+            rownum++;
+            boolean allEmpty = cols.stream().allMatch(c -> str(row.get(c)).isBlank());
+            if (allEmpty) {
+                continue;
+            }
+            try {
+                List<Map<String, Object>> answers = new java.util.ArrayList<>();
+                for (String c : cols) {
+                    String v = str(row.get(c)).trim();
+                    if (Boolean.TRUE.equals(requiredByLabel.get(c)) && v.isBlank()) {
+                        throw new InvalidSubmissionException("'" + c + "' 필수 항목이 비어 있습니다.");
+                    }
+                    checkFormat(typeByLabel.getOrDefault(c, "text"), v, c);
+                    Map<String, Object> a = new LinkedHashMap<>();
+                    a.put("label", c);
+                    a.put("fieldType", typeByLabel.getOrDefault(c, "text"));
+                    a.put("value", v);
+                    answers.add(a);
+                }
+                Lead lead = new Lead();
+                lead.setFormId(formId);
+                lead.setAnswers(answers);
+                lead.setStatus("NEW");
+                lead.setPhoneVerified(false);
+                lead.setGroupTag("import");
+                leadRepository.save(lead);
+                created++;
+            } catch (InvalidSubmissionException e) {
+                errors.add("행 " + rownum + ": " + e.getMessage());
+            }
+        }
+        return new ImportResult(created, errors.size(), errors);
     }
 
     private static String columnLabel(FormBlockDto b) {

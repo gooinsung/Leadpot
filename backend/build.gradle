@@ -37,6 +37,9 @@ dependencies {
 	implementation platform('software.amazon.awssdk:bom:2.28.16')
 	implementation 'software.amazon.awssdk:s3'
 
+	// 엑셀(.xlsx) 양식 다운로드 / 리드 일괄 가져오기
+	implementation 'org.apache.poi:poi-ooxml:5.3.0'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.security:spring-security-test'

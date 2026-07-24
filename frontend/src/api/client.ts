@@ -377,6 +377,44 @@ export function permanentDeleteLead(id: number): Promise<void> {
   return request<void>(`/api/leads/${id}/permanent`, { method: "DELETE" });
 }
 
+/** 리드폼 기본 양식 다운로드(xlsx | csv). 헤더=리드폼 항목. */
+export async function downloadLeadTemplate(formId: number, format: "xlsx" | "csv", formName: string): Promise<void> {
+  const tokens = getTokens();
+  const res = await fetch(`${BASE_URL}/api/leads/template?formId=${formId}&format=${format}`, {
+    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+  });
+  if (!res.ok) throw await parseError(res);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${formName || "lead"}_양식.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export interface ImportResult {
+  created: number;
+  failed: number;
+  errors: string[];
+}
+
+/** 엑셀/CSV 파일로 리드 일괄 등록. */
+export async function importLeads(formId: number, file: File): Promise<ImportResult> {
+  const tokens = getTokens();
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE_URL}/api/leads/import?formId=${formId}`, {
+    method: "POST",
+    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+    body: fd,
+  });
+  if (!res.ok) throw await parseError(res);
+  return (await res.json()) as ImportResult;
+}
+
 /** 대시보드 전체 리드 수. */
 export function leadsCount(): Promise<{ total: number }> {
   return request<{ total: number }>("/api/leads/count");

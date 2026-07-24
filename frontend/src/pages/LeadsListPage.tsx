@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  ApiError,
   BASE_URL,
   deleteLead,
   downloadLeadsCsv,
+  downloadLeadTemplate,
   getForm,
+  importLeads,
   LEAD_STATUSES,
   listLeads,
   permanentDeleteLead,
@@ -26,6 +29,7 @@ export function LeadsListPage() {
   const [trashed, setTrashed] = useState(false); // 휴지통 보기 여부
   const [statusFilter, setStatusFilter] = useState(""); // "" = 전체
   const [q, setQ] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = `${window.location.origin}/f/${formId}`;
 
@@ -107,6 +111,23 @@ export function LeadsListPage() {
     }
   }
 
+  async function onImportFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // 같은 파일 재선택 허용
+    if (!file) return;
+    try {
+      const r = await importLeads(formId, file);
+      let msg = `${r.created}건 등록됨` + (r.failed ? ` · ${r.failed}건 실패` : "");
+      if (r.errors.length) {
+        msg += "\n\n" + r.errors.slice(0, 10).join("\n") + (r.errors.length > 10 ? `\n…외 ${r.errors.length - 10}건` : "");
+      }
+      window.alert(msg);
+      load();
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "가져오기에 실패했습니다.");
+    }
+  }
+
   function statusClass(status: string) {
     if (status === "DONE") return "b-normal";
     if (status === "SPAM") return "b-bad";
@@ -159,6 +180,15 @@ export function LeadsListPage() {
           </select>
           {(q || statusFilter) && (
             <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); }}>필터 초기화</button>
+          )}
+          {!trashed && (
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="dash-sub" style={{ fontSize: 12 }}>일괄 등록</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => downloadLeadTemplate(formId, "xlsx", form?.name || "lead")}>양식(엑셀)</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => downloadLeadTemplate(formId, "csv", form?.name || "lead")}>양식(CSV)</button>
+              <button className="btn btn-primary btn-sm" onClick={() => fileRef.current?.click()}>파일 가져오기</button>
+              <input ref={fileRef} type="file" accept=".xlsx,.csv" hidden onChange={onImportFile} />
+            </div>
           )}
         </div>
 
