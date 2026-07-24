@@ -1,16 +1,23 @@
 package com.leadpot.lead;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.common.error.InvalidSubmissionException;
+import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormService;
+import com.leadpot.form.dto.FormBlockDto;
+import com.leadpot.form.dto.FormResponse;
 import com.leadpot.lead.dto.LeadResponse;
 import com.leadpot.lead.dto.LeadSubmitRequest;
 
@@ -75,6 +82,108 @@ public class LeadService {
     public long countByForm(Long ownerId, Long formId) {
         formService.get(ownerId, formId);
         return leadRepository.countByFormId(formId);
+    }
+
+    // 리드 상태(CRM 진행) — 코드/한글
+    public static final Set<String> STATUSES = Set.of("NEW", "IN_PROGRESS", "DONE", "SPAM");
+    private static final Map<String, String> STATUS_KR = Map.of(
+            "NEW", "신규", "IN_PROGRESS", "상담중", "DONE", "완료", "SPAM", "불량");
+    private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            .withZone(ZoneId.of("Asia/Seoul"));
+
+    /** 리드 상태 변경 (본인 폼의 리드만 K5). */
+    @Transactional
+    public void updateStatus(Long ownerId, Long leadId, String status) {
+        if (!STATUSES.contains(status)) {
+            throw new InvalidSubmissionException("상태 값이 올바르지 않습니다.");
+        }
+        Lead lead = leadRepository.findById(leadId)
+                .orElseThrow(() -> new NotFoundException("리드를 찾을 수 없습니다."));
+        formService.get(ownerId, lead.getFormId()); // 소유권 확인(아니면 404)
+        lead.setStatus(status);
+    }
+
+    /** 폼의 리드를 CSV 로 내보낸다(본인 폼만). 항목 컬럼은 폼 정의 순서. */
+    @Transactional(readOnly = true)
+    public String exportCsv(Long ownerId, Long formId) {
+        FormResponse form = formService.get(ownerId, formId); // 소유권 확인
+        // 답변 컬럼(폼 블록 순서): FIELD label / CHOICE question
+        List<String> answerCols = form.blocks().stream()
+                .filter(b -> b.blockType() == com.leadpot.form.BlockType.FIELD
+                        || b.blockType() == com.leadpot.form.BlockType.CHOICE)
+                .map(LeadService::columnLabel)
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .toList();
+
+        StringBuilder sb = new StringBuilder();
+        // 헤더
+        sb.append(row(concat(List.of("접수일시", "상태"), answerCols,
+                List.of("기기", "OS", "브라우저", "IP", "유입경로", "UTM"))));
+
+        for (Lead l : leadRepository.findByFormIdOrderByCreatedAtDesc(formId)) {
+            Map<String, String> ans = new LinkedHashMap<>();
+            if (l.getAnswers() != null) {
+                for (Map<String, Object> a : l.getAnswers()) {
+                    ans.put(str(a.get("label")), str(a.get("value")));
+                }
+            }
+            List<String> cells = new java.util.ArrayList<>();
+            cells.add(l.getCreatedAt() != null ? DT.format(l.getCreatedAt()) : "");
+            cells.add(STATUS_KR.getOrDefault(l.getStatus(), l.getStatus()));
+            for (String col : answerCols) {
+                cells.add(ans.getOrDefault(col, ""));
+            }
+            cells.add(nn(l.getDevice()));
+            cells.add(nn(l.getOs()));
+            cells.add(nn(l.getBrowser()));
+            cells.add(nn(l.getSubmitterIp()));
+            cells.add(nn(l.getReferer()));
+            cells.add(utmStr(l.getUtm()));
+            sb.append(row(cells));
+        }
+        return sb.toString();
+    }
+
+    private static String columnLabel(FormBlockDto b) {
+        if (b.blockType() == com.leadpot.form.BlockType.CHOICE) {
+            Object q = b.content() == null ? null : b.content().get("question");
+            return q == null ? "" : q.toString();
+        }
+        return b.label() == null ? "" : b.label();
+    }
+
+    private static String utmStr(Map<String, Object> utm) {
+        if (utm == null || utm.isEmpty()) return "";
+        StringBuilder s = new StringBuilder();
+        utm.forEach((k, v) -> s.append(s.isEmpty() ? "" : " ").append(k).append("=").append(v));
+        return s.toString();
+    }
+
+    private static <T> List<String> concat(List<String> a, List<String> b, List<String> c) {
+        List<String> out = new java.util.ArrayList<>(a);
+        out.addAll(b);
+        out.addAll(c);
+        return out;
+    }
+
+    /** CSV 한 행(각 셀 escape + CRLF). */
+    private static String row(List<String> cells) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < cells.size(); i++) {
+            if (i > 0) sb.append(',');
+            sb.append(csv(cells.get(i)));
+        }
+        return sb.append("\r\n").toString();
+    }
+
+    private static String csv(String v) {
+        String s = v == null ? "" : v;
+        return "\"" + s.replace("\"", "\"\"") + "\"";
+    }
+
+    private static String nn(String s) {
+        return s == null ? "" : s;
     }
 
     /** 필수 입력 항목·필수 동의 검증. */

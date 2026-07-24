@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BASE_URL, getForm, listLeads, type FormDetail, type Lead } from "../api/client";
+import {
+  BASE_URL,
+  downloadLeadsCsv,
+  getForm,
+  LEAD_STATUSES,
+  listLeads,
+  updateLeadStatus,
+  type FormDetail,
+  type Lead,
+} from "../api/client";
 import { TopBar } from "../components/TopBar";
 
 export function LeadsListPage() {
@@ -31,6 +40,23 @@ export function LeadsListPage() {
     });
   }
 
+  async function onStatus(leadId: number, status: string) {
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, status } : l))); // 낙관적 반영
+    try {
+      await updateLeadStatus(leadId, status);
+    } catch {
+      // 실패 시 목록 재조회로 복구
+      listLeads(formId).then(setLeads).catch(() => {});
+    }
+  }
+
+  function statusClass(status: string) {
+    if (status === "DONE") return "b-normal";
+    if (status === "SPAM") return "b-bad";
+    if (status === "IN_PROGRESS") return "b-wait";
+    return "";
+  }
+
   return (
     <div className="app-shell">
       <TopBar />
@@ -44,6 +70,9 @@ export function LeadsListPage() {
           <div className="edit-actions">
             <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/edit`)}>폼 편집</button>
             <button className="btn btn-ghost" onClick={copyLink}>{copied ? "복사됨!" : "공개 링크 복사"}</button>
+            {leads.length > 0 && (
+              <button className="btn btn-ghost" onClick={() => downloadLeadsCsv(formId, form?.name || "leads")}>CSV 내보내기</button>
+            )}
             <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 폼 열기</button>
           </div>
         </div>
@@ -67,7 +96,15 @@ export function LeadsListPage() {
               <div className="card card-pad lead-card" key={l.id}>
                 <div className="lead-head">
                   <span className="lead-time">{new Date(l.createdAt).toLocaleString("ko-KR")}</span>
-                  <span className="badge b-normal">{l.status}</span>
+                  <select
+                    className={`lead-status-select ${statusClass(l.status)}`}
+                    value={l.status}
+                    onChange={(e) => onStatus(l.id, e.target.value)}
+                  >
+                    {LEAD_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="lead-answers">
                   {l.answers.map((a, i) => (

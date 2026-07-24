@@ -348,6 +348,36 @@ export function leadsCount(): Promise<{ total: number }> {
   return request<{ total: number }>("/api/leads/count");
 }
 
+export const LEAD_STATUSES = [
+  { value: "NEW", label: "신규" },
+  { value: "IN_PROGRESS", label: "상담중" },
+  { value: "DONE", label: "완료" },
+  { value: "SPAM", label: "불량" },
+];
+
+/** 리드 상태 변경. */
+export function updateLeadStatus(id: number, status: string): Promise<void> {
+  return request<void>(`/api/leads/${id}/status`, { method: "PATCH", body: { status } });
+}
+
+/** 폼의 리드를 CSV 로 내려받기(엑셀 호환). */
+export async function downloadLeadsCsv(formId: number, formName: string): Promise<void> {
+  const tokens = getTokens();
+  const res = await fetch(`${BASE_URL}/api/leads/export?formId=${formId}`, {
+    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+  });
+  if (!res.ok) throw await parseError(res);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${formName || "leads"}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ---------- 랜딩페이지 ----------
 export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM";
 export interface LandingBlock {
