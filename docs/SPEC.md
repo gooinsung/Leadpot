@@ -103,6 +103,20 @@ leads                          -- 수집 데이터
   submitter_ip, user_agent, referer, utm_json
   created_at
 
+ip_blocks                      -- 리드폼별 IP 차단 규칙 (K2, Flyway V13)
+  id
+  form_id → forms              -- 리드폼별 개별 차단
+  pattern                      -- 단일 IP 또는 CIDR 대역 (예: 1.2.3.4 / 1.2.3.0/24)
+  reason                       -- 차단 사유 메모(선택)
+  created_at
+
+ip_block_hits                  -- 차단된 IP의 제출 시도 로그 (확인용, 리드로는 저장 안 함)
+  id
+  form_id → forms
+  ip, matched_pattern          -- 시도 IP + 걸린 차단 규칙
+  user_agent, referer
+  created_at
+
 -- 후기 확장: teams, team_members, lead_assignments, form_field_types(커스텀), webhooks, payments …
 ```
 
@@ -115,7 +129,7 @@ leads                          -- 수집 데이터
 - 대시보드(요약: 유입/접수/전환)
 - **폼 관리**: 폼 목록 / 폼 생성·편집(유형 선택 → BASIC 항목편집 or STEP 단계편집) / 미리보기
 - **랜딩 관리**: 랜딩 목록·그룹 / 랜딩 편집(상단·하단 구성 + **폼 연결**) / 설정(도메인·SEO·중복·차단·완료페이지)
-- **리드(디비내역)**: 목록·검색·필터·상태변경·엑셀 내보내기
+- **리드(디비내역)**: 목록·검색·필터·상태변경·엑셀 내보내기 / **IP 차단 관리**(리드폼별 IP·CIDR 차단 + 차단 접속 로그, `/forms/{id}/ip-blocks`)
 - 통계: 일별·전환·UTM
 - 계정/요금(후기)
 
