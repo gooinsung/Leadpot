@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import type { FormDetail, LandingBlock, PublicLanding } from "../api/client";
+import { recordEvent, type FormDetail, type LandingBlock, type PublicLanding } from "../api/client";
 import { PublicFormView } from "./PublicFormView";
 
 /** 블록 여백(위/아래/좌우, px) → 인라인 스타일. */
@@ -33,7 +33,12 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
             if (!form) return null;
             if (b.trigger === "overlay") {
               return (
-                <button key={i} className="btn btn-green landing-cta" type="button" style={ms} onClick={() => setOverlayForm(form)}>
+                <button key={i} className="btn btn-green landing-cta" type="button" style={ms}
+                  onClick={() => {
+                    setOverlayForm(form);
+                    // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
+                    recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
+                  }}>
                   {(b.buttonLabel as string) || "신청하기"}
                 </button>
               );

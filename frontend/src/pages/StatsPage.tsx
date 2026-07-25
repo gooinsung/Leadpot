@@ -8,6 +8,7 @@ import {
   type StatCount,
   type StatDayPoint,
   type StatEntityCount,
+  type StatFunnel,
   type StatsOverview,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
@@ -206,6 +207,12 @@ export function StatsPage() {
               <TrendChart buckets={buckets} />
             </section>
 
+            {/* 전환 퍼널(I4) + 요소 클릭(I5) */}
+            <div className="stats-grid">
+              <FunnelCard funnel={stats.funnel} />
+              <BarCard title="요소 클릭 (폼 열기 등)" data={stats.byEvent} />
+            </div>
+
             {/* 랜딩별 / 리드폼별 */}
             <div className="stats-grid">
               <EntityTable title="랜딩페이지별" rows={stats.byLanding} onPick={(id) => setTarget(id == null ? "all" : `landing:${id}`)} />
@@ -261,6 +268,39 @@ function TrendChart({ buckets }: { buckets: Bucket[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function FunnelCard({ funnel }: { funnel: StatFunnel }) {
+  const stages = [
+    { label: "방문", hint: "순방문", value: funnel.visits, rate: null as string | null },
+    { label: "폼 열기", hint: "오버레이 CTA 클릭", value: funnel.formOpens, rate: `${funnel.openRate}%` },
+    { label: "접수", hint: "리드 제출", value: funnel.leads, rate: `${funnel.submitRate}%` },
+  ];
+  const max = Math.max(1, ...stages.map((s) => s.value));
+  return (
+    <section className="card card-pad">
+      <div className="card-h">전환 퍼널</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {stages.map((s) => (
+          <div key={s.label}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 13, marginBottom: 4 }}>
+              <span>
+                <span style={{ fontWeight: 700 }}>{s.label}</span>
+                {s.rate && <span className="dash-sub" style={{ marginLeft: 8, fontSize: 12 }}>이전 대비 {s.rate}</span>}
+              </span>
+              <span style={{ fontWeight: 800 }}>{s.value.toLocaleString("ko-KR")}</span>
+            </div>
+            <span style={{ display: "block", height: 12, borderRadius: 7, background: "var(--surface-2)", overflow: "hidden" }}>
+              <span style={{ display: "block", height: "100%", borderRadius: 7, width: `${(s.value / max) * 100}%`, background: "var(--indigo)", transition: "width .2s" }} />
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="dash-sub" style={{ marginTop: 12, fontSize: 12 }}>
+        '폼 열기'는 오버레이 CTA(버튼→폼) 클릭만 집계됩니다. 인라인 폼·단독 리드폼은 방문→접수로 봅니다.
+      </p>
+    </section>
   );
 }
 

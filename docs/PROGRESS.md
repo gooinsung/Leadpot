@@ -21,13 +21,20 @@
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
 > ### ⭐ 바로 다음 작업 후보 (혼자 가능, 하나 골라 시작)
-> 1. **마케팅 나머지** — I3 SEO(메타태그·OG·사이트맵) · I4 전환분석(퍼널) · I5 요소 클릭 추적.
-> 2. **M8 동적 요소(2단계)** — 신청현황(실시간 리드 수 티커)·최근 신청자·남은 자리 등. 런타임 데이터(공개 집계 API) 필요.
+> 1. **M8 동적 요소(2단계)** — 신청현황(실시간 리드 수 티커)·최근 신청자·남은 자리 등. 런타임 데이터(공개 집계 API) 필요.
+> 2. **I5 세밀 클릭 추적** — 이미지·개별 버튼 등 요소별 클릭(현재는 오버레이 CTA=폼열기만).
 > 3. **E: 중복 데이터 관리(병합)** 또는 기타 BACKLOG 미완 항목.
 >
+> **배포 후로 미룬 것**: **I3 SEO**(메타·OG·사이트맵) — 실제 도메인+엣지렌더 없이는 효과 없음(사용자와 합의, 2026-07-25).
 > **작업 방식(사용자 지시 2026-07-25)**: 작업 하나 끝날 때마다 **`main` 병합+푸시**가 기본. (memory: merge-push-after-each-task)
 > **사용자 리소스 필요(나중)**: 구글시트/텔레그램/카톡 연동, SMS 본인인증, 클라우드 배포·도메인·와일드카드 SSL, 결제.
-> ✅ Flyway 현재 **V14(html_components)** 까지 적용됨(다음 **V15**). DB=Neon 공유. `main`=M6까지 포함 최신.
+> ✅ Flyway 현재 **V15(interaction_events)** 까지 적용됨(다음 **V16**). DB=Neon 공유. `main`=I4·I5까지 포함 최신.
+>
+> **✅ 이번 세션(2026-07-25) I4·I5 완료 — `main` 병합·푸시됨**:
+>   - **I4 전환 퍼널 + I5 요소 클릭(경량)**. 결정: I4+I5 먼저·I3는 배포 때 / 경량 추적.
+>     - 백엔드 `com.leadpot.event`: InteractionEvent 엔티티·Repo·Service + `POST /api/public/events`(best-effort 204, IP 해시), Flyway **V15**(interaction_events). StatsService/Response 확장: `funnel`(순방문→폼열기(고유)→접수, 단계 %) + `byEvent`(대상별 총 클릭 상위 20).
+>     - 프론트: `recordEvent` api, 공개 랜딩 오버레이 CTA 클릭 시 `form_open` 발사(LandingView), StatsPage에 전환 퍼널 카드 + 요소 클릭 BarCard.
+>     - **검증(Neon)**: V15 적용 / 방문4·폼열기2(고유)·접수1 → funnel openRate 50%·submitRate 50% / byEvent 총 클릭 집계 정확 / 백엔드 test·build + 프론트 tsc·prod빌드 통과. (참고: curl 인라인 한글은 Git Bash 인코딩으로 깨짐 → 테스트는 ASCII로.)
 >
 > **✅ 이번 세션(2026-07-25) 완료 — 전부 `main` 병합·푸시됨**:
 >   - **K2 IP차단** · **M8 HTML 요소 라이브러리(정적)** · **M6 폼 외부 임베드**.

@@ -17,7 +17,9 @@ public record StatsResponse(
         List<Count> byReferer,     // 유입 경로(호스트) 상위
         List<Count> byStatus,      // 리드 상태 분포(신규/상담중/완료/불량)
         List<EntityCount> byLanding,
-        List<EntityCount> byForm) {
+        List<EntityCount> byForm,
+        Funnel funnel,             // 전환 퍼널: 방문 → 폼 열기 → 접수 (I4)
+        List<Count> byEvent) {     // 요소 클릭 집계(대상별 총 클릭 수) (I5)
 
     /**
      * 요약 지표.
@@ -36,5 +38,13 @@ public record StatsResponse(
 
     public record EntityCount(Long id, String name, long uniqueVisits, long totalVisits, long leads,
             double conversionRate) {
+    }
+
+    /**
+     * 전환 퍼널(고유 방문자 기준). visits = 순방문, formOpens = 폼 열기(고유), leads = 접수.
+     * openRate = 폼열기/순방문 * 100(방문→폼열기), submitRate = 접수/폼열기 * 100(폼열기→접수).
+     * (인라인 폼 랜딩·단독 리드폼은 '폼 열기' 단계가 없어 formOpens=0 일 수 있음.)
+     */
+    public record Funnel(long visits, long formOpens, long leads, double openRate, double submitRate) {
     }
 }

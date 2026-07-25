@@ -635,6 +635,15 @@ export interface StatsOverview {
   byStatus: StatCount[];
   byLanding: StatEntityCount[];
   byForm: StatEntityCount[];
+  funnel: StatFunnel;
+  byEvent: StatCount[];
+}
+export interface StatFunnel {
+  visits: number; // 순방문
+  formOpens: number; // 폼 열기(고유 방문자)
+  leads: number; // 접수
+  openRate: number; // 방문→폼열기 %
+  submitRate: number; // 폼열기→접수 %
 }
 export interface StatsFilter {
   from?: string;
@@ -656,6 +665,13 @@ export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
 export function recordVisit(input: { landingPageId?: number | null; formId?: number | null; utm?: Record<string, string> }): void {
   request<void>("/api/public/visits", { method: "POST", body: input, auth: false }).catch(() => {
     /* 방문 기록 실패는 무시 */
+  });
+}
+
+/** 공개 이벤트 기록(비로그인, best-effort). 주요 클릭(폼 열기 등) 시 호출 — 전환 퍼널·요소 클릭 통계(I4/I5). */
+export function recordEvent(input: { landingPageId?: number | null; formId?: number | null; eventType: string; target?: string }): void {
+  request<void>("/api/public/events", { method: "POST", body: input, auth: false }).catch(() => {
+    /* 이벤트 기록 실패는 무시 */
   });
 }
 

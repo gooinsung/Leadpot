@@ -117,6 +117,16 @@ ip_block_hits                  -- 차단된 IP의 제출 시도 로그 (확인�
   user_agent, referer
   created_at
 
+interaction_events             -- 요소 상호작용 이벤트 (I4/I5, Flyway V15)
+  id
+  owner_id → users
+  landing_page_id, form_id     -- 어디서 발생했는지
+  event_type                   -- form_open(오버레이 CTA 클릭) 등
+  target                       -- 클릭 대상 라벨(버튼 텍스트)
+  ip_hash                      -- 고유 방문자 추정용 SHA-256
+  created_at
+  -- 활용: 전환 퍼널(방문→폼 열기→접수) + 요소 클릭 집계. 공개 POST /api/public/events(best-effort).
+
 html_components                -- 재사용 HTML 요소 라이브러리 (M8, Flyway V14)
   id
   owner_id → users             -- 소유자만 관리(K5)

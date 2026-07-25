@@ -13,6 +13,8 @@ import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.event.InteractionEvent;
+import com.leadpot.event.InteractionEventRepository;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
 import com.leadpot.landing.LandingPage;
@@ -37,13 +39,16 @@ public class StatsService {
     private final VisitRepository visitRepository;
     private final FormRepository formRepository;
     private final LandingPageRepository landingRepository;
+    private final InteractionEventRepository eventRepository;
 
     public StatsService(LeadRepository leadRepository, VisitRepository visitRepository,
-            FormRepository formRepository, LandingPageRepository landingRepository) {
+            FormRepository formRepository, LandingPageRepository landingRepository,
+            InteractionEventRepository eventRepository) {
         this.leadRepository = leadRepository;
         this.visitRepository = visitRepository;
         this.formRepository = formRepository;
         this.landingRepository = landingRepository;
+        this.eventRepository = eventRepository;
     }
 
     @Transactional(readOnly = true)
@@ -72,6 +77,11 @@ public class StatsService {
                 .findByOwnerIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(ownerId, fromInstant, toInstant).stream()
                 .filter(v -> fLanding == null || fLanding.equals(v.getLandingPageId()))
                 .filter(v -> fForm == null || fForm.equals(v.getFormId()))
+                .toList();
+        List<InteractionEvent> events = eventRepository
+                .findByOwnerIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(ownerId, fromInstant, toInstant).stream()
+                .filter(e -> fLanding == null || fLanding.equals(e.getLandingPageId()))
+                .filter(e -> fForm == null || fForm.equals(e.getFormId()))
                 .toList();
 
         Map<Long, String> formNames = new LinkedHashMap<>();
@@ -102,7 +112,34 @@ public class StatsService {
                 topReferers(leads),
                 leadCounts(leads, l -> STATUS_KR.getOrDefault(l.getStatus(), l.getStatus())),
                 byLanding(leads, visits, landingNames),
-                byForm(leads, visits, formNames));
+                byForm(leads, visits, formNames),
+                funnel(uniqueVisits, events, totalLeads),
+                byEvent(events));
+    }
+
+    /** 전환 퍼널: 순방문 → 폼 열기(고유 방문자) → 접수. */
+    private StatsResponse.Funnel funnel(long uniqueVisits, List<InteractionEvent> events, long leads) {
+        long formOpens = events.stream()
+                .filter(e -> "form_open".equals(e.getEventType()))
+                .map(InteractionEvent::getIpHash)
+                .filter(h -> h != null && !h.isBlank())
+                .distinct().count();
+        return new StatsResponse.Funnel(uniqueVisits, formOpens, leads,
+                rate(formOpens, uniqueVisits), rate(leads, formOpens));
+    }
+
+    /** 요소 클릭 집계(대상 라벨별 총 클릭 수, 내림차순 상위 20). 라벨 없으면 이벤트 유형으로. */
+    private List<StatsResponse.Count> byEvent(List<InteractionEvent> events) {
+        Map<String, Long> m = new LinkedHashMap<>();
+        for (InteractionEvent e : events) {
+            String key = e.getTarget() != null && !e.getTarget().isBlank() ? e.getTarget() : e.getEventType();
+            m.merge(key, 1L, Long::sum);
+        }
+        return m.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(20)
+                .map(e -> new StatsResponse.Count(e.getKey(), e.getValue()))
+                .toList();
     }
 
     /** 기간 내 각 날짜의 방문/리드 수(빈 날짜 0, 오름차순). */
