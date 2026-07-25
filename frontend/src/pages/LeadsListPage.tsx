@@ -31,6 +31,7 @@ export function LeadsListPage() {
   const [q, setQ] = useState("");
   const [showEmbed, setShowEmbed] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
+  const [dupOnly, setDupOnly] = useState(false); // 중복만 보기
   const fileRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = `${window.location.origin}/f/${formId}`;
@@ -62,12 +63,40 @@ export function LeadsListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formId, trashed]);
 
-  // 상태·검색은 클라이언트 필터(즉시 반응)
+  // 중복 판정 기준 항목: 리드폼에서 '중복 방지'(allowDuplicate=false)로 설정된 FIELD 라벨
+  const uniqueFieldLabels = useMemo(() => {
+    if (!form) return [] as string[];
+    return form.blocks
+      .filter((b) => b.blockType === "FIELD" && b.options && b.options.allowDuplicate === false && b.label)
+      .map((b) => b.label as string);
+  }, [form]);
+
+  // 중복 리드 id 집합: 위 기준 항목의 값이 (현재 목록 내에서) 겹치는 리드들
+  const dupIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const label of uniqueFieldLabels) {
+      const byVal = new Map<string, number[]>();
+      for (const l of leads) {
+        const v = (l.answers.find((a) => a.label === label)?.value || "").trim().toLowerCase();
+        if (!v) continue;
+        const arr = byVal.get(v) ?? [];
+        arr.push(l.id);
+        byVal.set(v, arr);
+      }
+      for (const arr of byVal.values()) {
+        if (arr.length > 1) arr.forEach((id) => ids.add(id));
+      }
+    }
+    return ids;
+  }, [leads, uniqueFieldLabels]);
+
+  // 상태·검색·중복은 클라이언트 필터(즉시 반응)
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter(
       (l) =>
         (!statusFilter || l.status === statusFilter) &&
+        (!dupOnly || dupIds.has(l.id)) &&
         (!needle ||
           l.answers.some(
             (a) =>
@@ -75,7 +104,7 @@ export function LeadsListPage() {
               (a.label || "").toLowerCase().includes(needle),
           )),
     );
-  }, [leads, q, statusFilter]);
+  }, [leads, q, statusFilter, dupOnly, dupIds]);
 
   function copyLink() {
     navigator.clipboard?.writeText(publicUrl).then(() => {
@@ -212,8 +241,17 @@ export function LeadsListPage() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-          {(q || statusFilter) && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); }}>필터 초기화</button>
+          {!trashed && uniqueFieldLabels.length > 0 && (
+            <button
+              className={`btn btn-sm ${dupOnly ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setDupOnly((v) => !v)}
+              title={`중복 판정 항목: ${uniqueFieldLabels.join(", ")}`}
+            >
+              중복만 보기{dupIds.size ? ` (${dupIds.size})` : ""}
+            </button>
+          )}
+          {(q || statusFilter || dupOnly) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); }}>필터 초기화</button>
           )}
           {!trashed && (
             <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -246,7 +284,12 @@ export function LeadsListPage() {
             {filtered.map((l) => (
               <div className="card card-pad lead-card" key={l.id}>
                 <div className="lead-head">
-                  <span className="lead-time">{new Date(l.createdAt).toLocaleString("ko-KR")}</span>
+                  <span className="lead-time">
+                    {new Date(l.createdAt).toLocaleString("ko-KR")}
+                    {!trashed && dupIds.has(l.id) && (
+                      <span className="badge b-bad" style={{ marginLeft: 8 }} title={`중복 판정 항목: ${uniqueFieldLabels.join(", ")}`}>중복</span>
+                    )}
+                  </span>
                   {trashed ? (
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <span className={`badge ${statusClass(l.status)}`}>{statusLabel(l.status)}</span>
