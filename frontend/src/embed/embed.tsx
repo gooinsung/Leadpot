@@ -1,0 +1,66 @@
+import { createRoot } from "react-dom/client";
+import { getPublicForm, recordVisit } from "../api/client";
+import { PublicFormView } from "../components/PublicFormView";
+import { initPixels } from "../lib/pixels";
+import tokensCss from "../styles/tokens.css?inline";
+import baseCss from "../styles/base.css?inline";
+import appCss from "../App.css?inline";
+
+/**
+ * 외부 사이트 임베드(M6) 진입점 — 자립 스크립트로 빌드된다(vite.embed.config.ts, IIFE).
+ * 사용법(임베드 코드):
+ *   <div data-leadpot-form="{리드폼번호}"></div>
+ *   <script src="https://app.도메인/embed.js" async></script>
+ *
+ * 각 컨테이너에 Shadow DOM 을 붙이고 그 안에 공개 폼(PublicFormView)을 렌더한다.
+ * Shadow DOM 으로 대상 사이트의 CSS 와 완전히 격리된다. iframe 을 쓰지 않는다.
+ */
+const ATTR = "data-leadpot-form";
+
+// tokens.css 는 :root 에 CSS 변수를 정의 → Shadow DOM 에선 :host 로 매핑해야 변수가 트리에 적용된다.
+// base.css 의 타이포 기준은 body 에 있으나 Shadow 루트엔 body 가 없으므로 래퍼(.lp-embed)에 다시 준다.
+const SHADOW_CSS = [
+  tokensCss.replace(/:root/g, ":host"),
+  baseCss,
+  appCss,
+  `.lp-embed{display:block;width:100%;font-family:var(--sans);color:var(--text);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+   .lp-embed .public-form-card{min-height:0;max-width:100%;}`,
+].join("\n");
+
+function mountOne(el: HTMLElement) {
+  const formId = Number(el.getAttribute(ATTR));
+  if (!formId || el.getAttribute("data-lp-mounted") === "1") return;
+  el.setAttribute("data-lp-mounted", "1");
+
+  const shadow = el.attachShadow({ mode: "open" });
+  const style = document.createElement("style");
+  style.textContent = SHADOW_CSS;
+  shadow.appendChild(style);
+  const root = document.createElement("div");
+  root.className = "lp-embed";
+  shadow.appendChild(root);
+
+  getPublicForm(formId)
+    .then((form) => {
+      recordVisit({ formId: form.id });
+      initPixels(form.trackingConfig);
+      createRoot(root).render(
+        <div className="public-form-card">
+          <PublicFormView form={form} trackingConfig={form.trackingConfig} />
+        </div>,
+      );
+    })
+    .catch(() => {
+      root.textContent = "리드폼을 불러오지 못했습니다.";
+    });
+}
+
+function init() {
+  document.querySelectorAll<HTMLElement>(`[${ATTR}]`).forEach(mountOne);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}

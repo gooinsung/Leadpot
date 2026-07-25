@@ -111,7 +111,7 @@
 - [ ] **M3. 선택형/스텝형 입력폼(STEP)** — 배경 블러 + 단계별 선택(질문 N/총) → 연락처 → 제출 (은오 자가진단 스타일)
 - [ ] **M4. 폼 내 콘텐츠 블록 삽입** — 입력 항목 사이에 이미지·HTML·텍스트·구분선을 자유롭게 배치
 - [ ] **M5. 휴대폰 본인인증 옵션** 🔒 — 폼에서 본인인증을 선택적으로 ON/OFF (외부 인증 서비스)
-- [ ] **M6. 폼 외부 임베드** — 만든 폼을 외부 사이트/블로그에 삽입
+- [x] **M6. 폼 외부 임베드** — 만든 리드폼을 외부 사이트/블로그에 삽입. 방식=**script 직접 주입 + Shadow DOM**(iframe 아님). 임베드 코드 `<div data-leadpot-form="{id}"></div><script src=".../embed.js" async></script>` → embed.js가 컨테이너에 Shadow root 만들고 기존 React `PublicFormView` 마운트(대상 사이트 CSS와 격리). 공개 API(`/api/public/**`)는 모든 오리진 CORS 허용. 퍼가기 코드는 리드 목록 페이지에서 복사. 검증: 가짜 외부 오리진에서 렌더·격리·교차출처 제출→리드 저장 확인.
 - [ ] **M7. 확장 가능한 폼 유형 구조** — 새 폼 유형(팝업/챗형 등)을 렌더러 추가만으로 확장
 - [x] **M8. 재사용 HTML 요소 라이브러리 (요소 생성기)** — 정적 요소 1단계 완료. 미리 만든 HTML 조각(헤더·푸터·CTA 등)을 저장해두고, 랜딩·리드폼의 HTML 블록에 꺼내 삽입해 재사용.
   - 관리: `html_components`(owner_id·name·category·html, Flyway V14) + CRUD `/api/html-components`(본인만 K5) + 관리 페이지 `/html-components`(목록/생성/편집, 원본 HTML textarea + 미리보기). 동의문서 패턴.

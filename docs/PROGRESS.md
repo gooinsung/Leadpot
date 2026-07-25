@@ -21,13 +21,17 @@
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
 > ### ⭐ 바로 다음 작업 후보 (혼자 가능, 하나 골라 시작)
-> 1. **리드폼 외부 임베드(M6)** — 남의 사이트에 우리 리드폼을 심는 스니펫(iframe/script). 공개 렌더 재사용.
-> 2. **마케팅 나머지** — I3 SEO · I4 전환분석 · I5 요소 클릭 추적.
-> 3. **M8 동적 요소(2단계)** — 신청현황(실시간 리드 수 티커)·최근 신청자·남은 자리 등. 런타임 데이터(공개 집계 API) 필요.
+> 1. **마케팅 나머지** — I3 SEO(메타태그·OG·사이트맵) · I4 전환분석(퍼널) · I5 요소 클릭 추적.
+> 2. **M8 동적 요소(2단계)** — 신청현황(실시간 리드 수 티커)·최근 신청자·남은 자리 등. 런타임 데이터(공개 집계 API) 필요.
+> 3. **E: 중복 데이터 관리(병합)** 또는 기타 BACKLOG 미완 항목.
 >
-> **마무리성**: `feature/html-components` → `main` 병합(M8 커밋들, 미병합). K2는 이미 `main` 병합·푸시 완료.
+> **작업 방식(사용자 지시 2026-07-25)**: 작업 하나 끝날 때마다 **`main` 병합+푸시**가 기본. (memory: merge-push-after-each-task)
 > **사용자 리소스 필요(나중)**: 구글시트/텔레그램/카톡 연동, SMS 본인인증, 클라우드 배포·도메인·와일드카드 SSL, 결제.
-> ✅ Flyway 현재 **V14(html_components)** 까지 적용됨(다음 **V15**). DB=Neon 공유. `main`=K2까지 포함 최신.
+> ✅ Flyway 현재 **V14(html_components)** 까지 적용됨(다음 **V15**). DB=Neon 공유. `main`=M6까지 포함 최신.
+>
+> **✅ 이번 세션(2026-07-25) 완료 — 전부 `main` 병합·푸시됨**:
+>   - **K2 IP차단** · **M8 HTML 요소 라이브러리(정적)** · **M6 폼 외부 임베드**.
+>   - **M6 상세**: 방식=script 직접 주입 + **Shadow DOM**(iframe 아님, 사용자 결정). `frontend/src/embed/embed.tsx`(자립 IIFE, `vite.embed.config.ts`로 별도 빌드→`dist/embed.js`, `npm run build`에 포함)가 `[data-leadpot-form]` 컨테이너에 Shadow root 만들고 기존 `PublicFormView` 마운트(tokens+base+App CSS를 :root→:host로 주입해 격리). 백엔드 `SecurityConfig`: `/api/public/**` CORS 모든 오리진 허용(무자격증명). 퍼가기 코드 복사 UI는 `LeadsListPage`("임베드 코드" 버튼). **검증**: 가짜 외부 오리진(:4173) 페이지에 임베드→교차출처 GET 렌더·적대적 host CSS로부터 Shadow 격리·교차출처 POST 제출→리드 저장까지 브라우저로 확인. tsc·양쪽 빌드 통과.
 >
 > **✅ 이번 세션(2026-07-25) 완료**:
 >   - **IP 차단(K2)** — `feature/d3-subdomain` → **`main` 병합·푸시 완료**. (리드폼별·CIDR·사유메모·차단 접속 로그. `com.leadpot.ipblock`, Flyway V13, `IpMatcherTest` 16개. `LeadService.submit`의 `checkIpBlocked`, 로그는 `recordHit` REQUIRES_NEW로 롤백에도 저장.)

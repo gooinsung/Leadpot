@@ -129,7 +129,18 @@ public class SecurityConfig {
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
+        // 공개 API(/api/public/**)는 외부 사이트 임베드(M6)에서 호출되므로 모든 오리진 허용.
+        // 인증/쿠키를 쓰지 않는 공개 엔드포인트라 credentials 는 끈다(폼 조회·리드 제출·방문 기록).
+        CorsConfiguration publicConfig = new CorsConfiguration();
+        publicConfig.setAllowedOriginPatterns(List.of("*"));
+        publicConfig.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        publicConfig.setAllowedHeaders(List.of("*"));
+        publicConfig.setAllowCredentials(false);
+        publicConfig.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // 더 구체적인 경로(/api/public/**)가 /api/** 보다 우선 매칭된다.
+        source.registerCorsConfiguration("/api/public/**", publicConfig);
         source.registerCorsConfiguration("/api/**", config);
         return source;
     }

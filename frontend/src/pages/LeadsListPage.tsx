@@ -29,9 +29,20 @@ export function LeadsListPage() {
   const [trashed, setTrashed] = useState(false); // 휴지통 보기 여부
   const [statusFilter, setStatusFilter] = useState(""); // "" = 전체
   const [q, setQ] = useState("");
+  const [showEmbed, setShowEmbed] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = `${window.location.origin}/f/${formId}`;
+  // 외부 사이트 임베드 스니펫(M6): 대상 페이지에 붙여넣으면 embed.js 가 해당 위치에 리드폼을 렌더.
+  const embedSnippet = `<div data-leadpot-form="${formId}"></div>\n<script src="${window.location.origin}/embed.js" async></script>`;
+
+  function copyEmbed() {
+    navigator.clipboard?.writeText(embedSnippet).then(() => {
+      setEmbedCopied(true);
+      setTimeout(() => setEmbedCopied(false), 1500);
+    });
+  }
 
   function load() {
     setLoading(true);
@@ -156,6 +167,7 @@ export function LeadsListPage() {
               <>
                 <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/edit`)}>리드폼 편집</button>
                 <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/ip-blocks`)}>IP 차단</button>
+                <button className="btn btn-ghost" onClick={() => setShowEmbed((v) => !v)}>{showEmbed ? "임베드 닫기" : "임베드 코드"}</button>
                 <button className="btn btn-ghost" onClick={copyLink}>{copied ? "복사됨!" : "공개 링크 복사"}</button>
                 <button className="btn btn-ghost" onClick={() => downloadLeadsCsv(formId, form?.name || "leads")}>CSV 내보내기</button>
                 <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 리드폼 열기</button>
@@ -163,6 +175,27 @@ export function LeadsListPage() {
             )}
           </div>
         </div>
+
+        {/* 외부 사이트 임베드 코드(M6) */}
+        {showEmbed && !trashed && (
+          <div className="card card-pad" style={{ marginBottom: 20 }}>
+            <div className="card-h">외부 사이트 임베드 코드</div>
+            <p className="dash-sub" style={{ marginTop: 0 }}>
+              아래 코드를 외부 사이트/블로그의 HTML에 붙여넣으면 그 위치에 이 리드폼이 표시됩니다. (대상 사이트 디자인과 격리되어 렌더)
+            </p>
+            <textarea
+              className="input"
+              readOnly
+              rows={2}
+              style={{ fontFamily: "var(--mono)", fontSize: 13 }}
+              value={embedSnippet}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <div style={{ marginTop: 10 }}>
+              <button className="btn btn-primary btn-sm" onClick={copyEmbed}>{embedCopied ? "복사됨!" : "코드 복사"}</button>
+            </div>
+          </div>
+        )}
 
         {/* 검색·필터 */}
         <div className="card card-pad" style={{ marginBottom: 20, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
