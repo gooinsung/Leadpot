@@ -38,6 +38,8 @@
 >     - `LeadService.submit` 초입 `checkIpBlocked` — 차단 IP면 히트 로그 남기고 거부(방문자에겐 중립 메시지). **핵심**: 제출 트랜잭션이 롤백돼도 로그가 남도록 `recordHit`은 `@Transactional(REQUIRES_NEW)`.
 >     - 프론트 `IpBlocksPage`(`/forms/{id}/ip-blocks`): 차단 추가/목록/해제 + 차단 접속 로그(최근 500건)·로그 비우기. 리드 목록에 "IP 차단" 버튼 추가. api client 함수 추가.
 >     - **검증 완료(Neon)**: V13 적용 / 단일IP·CIDR(/24 안=거부·밖=통과)·미차단=통과 / 히트 로그가 롤백에도 저장됨 / K5(타 유저 404) / 삭제·로그비우기 204 / 백엔드 test·build + 프론트 tsc·prod빌드 통과.
+>     - **후속(자율 진행분, 커밋됨)**: `IpMatcherTest` 16개(단일/CIDR/IPv6/방어) 추가 · SPEC.md에 ip_blocks/ip_block_hits 데이터모델·관리화면 반영 · 미사용 `countByFormId` 제거(자체 코드리뷰).
+>     - **미완(돌아오면)**: `main` 병합은 리뷰 체크포인트라 보류 / 스모크 테스트로 Neon에 쌓인 테스트 계정·폼·리드·차단데이터 정리 필요(공유DB라 임의삭제 안 함, 확인 후).
 >
 > **✅ 이번 세션(2026-07-24~25) 완료 — 전부 브랜치 `feature/d3-subdomain`(미병합)**:
 >   - **D3 서브도메인**: 가입 시 랜덤 부여·변경(예약어/중복 검증)·공개 해석(`/api/public/sites/{sub}/{id|slug}`)·소유자 미리보기(`/p/{slug}`). 결정: 루트=404 / 식별자=번호+슬러그 / DB=Neon 공유. 검증 완료.
