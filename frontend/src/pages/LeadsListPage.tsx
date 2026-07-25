@@ -155,6 +155,7 @@ export function LeadsListPage() {
             {!trashed && (
               <>
                 <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/edit`)}>리드폼 편집</button>
+                <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/ip-blocks`)}>IP 차단</button>
                 <button className="btn btn-ghost" onClick={copyLink}>{copied ? "복사됨!" : "공개 링크 복사"}</button>
                 <button className="btn btn-ghost" onClick={() => downloadLeadsCsv(formId, form?.name || "leads")}>CSV 내보내기</button>
                 <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 리드폼 열기</button>

@@ -15,20 +15,29 @@
   - **▶️ 로컬 실행법(현재)**: `C:\Temp` 존재 + 위 env 적용 상태에서 — 백엔드 `cd backend; $env:SPRING_PROFILES_ACTIVE='local'; .\gradlew.bat bootRun` (→ :8080, Neon 연결) / 프론트 `cd frontend; npm run dev` (→ :5173). 서브도메인 테스트는 `http://{내서브도메인}.localhost:5173/{랜딩번호}`.
   - **남은 것**: `feature/d3-subdomain` → `main` PR 병합 / SPEC·FEATURES 문서에 D3 반영 / 배포용 와일드카드 DNS·SSL(사용자 리소스, 나중).
 - **현재 위치**: **핵심 루프(폼 공개→제출→리드 수집→조회) 완성 ✅** — 실제 데이터가 쌓임(방문자정보 포함) + **통계 대시보드 ✅**
-- **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ / **리드 수집(Phase 4 앞당김) ✅** / **Phase 3 랜딩 빌더 & 폼 연결 ✅** / **리드 상태변경·CSV 내보내기 ✅** / **이미지 업로드 R2 연동(경로 구조화 landing-image/YYYY/MM/DD) ✅** / **통계 고도화(방문 추적+전환율+순방문·트래픽 분리+일/주/월+호버툴팁+기간/대상 필터+랜딩/폼별) ✅** / **동의문서 이름/제목/내용 분리 ✅**
+- **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ / **리드 수집(Phase 4 앞당김) ✅** / **Phase 3 랜딩 빌더 & 폼 연결 ✅** / **리드 상태변경·CSV 내보내기 ✅** / **이미지 업로드 R2 연동(경로 구조화 landing-image/YYYY/MM/DD) ✅** / **통계 고도화(방문 추적+전환율+순방문·트래픽 분리+일/주/월+호버툴팁+기간/대상 필터+랜딩/폼별) ✅** / **동의문서 이름/제목/내용 분리 ✅** / **IP 차단(K2) — 리드폼별·CIDR·사유·차단 로그 ✅**
 - **추가 폼 개선(2026-07-24)**: 공개 폼 이름 숨김 · 동의 항목 기본체크 설정 · 공개 폼 모바일 최적화(1차) · **스텝형 답변 방식 확장**(카드 단일/다중 + 선택박스·텍스트·장문·연락처·이메일·숫자·날짜) · **마지막 단계 커스텀 안내문구**(typeConfig.contactMessage) · 스텝 입력형 간격 개선 · **중복 제출 방지(K3)**: 항목별 중복허용/유효기간 + 폼 동일IP 접수허용(settings_config, Flyway V6)
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐ 바로 다음 작업 = **IP 차단(K2)** — 내일(2026-07-25~) 새 세션에서 여기부터 시작
-> 관리자가 특정 IP를 차단하면 그 IP의 공개 리드폼 제출(`POST /api/public/leads`)을 거부한다. 스팸/장난 제출 방어. 중복방지(K3, `settingsConfig.allowSameIp`)·E4 옆에 자연스럽게 이어짐.
-> - **착수 전(§0) 사용자와 확정**: 차단 단위 = **계정 전체 vs 리드폼별** / IP 대역(CIDR) 지원 여부 / 차단 사유 메모 필요 여부.
-> - **구현 스케치**: `ip_blocks` 테이블(또는 계정·폼 설정 JSON) + Flyway **V13** / `LeadService.submit` 초입 또는 `checkDuplicates` 옆에서 차단 IP면 `InvalidSubmissionException` / 관리 UI(대시보드 또는 리드폼 설정). 제출 IP는 `X-Forwarded-For`→ `leads.submitter_ip`(원문 저장) 기준으로 비교(방문 테이블은 해시라 부적합).
+> ### ⭐ 바로 다음 작업 후보 (혼자 가능, 하나 골라 시작)
+> 1. **HTML 요소 라이브러리(M8, 요소 생성기)** — 플로팅/고정 헤더·푸터·CTA·신청현황 등을 미리 만들어 저장 → 랜딩·폼 HTML 블록에 삽입. `html_components` 엔티티(Flyway **V14**) + 관리 페이지(동의문서 패턴). 정적 요소 먼저, 동적(실시간 리드 수 등)은 2단계. 상세는 BACKLOG M8.
+> 2. **리드폼 외부 임베드(M6)** — 남의 사이트에 우리 리드폼을 심는 스니펫(iframe/script). 공개 렌더 재사용.
+> 3. **마케팅 나머지** — I3 SEO · I4 전환분석 · I5 요소 클릭 추적.
 >
-> **그 다음(혼자 가능)**: HTML 요소 라이브러리(M8) → 리드폼 외부 임베드(M6) → 마케팅 나머지(I3 SEO·I4 전환분석·I5 요소 클릭).
-> **마무리성**: `feature/d3-subdomain` → `main` **PR 병합**(이번 세션 전 작업이 이 브랜치에만 있음) + SPEC/FEATURES에 D3·E4·엑셀·I1 반영.
+> ### ⭐⭐ 마무리성 (권장 — 코드가 브랜치에만 있음)
+> - **`feature/d3-subdomain` → `main` PR 병합**: D3 서브도메인·E4·엑셀·광고픽셀(I1)·**IP차단(K2)** 등 최근 작업 전부가 이 브랜치에만 있고 미병합. 한 번 정리해서 병합 권장.
+> - SPEC/FEATURES 문서에 D3·E4·엑셀·I1·K2 반영.
+>
 > **사용자 리소스 필요(나중)**: 구글시트/텔레그램/카톡 연동, SMS 본인인증, 클라우드 배포·도메인·와일드카드 SSL, 결제.
-> ✅ Flyway 현재 **V12(tracking_pixels)** 까지 적용됨(다음 **V13**). DB=Neon 공유.
+> ✅ Flyway 현재 **V13(ip_blocks)** 까지 적용됨(다음 **V14**). DB=Neon 공유.
+>
+> **✅ 이번 세션(2026-07-25) 완료 — 브랜치 `feature/d3-subdomain`(미병합)**:
+>   - **IP 차단(K2)**: 리드폼별 개별 차단 · **CIDR 대역 지원** · 사유 메모 · **차단 접속 로그 + 확인 화면**. 결정(§0 확인): 리드폼별 / 대역 지원 / 메모 필드 둠.
+>     - 백엔드 `com.leadpot.ipblock`: `IpBlock`·`IpBlockHit` 엔티티, `IpMatcher`(단일IP+CIDR IPv4/IPv6 비트마스크 매칭), `IpBlockService`(K5 소유권), `IpBlockController`(`/api/forms/{formId}/ip-blocks` GET/POST·DELETE·`/hits` GET/DELETE). Flyway **V13**(ip_blocks·ip_block_hits).
+>     - `LeadService.submit` 초입 `checkIpBlocked` — 차단 IP면 히트 로그 남기고 거부(방문자에겐 중립 메시지). **핵심**: 제출 트랜잭션이 롤백돼도 로그가 남도록 `recordHit`은 `@Transactional(REQUIRES_NEW)`.
+>     - 프론트 `IpBlocksPage`(`/forms/{id}/ip-blocks`): 차단 추가/목록/해제 + 차단 접속 로그(최근 500건)·로그 비우기. 리드 목록에 "IP 차단" 버튼 추가. api client 함수 추가.
+>     - **검증 완료(Neon)**: V13 적용 / 단일IP·CIDR(/24 안=거부·밖=통과)·미차단=통과 / 히트 로그가 롤백에도 저장됨 / K5(타 유저 404) / 삭제·로그비우기 204 / 백엔드 test·build + 프론트 tsc·prod빌드 통과.
 >
 > **✅ 이번 세션(2026-07-24~25) 완료 — 전부 브랜치 `feature/d3-subdomain`(미병합)**:
 >   - **D3 서브도메인**: 가입 시 랜덤 부여·변경(예약어/중복 검증)·공개 해석(`/api/public/sites/{sub}/{id|slug}`)·소유자 미리보기(`/p/{slug}`). 결정: 루트=404 / 식별자=번호+슬러그 / DB=Neon 공유. 검증 완료.

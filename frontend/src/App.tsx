@@ -8,6 +8,7 @@ import { ConsentDocsListPage } from "./pages/ConsentDocsListPage";
 import { ConsentDocEditPage } from "./pages/ConsentDocEditPage";
 import { ConsentViewPage } from "./pages/ConsentViewPage";
 import { LeadsListPage } from "./pages/LeadsListPage";
+import { IpBlocksPage } from "./pages/IpBlocksPage";
 import { PublicFormPage } from "./pages/PublicFormPage";
 import { LandingsListPage } from "./pages/LandingsListPage";
 import { LandingEditPage } from "./pages/LandingEditPage";
@@ -97,6 +98,14 @@ function App() {
         element={
           <ProtectedRoute>
             <LeadsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/forms/:id/ip-blocks"
+        element={
+          <ProtectedRoute>
+            <IpBlocksPage />
           </ProtectedRoute>
         }
       />

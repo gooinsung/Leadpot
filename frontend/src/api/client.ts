@@ -451,6 +451,47 @@ export async function downloadLeadsCsv(formId: number, formName: string): Promis
   URL.revokeObjectURL(url);
 }
 
+// ---------- IP 차단(K2) ----------
+export interface IpBlock {
+  id: number;
+  pattern: string; // 단일 IP 또는 CIDR 대역
+  reason: string | null;
+  createdAt: string;
+}
+export interface IpBlockInput {
+  pattern: string;
+  reason?: string;
+}
+export interface IpBlockHit {
+  id: number;
+  ip: string;
+  matchedPattern: string | null;
+  userAgent: string | null;
+  referer: string | null;
+  createdAt: string;
+}
+
+/** 리드폼의 IP 차단 규칙 목록(본인 리드폼만). */
+export function listIpBlocks(formId: number): Promise<IpBlock[]> {
+  return request<IpBlock[]>(`/api/forms/${formId}/ip-blocks`);
+}
+/** 차단 규칙 추가(단일 IP 또는 CIDR). */
+export function addIpBlock(formId: number, input: IpBlockInput): Promise<IpBlock> {
+  return request<IpBlock>(`/api/forms/${formId}/ip-blocks`, { method: "POST", body: input });
+}
+/** 차단 규칙 삭제. */
+export function deleteIpBlock(formId: number, blockId: number): Promise<void> {
+  return request<void>(`/api/forms/${formId}/ip-blocks/${blockId}`, { method: "DELETE" });
+}
+/** 차단 접속(제출 시도) 로그. */
+export function listIpBlockHits(formId: number): Promise<IpBlockHit[]> {
+  return request<IpBlockHit[]>(`/api/forms/${formId}/ip-blocks/hits`);
+}
+/** 차단 접속 로그 전체 비우기. */
+export function clearIpBlockHits(formId: number): Promise<void> {
+  return request<void>(`/api/forms/${formId}/ip-blocks/hits`, { method: "DELETE" });
+}
+
 // ---------- 랜딩페이지 ----------
 export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM";
 export interface LandingBlock {

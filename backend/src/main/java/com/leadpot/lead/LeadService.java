@@ -18,6 +18,7 @@ import com.leadpot.form.Form;
 import com.leadpot.form.FormService;
 import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormResponse;
+import com.leadpot.ipblock.IpBlockService;
 import com.leadpot.lead.dto.ImportResult;
 import com.leadpot.lead.dto.LeadResponse;
 import com.leadpot.lead.dto.LeadSubmitRequest;
@@ -28,10 +29,12 @@ public class LeadService {
 
     private final LeadRepository leadRepository;
     private final FormService formService;
+    private final IpBlockService ipBlockService;
 
-    public LeadService(LeadRepository leadRepository, FormService formService) {
+    public LeadService(LeadRepository leadRepository, FormService formService, IpBlockService ipBlockService) {
         this.leadRepository = leadRepository;
         this.formService = formService;
+        this.ipBlockService = ipBlockService;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -41,6 +44,7 @@ public class LeadService {
     @Transactional
     public Long submit(LeadSubmitRequest req, Visitor visitor) {
         Form form = formService.getEntity(req.formId());
+        checkIpBlocked(form, visitor);
         validate(form, req);
         checkDuplicates(form, req, visitor);
 
@@ -363,6 +367,18 @@ public class LeadService {
             if (required && !agreed) {
                 throw new InvalidSubmissionException("필수 동의 항목에 동의해주세요.");
             }
+        }
+    }
+
+    /** IP 차단(K2): 차단된 IP면 제출을 거부하고 시도 로그를 남긴다(별도 트랜잭션). */
+    private void checkIpBlocked(Form form, Visitor visitor) {
+        String ip = visitor.ip();
+        String matched = ipBlockService.blockedPattern(form.getId(), ip);
+        if (matched != null) {
+            // 제출 트랜잭션은 롤백되지만 로그는 REQUIRES_NEW 로 남는다.
+            ipBlockService.recordHit(form.getId(), ip, matched, visitor.userAgent(), visitor.referer());
+            // 차단 사실을 방문자에게 그대로 알리지 않도록 중립적 메시지 사용.
+            throw new InvalidSubmissionException("제출이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.");
         }
     }
 
