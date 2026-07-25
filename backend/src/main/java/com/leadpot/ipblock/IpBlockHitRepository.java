@@ -9,7 +9,5 @@ public interface IpBlockHitRepository extends JpaRepository<IpBlockHit, Long> {
 
     List<IpBlockHit> findByFormIdOrderByCreatedAtDesc(Long formId, Pageable pageable);
 
-    long countByFormId(Long formId);
-
     void deleteByFormId(Long formId);
 }
