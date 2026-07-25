@@ -13,6 +13,7 @@ import {
   type LandingBlockType,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
@@ -24,6 +25,12 @@ function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "TEXT") return { type, text: "텍스트를 입력하세요" };
   if (type === "HTML") return { type, html: "<p>내용</p>" };
   return { type: "FORM", formId: forms[0]?.id ?? null, trigger: "inline", buttonLabel: "상담 신청하기" };
+}
+
+/** 저장된 HTML 요소를 현재 HTML 블록 값에 복사 삽입(스냅샷) — 기존 내용 뒤에 이어붙인다. */
+function appendHtml(existing: string, inserted: string): string {
+  const base = existing ?? "";
+  return base.trim() ? `${base}\n${inserted}` : inserted;
 }
 
 /** 블록 여백(위/아래/좌우, px) → 인라인 스타일. 미리보기·공개 랜딩 공용 개념. */
@@ -205,7 +212,11 @@ export function LandingEditPage() {
                     <div className="field"><label>텍스트</label><textarea className="input" rows={2} value={(b.text as string) ?? ""} onChange={(e) => patch(i, { text: e.target.value })} /></div>
                   )}
                   {b.type === "HTML" && (
-                    <div className="field"><label>HTML</label><textarea className="input" rows={3} value={(b.html as string) ?? ""} onChange={(e) => patch(i, { html: e.target.value })} /></div>
+                    <div className="field">
+                      <label>HTML</label>
+                      <HtmlComponentPicker onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
+                      <textarea className="input" rows={3} value={(b.html as string) ?? ""} onChange={(e) => patch(i, { html: e.target.value })} />
+                    </div>
                   )}
                   {b.type === "FORM" && (
                     <>

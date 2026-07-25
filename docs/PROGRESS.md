@@ -21,25 +21,23 @@
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
 > ### ⭐ 바로 다음 작업 후보 (혼자 가능, 하나 골라 시작)
-> 1. **HTML 요소 라이브러리(M8, 요소 생성기)** — 플로팅/고정 헤더·푸터·CTA·신청현황 등을 미리 만들어 저장 → 랜딩·폼 HTML 블록에 삽입. `html_components` 엔티티(Flyway **V14**) + 관리 페이지(동의문서 패턴). 정적 요소 먼저, 동적(실시간 리드 수 등)은 2단계. 상세는 BACKLOG M8.
-> 2. **리드폼 외부 임베드(M6)** — 남의 사이트에 우리 리드폼을 심는 스니펫(iframe/script). 공개 렌더 재사용.
-> 3. **마케팅 나머지** — I3 SEO · I4 전환분석 · I5 요소 클릭 추적.
+> 1. **리드폼 외부 임베드(M6)** — 남의 사이트에 우리 리드폼을 심는 스니펫(iframe/script). 공개 렌더 재사용.
+> 2. **마케팅 나머지** — I3 SEO · I4 전환분석 · I5 요소 클릭 추적.
+> 3. **M8 동적 요소(2단계)** — 신청현황(실시간 리드 수 티커)·최근 신청자·남은 자리 등. 런타임 데이터(공개 집계 API) 필요.
 >
-> ### ⭐⭐ 마무리성 (권장 — 코드가 브랜치에만 있음)
-> - **`feature/d3-subdomain` → `main` PR 병합**: D3 서브도메인·E4·엑셀·광고픽셀(I1)·**IP차단(K2)** 등 최근 작업 전부가 이 브랜치에만 있고 미병합. 한 번 정리해서 병합 권장.
-> - SPEC/FEATURES 문서에 D3·E4·엑셀·I1·K2 반영.
->
+> **마무리성**: `feature/html-components` → `main` 병합(M8 커밋들, 미병합). K2는 이미 `main` 병합·푸시 완료.
 > **사용자 리소스 필요(나중)**: 구글시트/텔레그램/카톡 연동, SMS 본인인증, 클라우드 배포·도메인·와일드카드 SSL, 결제.
-> ✅ Flyway 현재 **V13(ip_blocks)** 까지 적용됨(다음 **V14**). DB=Neon 공유.
+> ✅ Flyway 현재 **V14(html_components)** 까지 적용됨(다음 **V15**). DB=Neon 공유. `main`=K2까지 포함 최신.
 >
-> **✅ 이번 세션(2026-07-25) 완료 — 브랜치 `feature/d3-subdomain`(미병합)**:
->   - **IP 차단(K2)**: 리드폼별 개별 차단 · **CIDR 대역 지원** · 사유 메모 · **차단 접속 로그 + 확인 화면**. 결정(§0 확인): 리드폼별 / 대역 지원 / 메모 필드 둠.
->     - 백엔드 `com.leadpot.ipblock`: `IpBlock`·`IpBlockHit` 엔티티, `IpMatcher`(단일IP+CIDR IPv4/IPv6 비트마스크 매칭), `IpBlockService`(K5 소유권), `IpBlockController`(`/api/forms/{formId}/ip-blocks` GET/POST·DELETE·`/hits` GET/DELETE). Flyway **V13**(ip_blocks·ip_block_hits).
->     - `LeadService.submit` 초입 `checkIpBlocked` — 차단 IP면 히트 로그 남기고 거부(방문자에겐 중립 메시지). **핵심**: 제출 트랜잭션이 롤백돼도 로그가 남도록 `recordHit`은 `@Transactional(REQUIRES_NEW)`.
->     - 프론트 `IpBlocksPage`(`/forms/{id}/ip-blocks`): 차단 추가/목록/해제 + 차단 접속 로그(최근 500건)·로그 비우기. 리드 목록에 "IP 차단" 버튼 추가. api client 함수 추가.
->     - **검증 완료(Neon)**: V13 적용 / 단일IP·CIDR(/24 안=거부·밖=통과)·미차단=통과 / 히트 로그가 롤백에도 저장됨 / K5(타 유저 404) / 삭제·로그비우기 204 / 백엔드 test·build + 프론트 tsc·prod빌드 통과.
->     - **후속(자율 진행분, 커밋됨)**: `IpMatcherTest` 16개(단일/CIDR/IPv6/방어) 추가 · SPEC.md에 ip_blocks/ip_block_hits 데이터모델·관리화면 반영 · 미사용 `countByFormId` 제거(자체 코드리뷰).
->     - **미완(돌아오면)**: `main` 병합은 리뷰 체크포인트라 보류 / 스모크 테스트로 Neon에 쌓인 테스트 계정·폼·리드·차단데이터 정리 필요(공유DB라 임의삭제 안 함, 확인 후).
+> **✅ 이번 세션(2026-07-25) 완료**:
+>   - **IP 차단(K2)** — `feature/d3-subdomain` → **`main` 병합·푸시 완료**. (리드폼별·CIDR·사유메모·차단 접속 로그. `com.leadpot.ipblock`, Flyway V13, `IpMatcherTest` 16개. `LeadService.submit`의 `checkIpBlocked`, 로그는 `recordHit` REQUIRES_NEW로 롤백에도 저장.)
+>   - **M8 HTML 요소 라이브러리(정적 1단계)** — 브랜치 `feature/html-components`(**미병합**).
+>     - 백엔드 `com.leadpot.htmlcomponent`: HtmlComponent 엔티티·Repo·Service(K5)·Controller(`/api/html-components` CRUD)·DTO(Request/Response/Summary), Flyway **V14**(html_components). 동의문서 패턴.
+>     - 프론트: 관리 페이지 `/html-components`(목록/편집, 원본 HTML textarea+미리보기, 분류 HEADER/FOOTER/CTA/CONTENT/ETC) + TopBar "요소" 내비 + `HtmlComponentPicker`(랜딩·폼 HTML 블록 편집기 "저장된 요소 불러오기" 셀렉트 → 복사 삽입=스냅샷, 기존 내용 뒤에 이어붙임).
+>     - 결정(사용자 §0): 삽입=복사 스냅샷 / 위치=랜딩+폼 둘 다 / 편집=원본 HTML textarea. 고정·플로팅은 요소 HTML의 style position.
+>     - **검증(Neon)**: V14 적용 / 생성201·목록(summary·html제외)·상세(html)·수정200·검증400(이름공백)·K5 404·삭제204→조회404 / 백엔드 test·build + 프론트 tsc·prod빌드 통과.
+>     - **남음**: `feature/html-components` → `main` 병합 / 브라우저 시각 확인(선택) / M8 2단계(동적 요소).
+>   - **Neon 테스트 데이터**: 스모크로 쌓인 테스트 계정·폼·리드·차단·요소는 사용자 지시로 **일단 유지**(공유DB, 나중 정리).
 >
 > **✅ 이번 세션(2026-07-24~25) 완료 — 전부 브랜치 `feature/d3-subdomain`(미병합)**:
 >   - **D3 서브도메인**: 가입 시 랜덤 부여·변경(예약어/중복 검증)·공개 해석(`/api/public/sites/{sub}/{id|slug}`)·소유자 미리보기(`/p/{slug}`). 결정: 루트=404 / 식별자=번호+슬러그 / DB=Neon 공유. 검증 완료.

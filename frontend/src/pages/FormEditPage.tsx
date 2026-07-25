@@ -14,6 +14,7 @@ import {
   type FormType,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
 import { ImageUploadField } from "../components/ImageUploadField";
@@ -724,13 +725,16 @@ function BlockFields({
           onChange={onContent}
         />
       );
-    case "HTML":
+    case "HTML": {
+      const curHtml = (block.content?.html as string) ?? "";
       return (
         <div className="field">
           <label>HTML</label>
-          <textarea className="input" rows={3} value={(block.content?.html as string) ?? ""} onChange={(e) => onContent({ html: e.target.value })} />
+          <HtmlComponentPicker onInsert={(h) => onContent({ html: curHtml.trim() ? `${curHtml}\n${h}` : h })} />
+          <textarea className="input" rows={3} value={curHtml} onChange={(e) => onContent({ html: e.target.value })} />
         </div>
       );
+    }
     case "TEXT":
       return (
         <div className="field">

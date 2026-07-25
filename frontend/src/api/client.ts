@@ -302,6 +302,52 @@ export function getPublicConsentDoc(id: number): Promise<ConsentDocument> {
   return request<ConsentDocument>(`/api/public/consent-documents/${id}`, { auth: false });
 }
 
+// ---------- 재사용 HTML 요소 라이브러리(M8) ----------
+export type HtmlComponentCategory = "HEADER" | "FOOTER" | "CTA" | "CONTENT" | "ETC";
+
+export interface HtmlComponentSummary {
+  id: number;
+  name: string;
+  category: HtmlComponentCategory;
+  updatedAt: string;
+}
+export interface HtmlComponent {
+  id: number;
+  name: string;
+  category: HtmlComponentCategory;
+  html: string;
+  updatedAt: string;
+}
+export interface HtmlComponentInput {
+  name: string;
+  category: HtmlComponentCategory;
+  html: string;
+}
+
+export const HTML_COMPONENT_CATEGORIES: { value: HtmlComponentCategory; label: string }[] = [
+  { value: "HEADER", label: "헤더" },
+  { value: "FOOTER", label: "푸터" },
+  { value: "CTA", label: "CTA/버튼" },
+  { value: "CONTENT", label: "본문" },
+  { value: "ETC", label: "기타" },
+];
+
+export function listHtmlComponents(): Promise<HtmlComponentSummary[]> {
+  return request<HtmlComponentSummary[]>("/api/html-components");
+}
+export function getHtmlComponent(id: number): Promise<HtmlComponent> {
+  return request<HtmlComponent>(`/api/html-components/${id}`);
+}
+export function createHtmlComponent(input: HtmlComponentInput): Promise<HtmlComponent> {
+  return request<HtmlComponent>("/api/html-components", { method: "POST", body: input });
+}
+export function updateHtmlComponent(id: number, input: HtmlComponentInput): Promise<HtmlComponent> {
+  return request<HtmlComponent>(`/api/html-components/${id}`, { method: "PUT", body: input });
+}
+export function deleteHtmlComponent(id: number): Promise<void> {
+  return request<void>(`/api/html-components/${id}`, { method: "DELETE" });
+}
+
 // ---------- 리드(수집 데이터) ----------
 export interface LeadAnswer {
   label: string;

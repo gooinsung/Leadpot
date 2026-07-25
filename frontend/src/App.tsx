@@ -7,6 +7,8 @@ import { FormEditPage } from "./pages/FormEditPage";
 import { ConsentDocsListPage } from "./pages/ConsentDocsListPage";
 import { ConsentDocEditPage } from "./pages/ConsentDocEditPage";
 import { ConsentViewPage } from "./pages/ConsentViewPage";
+import { HtmlComponentsListPage } from "./pages/HtmlComponentsListPage";
+import { HtmlComponentEditPage } from "./pages/HtmlComponentEditPage";
 import { LeadsListPage } from "./pages/LeadsListPage";
 import { IpBlocksPage } from "./pages/IpBlocksPage";
 import { PublicFormPage } from "./pages/PublicFormPage";
@@ -90,6 +92,30 @@ function App() {
         element={
           <ProtectedRoute>
             <ConsentDocEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/html-components"
+        element={
+          <ProtectedRoute>
+            <HtmlComponentsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/html-components/new"
+        element={
+          <ProtectedRoute>
+            <HtmlComponentEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/html-components/:id/edit"
+        element={
+          <ProtectedRoute>
+            <HtmlComponentEditPage />
           </ProtectedRoute>
         }
       />

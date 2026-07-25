@@ -117,6 +117,14 @@ ip_block_hits                  -- 차단된 IP의 제출 시도 로그 (확인�
   user_agent, referer
   created_at
 
+html_components                -- 재사용 HTML 요소 라이브러리 (M8, Flyway V14)
+  id
+  owner_id → users             -- 소유자만 관리(K5)
+  name                         -- 관리용 이름
+  category                     -- HEADER | FOOTER | CTA | CONTENT | ETC
+  html                         -- 삽입될 HTML 조각 (랜딩/폼 HTML 블록에 복사 삽입=스냅샷)
+  created_at, updated_at
+
 -- 후기 확장: teams, team_members, lead_assignments, form_field_types(커스텀), webhooks, payments …
 ```
 
@@ -130,6 +138,7 @@ ip_block_hits                  -- 차단된 IP의 제출 시도 로그 (확인�
 - **폼 관리**: 폼 목록 / 폼 생성·편집(유형 선택 → BASIC 항목편집 or STEP 단계편집) / 미리보기
 - **랜딩 관리**: 랜딩 목록·그룹 / 랜딩 편집(상단·하단 구성 + **폼 연결**) / 설정(도메인·SEO·중복·차단·완료페이지)
 - **리드(디비내역)**: 목록·검색·필터·상태변경·엑셀 내보내기 / **IP 차단 관리**(리드폼별 IP·CIDR 차단 + 차단 접속 로그, `/forms/{id}/ip-blocks`)
+- **HTML 요소 라이브러리(M8)**: 재사용 HTML 조각 관리(`/html-components`) → 랜딩·리드폼 HTML 블록에 복사 삽입
 - 통계: 일별·전환·UTM
 - 계정/요금(후기)
 
