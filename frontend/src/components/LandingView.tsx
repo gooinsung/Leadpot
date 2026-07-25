@@ -17,8 +17,24 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
     return fid == null ? undefined : landing.forms[String(fid)];
   };
 
+  // I5 자동 클릭 추적: 랜딩 콘텐츠의 이미지·버튼·링크 클릭을 자동 수집.
+  // 폼 내부·오버레이·오버레이 CTA(form_open으로 별도 집계)는 제외해 중복을 막는다.
+  function handleContentClick(e: React.MouseEvent) {
+    const el = (e.target as HTMLElement | null)?.closest("a, button, img") as HTMLElement | null;
+    if (!el) return;
+    if (el.classList.contains("landing-cta")) return; // 오버레이 CTA = form_open
+    if (el.closest(".landing-form-card, .landing-overlay, form")) return; // 폼 내부 클릭 제외
+    const tag = el.tagName.toLowerCase();
+    let target =
+      tag === "img"
+        ? (el as HTMLImageElement).alt || "이미지"
+        : (el.textContent || "").trim() || (el as HTMLAnchorElement).getAttribute?.("href") || tag;
+    target = (target || tag).slice(0, 80);
+    recordEvent({ landingPageId: landing.id, eventType: "click", target });
+  }
+
   return (
-    <div className="landing-public">
+    <div className="landing-public" onClickCapture={handleContentClick}>
       <div className="landing-public-inner">
         {landing.content.map((b, i) => {
           const ms = blockStyle(b);
