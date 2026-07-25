@@ -14,6 +14,7 @@ import {
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
+import { DynamicSnippetPicker } from "../components/DynamicSnippetPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
@@ -214,7 +215,10 @@ export function LandingEditPage() {
                   {b.type === "HTML" && (
                     <div className="field">
                       <label>HTML</label>
-                      <HtmlComponentPicker onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <HtmlComponentPicker onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
+                        <DynamicSnippetPicker onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
+                      </div>
                       <textarea className="input" rows={3} value={(b.html as string) ?? ""} onChange={(e) => patch(i, { html: e.target.value })} />
                     </div>
                   )}

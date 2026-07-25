@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from "react";
-import { recordEvent, type FormDetail, type LandingBlock, type PublicLanding } from "../api/client";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { getLandingLive, recordEvent, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { PublicFormView } from "./PublicFormView";
 
 /** 블록 여백(위/아래/좌우, px) → 인라인 스타일. */
@@ -11,6 +11,33 @@ function blockStyle(b: LandingBlock): CSSProperties {
 /** 공개 랜딩 렌더(모바일 최적화). 블록 렌더 + 인라인 리드폼 / CTA 오버레이. 데이터 로딩은 상위 페이지가 담당. */
 export function LandingView({ landing }: { landing: PublicLanding }) {
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [live, setLive] = useState<LandingLive | null>(null);
+
+  // 동적 요소(M8) 마커가 콘텐츠에 있으면 실시간 집계를 불러온다.
+  const contentHtml = useMemo(
+    () => landing.content.filter((b) => b.type === "HTML").map((b) => String(b.html || "")).join(" "),
+    [landing],
+  );
+  const needsLive = contentHtml.includes("data-lp-live");
+  const hasToast = contentHtml.includes('data-lp-live="recent-toast"');
+
+  useEffect(() => {
+    if (!needsLive) return;
+    getLandingLive(landing.id).then(setLive).catch(() => {});
+  }, [needsLive, landing.id]);
+
+  // 실시간 값 하이드레이션: HTML 블록 안 data-lp-live 마커 텍스트를 실제 값으로 채운다.
+  useEffect(() => {
+    if (!live || !innerRef.current) return;
+    innerRef.current.querySelectorAll<HTMLElement>('[data-lp-live="count"]').forEach((el) => {
+      el.textContent = live.count.toLocaleString("ko-KR");
+    });
+    innerRef.current.querySelectorAll<HTMLElement>('[data-lp-live="slots"]').forEach((el) => {
+      const target = Number(el.getAttribute("data-target") || "0");
+      el.textContent = String(Math.max(0, target - live.count));
+    });
+  }, [live]);
 
   const formOf = (b: LandingBlock): FormDetail | undefined => {
     const fid = b.formId;
@@ -35,7 +62,8 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
 
   return (
     <div className="landing-public" onClickCapture={handleContentClick}>
-      <div className="landing-public-inner">
+      {hasToast && live && <RecentToast recent={live.recent} />}
+      <div className="landing-public-inner" ref={innerRef}>
         {landing.content.map((b, i) => {
           const ms = blockStyle(b);
           if (b.type === "IMAGE") {
@@ -77,6 +105,54 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 최근 신청자 토스트(우측 상단). 마스킹된 이름을 일정 간격으로 순환 표시(사회적 증거). */
+function RecentToast({ recent }: { recent: { name: string; at: string }[] }) {
+  const [idx, setIdx] = useState(0);
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (recent.length === 0) return;
+    setShow(true);
+    let i = 0;
+    const timer = setInterval(() => {
+      setShow(false);
+      window.setTimeout(() => {
+        i = (i + 1) % recent.length;
+        setIdx(i);
+        setShow(true);
+      }, 300);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [recent]);
+
+  if (recent.length === 0) return null;
+  const r = recent[idx] ?? recent[0];
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 16,
+        right: 16,
+        zIndex: 10000,
+        background: "var(--surface, #fff)",
+        color: "var(--text, #14161f)",
+        border: "1px solid var(--border, #e2e5f2)",
+        borderRadius: 12,
+        boxShadow: "0 8px 24px rgba(0,0,0,.15)",
+        padding: "10px 14px",
+        fontSize: 13,
+        maxWidth: 260,
+        opacity: show ? 1 : 0,
+        transform: show ? "translateY(0)" : "translateY(-8px)",
+        transition: "opacity .3s, transform .3s",
+        pointerEvents: "none",
+      }}
+    >
+      🎉 <b>{r.name}</b>님이 방금 신청했어요
     </div>
   );
 }

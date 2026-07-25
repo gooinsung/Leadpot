@@ -16,6 +16,11 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
 
     long countByFormId(Long formId);
 
+    // 동적 요소(M8): 랜딩 연결폼들의 활성 리드 수 / 최근 리드 (실시간 신청수·최근 신청자·남은 자리)
+    long countByFormIdInAndDeletedAtIsNull(java.util.Collection<Long> formIds);
+
+    List<Lead> findTop10ByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(java.util.Collection<Long> formIds);
+
     // 중복 방지: 기간 내 활성 리드(항목 값 대조용). 휴지통 리드는 중복으로 보지 않음.
     List<Lead> findByFormIdAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(Long formId, java.time.Instant after);
 

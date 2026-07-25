@@ -602,6 +602,16 @@ export function getLandingPreview(slug: string): Promise<PublicLanding> {
   return request<PublicLanding>(`/api/landings/preview/${encodeURIComponent(slug)}`);
 }
 
+// ---------- 동적 요소(M8) 실시간 집계 ----------
+export interface LandingLive {
+  count: number; // 연결폼 활성 리드 수
+  recent: { name: string; at: string }[]; // 최근 신청자(이름 마스킹)
+}
+/** 공개 랜딩 동적 요소용 실시간 집계(비로그인). 신청수·최근 신청자. */
+export function getLandingLive(id: number): Promise<LandingLive> {
+  return request<LandingLive>(`/api/public/landings/${id}/live`, { auth: false });
+}
+
 // ---------- 통계 ----------
 export interface StatCount {
   key: string;

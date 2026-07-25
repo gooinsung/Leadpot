@@ -15,24 +15,86 @@ import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.FormRepository;
 import com.leadpot.form.dto.FormResponse;
+import com.leadpot.landing.dto.LandingLiveResponse;
 import com.leadpot.landing.dto.LandingRequest;
 import com.leadpot.landing.dto.LandingResponse;
 import com.leadpot.landing.dto.LandingSummary;
 import com.leadpot.landing.dto.PublicLandingResponse;
+import com.leadpot.lead.Lead;
+import com.leadpot.lead.LeadRepository;
 
-/** 랜딩 CRUD(본인만 K5) + 공개 렌더(FORM 블록의 리드폼 정의 함께 반환). */
+/** 랜딩 CRUD(본인만 K5) + 공개 렌더(FORM 블록의 리드폼 정의 함께 반환) + 동적 요소 실시간 집계. */
 @Service
 public class LandingService {
 
     private final LandingPageRepository landingRepository;
     private final FormRepository formRepository;
     private final UserRepository userRepository;
+    private final LeadRepository leadRepository;
 
     public LandingService(LandingPageRepository landingRepository, FormRepository formRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository, LeadRepository leadRepository) {
         this.landingRepository = landingRepository;
         this.formRepository = formRepository;
         this.userRepository = userRepository;
+        this.leadRepository = leadRepository;
+    }
+
+    /**
+     * 동적 요소(M8)용 실시간 집계: 랜딩에 연결된 리드폼들의 활성 리드 수 + 최근 신청자(첫 항목 마스킹).
+     * 공개 조회(비로그인). 개인정보 최소화를 위해 이름은 첫 글자만 노출한다.
+     */
+    @Transactional(readOnly = true)
+    public LandingLiveResponse live(Long landingId) {
+        LandingPage landing = landingId == null ? null : landingRepository.findById(landingId).orElse(null);
+        if (landing == null || landing.getContent() == null) {
+            return new LandingLiveResponse(0, List.of());
+        }
+        java.util.LinkedHashSet<Long> formIds = new java.util.LinkedHashSet<>();
+        for (Map<String, Object> block : landing.getContent()) {
+            if ("FORM".equals(String.valueOf(block.get("type")))) {
+                Long fid = toLong(block.get("formId"));
+                if (fid != null) {
+                    formIds.add(fid);
+                }
+            }
+        }
+        if (formIds.isEmpty()) {
+            return new LandingLiveResponse(0, List.of());
+        }
+        long count = leadRepository.countByFormIdInAndDeletedAtIsNull(formIds);
+        List<LandingLiveResponse.Recent> recent = leadRepository
+                .findTop10ByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(formIds).stream()
+                .map(l -> new LandingLiveResponse.Recent(maskName(firstAnswer(l)), l.getCreatedAt()))
+                .toList();
+        return new LandingLiveResponse(count, recent);
+    }
+
+    /** 리드의 첫 번째(=리드폼 첫 항목) 답변 값. */
+    private static String firstAnswer(Lead l) {
+        if (l.getAnswers() == null) {
+            return "";
+        }
+        for (Map<String, Object> a : l.getAnswers()) {
+            Object v = a.get("value");
+            if (v != null && !v.toString().isBlank()) {
+                return v.toString();
+            }
+        }
+        return "";
+    }
+
+    /** 이름 마스킹: 첫 글자만 노출(예: 김철수 → 김**). 개인정보 보호. */
+    private static String maskName(String s) {
+        if (s == null || s.isBlank()) {
+            return "익명";
+        }
+        String t = s.trim();
+        if (t.length() <= 1) {
+            return t + "*";
+        }
+        int stars = Math.min(3, t.length() - 1);
+        return t.substring(0, 1) + "*".repeat(stars);
     }
 
     @Transactional(readOnly = true)

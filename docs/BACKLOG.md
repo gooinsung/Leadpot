@@ -117,7 +117,7 @@
   - 관리: `html_components`(owner_id·name·category·html, Flyway V14) + CRUD `/api/html-components`(본인만 K5) + 관리 페이지 `/html-components`(목록/생성/편집, 원본 HTML textarea + 미리보기). 동의문서 패턴.
   - 삽입: **복사 삽입(스냅샷)** — 랜딩/폼 HTML 블록 편집기의 `HtmlComponentPicker` 셀렉트에서 요소 선택 → 그 시점 HTML을 블록에 이어붙임(이후 라이브러리 수정은 이미 삽입된 곳에 영향 없음).
   - 결정(사용자 §0): 삽입=복사 스냅샷 / 사용 위치=랜딩+폼 둘 다 / 편집=원본 HTML textarea. 고정/플로팅은 요소 HTML의 `style` position 으로 처리.
-  - **남음(2단계)**: 동적 요소(신청현황=실시간 리드 수 티커, 최근 신청자, 남은 자리 등) — 런타임 데이터 필요.
+  - **2단계 완료**: 동적 요소 — 랜딩 HTML 블록의 '동적 요소 삽입' 셀렉트로 삽입. **실시간 신청 수**·**남은 자리(목표−현재)**·**최근 신청자 토스트(우측 상단, 이름 마스킹)**·**플로팅 헤더/푸터**. 공개 랜딩(LandingView)이 `data-lp-live` 마커를 `GET /api/public/landings/{id}/live`(연결폼 활성 리드 수 + 최근 마스킹) 데이터로 하이드레이션. 브라우저 검증 완료.
 
 ---
 
