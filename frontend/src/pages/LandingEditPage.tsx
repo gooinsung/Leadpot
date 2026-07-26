@@ -17,7 +17,6 @@ import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { DynamicSnippetPicker } from "../components/DynamicSnippetPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
-import { PixelFields } from "../components/PixelFields";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { useAuth } from "../lib/authContext";
 
@@ -49,7 +48,6 @@ export function LandingEditPage() {
   const [title, setTitle] = useState("새 랜딩");
   const [status, setStatus] = useState("published");
   const [slug, setSlug] = useState(""); // 공개 주소. 비우면 서버가 자동 생성(신규). 편집 시 현재 slug 로드.
-  const [tracking, setTracking] = useState<Record<string, unknown> | null>(null); // 광고 픽셀
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
@@ -77,7 +75,6 @@ export function LandingEditPage() {
         setTitle(l.title);
         setStatus(l.status);
         setSlug(l.slug ?? "");
-        setTracking(l.tracking ?? null);
         setBlocks(l.content ?? []);
       })
       .catch(() => setError("랜딩을 불러오지 못했습니다."))
@@ -133,7 +130,7 @@ export function LandingEditPage() {
     setError("");
     setSaving(true);
     try {
-      const payload = { title, content: blocks, status, slug: slug.trim() || undefined, tracking: tracking ?? undefined };
+      const payload = { title, content: blocks, status, slug: slug.trim() || undefined };
       if (isNew) await createLanding(payload);
       else await updateLanding(Number(id), payload);
       setDirty(false);
@@ -184,11 +181,6 @@ export function LandingEditPage() {
               {" "}(랜딩번호로도 접속 가능)
             </span>
           </div>
-        </div>
-
-        <div className="card card-pad" style={{ marginBottom: 16 }}>
-          <div className="card-h">광고 픽셀 (선택)</div>
-          <PixelFields value={tracking} onChange={(next) => { setTracking(next); setDirty(true); }} />
         </div>
 
         <div className="edit-grid">

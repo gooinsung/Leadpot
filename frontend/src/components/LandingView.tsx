@@ -89,7 +89,7 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
             }
             return (
               <div key={i} className="landing-form-card" style={ms}>
-                <PublicFormView form={form} landingPageId={landing.id} trackingConfig={landing.tracking} />
+                <PublicFormView form={form} landingPageId={landing.id} trackingConfig={form.trackingConfig} />
               </div>
             );
           }
@@ -101,7 +101,7 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
         <div className="landing-overlay" onClick={() => setOverlayForm(null)}>
           <div className="landing-overlay-card" onClick={(e) => e.stopPropagation()}>
             <button className="landing-overlay-close" type="button" onClick={() => setOverlayForm(null)} aria-label="닫기">×</button>
-            <PublicFormView form={overlayForm} landingPageId={landing.id} trackingConfig={landing.tracking} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
+            <PublicFormView form={overlayForm} landingPageId={landing.id} trackingConfig={overlayForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
           </div>
         </div>
       )}
