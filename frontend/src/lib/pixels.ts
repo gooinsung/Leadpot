@@ -22,17 +22,28 @@ function val(cfg: unknown, key: string): string {
   return v == null ? "" : String(v).trim();
 }
 
+/**
+ * Google Ads 전환 send_to 값 추출.
+ * 'AW-123456/LABEL' 은 그대로, 통째로 붙여넣은 스니펫(gtag('event','conversion',{send_to:'...'}))에서도 뽑아낸다.
+ */
+function parseSendTo(raw: string): string {
+  if (!raw) return "";
+  const m = raw.match(/AW-[\w-]+\/[\w-]+/);
+  return m ? m[0] : raw.trim();
+}
+
 let initialized = false;
 
 /** 공개 페이지 로드 시 1회: 설정된 픽셀 스크립트 삽입 + PageView. */
 export function initPixels(cfg: unknown): void {
   if (initialized || !cfg) return;
   const google = val(cfg, "google");
+  const googleAds = parseSendTo(val(cfg, "googleAds")); // AW-123/LABEL (Google Ads 전환)
   const meta = val(cfg, "meta");
   const tiktok = val(cfg, "tiktok");
   const kakao = val(cfg, "kakao");
   const daangn = val(cfg, "daangn");
-  if (!(google || meta || tiktok || kakao || daangn)) return;
+  if (!(google || googleAds || meta || tiktok || kakao || daangn)) return;
   initialized = true;
 
   const w = window as any;
@@ -55,16 +66,21 @@ export function initPixels(cfg: unknown): void {
     } catch { /* 픽셀 실패는 무시 */ }
   }
 
-  if (google) {
+  // 구글: GA4 측정ID(G-)/Google Ads ID(AW-) 페이지 태그 + Google Ads 전환용 태그.
+  // google 필드가 비어도 전환(googleAds)만 있으면 그 AW-ID 로 gtag 를 로드·구성한다.
+  const awId = googleAds ? googleAds.split("/")[0] : ""; // AW-17818553855
+  const gtagLoaderId = google || awId;
+  if (gtagLoaderId) {
     try {
       const s = d.createElement("script");
       s.async = true;
-      s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(google);
+      s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(gtagLoaderId);
       d.head.appendChild(s);
       w.dataLayer = w.dataLayer || [];
       w.gtag = w.gtag || function () { w.dataLayer.push(arguments); };
       w.gtag("js", new Date());
-      w.gtag("config", google);
+      if (google) w.gtag("config", google);
+      if (awId && awId !== google) w.gtag("config", awId); // 전환용 AW 태그 구성
     } catch { /* ignore */ }
   }
 
@@ -125,12 +141,15 @@ export function firePixelLead(cfg: unknown): void {
   if (!cfg) return;
   const w = window as any;
   const google = val(cfg, "google");
+  const googleAds = parseSendTo(val(cfg, "googleAds"));
   const meta = val(cfg, "meta");
   const tiktok = val(cfg, "tiktok");
   const kakao = val(cfg, "kakao");
   const daangn = val(cfg, "daangn");
   try { if (meta && w.fbq) w.fbq("track", "Lead"); } catch { /* ignore */ }
   try { if (google && w.gtag) w.gtag("event", "generate_lead"); } catch { /* ignore */ }
+  // Google Ads 전환: send_to=AW-ID/LABEL 로 conversion 이벤트 발사(광고 전환 카운트).
+  try { if (googleAds && w.gtag) w.gtag("event", "conversion", { send_to: googleAds }); } catch { /* ignore */ }
   try { if (tiktok && w.ttq) w.ttq.track("SubmitForm"); } catch { /* ignore */ }
   try { if (kakao && w.kakaoPixel) w.kakaoPixel(kakao).completeRegistration(); } catch { /* ignore */ }
   try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track("CompleteRegistration"); } catch { /* ignore */ }

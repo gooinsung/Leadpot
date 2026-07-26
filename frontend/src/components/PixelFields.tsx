@@ -1,7 +1,8 @@
 import type { ChangeEvent } from "react";
 
 const PLATFORMS: { key: string; label: string; ph: string }[] = [
-  { key: "google", label: "구글 (Google Ads / GA4)", ph: "예: G-XXXXXXX 또는 AW-XXXXXXXXX" },
+  { key: "google", label: "구글 (GA4 측정ID / Google Ads ID)", ph: "예: G-XXXXXXX 또는 AW-XXXXXXXXX" },
+  { key: "googleAds", label: "구글 Ads 전환 (선택)", ph: "예: AW-17818553855/R3jqCMa2mZccEP-bxrBC" },
   { key: "meta", label: "메타 (페이스북/인스타) 픽셀 ID", ph: "예: 123456789012345" },
   { key: "tiktok", label: "틱톡 픽셀 ID", ph: "예: CXXXXXXXXXXXXXXXXXXX" },
   { key: "kakao", label: "카카오 픽셀 ID", ph: "예: 1234567890123456789" },
@@ -43,6 +44,9 @@ export function PixelFields({
       <p className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
         입력한 픽셀은 공개 페이지에 삽입되어 방문(PageView)과 리드 제출 시 전환(Lead)을 각 플랫폼에 전송합니다.
         전환 귀속은 각 플랫폼이 광고 클릭 기준으로 자체 판단하므로 여러 개를 동시에 넣어도 됩니다. 비워두면 미사용.
+        <br />
+        <b>구글 Ads 전환</b>: Google Ads 전환 스니펫의 <code>send_to</code> 값(<code>AW-전환ID/전환라벨</code>)을 붙여넣으세요.
+        스니펫 전체를 붙여넣어도 값만 자동 추출합니다. 리드 제출 시 <code>conversion</code> 이벤트로 발사됩니다.
       </p>
     </div>
   );
