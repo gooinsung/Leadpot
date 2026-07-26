@@ -13,7 +13,7 @@
   - **⚙️ 이 PC 환경 세팅(gooinsung PC = `C:\Users\gooinsung\git\Leadpot`)**: JDK21(`C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`, winget) 설치, `npm install` 완료. Docker/WSL은 미설치(Neon 쓰므로 불필요).
   - **❗ 로컬 실행 필수 플래그**: 이 PC는 기본 임시폴더 경로가 길어 JDK21 NIO의 AF_UNIX self-pipe가 실패("Unable to establish loopback connection") → **사용자 환경변수 `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:\Temp` 설정으로 해결**(설정 완료). 새 셸부터 자동 적용. (Java NIO 서버 전반에 필요)
   - **▶️ 로컬 실행법(현재)**: `C:\Temp` 존재 + 위 env 적용 상태에서 — 백엔드 `cd backend; $env:SPRING_PROFILES_ACTIVE='local'; .\gradlew.bat bootRun` (→ :8080, Neon 연결) / 프론트 `cd frontend; npm run dev` (→ :5173). 서브도메인 테스트는 `http://{내서브도메인}.localhost:5173/{랜딩번호}`.
-  - **남은 것**: `feature/d3-subdomain` → `main` PR 병합 / SPEC·FEATURES 문서에 D3 반영 / 배포용 와일드카드 DNS·SSL(사용자 리소스, 나중).
+  - **✅ D3 `main` 병합 완료**(현재 main에 `auth/Subdomains.java`·`PublicSiteController` 포함). 남은 것: SPEC·FEATURES 문서에 D3 반영 / 배포용 와일드카드 DNS·SSL(사용자 리소스, 나중).
 - **현재 위치**: **핵심 루프(폼 공개→제출→리드 수집→조회) 완성 ✅** — 실제 데이터가 쌓임(방문자정보 포함) + **통계 대시보드 ✅**
 - **완료**: Phase 1 인증 ✅ / Phase 2 폼 빌더 ✅ / **리드 수집(Phase 4 앞당김) ✅** / **Phase 3 랜딩 빌더 & 폼 연결 ✅** / **리드 상태변경·CSV 내보내기 ✅** / **이미지 업로드 R2 연동(경로 구조화 landing-image/YYYY/MM/DD) ✅** / **통계 고도화(방문 추적+전환율+순방문·트래픽 분리+일/주/월+호버툴팁+기간/대상 필터+랜딩/폼별) ✅** / **동의문서 이름/제목/내용 분리 ✅** / **IP 차단(K2) — 리드폼별·CIDR·사유·차단 로그 ✅**
 - **추가 폼 개선(2026-07-24)**: 공개 폼 이름 숨김 · 동의 항목 기본체크 설정 · 공개 폼 모바일 최적화(1차) · **스텝형 답변 방식 확장**(카드 단일/다중 + 선택박스·텍스트·장문·연락처·이메일·숫자·날짜) · **마지막 단계 커스텀 안내문구**(typeConfig.contactMessage) · 스텝 입력형 간격 개선 · **중복 제출 방지(K3)**: 항목별 중복허용/유효기간 + 폼 동일IP 접수허용(settings_config, Flyway V6)
@@ -24,6 +24,14 @@
 > 1. **I5 노출 임프레션 추적** — 요소가 화면에 보인 횟수(IntersectionObserver). 현재는 클릭만.
 > 2. **리드 관리 고도화** — 리드 상세/메모, 리드별 태그 등.
 > 3. **기타 BACKLOG 미완 항목** — F 팀 CRM(후기), G 파티 등은 규모 큼.
+>
+> **✅ 이번 세션(2026-07-26) 완료 — 전부 `main` 병합·푸시됨** (커밋 `970942a` 최신):
+>   - **랜딩 slug 한글 허용**: `LandingService.resolveSlug` 검증을 한글(가-힣)+영소문자+숫자+하이픈, 2~120자로 확장. URL 조회는 이미 encode/decode 되어 동작. 편집기 placeholder 갱신. (커밋 `46585af`)
+>   - **픽셀을 리드폼 단일 출처로 정리(사용자 결정)**: 랜딩 픽셀 개념 제거. 랜딩에 포함된 리드폼의 픽셀이 랜딩에서도 잡히도록 변경 — `PublicSitePage`는 포함 폼들의 픽셀을 병합(`mergeFormPixels`)해 PageView 1회, `LandingView`는 인라인/오버레이 폼 모두 `form.trackingConfig`로 Lead 발사. `LandingEditPage`의 '광고 픽셀' UI 제거. (커밋 `cbd1afb`) ※백엔드 `landing_pages.tracking` 컬럼은 남지만 미사용.
+>   - **당근 픽셀 버그 수정**: 스크립트 URL이 `web-pixel.business.daangn.com/0.0`(미존재)이라 SDK 미로드 → `window.karrotPixel` 미정의로 전부 미발사였음. 공식 `karrot-pixel.business.daangn.com/0.2`로 교정, 전환 이벤트 `SubmitApplication`→표준 `CompleteRegistration`. (커밋 `d7728c0`)
+>   - **구글 Ads 전환(conversion) 지원**: 기존엔 `generate_lead`(GA4)만 쏴서 Google Ads 전환이 미집계. 리드폼 광고픽셀에 '구글 Ads 전환' 필드(`send_to`=`AW-전환ID/라벨`) 추가 — 스니펫 통째로 붙여넣어도 `parseSendTo`로 추출, google 필드 비어도 AW-ID로 gtag 로드·config, 리드 제출 시 `gtag('event','conversion',{send_to})` 발사. (커밋 `970942a`)
+>   - **DB 접속**: Neon 접속정보를 이 PC의 `backend/application-local.properties`에 직접 채움(gitignore·커밋금지). Flyway는 V15까지 이미 Neon 반영됨(신규 마이그레이션 없음). 백엔드는 `local` 프로필로 기동.
+>   - **검증**: 프론트 `tsc -b` + prod(embed 포함) 빌드 통과 / 백엔드 `local` 기동·헬스 UP. 픽셀 실동작은 사용자 실데이터(Neon)라 브라우저 실측 자제 — **Google Tag Assistant**로 확인 권장.
 >
 > **배포 후로 미룬 것**: **I3 SEO**(메타·OG·사이트맵) — 실제 도메인+엣지렌더 없이는 효과 없음(사용자와 합의, 2026-07-25).
 > **✅ 2026-07-25 세션에서 K2·M8(정적+동적)·M6·I4·I5·E3(중복) 완료 — 전부 `main` 병합·푸시. Flyway V15까지.**
