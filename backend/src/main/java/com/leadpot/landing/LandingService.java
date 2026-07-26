@@ -204,10 +204,13 @@ public class LandingService {
         if (requested == null || requested.isBlank()) {
             return generateSlug(title);
         }
-        String s = requested.trim().toLowerCase();
-        if (!s.matches("^[a-z0-9][a-z0-9-]{1,118}[a-z0-9]$")) {
+        // 영문은 소문자로 정규화(한글은 대소문자 개념이 없어 영향 없음).
+        String s = requested.trim().toLowerCase(java.util.Locale.ROOT);
+        // 허용: 한글(가-힣)·영소문자·숫자·하이픈. 하이픈으로 시작/끝 불가. 2~120자.
+        if (s.length() < 2 || s.length() > 120
+                || !s.matches("^[a-z0-9가-힣][a-z0-9가-힣-]*[a-z0-9가-힣]$")) {
             throw new InvalidSubmissionException(
-                    "주소(slug)는 소문자·숫자·하이픈 3~120자여야 하며, 하이픈으로 시작하거나 끝날 수 없습니다.");
+                    "주소(slug)는 한글·소문자·숫자·하이픈 2~120자여야 하며, 하이픈으로 시작하거나 끝날 수 없습니다.");
         }
         boolean taken = landingRepository.findBySlug(s)
                 .map(l -> excludeId == null || !l.getId().equals(excludeId))

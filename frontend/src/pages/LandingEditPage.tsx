@@ -175,7 +175,7 @@ export function LandingEditPage() {
               className="input"
               value={slug}
               onChange={(e) => { setSlug(e.target.value); setDirty(true); }}
-              placeholder="예: summer-event (소문자·숫자·하이픈)"
+              placeholder="예: summer-event 또는 여름이벤트 (한글·소문자·숫자·하이픈)"
               spellCheck={false}
               autoCapitalize="none"
             />
