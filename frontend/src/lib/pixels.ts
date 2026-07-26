@@ -108,7 +108,7 @@ export function initPixels(cfg: unknown): void {
     try {
       const s = d.createElement("script");
       s.async = true;
-      s.src = "https://web-pixel.business.daangn.com/0.0/karrot-pixel.umd.js";
+      s.src = "https://karrot-pixel.business.daangn.com/0.2/karrot-pixel.umd.js";
       s.onload = function () {
         try {
           w.karrotPixel && w.karrotPixel.init && w.karrotPixel.init(daangn);
@@ -133,5 +133,5 @@ export function firePixelLead(cfg: unknown): void {
   try { if (google && w.gtag) w.gtag("event", "generate_lead"); } catch { /* ignore */ }
   try { if (tiktok && w.ttq) w.ttq.track("SubmitForm"); } catch { /* ignore */ }
   try { if (kakao && w.kakaoPixel) w.kakaoPixel(kakao).completeRegistration(); } catch { /* ignore */ }
-  try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track("SubmitApplication"); } catch { /* ignore */ }
+  try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track("CompleteRegistration"); } catch { /* ignore */ }
 }
