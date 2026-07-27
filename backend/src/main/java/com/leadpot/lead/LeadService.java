@@ -15,11 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.Form;
+import com.leadpot.form.FormBlock;
 import com.leadpot.form.FormService;
 import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormResponse;
+import com.leadpot.integration.NotificationService;
 import com.leadpot.ipblock.IpBlockService;
 import com.leadpot.lead.dto.ImportResult;
+import com.leadpot.lead.dto.LeadNoteResponse;
 import com.leadpot.lead.dto.LeadResponse;
 import com.leadpot.lead.dto.LeadSubmitRequest;
 
@@ -28,13 +31,18 @@ import com.leadpot.lead.dto.LeadSubmitRequest;
 public class LeadService {
 
     private final LeadRepository leadRepository;
+    private final LeadNoteRepository leadNoteRepository;
     private final FormService formService;
     private final IpBlockService ipBlockService;
+    private final NotificationService notificationService;
 
-    public LeadService(LeadRepository leadRepository, FormService formService, IpBlockService ipBlockService) {
+    public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
+            FormService formService, IpBlockService ipBlockService, NotificationService notificationService) {
         this.leadRepository = leadRepository;
+        this.leadNoteRepository = leadNoteRepository;
         this.formService = formService;
         this.ipBlockService = ipBlockService;
+        this.notificationService = notificationService;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -67,8 +75,49 @@ public class LeadService {
 
         leadRepository.save(lead);
 
-        // TODO(통합): 리드 접수 훅 — 추후 구글시트 append / 텔레그램·카톡 알림 발송 지점.
+        // 리드 접수 훅 — 커밋 후 비동기로 텔레그램/구글시트 알림(best-effort). 접수를 방해하지 않는다.
+        notificationService.notifyNewLead(form, lead, () -> isLikelyDuplicate(form, req));
         return lead.getId();
+    }
+
+    /**
+     * 알림용 중복 판정: 신원 식별 항목(연락처·이메일 유형 또는 중복 불허 항목)의 값이
+     * 이 리드폼의 기존(휴지통 제외) 리드에 이미 있으면 중복으로 본다. best-effort — 실패 시 false.
+     */
+    private boolean isLikelyDuplicate(Form form, LeadSubmitRequest req) {
+        try {
+            List<Map<String, Object>> answers = req.answersOrEmpty();
+            List<String> identityLabels = form.getBlocks().stream()
+                    .filter(b -> "FIELD".equals(b.getBlockType().name()))
+                    .filter(b -> {
+                        String ft = b.getFieldType();
+                        boolean contact = "tel".equals(ft) || "email".equals(ft);
+                        boolean noDup = b.getOptions() != null
+                                && Boolean.FALSE.equals(b.getOptions().get("allowDuplicate"));
+                        return contact || noDup;
+                    })
+                    .map(FormBlock::getLabel)
+                    .filter(l -> l != null && !l.isBlank())
+                    .toList();
+            if (identityLabels.isEmpty()) {
+                return false;
+            }
+            List<Lead> existing = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(form.getId());
+            for (String label : identityLabels) {
+                String value = valueByLabel(answers, label);
+                if (value.isBlank()) {
+                    continue;
+                }
+                boolean dup = existing.stream().anyMatch(l -> l.getAnswers() != null && l.getAnswers().stream()
+                        .anyMatch(a -> label.equals(str(a.get("label"))) && value.equals(str(a.get("value")))));
+                if (dup) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** 리드 목록. trashed=휴지통 여부, status=상태 필터(빈값=전체), q=답변 값/라벨 부분검색. */
@@ -144,7 +193,7 @@ public class LeadService {
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.of("Asia/Seoul"));
 
-    /** 리드 상태 변경 (본인 리드폼의 리드만 K5). */
+    /** 리드 상태 변경 (본인 리드폼의 리드만 K5). 변경 이력을 자동 메모(SYSTEM)로 남긴다. */
     @Transactional
     public void updateStatus(Long ownerId, Long leadId, String status) {
         if (!STATUSES.contains(status)) {
@@ -153,7 +202,75 @@ public class LeadService {
         Lead lead = leadRepository.findById(leadId)
                 .orElseThrow(() -> new NotFoundException("리드를 찾을 수 없습니다."));
         formService.get(ownerId, lead.getFormId()); // 소유권 확인(아니면 404)
-        lead.setStatus(status);
+        String before = lead.getStatus();
+        if (!status.equals(before)) {
+            lead.setStatus(status);
+            leadNoteRepository.save(new LeadNote(leadId, ownerId, LeadNote.KIND_SYSTEM,
+                    "상태 변경: " + STATUS_KR.getOrDefault(before, before) + " → " + STATUS_KR.getOrDefault(status, status)));
+        }
+    }
+
+    // ---------- 리드 상세 / 메모(이력) / 태그 (본인 리드폼만 K5) ----------
+
+    /** 리드 단건 상세(본인 리드폼만). */
+    @Transactional(readOnly = true)
+    public LeadResponse getOne(Long ownerId, Long leadId) {
+        return LeadResponse.from(requireOwnedLead(ownerId, leadId));
+    }
+
+    /** 리드 메모/이력 목록(오래된 순). */
+    @Transactional(readOnly = true)
+    public List<LeadNoteResponse> listNotes(Long ownerId, Long leadId) {
+        requireOwnedLead(ownerId, leadId);
+        return leadNoteRepository.findByLeadIdOrderByCreatedAtAsc(leadId)
+                .stream().map(LeadNoteResponse::from).toList();
+    }
+
+    /** 사용자 메모 추가. */
+    @Transactional
+    public LeadNoteResponse addNote(Long ownerId, Long leadId, String body) {
+        requireOwnedLead(ownerId, leadId);
+        String text = body == null ? "" : body.trim();
+        if (text.isEmpty()) {
+            throw new InvalidSubmissionException("메모 내용을 입력해주세요.");
+        }
+        LeadNote note = leadNoteRepository.save(new LeadNote(leadId, ownerId, LeadNote.KIND_MEMO, text));
+        return LeadNoteResponse.from(note);
+    }
+
+    /** 메모 삭제(사용자 메모만 삭제 가능, 자동 이력(SYSTEM)은 보존). */
+    @Transactional
+    public void deleteNote(Long ownerId, Long leadId, Long noteId) {
+        requireOwnedLead(ownerId, leadId);
+        LeadNote note = leadNoteRepository.findById(noteId)
+                .orElseThrow(() -> new NotFoundException("메모를 찾을 수 없습니다."));
+        if (!leadId.equals(note.getLeadId()) || !ownerId.equals(note.getOwnerId())) {
+            throw new NotFoundException("메모를 찾을 수 없습니다.");
+        }
+        if (LeadNote.KIND_SYSTEM.equals(note.getKind())) {
+            throw new InvalidSubmissionException("자동 이력은 삭제할 수 없습니다.");
+        }
+        leadNoteRepository.delete(note);
+    }
+
+    /** 리드 태그 교체(공백 제거·중복 제거, 최대 20개·각 40자). */
+    @Transactional
+    public LeadResponse updateTags(Long ownerId, Long leadId, List<String> tags) {
+        Lead lead = requireOwnedLead(ownerId, leadId);
+        List<String> cleaned = new java.util.ArrayList<>();
+        if (tags != null) {
+            for (String t : tags) {
+                String v = t == null ? "" : t.trim();
+                if (!v.isEmpty() && !cleaned.contains(v)) {
+                    cleaned.add(cut(v, 40));
+                }
+                if (cleaned.size() >= 20) {
+                    break;
+                }
+            }
+        }
+        lead.setTags(cleaned.isEmpty() ? null : cleaned);
+        return LeadResponse.from(lead);
     }
 
     /** 리드폼의 리드를 CSV 로 내보낸다(본인 리드폼만). 항목 컬럼은 리드폼 정의 순서. */

@@ -1017,6 +1017,76 @@ td.num {
 .lead-status-select.b-wait { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
 .lead-status-select.b-bad { background: var(--rose-soft); color: var(--rose); border-color: transparent; }
 
+/* 리드 상세 모달 */
+.lead-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+.lead-modal {
+  width: 100%;
+  max-width: 640px;
+  padding: 0;
+  overflow: hidden;
+}
+.lead-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.lead-modal-body {
+  padding: 18px 22px 24px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+.tag-x {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+.tag-x:hover { opacity: 1; }
+.lead-notes {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lead-note {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+}
+.lead-note.sys { opacity: 0.9; }
+.lead-note-body {
+  font-size: 14px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.lead-note-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
 /* 유형 세그먼트 */
 .type-seg {
   display: inline-flex;

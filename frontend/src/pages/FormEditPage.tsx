@@ -120,6 +120,7 @@ export function FormEditPage() {
   const [requirePhone, setRequirePhone] = useState(false);
   const [allowSameIp, setAllowSameIp] = useState(true);
   const [ipDedupDays, setIpDedupDays] = useState(0);
+  const [notifyEnabled, setNotifyEnabled] = useState(true);
   const [tracking, setTracking] = useState<Record<string, unknown> | null>(null); // 광고 픽셀
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -144,6 +145,7 @@ export function FormEditPage() {
         setRequirePhone(Boolean(f.requirePhoneVerification));
         setAllowSameIp(f.settingsConfig?.allowSameIp !== false);
         setIpDedupDays(Number(f.settingsConfig?.ipDedupDays) || 0);
+        setNotifyEnabled(f.settingsConfig?.notifyEnabled !== false);
         setTracking(f.trackingConfig ?? null);
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
@@ -280,7 +282,7 @@ export function FormEditPage() {
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
     styleConfig: { buttonColor, accentColor },
     typeConfig: { contactMessage },
-    settingsConfig: { allowSameIp, ipDedupDays },
+    settingsConfig: { allowSameIp, ipDedupDays, notifyEnabled },
     trackingConfig: tracking ?? undefined,
     blocks: builtBlocks,
   };
@@ -560,6 +562,12 @@ export function FormEditPage() {
                   </div>
                 )}
               </div>
+              <label className="fr-check" style={{ marginTop: 14 }}>
+                <input type="checkbox" checked={notifyEnabled} onChange={(e) => setNotifyEnabled(e.target.checked)} /> 새 리드 알림 받기 (텔레그램·구글시트)
+              </label>
+              <p className="dash-sub" style={{ marginTop: 6 }}>
+                이 리드폼에 접수되면 <b>연동</b> 메뉴에 설정한 채널로 알림을 보냅니다. (계정 연동이 켜져 있어야 발송)
+              </p>
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }}>

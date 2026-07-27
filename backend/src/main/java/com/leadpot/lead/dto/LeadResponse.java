@@ -21,6 +21,7 @@ public record LeadResponse(
         String language,
         String referer,
         Map<String, Object> utm,
+        List<String> tags,
         Instant createdAt) {
 
     public static LeadResponse from(Lead l) {
@@ -38,6 +39,7 @@ public record LeadResponse(
                 l.getLanguage(),
                 l.getReferer(),
                 l.getUtm(),
+                l.getTags(),
                 l.getCreatedAt());
     }
 }

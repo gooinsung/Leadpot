@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.leadpot.lead.dto.ImportResult;
+import com.leadpot.lead.dto.LeadNoteResponse;
 import com.leadpot.lead.dto.LeadResponse;
 
 /** 리드 조회·관리 API (로그인 필요, 본인 리드폼의 리드만 K5). */
@@ -48,6 +50,40 @@ public class LeadController {
     @GetMapping("/count")
     public Map<String, Long> count(@AuthenticationPrincipal Jwt jwt) {
         return Map.of("total", leadService.countByOwner(userId(jwt)));
+    }
+
+    /** 리드 단건 상세(본인 리드폼만). */
+    @GetMapping("/{id}")
+    public LeadResponse getOne(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return leadService.getOne(userId(jwt), id);
+    }
+
+    /** 리드 메모/이력 목록. */
+    @GetMapping("/{id}/notes")
+    public List<LeadNoteResponse> notes(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return leadService.listNotes(userId(jwt), id);
+    }
+
+    /** 사용자 메모 추가. body: {"body": "..."} */
+    @PostMapping("/{id}/notes")
+    public LeadNoteResponse addNote(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        return leadService.addNote(userId(jwt), id, body.get("body"));
+    }
+
+    /** 메모 삭제(사용자 메모만). */
+    @DeleteMapping("/{id}/notes/{noteId}")
+    public ResponseEntity<Void> deleteNote(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @PathVariable Long noteId) {
+        leadService.deleteNote(userId(jwt), id, noteId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 리드 태그 교체. body: {"tags": ["VIP", ...]} */
+    @PutMapping("/{id}/tags")
+    public LeadResponse updateTags(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestBody Map<String, List<String>> body) {
+        return leadService.updateTags(userId(jwt), id, body.get("tags"));
     }
 
     /** 리드 상태 변경 (신규/상담중/완료/불량). */

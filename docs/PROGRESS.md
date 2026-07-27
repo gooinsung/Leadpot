@@ -21,10 +21,20 @@
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
 > ### ⭐ 바로 다음 작업 후보 (혼자 가능, 하나 골라 시작)
-> 1. **I5 노출 임프레션 추적** — 요소가 화면에 보인 횟수(IntersectionObserver). 현재는 클릭만.
-> 2. **리드 관리 고도화** — 리드 상세/메모, 리드별 태그 등.
+> 1. **배포** — 사용자 결정: 리드 고도화 + 구글시트/텔레그램 연동까지 하고 **배포**한다(2026-07-27). Oracle VM·Cloudflare·도메인·와일드카드 SSL 준비 필요(사용자 리소스).
+> 2. **I5 노출 임프레션 추적** — 요소가 화면에 보인 횟수(IntersectionObserver). 현재는 클릭만.
 > 3. **기타 BACKLOG 미완 항목** — F 팀 CRM(후기), G 파티 등은 규모 큼.
 >
+> **✅ 이번 세션(2026-07-27) 완료 — 브랜치 `feature/lead-crm-integrations` (main 병합 예정)**:
+>   - **리드 관리 고도화**: ① 리드 상세 모달(전체 답변·방문자정보) + **메모/이력**(사용자 MEMO + 상태변경 자동 SYSTEM 이력) ② **리드별 태그**(칩 표시·추가/삭제, 목록 태그 필터). 백엔드 `lead_notes` 테이블 + `leads.tags`(jsonb), `GET/POST/DELETE /api/leads/{id}/notes`·`PUT /api/leads/{id}/tags`·`GET /api/leads/{id}`. 상태변경 시 SYSTEM 이력 자동 기록.
+>   - **외부 연동(계정 설정)**: `com.leadpot.integration` — 텔레그램 봇 + 구글시트 **Apps Script 웹훅**(OAuth 불필요·무료, 사용자 결정). `integration_settings` 테이블(계정당 1행), `GET/PUT /api/integrations` + `POST /api/integrations/test`(각 채널 동기 테스트 발송). 연동 설정 페이지 `/integrations`(TopBar '연동') — 봇 토큰/채팅ID·웹훅URL 입력 + 얻는 방법 안내 + Apps Script 코드 복사.
+>   - **알림 발송**: `NotificationService` — 새 리드 접수 시 **커밋 후 비동기 best-effort**로 텔레그램 메시지 + 구글시트 JSON POST. 메시지=리드폼 이름+주요 답변+접수일시, **중복 의심이면 표시**(신원 항목=연락처/이메일/중복불허 값이 기존 리드와 겹치면). HttpClient(JDK), 의존성 없는 소형 JSON 직렬화(Spring Boot 4 webmvc가 Jackson을 컴파일 클래스패스에 노출 안 함). 리드 접수를 절대 방해하지 않음(모든 예외 삼킴).
+>   - **리드폼별 알림 on/off**: 폼 편집 '옵션'에 '새 리드 알림 받기' 토글 → `settingsConfig.notifyEnabled`(기본 on, 마이그레이션 불필요). NotificationService가 이 값 확인.
+>   - **참고**: "불량접수(SPAM)"는 접수 후 **수동 지정** 상태라 접수 시점 알림엔 담기지 않음(사용자에게 안내). 필요 시 '상태 불량 변경 시 알림'은 후속.
+>   - **Flyway V16**(lead_notes·leads.tags·integration_settings) — **Neon 적용·validate 통과**. 다음 **V17**.
+>   - **검증(Neon 실측)**: 백엔드 컴파일·test(H2 컨텍스트) 통과 / 프론트 `tsc -b`+prod(embed 포함) 빌드 통과 / bootRun(local) 기동 → E2E: 가입→폼생성→공개제출→리드 상세(tags null)→태그 PUT(중복제거)→메모 추가→상태변경 SYSTEM 이력 자동 생성(한글 정상)→메모 삭제→연동 GET/PUT/영속/test(더미 텔레그램 실제 API 호출→401 정상 처리) 모두 확인.
+>
+
 > **✅ 이번 세션(2026-07-26) 완료 — 전부 `main` 병합·푸시됨** (커밋 `970942a` 최신):
 >   - **랜딩 slug 한글 허용**: `LandingService.resolveSlug` 검증을 한글(가-힣)+영소문자+숫자+하이픈, 2~120자로 확장. URL 조회는 이미 encode/decode 되어 동작. 편집기 placeholder 갱신. (커밋 `46585af`)
 >   - **픽셀을 리드폼 단일 출처로 정리(사용자 결정)**: 랜딩 픽셀 개념 제거. 랜딩에 포함된 리드폼의 픽셀이 랜딩에서도 잡히도록 변경 — `PublicSitePage`는 포함 폼들의 픽셀을 병합(`mergeFormPixels`)해 PageView 1회, `LandingView`는 인라인/오버레이 폼 모두 `form.trackingConfig`로 Lead 발사. `LandingEditPage`의 '광고 픽셀' UI 제거. (커밋 `cbd1afb`) ※백엔드 `landing_pages.tracking` 컬럼은 남지만 미사용.

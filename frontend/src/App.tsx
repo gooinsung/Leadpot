@@ -17,6 +17,7 @@ import { LandingEditPage } from "./pages/LandingEditPage";
 import { PublicLandingPage } from "./pages/PublicLandingPage";
 import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
+import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { currentSubdomain } from "./lib/site";
 import "./App.css";
@@ -164,6 +165,14 @@ function App() {
         element={
           <ProtectedRoute>
             <StatsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/integrations"
+        element={
+          <ProtectedRoute>
+            <IntegrationsPage />
           </ProtectedRoute>
         }
       />
