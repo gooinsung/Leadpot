@@ -6,5 +6,6 @@ public record IntegrationRequest(
         String telegramBotToken,
         String telegramChatId,
         boolean sheetsEnabled,
-        String sheetsWebhookUrl) {
+        String sheetsWebhookUrl,
+        String sheetsSecret) {
 }

@@ -81,7 +81,7 @@ public class NotificationService {
 
             // 발송 페이로드를 트랜잭션 내부에서 스냅샷으로 확정(비동기 스레드에서 엔티티를 만지지 않도록).
             String telegramText = telegram ? buildTelegramText(form, lead, duplicate) : null;
-            String sheetsBody = sheets ? buildSheetsBody(form, lead, duplicate) : null;
+            String sheetsBody = sheets ? buildSheetsBody(form, lead, duplicate, s.getSheetsSecret()) : null;
             String token = s.getTelegramBotToken();
             String chatId = s.getTelegramChatId();
             String webhookUrl = s.getSheetsWebhookUrl();
@@ -187,9 +187,12 @@ public class NotificationService {
         return sb.toString();
     }
 
-    private String buildSheetsBody(Form form, Lead lead, boolean duplicate) {
+    private String buildSheetsBody(Form form, Lead lead, boolean duplicate, String secret) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("event", "new_lead");
+        if (secret != null && !secret.isBlank()) {
+            payload.put("secret", secret);
+        }
         payload.put("formId", form.getId());
         payload.put("formName", nn(form.getName()));
         payload.put("leadId", lead.getId());
@@ -203,6 +206,20 @@ public class NotificationService {
         payload.put("browser", nn(lead.getBrowser()));
         payload.put("referer", nn(lead.getReferer()));
         payload.put("utm", lead.getUtm() == null ? Map.of() : lead.getUtm());
+        return toJson(payload);
+    }
+
+    /** 구글시트 연동 테스트용 본문(시크릿 포함). */
+    public String sheetsTestBody(String secret) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("event", "test");
+        if (secret != null && !secret.isBlank()) {
+            payload.put("secret", secret);
+        }
+        payload.put("formName", "Leadpot 연동 테스트");
+        Map<String, Object> answers = new LinkedHashMap<>();
+        answers.put("테스트", "연결 확인");
+        payload.put("answers", answers);
         return toJson(payload);
     }
 

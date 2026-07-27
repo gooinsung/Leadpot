@@ -519,6 +519,7 @@ export interface IntegrationSettings {
   telegramChatId: string;
   sheetsEnabled: boolean;
   sheetsWebhookUrl: string;
+  sheetsSecret: string;
 }
 export interface IntegrationTestResult {
   results: { channel: string; ok: boolean; message: string }[];

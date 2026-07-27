@@ -15,11 +15,20 @@ const EMPTY: IntegrationSettings = {
   telegramChatId: "",
   sheetsEnabled: false,
   sheetsWebhookUrl: "",
+  sheetsSecret: "",
 };
 
 // 사용자가 구글시트에 붙여넣을 Apps Script 코드(웹훅 수신 → 행 추가).
-const APPS_SCRIPT = `function doPost(e) {
+// SECRET 을 채우면(리드팟 '시트 시크릿 키'와 동일하게) URL 을 아는 제3자의 무단 기록을 막는다.
+const APPS_SCRIPT = `// 아래 SECRET 을 리드팟 '시트 시크릿 키'에 입력한 값과 똑같이 채우세요. (비우면 검사 안 함)
+var SECRET = '';
+
+function doPost(e) {
   var data = JSON.parse(e.postData.contents);
+  if (SECRET && data.secret !== SECRET) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var answers = data.answers || {};
   var keys = Object.keys(answers);
@@ -166,15 +175,29 @@ export function IntegrationsPage() {
                   구글시트 자동 기록
                 </label>
               </div>
-              <label className="field" style={{ maxWidth: 620, display: "block" }}>
-                <span className="field-label">Apps Script 웹앱 URL</span>
-                <input
-                  className="input"
-                  value={s.sheetsWebhookUrl}
-                  onChange={(e) => set("sheetsWebhookUrl", e.target.value)}
-                  placeholder="https://script.google.com/macros/s/.../exec"
-                />
-              </label>
+              <div className="form-grid" style={{ display: "grid", gap: 12, maxWidth: 620 }}>
+                <label className="field">
+                  <span className="field-label">Apps Script 웹앱 URL</span>
+                  <input
+                    className="input"
+                    value={s.sheetsWebhookUrl}
+                    onChange={(e) => set("sheetsWebhookUrl", e.target.value)}
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label">시트 시크릿 키 (선택 · 권장)</span>
+                  <input
+                    className="input"
+                    value={s.sheetsSecret}
+                    onChange={(e) => set("sheetsSecret", e.target.value)}
+                    placeholder="임의의 긴 문자열 (Apps Script 의 SECRET 과 동일하게)"
+                  />
+                  <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                    시트는 비공개지만 웹앱 URL 은 로그인 없이 열려 있어, URL 이 새면 제3자가 시트에 값을 밀어넣을 수 있습니다. 이 키를 넣고 아래 코드의 <code>SECRET</code> 에 같은 값을 넣으면 키가 맞는 요청만 기록됩니다.
+                  </span>
+                </label>
+              </div>
               <details style={{ marginTop: 12 }} open>
                 <summary className="dash-sub" style={{ cursor: "pointer" }}>연결 방법 (OAuth 불필요·무료)</summary>
                 <ol className="dash-sub" style={{ marginTop: 8, lineHeight: 1.7, paddingLeft: 20 }}>

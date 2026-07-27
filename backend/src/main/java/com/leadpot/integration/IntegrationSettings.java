@@ -37,6 +37,10 @@ public class IntegrationSettings {
     @Column(name = "sheets_webhook_url", length = 1000)
     private String sheetsWebhookUrl;
 
+    /** 구글시트 웹훅 보호용 공유 시크릿(선택). payload 로 함께 전송, Apps Script 가 검증. */
+    @Column(name = "sheets_secret", length = 200)
+    private String sheetsSecret;
+
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
@@ -90,6 +94,14 @@ public class IntegrationSettings {
 
     public void setSheetsWebhookUrl(String sheetsWebhookUrl) {
         this.sheetsWebhookUrl = sheetsWebhookUrl;
+    }
+
+    public String getSheetsSecret() {
+        return sheetsSecret;
+    }
+
+    public void setSheetsSecret(String sheetsSecret) {
+        this.sheetsSecret = sheetsSecret;
     }
 
     public Instant getUpdatedAt() {

@@ -8,18 +8,20 @@ public record IntegrationResponse(
         String telegramBotToken,
         String telegramChatId,
         boolean sheetsEnabled,
-        String sheetsWebhookUrl) {
+        String sheetsWebhookUrl,
+        String sheetsSecret) {
 
     public static IntegrationResponse from(IntegrationSettings s) {
         if (s == null) {
-            return new IntegrationResponse(false, "", "", false, "");
+            return new IntegrationResponse(false, "", "", false, "", "");
         }
         return new IntegrationResponse(
                 s.isTelegramEnabled(),
                 nn(s.getTelegramBotToken()),
                 nn(s.getTelegramChatId()),
                 s.isSheetsEnabled(),
-                nn(s.getSheetsWebhookUrl()));
+                nn(s.getSheetsWebhookUrl()),
+                nn(s.getSheetsSecret()));
     }
 
     private static String nn(String s) {

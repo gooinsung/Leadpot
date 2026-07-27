@@ -33,6 +33,7 @@ public class IntegrationService {
         s.setTelegramBotToken(trim(req.telegramBotToken()));
         s.setTelegramChatId(trim(req.telegramChatId()));
         s.setSheetsWebhookUrl(trim(req.sheetsWebhookUrl()));
+        s.setSheetsSecret(trim(req.sheetsSecret()));
         // 값이 비어 있으면 켤 수 없다.
         s.setTelegramEnabled(req.telegramEnabled()
                 && notBlank(s.getTelegramBotToken()) && notBlank(s.getTelegramChatId()));
@@ -55,8 +56,7 @@ public class IntegrationService {
             results.add(new TestResult.ChannelResult("telegram", err == null, err == null ? "전송 성공" : err));
         }
         if (s.isSheetsEnabled() && notBlank(s.getSheetsWebhookUrl())) {
-            String body = "{\"event\":\"test\",\"formName\":\"Leadpot 연동 테스트\","
-                    + "\"answers\":{\"테스트\":\"연결 확인\"}}";
+            String body = notificationService.sheetsTestBody(s.getSheetsSecret());
             String err = notificationService.sendSheets(s.getSheetsWebhookUrl(), body);
             results.add(new TestResult.ChannelResult("sheets", err == null, err == null ? "전송 성공" : err));
         }
