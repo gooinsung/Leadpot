@@ -75,6 +75,11 @@ public class Lead {
     @Column
     private Map<String, Object> utm;
 
+    /** 자유 태그(문자열 배열). 리드 분류용(상태와 별개). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column
+    private List<String> tags;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -205,6 +210,14 @@ public class Lead {
 
     public void setUtm(Map<String, Object> utm) {
         this.utm = utm;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
     }
 
     public Instant getCreatedAt() {

@@ -42,6 +42,9 @@ export function TopBar() {
               <NavLink to="/stats" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
                 통계
               </NavLink>
+              <NavLink to="/integrations" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+                연동
+              </NavLink>
             </nav>
           )}
         </div>

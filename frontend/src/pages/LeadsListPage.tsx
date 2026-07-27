@@ -17,6 +17,7 @@ import {
   type Lead,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { LeadDetailModal } from "../components/LeadDetailModal";
 
 export function LeadsListPage() {
   const { id } = useParams();
@@ -32,6 +33,8 @@ export function LeadsListPage() {
   const [showEmbed, setShowEmbed] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
   const [dupOnly, setDupOnly] = useState(false); // 중복만 보기
+  const [tagFilter, setTagFilter] = useState(""); // "" = 전체 태그
+  const [detail, setDetail] = useState<Lead | null>(null); // 상세 모달 대상
   const fileRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = `${window.location.origin}/f/${formId}`;
@@ -90,13 +93,21 @@ export function LeadsListPage() {
     return ids;
   }, [leads, uniqueFieldLabels]);
 
-  // 상태·검색·중복은 클라이언트 필터(즉시 반응)
+  // 현재 목록에 존재하는 태그 모음(필터 드롭다운용)
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of leads) (l.tags ?? []).forEach((t) => set.add(t));
+    return Array.from(set).sort();
+  }, [leads]);
+
+  // 상태·검색·중복·태그는 클라이언트 필터(즉시 반응)
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter(
       (l) =>
         (!statusFilter || l.status === statusFilter) &&
         (!dupOnly || dupIds.has(l.id)) &&
+        (!tagFilter || (l.tags ?? []).includes(tagFilter)) &&
         (!needle ||
           l.answers.some(
             (a) =>
@@ -104,7 +115,7 @@ export function LeadsListPage() {
               (a.label || "").toLowerCase().includes(needle),
           )),
     );
-  }, [leads, q, statusFilter, dupOnly, dupIds]);
+  }, [leads, q, statusFilter, dupOnly, dupIds, tagFilter]);
 
   function copyLink() {
     navigator.clipboard?.writeText(publicUrl).then(() => {
@@ -241,6 +252,14 @@ export function LeadsListPage() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
+          {allTags.length > 0 && (
+            <select className="input" style={{ width: 140 }} value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+              <option value="">태그 전체</option>
+              {allTags.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          )}
           {!trashed && uniqueFieldLabels.length > 0 && (
             <button
               className={`btn btn-sm ${dupOnly ? "btn-primary" : "btn-ghost"}`}
@@ -250,8 +269,8 @@ export function LeadsListPage() {
               중복만 보기{dupIds.size ? ` (${dupIds.size})` : ""}
             </button>
           )}
-          {(q || statusFilter || dupOnly) && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); }}>필터 초기화</button>
+          {(q || statusFilter || dupOnly || tagFilter) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); setTagFilter(""); }}>필터 초기화</button>
           )}
           {!trashed && (
             <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -298,6 +317,7 @@ export function LeadsListPage() {
                     </div>
                   ) : (
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setDetail(l)}>상세</button>
                       <select
                         className={`lead-status-select ${statusClass(l.status)}`}
                         value={l.status}
@@ -311,6 +331,15 @@ export function LeadsListPage() {
                     </div>
                   )}
                 </div>
+                {(l.tags?.length ?? 0) > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "0 0 8px" }}>
+                    {l.tags!.map((t) => (
+                      <span key={t} className="badge" style={{ cursor: "pointer" }} onClick={() => setTagFilter(t)} title="이 태그로 필터">
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="lead-answers">
                   {l.answers.map((a, i) => (
                     <div className="lead-answer" key={i}>
@@ -332,6 +361,17 @@ export function LeadsListPage() {
           </div>
         )}
       </main>
+      {detail && (
+        <LeadDetailModal
+          lead={detail}
+          formName={form?.name || "리드"}
+          onClose={() => setDetail(null)}
+          onChange={(updated) => {
+            setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+            setDetail(updated);
+          }}
+        />
+      )}
     </div>
   );
 }

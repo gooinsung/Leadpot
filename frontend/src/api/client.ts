@@ -373,6 +373,14 @@ export interface Lead {
   language: string | null;
   referer: string | null;
   utm: Record<string, unknown> | null;
+  tags: string[] | null;
+  createdAt: string;
+}
+
+export interface LeadNote {
+  id: number;
+  kind: "MEMO" | "SYSTEM";
+  body: string;
   createdAt: string;
 }
 
@@ -477,6 +485,56 @@ export const LEAD_STATUSES = [
 /** 리드 상태 변경. */
 export function updateLeadStatus(id: number, status: string): Promise<void> {
   return request<void>(`/api/leads/${id}/status`, { method: "PATCH", body: { status } });
+}
+
+/** 리드 단건 상세(본인 리드폼만). */
+export function getLead(id: number): Promise<Lead> {
+  return request<Lead>(`/api/leads/${id}`);
+}
+
+/** 리드 태그 교체. */
+export function updateLeadTags(id: number, tags: string[]): Promise<Lead> {
+  return request<Lead>(`/api/leads/${id}/tags`, { method: "PUT", body: { tags } });
+}
+
+/** 리드 메모/이력 목록(오래된 순). */
+export function listLeadNotes(id: number): Promise<LeadNote[]> {
+  return request<LeadNote[]>(`/api/leads/${id}/notes`);
+}
+
+/** 사용자 메모 추가. */
+export function addLeadNote(id: number, body: string): Promise<LeadNote> {
+  return request<LeadNote>(`/api/leads/${id}/notes`, { method: "POST", body: { body } });
+}
+
+/** 메모 삭제(사용자 메모만). */
+export function deleteLeadNote(id: number, noteId: number): Promise<void> {
+  return request<void>(`/api/leads/${id}/notes/${noteId}`, { method: "DELETE" });
+}
+
+// ---------- 외부 연동(텔레그램·구글시트) 계정 설정 ----------
+export interface IntegrationSettings {
+  telegramEnabled: boolean;
+  telegramBotToken: string;
+  telegramChatId: string;
+  sheetsEnabled: boolean;
+  sheetsWebhookUrl: string;
+}
+export interface IntegrationTestResult {
+  results: { channel: string; ok: boolean; message: string }[];
+}
+
+/** 내 계정 연동 설정 조회. */
+export function getIntegrations(): Promise<IntegrationSettings> {
+  return request<IntegrationSettings>("/api/integrations");
+}
+/** 내 계정 연동 설정 저장. */
+export function updateIntegrations(input: IntegrationSettings): Promise<IntegrationSettings> {
+  return request<IntegrationSettings>("/api/integrations", { method: "PUT", body: input });
+}
+/** 저장된 설정으로 각 채널에 테스트 발송. */
+export function testIntegrations(): Promise<IntegrationTestResult> {
+  return request<IntegrationTestResult>("/api/integrations/test", { method: "POST" });
 }
 
 /** 리드폼의 리드를 CSV 로 내려받기(엑셀 호환). */
