@@ -20,10 +20,18 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐ 바로 다음 작업 후보 (혼자 가능, 하나 골라 시작)
-> 0. **(배포 후) 멀티 포털 확장** — 마케터/광고주/관리자 3포털(리드 공급·거래 플랫폼화). 상세 설계는 **[MULTI-PORTAL-PLAN.md](MULTI-PORTAL-PLAN.md)**(미착수, 결정필요 항목 §9). 아키텍처 추천=모노레포·단일 백엔드(역할 기반)·프론트 3앱.
-> 0-1. **배포 준비 점검 완료** — [DEPLOY.md](DEPLOY.md) 체크리스트 작성 + SPA `_redirects` 추가(딥링크 404 방지). 실제 배포는 도메인·VM·DB 결정 후.
-> 1. **배포** — 사용자 결정: 리드 고도화 + 구글시트/텔레그램 연동까지 하고 **배포**한다(2026-07-27). Oracle VM·Cloudflare·도메인·와일드카드 SSL 준비 필요(사용자 리소스).
+> ### ⭐ 지금 순서 (사용자 확정 2026-07-27)
+> **1) 지금 = 배포** → **2) 다음 작업 = 광고주 페이지 + 관리자 페이지(멀티포털)**.
+>
+> - **① 배포**: [DEPLOY.md](DEPLOY.md) 체크리스트대로. SPA `_redirects` 추가 완료(딥링크 404 방지). **필요(사용자 리소스)**: 도메인, Oracle VM(또는 VPS), Cloudflare, 운영 DB 결정(Neon 유지 vs VM Postgres), VM 아웃바운드 443(알림용). 프론트=CF Pages(root `frontend`, build `npm run build`, out `dist`, env `VITE_API_BASE_URL`), 백엔드=VM Docker + Nginx + env(APP_JWT_SECRET·CORS·DB…).
+> - **② 다음 작업(배포 후) = 멀티 포털**: 마케터(기존)/광고주/관리자 3포털로 확장(리드 공급·거래 플랫폼화). **상세 설계 = [MULTI-PORTAL-PLAN.md](MULTI-PORTAL-PLAN.md)** — 착수 전 그 문서 재정독 + §9 결정필요 항목(정산 포함여부·광고주 계정생성·배정단위 등) 사용자 확정부터. 아키텍처 추천=모노레포·단일 백엔드(역할 기반, users.role=MARKETER/ADVERTISER/ADMIN)·프론트 3앱.
+>
+> **✅ 이번 세션(2026-07-27) 추가 완료 — 전부 `main` 푸시(최신 `e13b890`)**:
+>   - **구글시트를 리드폼별 설정으로 이동**(사용자 결정): 시트 URL/시크릿/on-off 를 `form.settingsConfig`(sheetsEnabled/sheetsWebhookUrl/sheetsSecret)에 저장. 텔레그램은 계정 채널 유지 + 리드폼별 `notifyEnabled` 토글('텔레그램 알림 받기'). 폼별 시트 테스트 `POST /api/integrations/test-sheets?formId=`. 계정 연동 화면=텔레그램 전용 + 시트 Apps Script 안내만. (account integration_settings.sheets_* 컬럼은 미사용으로 남김)
+>   - **구글시트 시크릿 키**(개인정보 보호): 웹훅 payload 에 secret 담아 보내고 Apps Script 가 검증(`var SECRET`). Flyway V17(계정용, 현재는 폼설정 사용).
+>   - **대시보드 정리**: '곧 추가될 기능' 카드 제거, '오늘 유입'·'랜딩페이지' KPI 실제 값 연결.
+>   - Neon 검증 완료(계정=텔레그램만, 폼 시트설정 저장, test-sheets 동작, 404). Flyway **V17** 까지 적용(다음 V18).
+>   - **미결(사용자 결정 대기)**: "중복/형식오류 거부 제출 로그"(스팸 시도 기록) — 붙일지 배포 후 할지 미정.
 > 2. **I5 노출 임프레션 추적** — 요소가 화면에 보인 횟수(IntersectionObserver). 현재는 클릭만.
 > 3. **기타 BACKLOG 미완 항목** — F 팀 CRM(후기), G 파티 등은 규모 큼.
 >
