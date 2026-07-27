@@ -62,16 +62,18 @@ public class NotificationService {
      */
     public void notifyNewLead(Form form, Lead lead, java.util.function.BooleanSupplier duplicateCheck) {
         try {
-            if (!formNotifyEnabled(form)) {
-                return;
-            }
             IntegrationSettings s = settingsRepository.findById(form.getOwnerId()).orElse(null);
-            if (s == null) {
-                return;
-            }
-            boolean telegram = s.isTelegramEnabled()
+
+            // 텔레그램: 계정 채널(토큰·채팅ID) + 리드폼별 토글(settingsConfig.notifyEnabled, 기본 on)
+            boolean telegram = formTelegramEnabled(form) && s != null && s.isTelegramEnabled()
                     && notBlank(s.getTelegramBotToken()) && notBlank(s.getTelegramChatId());
-            boolean sheets = s.isSheetsEnabled() && notBlank(s.getSheetsWebhookUrl());
+
+            // 구글시트: 리드폼별 설정(settingsConfig 의 sheetsEnabled/sheetsWebhookUrl/sheetsSecret)
+            Map<String, Object> fs = form.getSettingsConfig();
+            String webhookUrl = fs == null ? "" : str(fs.get("sheetsWebhookUrl"));
+            String sheetSecret = fs == null ? "" : str(fs.get("sheetsSecret"));
+            boolean sheets = fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled")) && notBlank(webhookUrl);
+
             if (!telegram && !sheets) {
                 return;
             }
@@ -81,10 +83,9 @@ public class NotificationService {
 
             // 발송 페이로드를 트랜잭션 내부에서 스냅샷으로 확정(비동기 스레드에서 엔티티를 만지지 않도록).
             String telegramText = telegram ? buildTelegramText(form, lead, duplicate) : null;
-            String sheetsBody = sheets ? buildSheetsBody(form, lead, duplicate, s.getSheetsSecret()) : null;
-            String token = s.getTelegramBotToken();
-            String chatId = s.getTelegramChatId();
-            String webhookUrl = s.getSheetsWebhookUrl();
+            String sheetsBody = sheets ? buildSheetsBody(form, lead, duplicate, sheetSecret) : null;
+            String token = telegram ? s.getTelegramBotToken() : null;
+            String chatId = telegram ? s.getTelegramChatId() : null;
 
             Runnable send = () -> {
                 if (telegramText != null) {
@@ -295,14 +296,13 @@ public class NotificationService {
         return out;
     }
 
-    @SuppressWarnings("unchecked")
-    private static boolean formNotifyEnabled(Form form) {
+    /** 리드폼별 텔레그램 알림 토글. settingsConfig.notifyEnabled 가 false 로 명시된 경우에만 끔(기본 on). */
+    private static boolean formTelegramEnabled(Form form) {
         Map<String, Object> settings = form.getSettingsConfig();
         if (settings == null) {
-            return true; // 기본값: 알림 켜짐
+            return true;
         }
-        Object v = settings.get("notifyEnabled");
-        return !Boolean.FALSE.equals(v); // false 로 명시된 경우에만 끔
+        return !Boolean.FALSE.equals(settings.get("notifyEnabled"));
     }
 
     private static boolean notBlank(String s) {

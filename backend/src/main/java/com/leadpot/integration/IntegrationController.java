@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.leadpot.integration.dto.IntegrationRequest;
@@ -37,6 +38,12 @@ public class IntegrationController {
     @PostMapping("/test")
     public TestResult test(@AuthenticationPrincipal Jwt jwt) {
         return service.test(userId(jwt));
+    }
+
+    /** 특정 리드폼의 구글시트 설정으로 테스트 발송. */
+    @PostMapping("/test-sheets")
+    public TestResult testSheets(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId) {
+        return service.testFormSheets(userId(jwt), formId);
     }
 
     private Long userId(Jwt jwt) {

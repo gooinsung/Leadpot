@@ -1,11 +1,8 @@
 package com.leadpot.integration.dto;
 
-/** 연동 설정 저장 요청. 값이 비어 있으면 해당 채널은 비활성으로 취급된다. */
+/** 계정 연동 설정 저장 요청(텔레그램 계정 채널). 구글시트는 리드폼별 설정으로 이동. */
 public record IntegrationRequest(
         boolean telegramEnabled,
         String telegramBotToken,
-        String telegramChatId,
-        boolean sheetsEnabled,
-        String sheetsWebhookUrl,
-        String sheetsSecret) {
+        String telegramChatId) {
 }

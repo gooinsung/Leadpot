@@ -5,6 +5,7 @@ import {
   createForm,
   getForm,
   listConsentDocs,
+  testFormSheets,
   updateForm,
   type BlockType,
   type ConsentDocumentSummary,
@@ -121,6 +122,11 @@ export function FormEditPage() {
   const [allowSameIp, setAllowSameIp] = useState(true);
   const [ipDedupDays, setIpDedupDays] = useState(0);
   const [notifyEnabled, setNotifyEnabled] = useState(true);
+  const [sheetsEnabled, setSheetsEnabled] = useState(false);
+  const [sheetsWebhookUrl, setSheetsWebhookUrl] = useState("");
+  const [sheetsSecret, setSheetsSecret] = useState("");
+  const [sheetTest, setSheetTest] = useState<{ ok: boolean; text: string } | null>(null);
+  const [sheetTesting, setSheetTesting] = useState(false);
   const [tracking, setTracking] = useState<Record<string, unknown> | null>(null); // 광고 픽셀
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -146,6 +152,9 @@ export function FormEditPage() {
         setAllowSameIp(f.settingsConfig?.allowSameIp !== false);
         setIpDedupDays(Number(f.settingsConfig?.ipDedupDays) || 0);
         setNotifyEnabled(f.settingsConfig?.notifyEnabled !== false);
+        setSheetsEnabled(f.settingsConfig?.sheetsEnabled === true);
+        setSheetsWebhookUrl((f.settingsConfig?.sheetsWebhookUrl as string) || "");
+        setSheetsSecret((f.settingsConfig?.sheetsSecret as string) || "");
         setTracking(f.trackingConfig ?? null);
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
@@ -282,7 +291,14 @@ export function FormEditPage() {
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
     styleConfig: { buttonColor, accentColor },
     typeConfig: { contactMessage },
-    settingsConfig: { allowSameIp, ipDedupDays, notifyEnabled },
+    settingsConfig: {
+      allowSameIp,
+      ipDedupDays,
+      notifyEnabled,
+      sheetsEnabled,
+      sheetsWebhookUrl: sheetsWebhookUrl.trim(),
+      sheetsSecret: sheetsSecret.trim(),
+    },
     trackingConfig: tracking ?? undefined,
     blocks: builtBlocks,
   };
@@ -298,6 +314,25 @@ export function FormEditPage() {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onTestSheets() {
+    if (isNew) return;
+    setSheetTest(null);
+    setSheetTesting(true);
+    try {
+      const r = await testFormSheets(Number(id));
+      if (r.results.length === 0) {
+        setSheetTest({ ok: false, text: "구글시트가 켜져 있고 웹앱 URL 이 저장돼 있어야 테스트됩니다. 저장 후 다시 시도하세요." });
+      } else {
+        const s = r.results[0];
+        setSheetTest({ ok: s.ok, text: s.ok ? "전송 성공 — 시트에 테스트 행이 추가됐는지 확인하세요." : s.message });
+      }
+    } catch (err) {
+      setSheetTest({ ok: false, text: err instanceof ApiError ? err.message : "테스트에 실패했습니다." });
+    } finally {
+      setSheetTesting(false);
     }
   }
 
@@ -563,11 +598,66 @@ export function FormEditPage() {
                 )}
               </div>
               <label className="fr-check" style={{ marginTop: 14 }}>
-                <input type="checkbox" checked={notifyEnabled} onChange={(e) => setNotifyEnabled(e.target.checked)} /> 새 리드 알림 받기 (텔레그램·구글시트)
+                <input type="checkbox" checked={notifyEnabled} onChange={(e) => setNotifyEnabled(e.target.checked)} /> 텔레그램 알림 받기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
-                이 리드폼에 접수되면 <b>연동</b> 메뉴에 설정한 채널로 알림을 보냅니다. (계정 연동이 켜져 있어야 발송)
+                이 리드폼에 접수되면 <b>연동</b> 메뉴에 설정한 <b>계정 텔레그램</b>으로 알림을 보냅니다. (계정 텔레그램이 켜져 있어야 발송)
               </p>
+            </div>
+
+            <div className="card card-pad" style={{ marginTop: 16 }}>
+              <div className="card-h">구글시트 연동 (이 리드폼)</div>
+              <label className="fr-check">
+                <input type="checkbox" checked={sheetsEnabled} onChange={(e) => setSheetsEnabled(e.target.checked)} /> 이 리드폼의 리드를 구글시트로 자동 기록
+              </label>
+              <p className="dash-sub" style={{ marginTop: 6 }}>
+                리드폼마다 다른 시트로 보낼 수 있습니다. 시트 준비(Apps Script) 방법은 <Link to="/integrations">연동</Link> 메뉴 참고.
+              </p>
+              {sheetsEnabled && (
+                <div className="form-grid" style={{ display: "grid", gap: 12, maxWidth: 620, marginTop: 8 }}>
+                  <label className="field">
+                    <span className="field-label">Apps Script 웹앱 URL</span>
+                    <input
+                      className="input"
+                      value={sheetsWebhookUrl}
+                      onChange={(e) => setSheetsWebhookUrl(e.target.value)}
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">시트 시크릿 키 (선택 · 권장)</span>
+                    <input
+                      className="input"
+                      value={sheetsSecret}
+                      onChange={(e) => setSheetsSecret(e.target.value)}
+                      placeholder="Apps Script 의 SECRET 과 동일한 값"
+                    />
+                    <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                      웹앱 URL 은 로그인 없이 열려 있어, 이 키를 넣고 코드의 <code>SECRET</code> 에 같은 값을 넣으면 키가 맞는 요청만 시트에 기록됩니다. (개인정보 보호)
+                    </span>
+                  </label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={onTestSheets}
+                      disabled={isNew || sheetTesting}
+                      title={isNew ? "먼저 저장하세요" : ""}
+                    >
+                      {sheetTesting ? "테스트 중…" : "시트 테스트 발송"}
+                    </button>
+                    {isNew && <span className="dash-sub" style={{ fontSize: 12 }}>저장 후 테스트할 수 있어요.</span>}
+                    {sheetTest && (
+                      <span className={`badge ${sheetTest.ok ? "b-normal" : "b-bad"}`} style={{ maxWidth: 420 }}>
+                        {sheetTest.text}
+                      </span>
+                    )}
+                  </div>
+                  <span className="dash-sub" style={{ fontSize: 12 }}>
+                    ※ 방금 바꾼 URL/시크릿으로 테스트하려면 <b>먼저 저장</b>하세요(테스트는 저장된 값 기준).
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }}>

@@ -512,30 +512,32 @@ export function deleteLeadNote(id: number, noteId: number): Promise<void> {
   return request<void>(`/api/leads/${id}/notes/${noteId}`, { method: "DELETE" });
 }
 
-// ---------- 외부 연동(텔레그램·구글시트) 계정 설정 ----------
+// ---------- 외부 연동 ----------
+// 텔레그램은 계정 단위(아래). 구글시트는 리드폼별 설정(form.settingsConfig 의 sheets*)으로 관리.
 export interface IntegrationSettings {
   telegramEnabled: boolean;
   telegramBotToken: string;
   telegramChatId: string;
-  sheetsEnabled: boolean;
-  sheetsWebhookUrl: string;
-  sheetsSecret: string;
 }
 export interface IntegrationTestResult {
   results: { channel: string; ok: boolean; message: string }[];
 }
 
-/** 내 계정 연동 설정 조회. */
+/** 내 계정 텔레그램 연동 설정 조회. */
 export function getIntegrations(): Promise<IntegrationSettings> {
   return request<IntegrationSettings>("/api/integrations");
 }
-/** 내 계정 연동 설정 저장. */
+/** 내 계정 텔레그램 연동 설정 저장. */
 export function updateIntegrations(input: IntegrationSettings): Promise<IntegrationSettings> {
   return request<IntegrationSettings>("/api/integrations", { method: "PUT", body: input });
 }
-/** 저장된 설정으로 각 채널에 테스트 발송. */
+/** 계정 텔레그램 채널 테스트 발송. */
 export function testIntegrations(): Promise<IntegrationTestResult> {
   return request<IntegrationTestResult>("/api/integrations/test", { method: "POST" });
+}
+/** 특정 리드폼의 구글시트 설정으로 테스트 발송. */
+export function testFormSheets(formId: number): Promise<IntegrationTestResult> {
+  return request<IntegrationTestResult>(`/api/integrations/test-sheets?formId=${formId}`, { method: "POST" });
 }
 
 /** 리드폼의 리드를 CSV 로 내려받기(엑셀 호환). */

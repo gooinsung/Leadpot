@@ -13,9 +13,6 @@ const EMPTY: IntegrationSettings = {
   telegramEnabled: false,
   telegramBotToken: "",
   telegramChatId: "",
-  sheetsEnabled: false,
-  sheetsWebhookUrl: "",
-  sheetsSecret: "",
 };
 
 // 사용자가 구글시트에 붙여넣을 Apps Script 코드(웹훅 수신 → 행 추가).
@@ -109,7 +106,7 @@ export function IntegrationsPage() {
             <p className="eyebrow">알림 · 연동</p>
             <h1 className="dash-title">외부 연동</h1>
             <p className="dash-sub">
-              새 리드가 접수되면 텔레그램으로 알림을 받고, 구글시트에 자동으로 기록할 수 있습니다. 리드폼별로 알림 on/off 는 각 리드폼 편집에서 설정합니다.
+              <b>텔레그램 알림</b>은 계정에 한 번 설정하고, 리드폼별로 켜고 끕니다(리드폼 편집 &gt; 옵션). <b>구글시트</b>는 리드폼마다 다른 시트로 보낼 수 있어 <b>각 리드폼 편집 화면</b>에서 설정합니다. 아래는 구글시트 준비(Apps Script) 방법 안내입니다.
             </p>
           </div>
         </div>
@@ -163,63 +160,31 @@ export function IntegrationsPage() {
               </details>
             </div>
 
-            {/* 구글시트 */}
+            {/* 구글시트 연동 방법(공통 안내) — 실제 URL·시크릿은 각 리드폼 편집에서 입력 */}
             <div className="card card-pad" style={{ marginBottom: 20 }}>
-              <div className="card-h" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={s.sheetsEnabled}
-                    onChange={(e) => set("sheetsEnabled", e.target.checked)}
-                  />
-                  구글시트 자동 기록
-                </label>
+              <div className="card-h">구글시트 연동 방법 (리드폼별 설정)</div>
+              <p className="dash-sub" style={{ marginTop: 0 }}>
+                구글시트는 <b>리드폼마다 다른 시트</b>로 보낼 수 있어, <b>웹앱 URL·시크릿 키는 각 리드폼 편집 화면 &gt; 옵션</b>에서 입력합니다. 여기서는 시트를 준비하는 방법만 안내합니다. (OAuth 불필요·무료)
+              </p>
+              <ol className="dash-sub" style={{ marginTop: 8, lineHeight: 1.7, paddingLeft: 20 }}>
+                <li>구글시트 새로 만들기 → 상단 메뉴 <b>확장 프로그램 → Apps Script</b>.</li>
+                <li>아래 코드를 붙여넣기. (시크릿 키를 쓸 거면 <code>SECRET</code> 값을 정해서 넣고, 같은 값을 리드폼의 시트 시크릿 칸에도 입력)</li>
+                <li><b>배포 → 새 배포 → 유형: 웹 앱</b>, 실행 계정=<b>나</b>, 액세스=<b>모든 사용자</b> 로 배포.</li>
+                <li>발급된 <b>웹 앱 URL</b>(끝이 <code>/exec</code>)을 <b>리드폼 편집 &gt; 옵션 &gt; 구글시트</b> 칸에 붙여넣기 → 저장 → 그 화면에서 테스트.</li>
+              </ol>
+              <div style={{ position: "relative", marginTop: 8 }}>
+                <textarea
+                  className="input"
+                  readOnly
+                  rows={14}
+                  style={{ fontFamily: "var(--mono)", fontSize: 12.5, lineHeight: 1.5 }}
+                  value={APPS_SCRIPT}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={copyScript}>
+                  {copied ? "복사됨!" : "코드 복사"}
+                </button>
               </div>
-              <div className="form-grid" style={{ display: "grid", gap: 12, maxWidth: 620 }}>
-                <label className="field">
-                  <span className="field-label">Apps Script 웹앱 URL</span>
-                  <input
-                    className="input"
-                    value={s.sheetsWebhookUrl}
-                    onChange={(e) => set("sheetsWebhookUrl", e.target.value)}
-                    placeholder="https://script.google.com/macros/s/.../exec"
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-label">시트 시크릿 키 (선택 · 권장)</span>
-                  <input
-                    className="input"
-                    value={s.sheetsSecret}
-                    onChange={(e) => set("sheetsSecret", e.target.value)}
-                    placeholder="임의의 긴 문자열 (Apps Script 의 SECRET 과 동일하게)"
-                  />
-                  <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
-                    시트는 비공개지만 웹앱 URL 은 로그인 없이 열려 있어, URL 이 새면 제3자가 시트에 값을 밀어넣을 수 있습니다. 이 키를 넣고 아래 코드의 <code>SECRET</code> 에 같은 값을 넣으면 키가 맞는 요청만 기록됩니다.
-                  </span>
-                </label>
-              </div>
-              <details style={{ marginTop: 12 }} open>
-                <summary className="dash-sub" style={{ cursor: "pointer" }}>연결 방법 (OAuth 불필요·무료)</summary>
-                <ol className="dash-sub" style={{ marginTop: 8, lineHeight: 1.7, paddingLeft: 20 }}>
-                  <li>구글시트 새로 만들기 → 상단 메뉴 <b>확장 프로그램 → Apps Script</b>.</li>
-                  <li>아래 코드를 붙여넣고 저장.</li>
-                  <li><b>배포 → 새 배포 → 유형: 웹 앱</b>, 실행 계정=<b>나</b>, 액세스=<b>모든 사용자</b> 로 배포.</li>
-                  <li>발급된 <b>웹 앱 URL</b>(끝이 <code>/exec</code>)을 위 칸에 붙여넣기 → 저장 → 테스트.</li>
-                </ol>
-                <div style={{ position: "relative", marginTop: 8 }}>
-                  <textarea
-                    className="input"
-                    readOnly
-                    rows={12}
-                    style={{ fontFamily: "var(--mono)", fontSize: 12.5, lineHeight: 1.5 }}
-                    value={APPS_SCRIPT}
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                  <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={copyScript}>
-                    {copied ? "복사됨!" : "코드 복사"}
-                  </button>
-                </div>
-              </details>
             </div>
 
             {error && (
@@ -233,7 +198,7 @@ export function IntegrationsPage() {
                 <div className="card-h">테스트 결과</div>
                 {testResult.results.length === 0 ? (
                   <p className="dash-sub" style={{ margin: 0 }}>
-                    켜져 있고 값이 채워진 채널이 없습니다. 값 입력 후 <b>저장</b>하고 다시 테스트하세요.
+                    텔레그램이 켜져 있고 봇 토큰·채팅 ID 가 채워져야 테스트됩니다. 값 입력 후 <b>저장</b>하고 다시 시도하세요.
                   </p>
                 ) : (
                   <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8 }}>
@@ -254,11 +219,11 @@ export function IntegrationsPage() {
                 {saving ? "저장 중…" : saved ? "저장됨!" : "저장"}
               </button>
               <button className="btn btn-ghost" onClick={onTest} disabled={testing}>
-                {testing ? "테스트 중…" : "테스트 발송"}
+                {testing ? "테스트 중…" : "텔레그램 테스트 발송"}
               </button>
             </div>
             <p className="dash-sub" style={{ fontSize: 12, marginTop: 10 }}>
-              팁: 값을 저장한 뒤 <b>테스트 발송</b>으로 실제 도착 여부를 확인하세요. 알림은 리드 접수를 방해하지 않도록 백그라운드로 전송됩니다.
+              팁: 텔레그램은 저장 후 <b>테스트 발송</b>으로 도착을 확인하세요. 구글시트 테스트는 각 리드폼 편집 화면에서 합니다. 알림은 리드 접수를 방해하지 않도록 백그라운드로 전송됩니다.
             </p>
           </>
         )}
