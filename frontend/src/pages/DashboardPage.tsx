@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ApiError, getHealth, leadsCount, listForms, updateSubdomain } from "../api/client";
+import { ApiError, getHealth, getStats, leadsCount, listForms, listLandings, updateSubdomain } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { TopBar } from "../components/TopBar";
 
@@ -13,6 +13,8 @@ export function DashboardPage() {
   const [health, setHealth] = useState<HealthState>("checking");
   const [totalLeads, setTotalLeads] = useState<number | null>(null);
   const [formCount, setFormCount] = useState<number | null>(null);
+  const [landingCount, setLandingCount] = useState<number | null>(null);
+  const [todayVisits, setTodayVisits] = useState<number | null>(null);
 
   // 서브도메인 편집
   const [sub, setSub] = useState("");
@@ -23,6 +25,14 @@ export function DashboardPage() {
     getHealth().then(() => setHealth("ok")).catch(() => setHealth("error"));
     leadsCount().then((r) => setTotalLeads(r.total)).catch(() => setTotalLeads(0));
     listForms().then((f) => setFormCount(f.length)).catch(() => setFormCount(0));
+    listLandings().then((l) => setLandingCount(l.length)).catch(() => setLandingCount(0));
+    // 오늘 유입(전체 접속 수) — 통계 API 를 오늘 범위로 조회
+    const p = (n: number) => String(n).padStart(2, "0");
+    const d = new Date();
+    const today = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    getStats({ from: today, to: today })
+      .then((s) => setTodayVisits(s.summary.totalVisits))
+      .catch(() => setTodayVisits(0));
   }, []);
 
   useEffect(() => {
@@ -47,13 +57,6 @@ export function DashboardPage() {
 
   const num = (v: number | null) => (v == null ? "…" : v.toLocaleString("ko-KR"));
 
-  const upcoming = [
-    { title: "랜딩 빌더", desc: "이미지·텍스트 구성 + 리드폼 연결", phase: "Phase 3" },
-    { title: "리드 상태·CSV", desc: "상담 상태 관리·엑셀 내보내기", phase: "Phase 5" },
-    { title: "구글시트·알림 연동", desc: "접수 시 시트 전송·텔레그램/카톡 알림", phase: "추후" },
-    { title: "통계", desc: "유입·전환·UTM 캠페인 분석", phase: "Phase 6" },
-  ];
-
   return (
     <div className="app-shell">
       <TopBar />
@@ -76,17 +79,17 @@ export function DashboardPage() {
             <div className="k-label">총 리드</div>
             <div className="k-val">{num(totalLeads)}</div>
           </div>
-          <div className="kpi card">
+          <div className="kpi card row-click" onClick={() => navigate("/stats")}>
             <div className="k-label">오늘 유입</div>
-            <div className="k-val">-</div>
+            <div className="k-val">{num(todayVisits)}</div>
           </div>
           <div className="kpi card row-click" onClick={() => navigate("/forms")}>
             <div className="k-label">리드폼</div>
             <div className="k-val">{num(formCount)}</div>
           </div>
-          <div className="kpi card">
+          <div className="kpi card row-click" onClick={() => navigate("/landings")}>
             <div className="k-label">랜딩페이지</div>
-            <div className="k-val">-</div>
+            <div className="k-val">{num(landingCount)}</div>
           </div>
         </div>
 
@@ -116,21 +119,6 @@ export function DashboardPage() {
           <p className="dash-sub" style={{ marginTop: 12, fontSize: 13, overflowWrap: "anywhere", wordBreak: "break-all" }}>
             공개 URL 예시: <code>{(sub || user?.subdomain || "sub")}.lead-pot.com/{"{랜딩번호}"}</code>
           </p>
-        </section>
-
-        <section className="card card-pad upcoming">
-          <div className="card-h">곧 추가될 기능</div>
-          <div className="upcoming-grid">
-            {upcoming.map((u) => (
-              <div className="upcoming-item" key={u.title}>
-                <div className="upcoming-top">
-                  <span className="upcoming-title">{u.title}</span>
-                  <span className="pill i">{u.phase}</span>
-                </div>
-                <p className="upcoming-desc">{u.desc}</p>
-              </div>
-            ))}
-          </div>
         </section>
       </main>
     </div>
