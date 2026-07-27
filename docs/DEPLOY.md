@@ -81,3 +81,62 @@
 - **아웃바운드 egress**(§1-1): 알림 발송에 외부 HTTPS 필요. Oracle VM 보안목록 egress 443 확인.
 - **연동 토큰 저장**: 텔레그램 봇 토큰·시트 웹훅 URL 은 사용자별 `integration_settings` 테이블에 저장(사용자 본인 리소스). DB 접근 보호 = DB 자격증명·네트워크로 통제.
 - **알림 실패는 무해**: 발송은 커밋 후 비동기 best-effort 라 실패해도 리드 접수·응답에 영향 없음(로그만 남음). 배포 직후 알림이 안 와도 리드 수집 자체는 정상.
+
+---
+
+## 부록 A. Oracle Always Free + Neon 실전 절차 (이 프로젝트 기준)
+
+> 결정(2026-07-27): 백엔드=**Oracle Always Free VM**(상시 켜짐 — 실광고 트래픽 테스트), DB=**Neon 유지**, 프론트=**Cloudflare Pages**. 준비 파일: [`docker-compose.prod.yml`](../docker-compose.prod.yml), [`deploy/nginx-leadpot-api.conf`](../deploy/nginx-leadpot-api.conf).
+
+### A-1. VM 만들기
+- [ ] Oracle Cloud 가입(카드로 본인확인, Always Free 안이면 청구 없음). **홈 리전 = 한국(ap-chuncheon-1 또는 ap-seoul-1)** 권장.
+- [ ] Compute → Instance 생성. **Shape = Ampere ARM(VM.Standard.A1.Flex)** 권장(무료 한도 4 OCPU/24GB 중 1 OCPU/6GB 정도면 충분). 이미지=Ubuntu 22.04/24.04.
+      - ⚠️ ARM 무료 물량이 "out of capacity" 로 막히면: 다른 가용 도메인/리전 재시도, 또는 AMD 무료(VM.Standard.E2.1.Micro, 1GB)로 대체(메모리 빠듯 — JVM `-XX:MaxRAMPercentage=75` 권장).
+- [ ] SSH 공개키 등록(접속용). 생성 후 **공인 IP** 확인.
+- [ ] **네트워킹**: VCN 보안 목록(또는 NSG)에서 **인그레스 80, 443 허용**. (8080 은 열지 않음 — Nginx 뒤에만 둠) + 아웃바운드 443 허용(텔레그램/시트 알림).
+      - 우분투 자체 방화벽(iptables) 때문에 막힐 수 있음 → 필요 시 `sudo iptables` 규칙 또는 netfilter-persistent 조정.
+
+### A-2. 서버 세팅(SSH 접속 후)
+```bash
+# Docker 설치
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER   # 재로그인 후 sudo 없이 docker 사용
+
+# 저장소 clone
+git clone https://github.com/gooinsung/Leadpot.git
+cd Leadpot
+
+# 시크릿 .env 작성 (docker-compose.prod.yml 과 같은 폴더 = 저장소 루트)
+nano .env    # 아래 A-3 템플릿 붙여넣고 값 채우기 (gitignore 되어 커밋 안 됨)
+
+# 백엔드 기동(빌드 포함) — 컨테이너 안에서 bootJar 빌드 → 실행
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml logs -f   # 기동 로그 확인(Flyway·health)
+curl http://127.0.0.1:8080/api/health                # {"status":"UP"}
+```
+
+### A-3. `.env` 템플릿 (서버에만 두기 · 커밋 금지)
+```dotenv
+APP_JWT_SECRET=<32바이트 이상 랜덤 문자열>
+APP_CORS_ALLOWED_ORIGINS=https://<pages 도메인>       # 프론트 배포 후 확정(예: https://leadpot.pages.dev)
+SPRING_DATASOURCE_URL=jdbc:postgresql://<neon-host>/<db>?sslmode=require
+SPRING_DATASOURCE_USERNAME=<neon-user>
+SPRING_DATASOURCE_PASSWORD=<neon-password>
+APP_UPLOADS_DIR=/app/uploads
+```
+> Neon 접속정보는 지금 로컬 `backend/application-local.properties` 에 있는 값과 동일(호스트/DB/유저/비번). URL 은 `jdbc:postgresql://` + `?sslmode=require` 형태로.
+
+### A-4. Nginx + Cloudflare (HTTPS)
+- [ ] `sudo apt install nginx` → `deploy/nginx-leadpot-api.conf` 를 `/etc/nginx/sites-available/` 에 복사, `server_name` 을 실제 `api.<도메인>` 으로 수정 → `sites-enabled` 링크 → `sudo nginx -t && sudo systemctl reload nginx`.
+- [ ] Cloudflare DNS: `api.<도메인>` A레코드 → VM 공인 IP, **프록시 ON(주황 구름)**. SSL/TLS 모드 우선 **Flexible**(빠른 시작) → 이후 **Full** 로 강화.
+- [ ] 도메인이 없으면: 임시로 VM 공인 IP:80(http) 로 프론트 env 를 맞춰 테스트도 가능하나, 브라우저 혼합콘텐츠 때문에 프론트(https)에서 http API 호출은 막힘 → **도메인+CF 프록시(https)** 를 권장.
+
+### A-5. 프론트(Cloudflare Pages) + 연결
+- [ ] Pages 프로젝트 → GitHub `main` 연결, 루트 `frontend`, 빌드 `npm run build`, 출력 `dist`, env `VITE_API_BASE_URL=https://api.<도메인>`.
+- [ ] 배포되면 Pages 도메인(예: `leadpot.pages.dev`) 확인 → 서버 `.env` 의 `APP_CORS_ALLOWED_ORIGINS` 에 그 주소 넣고 `docker compose -f docker-compose.prod.yml up -d`(재기동).
+- [ ] 스모크(§4): health / 가입·로그인 / 공개폼 제출·새로고침 / 연동 알림.
+
+### A-6. 갱신 배포(코드 바뀔 때)
+```bash
+cd Leadpot && git pull && docker compose -f docker-compose.prod.yml up -d --build
+```

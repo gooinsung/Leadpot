@@ -1,0 +1,18 @@
+# 운영/테스트 배포용 — 백엔드 컨테이너만 실행(DB 는 Neon 사용).
+# 사용: 같은 폴더에 .env(시크릿, gitignore됨) 를 두고  ->  docker compose -f docker-compose.prod.yml up -d --build
+# 8080 은 127.0.0.1 에만 바인딩(외부 직접 노출 금지) → 앞단 Nginx 가 80/443 으로 프록시.
+services:
+  backend:
+    build: ./backend
+    image: leadpot-backend:latest
+    container_name: leadpot-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - uploads:/app/uploads
+
+volumes:
+  uploads:
