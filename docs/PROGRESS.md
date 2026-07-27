@@ -23,7 +23,12 @@
 > ### ⭐ 지금 순서 (사용자 확정 2026-07-27)
 > **1) 지금 = 배포** → **2) 다음 작업 = 광고주 페이지 + 관리자 페이지(멀티포털)**.
 >
-> - **① 배포**: [DEPLOY.md](DEPLOY.md) 체크리스트대로. SPA `_redirects` 추가 완료(딥링크 404 방지). **필요(사용자 리소스)**: 도메인, Oracle VM(또는 VPS), Cloudflare, 운영 DB 결정(Neon 유지 vs VM Postgres), VM 아웃바운드 443(알림용). 프론트=CF Pages(root `frontend`, build `npm run build`, out `dist`, env `VITE_API_BASE_URL`), 백엔드=VM Docker + Nginx + env(APP_JWT_SECRET·CORS·DB…).
+> - **① 배포 — 🔄 진행 중(RESUME HERE)**. 전체 절차/명령은 [DEPLOY.md](DEPLOY.md) **부록 A**(Oracle 실전) 참고. 준비 파일: `docker-compose.prod.yml`(백엔드만, DB=Neon, `.env`로 시크릿), `deploy/nginx-leadpot-api.conf`, SPA `_redirects`(완료).
+>   - **확정 구성(2026-07-27)**: 백엔드=**Oracle Always Free VM**(상시 켜짐 — 실광고 트래픽 테스트 목적) / DB=**Neon 유지**(이미 V17 적용) / 프론트=**Cloudflare Pages**. **Cloudflare 계정 O**, **도메인 아직 없음**(→ 우선 `*.pages.dev`로 시작, HTTPS 혼합콘텐츠 때문에 백엔드도 https 필요 → 도메인+CF 프록시 권장).
+>   - **지금 막힌 지점**: Oracle 콘솔에서 **VM 생성 중**. 리전=**서울(추정)**. **ARM `VM.Standard.A1.Flex`(1 OCPU/6GB, 무료)가 "Out of capacity(AD-1)"** 로 생성 실패 — 서울에서 흔함. **대안 = AMD `VM.Standard.E2.1.Micro`(1GB, Always Free, 거의 항상 생성됨)**. AMD 선택 시 **스왑 2GB 추가 + JVM 메모리 옵션**(예: `JAVA_TOOL_OPTIONS=-Xmx512m` 또는 `-XX:MaxRAMPercentage=70`) 필요(6GB ARM이면 불필요).
+>   - **VM 생성 시 주의**: (a) **SSH 키를 반드시 생성·다운로드**(안 하면 접속 불가 — "No SSH access" 경고 뜨면 Cancel 후 키 저장). (b) 네트워킹은 **VCN Wizard "Create VCN with Internet Connectivity"** 또는 새 **public subnet** + **Assign public IPv4 = ON**(public subnet 없으면 토글 잠김). CIDR 예 `10.0.0.0/16`. (c) Advanced/Security(Shielded)·Storage(부트볼륨)는 전부 기본값.
+>   - **이어서 할 순서**: ① VM 생성 완료(SSH키 저장, ARM 막히면 AMD Micro) → ② VCN 보안목록 **Ingress 80·443 허용**(8080은 열지 않음) → ③ SSH 접속(`ssh -i <키> ubuntu@<공인IP>`, Windows면 키 권한 `icacls`로 조일 수도) → ④ Docker 설치(`curl -fsSL https://get.docker.com | sh`)·`git clone`·**`.env` 작성**(DEPLOY.md A-3 템플릿, **Neon 접속정보는 로컬 `backend/application-local.properties` 값과 동일** — 깃엔 없으니 수동 입력) → `docker compose -f docker-compose.prod.yml up -d --build` → `curl localhost:8080/api/health` → ⑤ Nginx + Cloudflare(api.도메인, 프록시 ON, SSL Flexible→Full) → ⑥ Pages 배포(env `VITE_API_BASE_URL=https://api.도메인`) → 서버 `.env`의 `APP_CORS_ALLOWED_ORIGINS`에 Pages 주소 넣고 재기동 → 스모크.
+>   - ⚠️ **Neon 접속정보·`APP_JWT_SECRET` 등 시크릿은 깃에 없음.** 새 PC/세션에서 서버 `.env`를 채우려면 로컬 `backend/application-local.properties`(gitignore됨)를 참고하거나 사용자에게 값 확인.
 > - **② 다음 작업(배포 후) = 멀티 포털**: 마케터(기존)/광고주/관리자 3포털로 확장(리드 공급·거래 플랫폼화). **상세 설계 = [MULTI-PORTAL-PLAN.md](MULTI-PORTAL-PLAN.md)** — 착수 전 그 문서 재정독 + §9 결정필요 항목(정산 포함여부·광고주 계정생성·배정단위 등) 사용자 확정부터. 아키텍처 추천=모노레포·단일 백엔드(역할 기반, users.role=MARKETER/ADVERTISER/ADMIN)·프론트 3앱.
 >
 > **✅ 이번 세션(2026-07-27) 추가 완료 — 전부 `main` 푸시(최신 `e13b890`)**:
