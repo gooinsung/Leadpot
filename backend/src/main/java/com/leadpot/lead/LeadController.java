@@ -115,10 +115,30 @@ public class LeadController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 리드폼의 리드 CSV 내보내기 (엑셀 호환 UTF-8 BOM). */
+    /** 내보내기 가능한 컬럼 목록(선택 UI용). */
+    @GetMapping("/columns")
+    public List<String> exportColumns(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId) {
+        return leadService.exportColumns(userId(jwt), formId);
+    }
+
+    /**
+     * 리드 내보내기. format=csv(기본)|xlsx, columns=선택 컬럼(생략 시 전체).
+     * xlsx 는 모든 셀 텍스트 서식(날짜·번호 자동변환 방지), csv 는 엑셀 호환 UTF-8 BOM.
+     */
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId) {
-        String csv = leadService.exportCsv(userId(jwt), formId);
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestParam(required = false, defaultValue = "csv") String format,
+            @RequestParam(required = false) List<String> columns) {
+        Long uid = userId(jwt);
+        if ("xlsx".equalsIgnoreCase(format)) {
+            byte[] body = excelService.dataXlsx("리드", leadService.exportMatrix(uid, formId, columns));
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"leads_" + formId + ".xlsx\"")
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(body);
+        }
+        String csv = leadService.exportCsv(uid, formId, columns);
         byte[] bom = new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF };
         byte[] body = csv.getBytes(StandardCharsets.UTF_8);
         byte[] out = new byte[bom.length + body.length];

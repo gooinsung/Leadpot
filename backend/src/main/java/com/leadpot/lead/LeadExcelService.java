@@ -10,7 +10,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormat;
 import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -22,6 +27,47 @@ import com.leadpot.common.error.InvalidSubmissionException;
 /** 리드 일괄 처리용 엑셀(.xlsx)/CSV 양식 생성 + 업로드 파싱. */
 @Service
 public class LeadExcelService {
+
+    /**
+     * 표(0행=헤더)를 .xlsx 로. 모든 셀을 텍스트 서식(@)으로 지정 → 엑셀이 날짜·전화번호·긴 숫자를
+     * 자동 변환(서식 깨짐)하지 않도록 한다. 헤더는 굵게.
+     */
+    public byte[] dataXlsx(String sheetName, List<List<String>> matrix) {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet(sheetName == null || sheetName.isBlank() ? "리드" : sheetName);
+            DataFormat df = wb.createDataFormat();
+            short textFmt = df.getFormat("@"); // 텍스트 서식
+
+            CellStyle textStyle = wb.createCellStyle();
+            textStyle.setDataFormat(textFmt);
+
+            CellStyle headStyle = wb.createCellStyle();
+            headStyle.setDataFormat(textFmt);
+            Font bold = wb.createFont();
+            bold.setBold(true);
+            headStyle.setFont(bold);
+
+            int maxCols = 0;
+            for (int r = 0; r < matrix.size(); r++) {
+                List<String> cells = matrix.get(r);
+                Row row = sheet.createRow(r);
+                maxCols = Math.max(maxCols, cells.size());
+                for (int c = 0; c < cells.size(); c++) {
+                    Cell cell = row.createCell(c, CellType.STRING);
+                    cell.setCellStyle(r == 0 ? headStyle : textStyle);
+                    String v = cells.get(c);
+                    cell.setCellValue(v == null ? "" : v);
+                }
+            }
+            for (int c = 0; c < maxCols; c++) {
+                sheet.setColumnWidth(c, 22 * 256);
+            }
+            wb.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
     /** 헤더(컬럼 라벨)만 있는 .xlsx 양식. */
     public byte[] templateXlsx(List<String> cols) {

@@ -4,9 +4,10 @@ import {
   ApiError,
   BASE_URL,
   deleteLead,
-  downloadLeadsCsv,
+  downloadLeads,
   downloadLeadTemplate,
   getForm,
+  getLeadColumns,
   importLeads,
   LEAD_STATUSES,
   listLeads,
@@ -36,6 +37,41 @@ export function LeadsListPage() {
   const [tagFilter, setTagFilter] = useState(""); // "" = 전체 태그
   const [detail, setDetail] = useState<Lead | null>(null); // 상세 모달 대상
   const fileRef = useRef<HTMLInputElement>(null);
+  // 내보내기 모달(형식·컬럼 선택)
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"xlsx" | "csv">("xlsx");
+  const [exportCols, setExportCols] = useState<string[]>([]); // 선택 가능한 전체 컬럼
+  const [exportSel, setExportSel] = useState<string[]>([]); // 선택된 컬럼
+  const [exporting, setExporting] = useState(false);
+
+  function openExport() {
+    setExportOpen(true);
+    getLeadColumns(formId)
+      .then((cols) => {
+        setExportCols(cols);
+        setExportSel(cols); // 기본: 전체 선택
+      })
+      .catch(() => {});
+  }
+
+  function toggleExportCol(col: string) {
+    setExportSel((sel) => (sel.includes(col) ? sel.filter((c) => c !== col) : [...sel, col]));
+  }
+
+  async function runExport() {
+    if (exportSel.length === 0) return;
+    setExporting(true);
+    try {
+      // 선택 순서가 아니라 원래 컬럼 순서를 유지해 보냄
+      const ordered = exportCols.filter((c) => exportSel.includes(c));
+      await downloadLeads(formId, { format: exportFormat, columns: ordered, formName: form?.name || "leads" });
+      setExportOpen(false);
+    } catch {
+      alert("내보내기에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const publicUrl = `${window.location.origin}/f/${formId}`;
   // 외부 사이트 임베드 스니펫(M6): 대상 페이지에 붙여넣으면 embed.js 가 해당 위치에 리드폼을 렌더.
@@ -209,7 +245,7 @@ export function LeadsListPage() {
                 <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/ip-blocks`)}>IP 차단</button>
                 <button className="btn btn-ghost" onClick={() => setShowEmbed((v) => !v)}>{showEmbed ? "임베드 닫기" : "임베드 코드"}</button>
                 <button className="btn btn-ghost" onClick={copyLink}>{copied ? "복사됨!" : "공개 링크 복사"}</button>
-                <button className="btn btn-ghost" onClick={() => downloadLeadsCsv(formId, form?.name || "leads")}>CSV 내보내기</button>
+                <button className="btn btn-ghost" onClick={openExport}>내보내기</button>
                 <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 리드폼 열기</button>
               </>
             )}
@@ -233,6 +269,62 @@ export function LeadsListPage() {
             />
             <div style={{ marginTop: 10 }}>
               <button className="btn btn-primary btn-sm" onClick={copyEmbed}>{embedCopied ? "복사됨!" : "코드 복사"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* 내보내기 모달(형식 + 컬럼 선택) */}
+        {exportOpen && (
+          <div
+            onClick={() => !exporting && setExportOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}
+          >
+            <div
+              className="card card-pad"
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: 540, maxHeight: "85vh", display: "flex", flexDirection: "column" }}
+            >
+              <div className="card-h">리드 내보내기</div>
+
+              <div style={{ display: "flex", gap: 16, alignItems: "center", margin: "10px 0 14px" }}>
+                <span className="dash-sub" style={{ fontSize: 13 }}>형식</span>
+                <label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="exfmt" checked={exportFormat === "xlsx"} onChange={() => setExportFormat("xlsx")} /> 엑셀(.xlsx)
+                </label>
+                <label style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="exfmt" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} /> CSV
+                </label>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span className="dash-sub" style={{ fontSize: 13 }}>내보낼 컬럼 ({exportSel.length}/{exportCols.length})</span>
+                <span style={{ display: "flex", gap: 6 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setExportSel(exportCols)}>전체선택</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setExportSel([])}>전체해제</button>
+                </span>
+              </div>
+              <div style={{ overflowY: "auto", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
+                {exportCols.length === 0 ? (
+                  <span className="dash-sub" style={{ fontSize: 13 }}>불러오는 중…</span>
+                ) : (
+                  exportCols.map((c) => (
+                    <label key={c} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 14, cursor: "pointer", minWidth: 0 }}>
+                      <input type="checkbox" checked={exportSel.includes(c)} onChange={() => toggleExportCol(c)} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c}>{c}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="dash-sub" style={{ fontSize: 12, margin: "8px 0 0" }}>
+                모든 셀이 텍스트 서식으로 저장되어 접수일시·연락처·긴 숫자가 서식 때문에 깨지지 않습니다.
+              </p>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+                <button className="btn btn-ghost" onClick={() => setExportOpen(false)} disabled={exporting}>취소</button>
+                <button className="btn btn-primary" onClick={runExport} disabled={exporting || exportSel.length === 0}>
+                  {exporting ? "내보내는 중…" : "다운로드"}
+                </button>
+              </div>
             </div>
           </div>
         )}

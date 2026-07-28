@@ -273,44 +273,72 @@ public class LeadService {
         return LeadResponse.from(lead);
     }
 
-    /** 리드폼의 리드를 CSV 로 내보낸다(본인 리드폼만). 항목 컬럼은 리드폼 정의 순서. */
+    // 방문자정보 등 고정 컬럼(답변 컬럼은 이 사이에 리드폼 순서대로 들어감).
+    private static final List<String> META_HEAD = List.of("접수일시", "상태");
+    private static final List<String> META_TAIL = List.of("기기", "OS", "브라우저", "IP", "유입경로", "UTM");
+
+    /** 내보내기 가능한 전체 컬럼(순서: 접수일시·상태 → 답변항목 → 방문자정보). 컬럼 선택 UI용. */
     @Transactional(readOnly = true)
-    public String exportCsv(Long ownerId, Long formId) {
+    public List<String> exportColumns(Long ownerId, Long formId) {
         FormResponse form = formService.get(ownerId, formId); // 소유권 확인
-        // 답변 컬럼(리드폼 블록 순서): FIELD label / CHOICE question
-        List<String> answerCols = form.blocks().stream()
-                .filter(b -> b.blockType() == com.leadpot.form.BlockType.FIELD
-                        || b.blockType() == com.leadpot.form.BlockType.CHOICE)
-                .map(LeadService::columnLabel)
-                .filter(s -> !s.isBlank())
-                .distinct()
-                .toList();
+        return concat(META_HEAD, answerColumnLabels(form), META_TAIL);
+    }
 
-        StringBuilder sb = new StringBuilder();
-        // 헤더
-        sb.append(row(concat(List.of("접수일시", "상태"), answerCols,
-                List.of("기기", "OS", "브라우저", "IP", "유입경로", "UTM"))));
+    /** 리드 내보내기용 표(0행=헤더). selected 가 비면 전체 컬럼, 아니면 그 컬럼만(원 순서 유지). */
+    @Transactional(readOnly = true)
+    public List<List<String>> exportMatrix(Long ownerId, Long formId, List<String> selected) {
+        FormResponse form = formService.get(ownerId, formId); // 소유권 확인
+        List<String> answerCols = answerColumnLabels(form);
+        List<String> all = concat(META_HEAD, answerCols, META_TAIL);
+        List<String> cols = (selected == null || selected.isEmpty())
+                ? all
+                : all.stream().filter(selected::contains).toList(); // 선택된 것만, 원래 순서 유지
+        if (cols.isEmpty()) {
+            cols = all; // 유효 컬럼이 하나도 없으면 전체로 폴백
+        }
 
+        List<List<String>> matrix = new java.util.ArrayList<>();
+        matrix.add(new java.util.ArrayList<>(cols)); // 헤더
         for (Lead l : leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId)) {
-            Map<String, String> ans = new LinkedHashMap<>();
-            if (l.getAnswers() != null) {
-                for (Map<String, Object> a : l.getAnswers()) {
-                    ans.put(str(a.get("label")), str(a.get("value")));
-                }
+            Map<String, String> vals = leadValues(l, answerCols);
+            List<String> cells = new java.util.ArrayList<>(cols.size());
+            for (String col : cols) {
+                cells.add(vals.getOrDefault(col, ""));
             }
-            List<String> cells = new java.util.ArrayList<>();
-            cells.add(l.getCreatedAt() != null ? DT.format(l.getCreatedAt()) : "");
-            cells.add(STATUS_KR.getOrDefault(l.getStatus(), l.getStatus()));
-            for (String col : answerCols) {
-                cells.add(ans.getOrDefault(col, ""));
+            matrix.add(cells);
+        }
+        return matrix;
+    }
+
+    /** 한 리드의 전체 컬럼값 맵(컬럼명 → 값). */
+    private static Map<String, String> leadValues(Lead l, List<String> answerCols) {
+        Map<String, String> ans = new LinkedHashMap<>();
+        if (l.getAnswers() != null) {
+            for (Map<String, Object> a : l.getAnswers()) {
+                ans.put(str(a.get("label")), str(a.get("value")));
             }
-            cells.add(nn(l.getDevice()));
-            cells.add(nn(l.getOs()));
-            cells.add(nn(l.getBrowser()));
-            cells.add(nn(l.getSubmitterIp()));
-            cells.add(nn(l.getReferer()));
-            cells.add(utmStr(l.getUtm()));
-            sb.append(row(cells));
+        }
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("접수일시", l.getCreatedAt() != null ? DT.format(l.getCreatedAt()) : "");
+        m.put("상태", STATUS_KR.getOrDefault(l.getStatus(), l.getStatus()));
+        for (String col : answerCols) {
+            m.put(col, ans.getOrDefault(col, ""));
+        }
+        m.put("기기", nn(l.getDevice()));
+        m.put("OS", nn(l.getOs()));
+        m.put("브라우저", nn(l.getBrowser()));
+        m.put("IP", nn(l.getSubmitterIp()));
+        m.put("유입경로", nn(l.getReferer()));
+        m.put("UTM", utmStr(l.getUtm()));
+        return m;
+    }
+
+    /** 리드를 CSV 문자열로(선택 컬럼, 생략 시 전체). */
+    @Transactional(readOnly = true)
+    public String exportCsv(Long ownerId, Long formId, List<String> selected) {
+        StringBuilder sb = new StringBuilder();
+        for (List<String> r : exportMatrix(ownerId, formId, selected)) {
+            sb.append(row(r));
         }
         return sb.toString();
     }

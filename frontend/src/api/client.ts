@@ -540,10 +540,20 @@ export function testFormSheets(formId: number): Promise<IntegrationTestResult> {
   return request<IntegrationTestResult>(`/api/integrations/test-sheets?formId=${formId}`, { method: "POST" });
 }
 
-/** 리드폼의 리드를 CSV 로 내려받기(엑셀 호환). */
-export async function downloadLeadsCsv(formId: number, formName: string): Promise<void> {
+/** 내보내기 가능한 컬럼 목록(접수일시·상태 → 답변항목 → 방문자정보 순). */
+export function getLeadColumns(formId: number): Promise<string[]> {
+  return request<string[]>(`/api/leads/columns?formId=${formId}`);
+}
+
+/** 리드 내보내기(형식·선택 컬럼). columns 생략/빈 배열이면 전체 컬럼. */
+export async function downloadLeads(
+  formId: number,
+  opts: { format: "csv" | "xlsx"; columns?: string[]; formName?: string },
+): Promise<void> {
   const tokens = getTokens();
-  const res = await fetch(`${BASE_URL}/api/leads/export?formId=${formId}`, {
+  const p = new URLSearchParams({ formId: String(formId), format: opts.format });
+  (opts.columns ?? []).forEach((c) => p.append("columns", c));
+  const res = await fetch(`${BASE_URL}/api/leads/export?${p.toString()}`, {
     headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
   });
   if (!res.ok) throw await parseError(res);
@@ -551,7 +561,7 @@ export async function downloadLeadsCsv(formId: number, formName: string): Promis
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${formName || "leads"}.csv`;
+  a.download = `${opts.formName || "leads"}.${opts.format}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
