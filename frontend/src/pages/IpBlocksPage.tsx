@@ -13,6 +13,7 @@ import {
   type IpBlockHit,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { Pagination, usePaging } from "../components/Pagination";
 
 export function IpBlocksPage() {
   const { id } = useParams();
@@ -21,6 +22,8 @@ export function IpBlocksPage() {
   const [form, setForm] = useState<FormDetail | null>(null);
   const [blocks, setBlocks] = useState<IpBlock[]>([]);
   const [hits, setHits] = useState<IpBlockHit[]>([]);
+  const blocksPaging = usePaging(blocks, 10);
+  const hitsPaging = usePaging(hits, 10);
   const [loading, setLoading] = useState(true);
   const [pattern, setPattern] = useState("");
   const [reason, setReason] = useState("");
@@ -152,7 +155,7 @@ export function IpBlocksPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {blocks.map((b) => (
+                    {blocksPaging.pageItems.map((b) => (
                       <tr key={b.id}>
                         <td><code>{b.pattern}</code></td>
                         <td>{b.reason || <span className="dash-sub">—</span>}</td>
@@ -166,6 +169,9 @@ export function IpBlocksPage() {
                     ))}
                   </tbody>
                 </table>
+                <div style={{ padding: "0 14px 12px" }}>
+                  <Pagination total={blocksPaging.total} page={blocksPaging.page} pages={blocksPaging.pages} pageSize={blocksPaging.pageSize} onPage={blocksPaging.setPage} onPageSize={blocksPaging.setPageSize} unit="개" />
+                </div>
               </div>
             )}
 
@@ -196,7 +202,7 @@ export function IpBlocksPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {hits.map((h) => (
+                    {hitsPaging.pageItems.map((h) => (
                       <tr key={h.id}>
                         <td className="num">{new Date(h.createdAt).toLocaleString("ko-KR")}</td>
                         <td><code>{h.ip}</code></td>
@@ -211,6 +217,9 @@ export function IpBlocksPage() {
                     ))}
                   </tbody>
                 </table>
+                <div style={{ padding: "0 14px 12px" }}>
+                  <Pagination total={hitsPaging.total} page={hitsPaging.page} pages={hitsPaging.pages} pageSize={hitsPaging.pageSize} onPage={hitsPaging.setPage} onPageSize={hitsPaging.setPageSize} unit="건" />
+                </div>
               </div>
             )}
           </>

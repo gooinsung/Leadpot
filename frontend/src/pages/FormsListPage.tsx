@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteForm, listForms, type FormSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { Pagination, usePaging } from "../components/Pagination";
 
 export function FormsListPage() {
   const navigate = useNavigate();
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const paging = usePaging(forms, 10);
 
   async function load() {
     setLoading(true);
@@ -58,6 +60,7 @@ export function FormsListPage() {
             </button>
           </div>
         ) : (
+          <>
           <div className="card">
             <table>
               <thead>
@@ -70,7 +73,7 @@ export function FormsListPage() {
                 </tr>
               </thead>
               <tbody>
-                {forms.map((f) => (
+                {paging.pageItems.map((f) => (
                   <tr key={f.id} className="row-click" onClick={() => navigate(`/forms/${f.id}/edit`)}>
                     <td>{f.name}</td>
                     <td>
@@ -94,6 +97,8 @@ export function FormsListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="개" />
+          </>
         )}
       </main>
     </div>

@@ -4,6 +4,7 @@ import { deleteLanding, listLandings, type LandingSummary } from "../api/client"
 import { useAuth } from "../lib/authContext";
 import { publicSiteUrl } from "../lib/site";
 import { TopBar } from "../components/TopBar";
+import { Pagination, usePaging } from "../components/Pagination";
 
 export function LandingsListPage() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export function LandingsListPage() {
   const sub = user?.subdomain ?? "";
   const [items, setItems] = useState<LandingSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const paging = usePaging(items, 10);
 
   async function load() {
     setLoading(true);
@@ -51,13 +53,14 @@ export function LandingsListPage() {
             <button className="btn btn-primary" onClick={() => navigate("/landings/new")}>첫 랜딩 만들기</button>
           </div>
         ) : (
+          <>
           <div className="card">
             <table>
               <thead>
                 <tr><th>제목</th><th>공개 주소</th><th>상태</th><th>수정일</th><th></th></tr>
               </thead>
               <tbody>
-                {items.map((l) => (
+                {paging.pageItems.map((l) => (
                   <tr key={l.id} className="row-click" onClick={() => navigate(`/landings/${l.id}/edit`)}>
                     <td>{l.title}</td>
                     <td className="num">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
@@ -76,6 +79,8 @@ export function LandingsListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="개" />
+          </>
         )}
       </main>
     </div>

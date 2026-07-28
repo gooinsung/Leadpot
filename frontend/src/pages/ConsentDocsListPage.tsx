@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteConsentDoc, listConsentDocs, type ConsentDocumentSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { Pagination, usePaging } from "../components/Pagination";
 
 export function ConsentDocsListPage() {
   const navigate = useNavigate();
   const [docs, setDocs] = useState<ConsentDocumentSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const paging = usePaging(docs, 10);
 
   async function load() {
     setLoading(true);
@@ -50,6 +52,7 @@ export function ConsentDocsListPage() {
             <button className="btn btn-primary" onClick={() => navigate("/consent-docs/new")}>첫 문서 만들기</button>
           </div>
         ) : (
+          <>
           <div className="card">
             <table>
               <thead>
@@ -61,7 +64,7 @@ export function ConsentDocsListPage() {
                 </tr>
               </thead>
               <tbody>
-                {docs.map((d) => (
+                {paging.pageItems.map((d) => (
                   <tr key={d.id} className="row-click" onClick={() => navigate(`/consent-docs/${d.id}/edit`)}>
                     <td style={{ fontWeight: 600 }}>{d.name || d.title}</td>
                     <td>{d.title}</td>
@@ -79,6 +82,8 @@ export function ConsentDocsListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="개" />
+          </>
         )}
       </main>
     </div>

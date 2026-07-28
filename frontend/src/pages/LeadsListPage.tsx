@@ -19,6 +19,12 @@ import {
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { LeadDetailModal } from "../components/LeadDetailModal";
+import { Pagination, usePaging } from "../components/Pagination";
+
+// ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
+function kstDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+}
 
 export function LeadsListPage() {
   const { id } = useParams();
@@ -31,6 +37,8 @@ export function LeadsListPage() {
   const [trashed, setTrashed] = useState(false); // 휴지통 보기 여부
   const [statusFilter, setStatusFilter] = useState(""); // "" = 전체
   const [q, setQ] = useState("");
+  const [dateFrom, setDateFrom] = useState(""); // 접수일시 시작(YYYY-MM-DD, KST). "" = 제한 없음
+  const [dateTo, setDateTo] = useState(""); // 접수일시 끝(포함)
   const [showEmbed, setShowEmbed] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
   const [dupOnly, setDupOnly] = useState(false); // 중복만 보기
@@ -64,7 +72,9 @@ export function LeadsListPage() {
     try {
       // 선택 순서가 아니라 원래 컬럼 순서를 유지해 보냄
       const ordered = exportCols.filter((c) => exportSel.includes(c));
-      await downloadLeads(formId, { format: exportFormat, columns: ordered, formName: form?.name || "leads" });
+      // 현재 화면 필터(날짜·검색·상태·태그·중복)가 적용된 리드만 내보낸다.
+      const ids = filtered.map((l) => l.id);
+      await downloadLeads(formId, { format: exportFormat, columns: ordered, ids, formName: form?.name || "leads" });
       setExportOpen(false);
     } catch {
       alert("내보내기에 실패했습니다. 다시 시도해주세요.");
@@ -136,7 +146,7 @@ export function LeadsListPage() {
     return Array.from(set).sort();
   }, [leads]);
 
-  // 상태·검색·중복·태그는 클라이언트 필터(즉시 반응)
+  // 상태·검색·중복·태그·날짜는 클라이언트 필터(즉시 반응)
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter(
@@ -144,6 +154,8 @@ export function LeadsListPage() {
         (!statusFilter || l.status === statusFilter) &&
         (!dupOnly || dupIds.has(l.id)) &&
         (!tagFilter || (l.tags ?? []).includes(tagFilter)) &&
+        (!dateFrom || kstDate(l.createdAt) >= dateFrom) &&
+        (!dateTo || kstDate(l.createdAt) <= dateTo) &&
         (!needle ||
           l.answers.some(
             (a) =>
@@ -151,7 +163,9 @@ export function LeadsListPage() {
               (a.label || "").toLowerCase().includes(needle),
           )),
     );
-  }, [leads, q, statusFilter, dupOnly, dupIds, tagFilter]);
+  }, [leads, q, statusFilter, dupOnly, dupIds, tagFilter, dateFrom, dateTo]);
+
+  const paging = usePaging(filtered, 10);
 
   function copyLink() {
     navigator.clipboard?.writeText(publicUrl).then(() => {
@@ -316,12 +330,13 @@ export function LeadsListPage() {
                 )}
               </div>
               <p className="dash-sub" style={{ fontSize: 12, margin: "8px 0 0" }}>
-                모든 셀이 텍스트 서식으로 저장되어 접수일시·연락처·긴 숫자가 서식 때문에 깨지지 않습니다.
+                현재 필터(날짜·검색·상태 등)가 적용된 <b>{filtered.length.toLocaleString()}건</b>을 내보냅니다.
+                모든 셀이 텍스트 서식으로 저장되어 접수일시·연락처·긴 숫자가 깨지지 않습니다.
               </p>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
                 <button className="btn btn-ghost" onClick={() => setExportOpen(false)} disabled={exporting}>취소</button>
-                <button className="btn btn-primary" onClick={runExport} disabled={exporting || exportSel.length === 0}>
+                <button className="btn btn-primary" onClick={runExport} disabled={exporting || exportSel.length === 0 || filtered.length === 0}>
                   {exporting ? "내보내는 중…" : "다운로드"}
                 </button>
               </div>
@@ -344,6 +359,11 @@ export function LeadsListPage() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }} title="접수일시(KST) 범위로 검색">
+            <input className="input" type="date" style={{ width: 150 }} value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} aria-label="접수 시작일" />
+            <span className="dash-sub" style={{ fontSize: 12 }}>~</span>
+            <input className="input" type="date" style={{ width: 150 }} value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} aria-label="접수 종료일" />
+          </div>
           {allTags.length > 0 && (
             <select className="input" style={{ width: 140 }} value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
               <option value="">태그 전체</option>
@@ -361,8 +381,8 @@ export function LeadsListPage() {
               중복만 보기{dupIds.size ? ` (${dupIds.size})` : ""}
             </button>
           )}
-          {(q || statusFilter || dupOnly || tagFilter) && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); setTagFilter(""); }}>필터 초기화</button>
+          {(q || statusFilter || dupOnly || tagFilter || dateFrom || dateTo) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); setTagFilter(""); setDateFrom(""); setDateTo(""); }}>필터 초기화</button>
           )}
           {!trashed && (
             <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -391,8 +411,9 @@ export function LeadsListPage() {
             )}
           </div>
         ) : (
+          <>
           <div className="leads">
-            {filtered.map((l) => (
+            {paging.pageItems.map((l) => (
               <div className="card card-pad lead-card" key={l.id}>
                 <div className="lead-head">
                   <span className="lead-time">
@@ -451,6 +472,8 @@ export function LeadsListPage() {
               </div>
             ))}
           </div>
+          <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="건" />
+          </>
         )}
       </main>
       {detail && (

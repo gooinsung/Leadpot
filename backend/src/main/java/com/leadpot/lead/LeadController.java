@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.leadpot.lead.dto.ImportResult;
+import com.leadpot.lead.dto.LeadExportRequest;
 import com.leadpot.lead.dto.LeadNoteResponse;
 import com.leadpot.lead.dto.LeadResponse;
 
@@ -122,23 +123,26 @@ public class LeadController {
     }
 
     /**
-     * 리드 내보내기. format=csv(기본)|xlsx, columns=선택 컬럼(생략 시 전체).
+     * 리드 내보내기. 본문: format=csv(기본)|xlsx, columns=선택 컬럼(생략 시 전체), ids=선택 리드(생략 시 전체).
      * xlsx 는 모든 셀 텍스트 서식(날짜·번호 자동변환 방지), csv 는 엑셀 호환 UTF-8 BOM.
+     * ids 로 현재 화면 필터가 적용된 리드만 내보낼 수 있다(POST 로 긴 목록 전송).
      */
-    @GetMapping("/export")
+    @PostMapping("/export")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
-            @RequestParam(required = false, defaultValue = "csv") String format,
-            @RequestParam(required = false) List<String> columns) {
+            @RequestBody(required = false) LeadExportRequest req) {
         Long uid = userId(jwt);
+        String format = (req == null || req.format() == null) ? "csv" : req.format();
+        List<String> columns = req == null ? null : req.columns();
+        List<Long> ids = req == null ? null : req.ids();
         if ("xlsx".equalsIgnoreCase(format)) {
-            byte[] body = excelService.dataXlsx("리드", leadService.exportMatrix(uid, formId, columns));
+            byte[] body = excelService.dataXlsx("리드", leadService.exportMatrix(uid, formId, columns, ids));
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"leads_" + formId + ".xlsx\"")
                     .contentType(MediaType.parseMediaType(
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .body(body);
         }
-        String csv = leadService.exportCsv(uid, formId, columns);
+        String csv = leadService.exportCsv(uid, formId, columns, ids);
         byte[] bom = new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF };
         byte[] body = csv.getBytes(StandardCharsets.UTF_8);
         byte[] out = new byte[bom.length + body.length];

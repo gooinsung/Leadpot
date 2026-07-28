@@ -7,6 +7,7 @@ import {
   type HtmlComponentSummary,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { Pagination, usePaging } from "../components/Pagination";
 
 const catLabel = (v: string) => HTML_COMPONENT_CATEGORIES.find((c) => c.value === v)?.label ?? v;
 
@@ -14,6 +15,7 @@ export function HtmlComponentsListPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<HtmlComponentSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const paging = usePaging(items, 10);
 
   async function load() {
     setLoading(true);
@@ -57,6 +59,7 @@ export function HtmlComponentsListPage() {
             <button className="btn btn-primary" onClick={() => navigate("/html-components/new")}>첫 요소 만들기</button>
           </div>
         ) : (
+          <>
           <div className="card">
             <table>
               <thead>
@@ -68,7 +71,7 @@ export function HtmlComponentsListPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((c) => (
+                {paging.pageItems.map((c) => (
                   <tr key={c.id} className="row-click" onClick={() => navigate(`/html-components/${c.id}/edit`)}>
                     <td style={{ fontWeight: 600 }}>{c.name}</td>
                     <td>
@@ -88,6 +91,8 @@ export function HtmlComponentsListPage() {
               </tbody>
             </table>
           </div>
+          <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="개" />
+          </>
         )}
       </main>
     </div>

@@ -545,16 +545,22 @@ export function getLeadColumns(formId: number): Promise<string[]> {
   return request<string[]>(`/api/leads/columns?formId=${formId}`);
 }
 
-/** 리드 내보내기(형식·선택 컬럼). columns 생략/빈 배열이면 전체 컬럼. */
+/**
+ * 리드 내보내기(형식·선택 컬럼·선택 리드). columns 생략/빈 배열이면 전체 컬럼,
+ * ids 생략/빈 배열이면 전체 리드. ids 를 넘기면 그 리드만(현재 화면 필터 반영).
+ */
 export async function downloadLeads(
   formId: number,
-  opts: { format: "csv" | "xlsx"; columns?: string[]; formName?: string },
+  opts: { format: "csv" | "xlsx"; columns?: string[]; ids?: number[]; formName?: string },
 ): Promise<void> {
   const tokens = getTokens();
-  const p = new URLSearchParams({ formId: String(formId), format: opts.format });
-  (opts.columns ?? []).forEach((c) => p.append("columns", c));
-  const res = await fetch(`${BASE_URL}/api/leads/export?${p.toString()}`, {
-    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+  const res = await fetch(`${BASE_URL}/api/leads/export?formId=${formId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
+    },
+    body: JSON.stringify({ format: opts.format, columns: opts.columns ?? null, ids: opts.ids ?? null }),
   });
   if (!res.ok) throw await parseError(res);
   const blob = await res.blob();

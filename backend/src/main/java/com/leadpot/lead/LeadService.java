@@ -284,9 +284,12 @@ public class LeadService {
         return concat(META_HEAD, answerColumnLabels(form), META_TAIL);
     }
 
-    /** 리드 내보내기용 표(0행=헤더). selected 가 비면 전체 컬럼, 아니면 그 컬럼만(원 순서 유지). */
+    /**
+     * 리드 내보내기용 표(0행=헤더). selected 가 비면 전체 컬럼, 아니면 그 컬럼만(원 순서 유지).
+     * ids 가 비면 전체 리드, 아니면 그 리드만(본인 리드폼 범위 내 · 화면 필터 반영).
+     */
     @Transactional(readOnly = true)
-    public List<List<String>> exportMatrix(Long ownerId, Long formId, List<String> selected) {
+    public List<List<String>> exportMatrix(Long ownerId, Long formId, List<String> selected, List<Long> ids) {
         FormResponse form = formService.get(ownerId, formId); // 소유권 확인
         List<String> answerCols = answerColumnLabels(form);
         List<String> all = concat(META_HEAD, answerCols, META_TAIL);
@@ -296,10 +299,14 @@ public class LeadService {
         if (cols.isEmpty()) {
             cols = all; // 유효 컬럼이 하나도 없으면 전체로 폴백
         }
+        Set<Long> idSet = (ids == null || ids.isEmpty()) ? null : new java.util.HashSet<>(ids);
 
         List<List<String>> matrix = new java.util.ArrayList<>();
         matrix.add(new java.util.ArrayList<>(cols)); // 헤더
         for (Lead l : leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId)) {
+            if (idSet != null && !idSet.contains(l.getId())) {
+                continue; // 선택된 리드만
+            }
             Map<String, String> vals = leadValues(l, answerCols);
             List<String> cells = new java.util.ArrayList<>(cols.size());
             for (String col : cols) {
@@ -333,11 +340,11 @@ public class LeadService {
         return m;
     }
 
-    /** 리드를 CSV 문자열로(선택 컬럼, 생략 시 전체). */
+    /** 리드를 CSV 문자열로(선택 컬럼·선택 리드, 생략 시 전체). */
     @Transactional(readOnly = true)
-    public String exportCsv(Long ownerId, Long formId, List<String> selected) {
+    public String exportCsv(Long ownerId, Long formId, List<String> selected, List<Long> ids) {
         StringBuilder sb = new StringBuilder();
-        for (List<String> r : exportMatrix(ownerId, formId, selected)) {
+        for (List<String> r : exportMatrix(ownerId, formId, selected, ids)) {
             sb.append(row(r));
         }
         return sb.toString();
