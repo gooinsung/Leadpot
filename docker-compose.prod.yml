@@ -11,6 +11,10 @@ services:
       - "127.0.0.1:8080:8080"
     env_file:
       - .env
+    # 저사양(1GB, Oracle AMD E2.1.Micro) 대비 JVM 힙 상한. java 실행 시 자동 반영(JAVA_TOOL_OPTIONS).
+    # 6GB 이상 서버로 옮기면 이 줄을 지우거나 값을 올린다. 스왑 2GB 병행 권장(부록 B).
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xmx512m
     volumes:
       - uploads:/app/uploads
 

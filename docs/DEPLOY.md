@@ -140,3 +140,34 @@ APP_UPLOADS_DIR=/app/uploads
 ```bash
 cd Leadpot && git pull && docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+---
+
+## 부록 B. AMD Micro(1GB) 전환 — 저사양 세팅 (2026-07-28 결정)
+
+> ARM(A1.Flex 6GB) 이 서울에서 계속 out-of-capacity → **AMD `VM.Standard.E2.1.Micro`(1 OCPU, 1GB, Always Free)** 로 전환.
+> DB=Neon(외부), 프론트=Cloudflare Pages 라 서버는 **백엔드 컨테이너 1개만** 실행 → 1GB 로도 가능(메모리 튜닝 필수).
+
+### B-1. VM 생성 (A-1 과 동일, Shape 만 다름)
+- [ ] Shape = **VM.Standard.E2.1.Micro** (AMD, 1GB) — 거의 항상 생성됨.
+- [ ] Fault domain = **비워둠(자동)**. Image = Ubuntu 22.04/24.04.
+- [ ] SSH 키 **Generate → private key 저장**(필수). 네트워킹 = 새 VCN + Public IPv4 ON.
+- [ ] 공인 IP 확인.
+
+### B-2. 스왑 2GB 추가 (SSH 접속 직후 — 빌드·기동 OOM 방지)
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab   # 재부팅 후에도 유지
+free -h   # Swap 2.0Gi 확인
+```
+
+### B-3. JVM 메모리 상한
+- 이미 `docker-compose.prod.yml` 에 `JAVA_TOOL_OPTIONS=-Xmx512m` 반영됨(1GB 대비 힙 512MB 상한).
+- 이후 서버는 A-2~A-6 절차 동일. **빌드가 느릴 수 있음**(1GB+스왑) — 인내심. 빌드가 OOM 으로 죽으면 스왑을 4G 로 늘리거나(위 명령 2G→4G), 로컬에서 이미지 빌드 후 전송 검토.
+
+### B-4. 처리량 참고
+- 정적 자산=Cloudflare CDN, DB=Neon 이므로 서버는 **가벼운 JSON API 만** 처리 → 실광고 테스트(수천 방문/일) 수준은 무난.
+- 부족해지면 Docker 그대로 **Hetzner(2~4GB, 월 ~€4)** 등으로 이전(코드 무수정, `.env` 만 이동).
