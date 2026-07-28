@@ -30,7 +30,9 @@
 >   - **CORS**: 서버 `.env` `APP_CORS_ALLOWED_ORIGINS=https://app.lead-pot.com,https://leadpot.pages.dev`(pages.dev는 이제 미사용, 정리 가능). 검증: app 오리진 허용 O, 미등록 차단 O, 콘솔 에러 0.
 >   - **🔁 프론트 재배포법(VM 서빙)**: 로컬 `cd frontend && VITE_API_BASE_URL=https://api.lead-pot.com npm run build` → `scp -r dist/* ubuntu@129.225.198.2:/tmp/…` 후 서버에서 `sudo cp -r … /var/www/leadpot/` (정적 교체, Nginx reload 불필요). **백엔드 재배포**: 서버 `cd ~/Leadpot && git pull && docker compose -f docker-compose.prod.yml up -d --build`.
 >   - **SSH 키**: `G:\내 드라이브\오라클\instance key\leadpot-dev\ssh-key-2026-07-28.key` → `ssh -i "<키>" ubuntu@129.225.198.2`. **Cloudflare**: Account ID `0adbaa51bdd245dea8529a244cc6dcc3`, zone `lead-pot.com`. (배포용 API 토큰은 발급했었음 — 필요없으면 대시보드에서 Revoke 권장)
->   - **남은 배포 후속(선택)**: 실스모크(가입→로그인→폼→공개제출, 특히 **실제 서브도메인 랜딩** 열림 확인) · Cloudflare "Always Use HTTPS" 토글 · apex `lead-pot.com`(A레코드 미설정 상태) 필요 시 추가 · Pages 프로젝트/`leadpot.pages.dev`·pages.dev CORS 정리.
+>   - **✅ CI/CD(GitHub Actions) 완료**: `.github/workflows/deploy-frontend.yml`(frontend/** push→빌드→VM `/var/www/leadpot` rsync **무중단**: 새 자산 먼저 업로드 후 index.html 교체, --delete 안 씀), `deploy-backend.yml`(backend/**·compose push→VM `git pull`+재빌드+헬스체크). 시크릿(저장소): `VM_SSH_KEY`(**CI 전용 ed25519 배포키** — VM `~/.ssh/authorized_keys`에 `leadpot-ci-deploy`로 등록, 폐기하려면 그 줄 삭제), `VM_HOST=129.225.198.2`, `VM_USER=ubuntu`. 첫 자동배포 프론트·백엔드 모두 success. **push만 하면 자동배포됨.** (⚠️ 배포 직후 짧게 화면 빈 현상은 --delete 경합이었고 무중단 방식으로 수정함)
+>   - **🔒 보안 마무리(사용자 조치 권장)**: 배포 중 채팅으로 공유된 **Cloudflare API 토큰**(Pages/DNS Edit)은 이제 불필요(CI는 SSH키 사용) → **대시보드에서 Revoke 권장**. Neon 비번·Origin 인증서키는 서버에만 보관(정상).
+>   - **남은 배포 후속(선택)**: 실스모크(가입→로그인→폼→공개제출, 특히 **실제 서브도메인 랜딩** 열림 확인) · Cloudflare "Always Use HTTPS" 토글 · apex `lead-pot.com`(A레코드 미설정) 필요 시 추가 · 미사용 Pages 프로젝트 `leadpot` 삭제 · `.env` CORS에서 미사용 `leadpot.pages.dev` 제거.
 > - **② 다음 작업(배포 후) = 멀티 포털**: 마케터(기존)/광고주/관리자 3포털로 확장(리드 공급·거래 플랫폼화). **상세 설계 = [MULTI-PORTAL-PLAN.md](MULTI-PORTAL-PLAN.md)** — 착수 전 그 문서 재정독 + §9 결정필요 항목(정산 포함여부·광고주 계정생성·배정단위 등) 사용자 확정부터. 아키텍처 추천=모노레포·단일 백엔드(역할 기반, users.role=MARKETER/ADVERTISER/ADMIN)·프론트 3앱.
 >
 > **✅ 이번 세션(2026-07-27) 추가 완료 — 전부 `main` 푸시(최신 `e13b890`)**:

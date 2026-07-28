@@ -41,9 +41,19 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -H "${{ secrets.VM_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: VM 웹루트로 배포 (rsync, 오래된 자산 정리)
+      # 무중단 배포: 해시된 새 자산을 먼저 올려두고(옛 자산 유지) → 마지막에 index.html 등 교체.
+      # 이렇게 하면 배포 도중에도 옛 페이지가 참조하는 옛 자산이 남아 있어 화면이 깨지지 않는다.
+      # (--delete 를 쓰지 않으므로 옛 자산은 누적되지만 해시명이라 무해. 필요 시 가끔 수동 정리.)
+      - name: 새 자산 먼저 업로드 (옛 자산 유지)
         run: |
-          rsync -az --delete \
+          rsync -az \
+            -e "ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no" \
+            frontend/dist/assets/ \
+            "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/var/www/leadpot/assets/"
+
+      - name: 나머지(index.html·embed.js 등) 교체
+        run: |
+          rsync -az --exclude 'assets/' \
             -e "ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no" \
             frontend/dist/ \
             "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/var/www/leadpot/"
