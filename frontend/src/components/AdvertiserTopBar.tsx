@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { getAdvertiserMe, type AdvertiserMe } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { useTheme, type Theme } from "../lib/useTheme";
@@ -39,6 +40,14 @@ export function AdvertiserTopBar() {
             )}
             {brandName ?? "Leadpot"}
           </span>
+          <nav className="topbar-nav">
+            <NavLink to="/client" end className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+              리드
+            </NavLink>
+            <NavLink to="/client/integrations" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+              알림 설정
+            </NavLink>
+          </nav>
         </div>
         <div className="topbar-actions">
           {me && <span className="topbar-email">{me.company || me.name}</span>}

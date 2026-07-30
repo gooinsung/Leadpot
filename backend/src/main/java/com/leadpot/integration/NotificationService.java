@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,10 +17,16 @@ import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.leadpot.advertiser.AdvertiserFormGrant;
+import com.leadpot.advertiser.AdvertiserFormGrantRepository;
+import com.leadpot.auth.Role;
+import com.leadpot.auth.User;
+import com.leadpot.auth.UserRepository;
 import com.leadpot.form.Form;
 import com.leadpot.lead.Lead;
 
@@ -35,8 +42,15 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private static final DateTimeFormatter DT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Seoul"));
+    private static final String CHANNEL_TELEGRAM = NotificationLog.CHANNEL_TELEGRAM;
+    private static final String CHANNEL_SHEETS = NotificationLog.CHANNEL_SHEETS;
 
     private final IntegrationSettingsRepository settingsRepository;
+    private final AdvertiserFormGrantRepository grantRepository;
+    private final UserRepository userRepository;
+    private final NotificationLogWriter logWriter;
+    /** 광고주 알림 메시지의 리드 상세 딥링크에 쓰는 공개 앱 주소(끝 슬래시 없이). */
+    private final String publicBaseUrl;
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NORMAL) // Apps Script 웹앱은 302 리다이렉트를 사용한다
@@ -47,8 +61,15 @@ public class NotificationService {
         return t;
     });
 
-    public NotificationService(IntegrationSettingsRepository settingsRepository) {
+    public NotificationService(IntegrationSettingsRepository settingsRepository,
+            AdvertiserFormGrantRepository grantRepository, UserRepository userRepository,
+            NotificationLogWriter logWriter,
+            @Value("${app.public-base-url:https://app.lead-pot.com}") String publicBaseUrl) {
         this.settingsRepository = settingsRepository;
+        this.grantRepository = grantRepository;
+        this.userRepository = userRepository;
+        this.logWriter = logWriter;
+        this.publicBaseUrl = trimTrailingSlash(publicBaseUrl);
     }
 
     @PreDestroy
@@ -62,50 +83,91 @@ public class NotificationService {
      */
     public void notifyNewLead(Form form, Lead lead, java.util.function.BooleanSupplier duplicateCheck) {
         try {
-            IntegrationSettings s = settingsRepository.findById(form.getOwnerId()).orElse(null);
+            // 마케터(폼 소유자)에게 갈 채널이 하나라도 있을 때만 중복 판정을 계산한다(광고주 메시지엔 중복 문구가 없다).
+            boolean marketerFacing = marketerTelegramActive(form) || sheetsActive(form);
+            boolean duplicate = marketerFacing && duplicateCheck != null && duplicateCheck.getAsBoolean();
 
-            // 텔레그램: 계정 채널(토큰·채팅ID) + 리드폼별 토글(settingsConfig.notifyEnabled, 기본 on)
-            boolean telegram = formTelegramEnabled(form) && s != null && s.isTelegramEnabled()
-                    && notBlank(s.getTelegramBotToken()) && notBlank(s.getTelegramChatId());
-
-            // 구글시트: 리드폼별 설정(settingsConfig 의 sheetsEnabled/sheetsWebhookUrl/sheetsSecret)
-            Map<String, Object> fs = form.getSettingsConfig();
-            String webhookUrl = fs == null ? "" : str(fs.get("sheetsWebhookUrl"));
-            String sheetSecret = fs == null ? "" : str(fs.get("sheetsSecret"));
-            boolean sheets = fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled")) && notBlank(webhookUrl);
-
-            if (!telegram && !sheets) {
+            // 발송 대상 목록화: 마케터 + 이 폼을 부여받은 광고주. 페이로드까지 트랜잭션 내부에서 스냅샷으로 확정한다.
+            List<Dispatch> dispatches = planDispatches(form, lead, duplicate);
+            if (dispatches.isEmpty()) {
                 return;
             }
 
-            // 중복 판정은 실제 발송이 필요한 경우에만 계산(불필요한 리드 조회 방지).
-            boolean duplicate = duplicateCheck != null && duplicateCheck.getAsBoolean();
-
-            // 발송 페이로드를 트랜잭션 내부에서 스냅샷으로 확정(비동기 스레드에서 엔티티를 만지지 않도록).
-            String telegramText = telegram ? buildTelegramText(form, lead, duplicate) : null;
-            String sheetsBody = sheets ? buildSheetsBody(form, lead, duplicate, sheetSecret) : null;
-            String token = telegram ? s.getTelegramBotToken() : null;
-            String chatId = telegram ? s.getTelegramChatId() : null;
-
-            Runnable send = () -> {
-                if (telegramText != null) {
-                    String err = sendTelegram(token, chatId, telegramText);
+            Long leadId = lead.getId();
+            Long formId = form.getId();
+            runAfterCommit(() -> {
+                for (Dispatch d : dispatches) {
+                    String err = CHANNEL_TELEGRAM.equals(d.channel())
+                            ? sendTelegram(d.token(), d.chatId(), d.payload())
+                            : sendSheets(d.url(), d.payload());
                     if (err != null) {
-                        log.warn("텔레그램 리드 알림 실패(owner={}): {}", form.getOwnerId(), err);
+                        log.warn("리드 알림 실패(channel={}, recipient={}): {}", d.channel(), d.recipientUserId(), err);
                     }
+                    logWriter.record(leadId, formId, d.recipientUserId(), d.channel(), err);
                 }
-                if (sheetsBody != null) {
-                    String err = sendSheets(webhookUrl, sheetsBody);
-                    if (err != null) {
-                        log.warn("구글시트 전송 실패(owner={}): {}", form.getOwnerId(), err);
-                    }
-                }
-            };
-            runAfterCommit(send);
+            });
         } catch (RuntimeException e) {
             // 알림 준비 중 어떤 오류가 나도 리드 접수에는 영향 없어야 한다.
             log.warn("리드 알림 준비 실패(form={}): {}", form.getId(), e.toString());
         }
+    }
+
+    /** 발송 한 건(채널·수신자·페이로드). 비동기 스레드에 넘길 불변 스냅샷. */
+    record Dispatch(Long recipientUserId, String channel, String token, String chatId, String url, String payload) {
+    }
+
+    /**
+     * 이 리드에 대해 실제로 나갈 발송 목록을 만든다(전송은 하지 않음).
+     * ① 폼 소유 마케터(텔레그램·구글시트) ② 그 폼을 부여받은 광고주(텔레그램만, 유효 권한·활성 계정·본인 채널).
+     * 순수 조회라 테스트에서 대상 선정 로직을 결정적으로 검증할 수 있다.
+     */
+    List<Dispatch> planDispatches(Form form, Lead lead, boolean duplicate) {
+        List<Dispatch> out = new ArrayList<>();
+
+        // ① 마케터 텔레그램 — 계정 채널 + 리드폼별 토글(settingsConfig.notifyEnabled, 기본 on)
+        IntegrationSettings owner = settingsRepository.findById(form.getOwnerId()).orElse(null);
+        if (formTelegramEnabled(form) && telegramReady(owner)) {
+            out.add(new Dispatch(form.getOwnerId(), CHANNEL_TELEGRAM, owner.getTelegramBotToken(),
+                    owner.getTelegramChatId(), null, buildTelegramText(form, lead, duplicate)));
+        }
+
+        // ① 구글시트 — 리드폼별 설정(settingsConfig)
+        Map<String, Object> fs = form.getSettingsConfig();
+        String webhookUrl = fs == null ? "" : str(fs.get("sheetsWebhookUrl"));
+        String sheetSecret = fs == null ? "" : str(fs.get("sheetsSecret"));
+        if (fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled")) && notBlank(webhookUrl)) {
+            out.add(new Dispatch(form.getOwnerId(), CHANNEL_SHEETS, null, null, webhookUrl,
+                    buildSheetsBody(form, lead, duplicate, sheetSecret)));
+        }
+
+        // ② 광고주 텔레그램 — 유효한 권한 + 활성 광고주 + 본인 계정 채널. 마케터의 폼별 토글과 독립적이다.
+        AdvertiserFormGrant grant = grantRepository.findByFormId(form.getId()).orElse(null);
+        if (grant != null && grant.isEffective(Instant.now())) {
+            User adv = userRepository.findById(grant.getAdvertiserId()).orElse(null);
+            if (adv != null && adv.getRole() == Role.ADVERTISER && adv.isActive()) {
+                IntegrationSettings advSettings = settingsRepository.findById(adv.getId()).orElse(null);
+                if (telegramReady(advSettings)) {
+                    out.add(new Dispatch(adv.getId(), CHANNEL_TELEGRAM, advSettings.getTelegramBotToken(),
+                            advSettings.getTelegramChatId(), null, buildAdvertiserTelegramText(grant, form, lead)));
+                }
+            }
+        }
+        return out;
+    }
+
+    private boolean marketerTelegramActive(Form form) {
+        return formTelegramEnabled(form)
+                && telegramReady(settingsRepository.findById(form.getOwnerId()).orElse(null));
+    }
+
+    private boolean sheetsActive(Form form) {
+        Map<String, Object> fs = form.getSettingsConfig();
+        return fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled")) && notBlank(str(fs.get("sheetsWebhookUrl")));
+    }
+
+    private static boolean telegramReady(IntegrationSettings s) {
+        return s != null && s.isTelegramEnabled()
+                && notBlank(s.getTelegramBotToken()) && notBlank(s.getTelegramChatId());
     }
 
     private void runAfterCommit(Runnable task) {
@@ -185,6 +247,24 @@ public class NotificationService {
         }
         answersMap(lead).forEach((k, v) -> sb.append("• ").append(k).append(": ").append(cut(v, 120)).append('\n'));
         sb.append("🕒 ").append(lead.getCreatedAt() != null ? DT.format(lead.getCreatedAt()) : DT.format(Instant.now()));
+        return sb.toString();
+    }
+
+    /**
+     * 광고주용 텔레그램 메시지. 마케터 메시지와 달리:
+     * 표시 이름({@code grant.displayName})을 쓰고, IP·UTM 을 넣지 않으며(원래 답변만),
+     * 중복 의심 문구를 넣지 않고(마케터 내부 판단이라 광고주에겐 감춘다), 리드 상세 딥링크를 붙인다.
+     */
+    private String buildAdvertiserTelegramText(AdvertiserFormGrant grant, Form form, Lead lead) {
+        String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
+                ? grant.getDisplayName()
+                : nn(form.getName());
+        StringBuilder sb = new StringBuilder();
+        sb.append("🔔 새 리드 · ").append(name).append('\n');
+        answersMap(lead).forEach((k, v) -> sb.append("• ").append(k).append(": ").append(cut(v, 120)).append('\n'));
+        sb.append("🕒 ").append(lead.getCreatedAt() != null ? DT.format(lead.getCreatedAt()) : DT.format(Instant.now()));
+        sb.append("\n👉 ").append(publicBaseUrl).append("/client?form=").append(form.getId())
+                .append("&lead=").append(lead.getId());
         return sb.toString();
     }
 
@@ -307,6 +387,14 @@ public class NotificationService {
 
     private static boolean notBlank(String s) {
         return s != null && !s.isBlank();
+    }
+
+    private static String trimTrailingSlash(String s) {
+        if (s == null || s.isBlank()) {
+            return "";
+        }
+        String t = s.trim();
+        return t.endsWith("/") ? t.substring(0, t.length() - 1) : t;
     }
 
     private static String nn(String s) {

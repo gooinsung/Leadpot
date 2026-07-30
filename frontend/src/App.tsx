@@ -20,6 +20,7 @@ import { StatsPage } from "./pages/StatsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
 import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
+import { AdvertiserIntegrationsPage } from "./pages/AdvertiserIntegrationsPage";
 import { ClientLoginPage } from "./pages/ClientLoginPage";
 import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
@@ -199,6 +200,14 @@ function App() {
         element={
           <ProtectedRoute role="ADVERTISER">
             <AdvertiserLeadsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/client/integrations"
+        element={
+          <ProtectedRoute role="ADVERTISER">
+            <AdvertiserIntegrationsPage />
           </ProtectedRoute>
         }
       />

@@ -20,12 +20,23 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A5(텔레그램 알림)** — A1~A3 + A3-B 완료
+> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A4(내보내기·감사이력)** — A1~A3 · A3-B · **A5 완료**
 >
 > **정본 문서 = [ADVERTISER-PORTAL-PLAN.md](ADVERTISER-PORTAL-PLAN.md)** — 착수 전 먼저 읽는다.
 > **진행상황 정본 = [§9-B 실행 체크리스트](ADVERTISER-PORTAL-PLAN.md#9-b-실행-체크리스트--이어받기용--여기가-진행상황-정본)**
 > → `git pull` 후 그 체크리스트에서 **체크 안 된 첫 항목**부터 이어서 하면 된다. 시작·중단·완료마다 갱신·커밋.
 > 보고 형식은 §9-A 참고(**쉬운 말 요약 + 확인항목 + URL** 3종 세트).
+>
+> #### ✅ 2026-07-31 세션 완료 — **A5 광고주 텔레그램 알림** (브랜치 `feature/a5-advertiser-notify`)
+>
+> - **발송 대상 목록화**: `NotificationService.planDispatches()`(순수 조회로 분리 → 테스트 가능) — ① 폼 소유 마케터(기존 텔레그램·구글시트 그대로) ② 그 폼을 부여받은 광고주(유효 grant·활성 계정·본인 텔레그램 채널). 마케터 폼별 토글과 광고주 계정 토글은 **독립**.
+> - **광고주 메시지 정제**: `display_name` 사용 · IP·UTM 없음 · 중복 의심 문구 없음 · **리드 상세 딥링크**(`/client?form=&lead=`, base=`app.public-base-url`).
+> - **`notification_logs` 기록**: `NotificationLog` 엔티티 + `NotificationLogRepository` + `NotificationLogWriter`(REQUIRES_NEW, 비동기 스레드에서 채널·수신자·성공여부 저장). 테이블은 V18에 이미 있음 → **마이그레이션 없음**.
+> - **광고주 연동 화면 `/client/integrations`**: 텔레그램 토큰·채팅ID + 계정 단위 on/off + 테스트 발송. `AdvertiserPortalController`에 `GET/PUT/POST /api/advertiser/integrations`(기존 `IntegrationService` 재사용, 계정당 1행이라 스키마 변경 없음). `AdvertiserTopBar`에 내비(리드/알림 설정) 추가.
+> - **결정(사용자 확정)**: 폼별 세분화 = **계정 단위**로 단순화(V20 미생성). 딥링크 base 프로퍼티 `APP_PUBLIC_BASE_URL`(기본 `https://app.lead-pot.com`) 신규.
+> - **검증**: `AdvertiserNotificationDispatchTest` 7개(양쪽 수신·만료 grant 제외·정지 광고주 제외·폼토글 독립·메시지 정제/IP·UTM·중복 미포함·마케터 중복문구 유지) + **백엔드 전체 테스트 통과** · 프론트 `tsc -b`+prod(embed) 빌드 통과.
+> - **⚠️ 미검증**: 텔레그램 **실제 수신**은 사용자 봇 토큰·채팅ID 필요 → 광고주가 `/client/integrations`에서 설정·테스트로 확인. (발송 로직·로그·정제·설정저장은 테스트/빌드로 검증됨)
+> - **다음**: `main` 병합·푸시(= CI 자동배포) — 사용자 확인 대기.
 >
 > #### ✅ 2026-07-30~31 세션 완료 (전부 `main` 병합·푸시됨, 최신 `cad8a73`)
 >
@@ -41,22 +52,11 @@
 > - **테스트 62개 통과** (광고주 관련 45개 신설: 인가경계 6 · 권한규칙 11 · 로그인감사 3 · 리드격리 17 · 비번재설정 8)
 > - **Flyway V19 까지 Neon 적용 완료** → 다음 마이그레이션은 **V20**
 >
-> #### 👉 다음 = **A5 (텔레그램 알림)** ← 사용자 요청의 핵심 기능. A4보다 먼저 하기로 결정
+> #### 👉 다음 = **A4 (내보내기·감사이력)** ← A5 완료 후
 >
-> 이유: 알림이 붙어야 광고주가 실제로 들어와서 쓰는 흐름이 완성된다. A4(엑셀·감사이력)는 그다음.
->
-> - `NotificationService.notifyNewLead()` 발송 대상을 **목록화**:
->   ① 폼 소유 마케터(기존 동작 유지) ② 그 폼의 grant 광고주들(active · 미만료 · 본인 telegramEnabled)
-> - `integration_settings` 는 **계정당 1행**이라 광고주도 자기 행을 그대로 쓴다 → **스키마 변경 불필요**
-> - 광고주 메시지 정제: `display_name` 사용 / UTM·IP 제외 / "중복 의심" 문구 제외(마케터 내부판단) / 리드 상세 딥링크
-> - **`notification_logs` 기록** (테이블은 V18에 이미 있음) — "알림 못 받았다" 클레임 반박 근거(§5)
-> - 광고주 알림 설정 화면 `/client/integrations` (봇 토큰·채팅ID + 폼별 on/off)
-> - ⚠️ 폼 1건 제출에 발송이 N+1건이 된다. `NotificationService` 스레드풀이 2개라 광고주가 많으면 지연 가능(지금은 문제 없음, 인지만)
->
-> #### 이후 남은 것
->
-> - **A4** 광고주 엑셀 내보내기 + 워터마크 + 일일 횟수·건수 제한 + **마케터 화면 활동이력 탭**(`GET /api/advertisers/{id}/logs`)
+> - **A4** 광고주 엑셀 내보내기(배정분만·기존 `LeadExcelService` 재사용) + 파일 하단 워터마크(광고주 이메일·일시) + 일일 내보내기 횟수·건수 제한 + **마케터 화면 활동이력 탭**(`GET /api/advertisers/{id}/logs`)
 >   · 참고: 열람·상태변경·메모 감사기록은 **A3에서 이미 동작 중**. EXPORT 기록과 조회 UI 만 남음
+> · ⚠️ A5 관찰: 폼 1건 제출에 발송이 N+1건이 된다(마케터+광고주). `NotificationService` 스레드풀이 2개라 광고주가 아주 많으면 지연 가능(지금은 문제 없음, 인지만)
 > - **A6** 실시간 갱신(30초 폴링) · 참고: 대시보드 API·미확인 배너는 **A3에서 이미 완료**
 > - **A7** 처리속도 리포트 / 리포트 엑셀·인쇄PDF / **화이트라벨 완성** / 광고주 화면 미리보기(읽기전용)
 >   · 화이트라벨: DB컬럼(`users.brand_logo_url`·`brand_color`)과 광고주 화면 읽기는 준비됨.

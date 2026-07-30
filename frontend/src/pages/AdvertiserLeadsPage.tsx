@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ADVERTISER_LEAD_STATUSES,
   ApiError,
@@ -34,6 +35,8 @@ function phoneOf(lead: AdvertiserLead): string | null {
  * 광고주 전용 요소(전화 버튼 · 미확인 강조)를 더했다. 모바일에서도 그대로 쓸 수 있게 반응형.
  */
 export function AdvertiserLeadsPage() {
+  // 텔레그램 알림 딥링크(/client?form=..&lead=..)로 들어오면 해당 폼·리드를 바로 연다.
+  const [searchParams] = useSearchParams();
   const [forms, setForms] = useState<AdvertiserForm[]>([]);
   const [formId, setFormId] = useState<number | null>(null);
   const [dash, setDash] = useState<AdvertiserDashboard | null>(null);
@@ -63,8 +66,14 @@ export function AdvertiserLeadsPage() {
         const [f, d] = await Promise.all([listAdvertiserForms(), getAdvertiserDashboard()]);
         setForms(f);
         setDash(d);
-        if (f.length > 0) setFormId(f[0].formId);
-        else setLoading(false);
+        if (f.length > 0) {
+          // 딥링크의 form 이 내가 부여받은 폼이면 그것을, 아니면 첫 폼을 연다.
+          const wantForm = Number(searchParams.get("form"));
+          const matched = f.find((x) => x.formId === wantForm);
+          setFormId(matched ? matched.formId : f[0].formId);
+          const wantLead = Number(searchParams.get("lead"));
+          if (wantLead > 0) setOpenId(wantLead);
+        } else setLoading(false);
       } catch (e) {
         setError(e instanceof ApiError ? e.message : "불러오지 못했습니다.");
         setLoading(false);

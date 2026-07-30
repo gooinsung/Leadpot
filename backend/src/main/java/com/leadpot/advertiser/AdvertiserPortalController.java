@@ -20,6 +20,11 @@ import com.leadpot.advertiser.dto.AdvertiserLeadResponse;
 import com.leadpot.advertiser.dto.AdvertiserMeResponse;
 import com.leadpot.advertiser.dto.AdvertiserNoteResponse;
 import com.leadpot.common.ClientIp;
+import com.leadpot.integration.IntegrationService;
+import com.leadpot.integration.dto.IntegrationRequest;
+import com.leadpot.integration.dto.IntegrationResponse;
+import com.leadpot.integration.dto.TestResult;
+import org.springframework.web.bind.annotation.PutMapping;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -39,9 +44,11 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AdvertiserPortalController {
 
     private final AdvertiserLeadService leadService;
+    private final IntegrationService integrationService;
 
-    public AdvertiserPortalController(AdvertiserLeadService leadService) {
+    public AdvertiserPortalController(AdvertiserLeadService leadService, IntegrationService integrationService) {
         this.leadService = leadService;
+        this.integrationService = integrationService;
     }
 
     /** 내 정보 + 소속 마케터 브랜드(화이트라벨). */
@@ -106,6 +113,29 @@ public class AdvertiserPortalController {
     @GetMapping("/lead-statuses")
     public Map<String, String> statuses() {
         return AdvertiserLeadStatus.LABELS;
+    }
+
+    // ---------- 알림 연동(A5) ----------
+    // integration_settings 는 계정(user id)당 1행이라 광고주도 자기 행을 그대로 쓴다(스키마 변경 없음).
+    // 각자 자기 행만 조회/수정하므로 교차 접근 위험이 없다. 텔레그램 계정 채널만 다룬다(구글시트는 마케터 폼 설정).
+
+    /** 내 텔레그램 알림 설정 조회. */
+    @GetMapping("/integrations")
+    public IntegrationResponse getIntegration(@AuthenticationPrincipal Jwt jwt) {
+        return integrationService.get(userId(jwt));
+    }
+
+    /** 내 텔레그램 알림 설정 저장. */
+    @PutMapping("/integrations")
+    public IntegrationResponse updateIntegration(@AuthenticationPrincipal Jwt jwt,
+            @RequestBody IntegrationRequest request) {
+        return integrationService.update(userId(jwt), request);
+    }
+
+    /** 내 텔레그램 채널로 테스트 메시지 발송. */
+    @PostMapping("/integrations/test")
+    public TestResult testIntegration(@AuthenticationPrincipal Jwt jwt) {
+        return integrationService.test(userId(jwt));
     }
 
     private Long userId(Jwt jwt) {

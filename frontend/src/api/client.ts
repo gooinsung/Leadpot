@@ -1074,6 +1074,21 @@ export function addAdvertiserNote(id: number, body: string): Promise<AdvertiserN
   return request<AdvertiserNote>(`/api/advertiser/leads/${id}/notes`, { method: "POST", body: { body } });
 }
 
+// ---------- 광고주 알림 연동 (A5) ----------
+// integration_settings 는 계정당 1행이라 마케터용 타입(IntegrationSettings/IntegrationTestResult)을 그대로 재사용한다.
+/** 내 텔레그램 알림 설정 조회. */
+export function getAdvertiserIntegration(): Promise<IntegrationSettings> {
+  return request<IntegrationSettings>("/api/advertiser/integrations");
+}
+/** 내 텔레그램 알림 설정 저장. */
+export function updateAdvertiserIntegration(input: IntegrationSettings): Promise<IntegrationSettings> {
+  return request<IntegrationSettings>("/api/advertiser/integrations", { method: "PUT", body: input });
+}
+/** 내 텔레그램 채널 테스트 발송. */
+export function testAdvertiserIntegration(): Promise<IntegrationTestResult> {
+  return request<IntegrationTestResult>("/api/advertiser/integrations/test", { method: "POST" });
+}
+
 // ---------- 초대 수락 (비로그인 공개) ----------
 export interface InviteInfo {
   email: string;

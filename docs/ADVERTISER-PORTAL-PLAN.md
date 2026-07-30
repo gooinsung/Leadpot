@@ -315,7 +315,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 | **A2** 마케터 광고주 관리 | 초대 발급·수락·계정 생성 / 목록·수정·정지·삭제 / grant 부여(1:1 제약·별칭·만료) / 플랜 상한 | 초대→수락→로그인 성공 / 이미 붙은 폼 재부여 거부 / 플랜 상한 초과 거부 |
 | **A3** 광고주 포털 코어 | `AdvertiserLeadResponse` / 폼·리드 목록·상세 / 상태변경(고정5) / 메모(visibility) / **seen_at + 확인 배지** / 모바일 | 부여 폼만 노출·미부여 404 / 응답에 IP·UTM **부재 확인** / 마케터 목록에 확인 배지 |
 | **A4** 내보내기·감사 | 엑셀/CSV(배정분만) / 감사 로그 전 액션 / 다운로드 추적·워터마크·횟수 제한 | 다운로드 후 로그 기록 / 제한 초과 거부 / 마케터 화면에 이력 표시 |
-| **A5** 알림 | 텔레그램 대상 확장 / 광고주 메시지 정제 / `notification_logs` | 제출 1건 → 마케터·광고주 양쪽 수신 + 이력 2행 |
+| **A5** 알림 ✅ | 텔레그램 대상 확장 / 광고주 메시지 정제 / `notification_logs` / `/client/integrations`(계정 단위) | `planDispatches` 대상 선정 테스트 7개 통과 · 실수신은 사용자 봇 필요 |
 | **A6** 대시보드·실시간 | 미확인 배너 / 폴링 갱신 / 간단 통계 | 새 리드 자동 등장 / 배너 카운트 정확 |
 | **A7** 부가 | 처리속도 리포트 / 리포트 다운로드(엑셀·인쇄PDF) / 화이트라벨 / 미리보기(읽기전용) | 지표 계산 검증 / 미리보기에서 쓰기 차단 확인 |
 
@@ -469,13 +469,17 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 - [ ] 검증: 다운로드 후 로그 1행 / 제한 초과 거부 / 워터마크 확인
 - [ ] `main` 병합·푸시 + 문서 갱신
 
-### A5. 알림 확장  — 상태: ⬜ **다음 작업** (사용자 요청 핵심 기능 → A4보다 먼저)
-- [ ] `NotificationService` 발송 대상 목록화 (마케터 + grant 광고주들)
-- [ ] 광고주 메시지 정제 — `display_name`, UTM/IP 제외, 중복문구 제외, 상세 딥링크
-- [ ] `notification_logs` 기록 (성공/실패·채널·수신자)
-- [ ] 광고주 연동 화면 `/client/integrations` (텔레그램 토큰·채팅ID + 폼별 on/off)
-- [ ] 검증: 공개 폼 제출 1건 → 마케터·광고주 양쪽 수신 + 로그 2행 / 광고주 메시지에 IP·UTM 없음
-- [ ] `main` 병합·푸시 + 문서 갱신
+### A5. 알림 확장  — 상태: ✅ **완료** (2026-07-31)
+- [x] `NotificationService` 발송 대상 목록화 (마케터 + grant 광고주) — `planDispatches()` 순수 조회로 분리(테스트 가능)
+- [x] 광고주 메시지 정제 — `display_name` 사용, UTM/IP 제외, 중복문구 제외, 리드 상세 딥링크(`/client?form=&lead=`)
+- [x] `notification_logs` 기록 (성공/실패·채널·수신자) — `NotificationLog` 엔티티 + `NotificationLogWriter`(REQUIRES_NEW, 비동기 스레드)
+- [x] 광고주 연동 화면 `/client/integrations` (텔레그램 토큰·채팅ID + 계정 단위 on/off) — **폼별 세분화는 계정 단위로 결정(사용자 확정 2026-07-31, V20 미생성)**
+- [x] 검증: `planDispatches` 대상 선정 테스트 7개(양쪽 수신·만료·정지·폼토글 독립·메시지 정제) / 백엔드 전체 테스트 통과 / 프론트 tsc+prod 빌드
+- [ ] `main` 병합·푸시 + 텔레그램 실수신 확인(사용자 봇 필요)
+
+> **결정 기록**: 광고주 폼별 on/off 는 **계정 단위**로 단순화(1 광고주 : 여러 폼이라도 한 스위치). V20 마이그레이션 불필요. `integration_settings` 는 계정(user id)당 1행이라 광고주도 자기 행을 그대로 쓴다.
+> **마케터 폼별 토글(`settingsConfig.notifyEnabled`)과 광고주 계정 토글은 독립** — 마케터가 폼 알림을 꺼도 광고주는 자기 설정대로 받는다.
+> **딥링크 base** = `app.public-base-url`(`APP_PUBLIC_BASE_URL`, 기본 `https://app.lead-pot.com`).
 
 ### A6. 광고주 대시보드 · 실시간  — 상태: ⬜ 예정
 - [x] `GET /api/advertiser/dashboard` (미확인 건수·오늘 접수·상태 분포) — **A3에서 완료**
