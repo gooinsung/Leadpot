@@ -318,6 +318,92 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 
 ---
 
+## 9-B. 실행 체크리스트 ⭐ (이어받기용 — 여기가 진행상황 정본)
+
+> **규칙**: 작업을 시작·중단·완료할 때마다 **이 체크리스트를 갱신하고 커밋**한다.
+> 다른 PC·다른 세션은 git pull 후 **이 표에서 체크 안 된 첫 항목**부터 이어서 하면 된다.
+> 상태: `[ ]` 예정 · `[~]` 진행중 · `[x]` 완료 · `[-]` 건너뜀(이유 병기)
+
+### A1. 기반 · 보안 골격  — 상태: ⬜ 예정
+- [ ] `Role` enum 에 `ADVERTISER` 추가 (USER=마케터 유지, 리네임 안 함)
+- [ ] `V18__advertiser_portal.sql` 작성 — §3 전체(users 확장 · invites · grants · leads 3컬럼 · lead_notes.visibility · access_logs · notification_logs)
+- [ ] `users.subdomain` NOT NULL 해제 + `Subdomains`·`PublicSiteController`·가입로직 null 영향 점검
+- [ ] 커스텀 `JwtAuthenticationConverter` — `role` 클레임 → `ROLE_*` authority (없으면 hasAuthority 가 항상 실패)
+- [ ] `SecurityConfig` 경로 화이트리스트 (`/api/advertiser/**`=ADVERTISER, `/api/**`=USER)
+- [ ] refresh 시 DB `active`·`parent_user_id` 재확인 (권한 회수 즉시 반영)
+- [ ] 광고주 액세스 토큰 수명 단축
+- [ ] 백엔드 `test`+`build` / 프론트 `tsc -b`+prod 빌드 통과
+- [ ] **V18 Neon 적용** + Flyway validate 통과 (⚠️ 공유 DB·되돌리기 어려움 — 적용 전 재검토)
+- [ ] **회귀 스모크(필수)**: 마케터 로그인·폼CRUD·랜딩·공개폼 제출·리드목록/상태/엑셀·통계·연동 전부 정상
+- [ ] 검증: 광고주 role 토큰으로 `/api/forms`·`/api/leads`·`/api/landings` **403**
+- [ ] `main` 병합·푸시 + `PROGRESS.md`·이 체크리스트 갱신
+
+### A2. 마케터 — 광고주 관리  — 상태: ⬜ 예정
+- [ ] 패키지 `com.leadpot.advertiser` 생성 (엔티티·리포지토리·서비스·컨트롤러·DTO)
+- [ ] 초대 발급 `POST /api/advertisers/invites` (토큰 **해시 저장**, 만료일)
+- [ ] 초대 조회·취소 / 공개 수락 API 2개 (`/api/public/advertiser-invites/{token}`)
+- [ ] 초대 수락 → 광고주 계정 생성(role=ADVERTISER, parent_user_id, active)
+- [ ] 광고주 목록·수정·정지/해제·삭제(grant 연쇄)
+- [ ] grant 부여/회수 `PUT /api/advertisers/{id}/grants` + **1폼:1광고주 위반 시 409**
+- [ ] 플랜별 광고주 수 상한 검사 (`users.plan` 연동)
+- [ ] 프론트 `/advertisers` 페이지 — 목록·초대모달(링크 복사)·권한부여 화면
+- [ ] 권한부여 화면에 **제3자 제공 확인 문구**(동의문서 연결)
+- [ ] TopBar 내비에 "광고주" 추가
+- [ ] 검증: 초대→수락→로그인 / 이미 붙은 폼 재부여 거부 / 상한 초과 거부 / 타 마케터 광고주 접근 404
+- [ ] `main` 병합·푸시 + 문서 갱신
+
+### A3. 광고주 포털 코어  — 상태: ⬜ 예정
+- [ ] `requireGrant(advertiserId, formId)` 단일 관문 구현 (grant·만료·active·소속 일치)
+- [ ] `AdvertiserLeadResponse` 신설 — 화이트리스트 필드만 (§4-③)
+- [ ] `/api/advertiser/me`·`/forms`·`/leads`(페이징 상한)·`/leads/{id}`
+- [ ] 상세 조회 시 `advertiser_seen_at` 최초 1회 기록
+- [ ] 상태변경 `PATCH .../status` — 고정 5개(신규/확인/통화완료/부재/종료) 값 검증
+- [ ] 메모 조회·작성 (`visibility=ALL` 만 노출, 광고주 작성분은 ALL)
+- [ ] 프론트 `/client/*` 라우트 + role 기반 리다이렉트 + 마케터 내비 은폐
+- [ ] 광고주 리드 목록(카드형·검색·필터) / 상세(`tel:` 전화버튼·상태·메모) — **모바일 우선(375px)**
+- [ ] 마케터 리드 목록에 **"광고주 확인" 배지** + "미확인만 보기" 필터
+- [ ] 검증: 부여 폼만 노출·미부여 **404** / 응답 JSON 에 ip·utm·device·tags **부재 확인** / DELETE 엔드포인트 부재
+- [ ] `main` 병합·푸시 + 문서 갱신
+
+### A4. 내보내기 · 감사 로그  — 상태: ⬜ 예정
+- [ ] `POST /api/advertiser/leads/export` — 기존 `LeadExcelService` 재사용(배정분만)
+- [ ] 내보내기 파일 하단 워터마크(광고주 이메일·일시)
+- [ ] 일일 내보내기 횟수·건수 제한
+- [ ] `advertiser_access_logs` 기록 — LOGIN·VIEW_LEAD·EXPORT·STATUS·MEMO
+- [ ] 마케터 화면 활동 이력 탭 (`GET /api/advertisers/{id}/logs`)
+- [ ] 검증: 다운로드 후 로그 1행 / 제한 초과 거부 / 워터마크 확인
+- [ ] `main` 병합·푸시 + 문서 갱신
+
+### A5. 알림 확장  — 상태: ⬜ 예정
+- [ ] `NotificationService` 발송 대상 목록화 (마케터 + grant 광고주들)
+- [ ] 광고주 메시지 정제 — `display_name`, UTM/IP 제외, 중복문구 제외, 상세 딥링크
+- [ ] `notification_logs` 기록 (성공/실패·채널·수신자)
+- [ ] 광고주 연동 화면 `/client/integrations` (텔레그램 토큰·채팅ID + 폼별 on/off)
+- [ ] 검증: 공개 폼 제출 1건 → 마케터·광고주 양쪽 수신 + 로그 2행 / 광고주 메시지에 IP·UTM 없음
+- [ ] `main` 병합·푸시 + 문서 갱신
+
+### A6. 광고주 대시보드 · 실시간  — 상태: ⬜ 예정
+- [ ] `GET /api/advertiser/dashboard` (미확인 건수·오늘 접수·상태 분포)
+- [ ] 대시보드 화면 + **미확인 리드 경고 배너**
+- [ ] `GET /api/advertiser/leads/updates?since=` + 프론트 폴링(30초) 자동 갱신
+- [ ] 검증: 새 리드 자동 등장 / 배너 카운트 정확 / 폴링이 서버 부하 유발 안 함
+- [ ] `main` 병합·푸시 + 문서 갱신
+
+### A7. 부가 기능  — 상태: ⬜ 예정
+- [ ] 처리속도 리포트 (접수→최초열람, 접수→첫 상태변경, 미확인율) — 마케터·광고주 양쪽
+- [ ] 리포트 화면 + 엑셀 다운로드 + `@media print` 인쇄 PDF (서버 PDF 미도입 — §8)
+- [ ] 화이트라벨 (마케터 `brand_logo_url`·`brand_color` → 광고주 화면 적용)
+- [ ] 광고주 화면 미리보기(impersonate) — **읽기 전용 강제** + IMPERSONATE 로그
+- [ ] 검증: 지표 수치 실측 검증 / 미리보기에서 상태변경·메모 차단 확인
+- [ ] `main` 병합·푸시 + 문서 갱신
+
+### 후속(이번 범위 밖, 별도 논의)
+- [ ] 구독 기반 리포트 **메일·문자 자동발송** (지금은 다운로드까지만)
+- [ ] 광고주 팀 계정 / 외부 CRM 웹훅 / 불량 리드 반려
+- [ ] 별도 도메인: "광고주가 마케터를 모집하는 서비스"
+
+---
+
 ## 10. 이번 범위에서 제외 (기록용)
 
 - **불량 리드 표시(반려/claim)** — 사용자 판단으로 패스
