@@ -324,19 +324,22 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > 다른 PC·다른 세션은 git pull 후 **이 표에서 체크 안 된 첫 항목**부터 이어서 하면 된다.
 > 상태: `[ ]` 예정 · `[~]` 진행중 · `[x]` 완료 · `[-]` 건너뜀(이유 병기)
 
-### A1. 기반 · 보안 골격  — 상태: ⬜ 예정
-- [ ] `Role` enum 에 `ADVERTISER` 추가 (USER=마케터 유지, 리네임 안 함)
-- [ ] `V18__advertiser_portal.sql` 작성 — §3 전체(users 확장 · invites · grants · leads 3컬럼 · lead_notes.visibility · access_logs · notification_logs)
-- [ ] `users.subdomain` NOT NULL 해제 + `Subdomains`·`PublicSiteController`·가입로직 null 영향 점검
-- [ ] 커스텀 `JwtAuthenticationConverter` — `role` 클레임 → `ROLE_*` authority (없으면 hasAuthority 가 항상 실패)
-- [ ] `SecurityConfig` 경로 화이트리스트 (`/api/advertiser/**`=ADVERTISER, `/api/**`=USER)
-- [ ] refresh 시 DB `active`·`parent_user_id` 재확인 (권한 회수 즉시 반영)
-- [ ] 광고주 액세스 토큰 수명 단축
-- [ ] 백엔드 `test`+`build` / 프론트 `tsc -b`+prod 빌드 통과
-- [ ] **V18 Neon 적용** + Flyway validate 통과 (⚠️ 공유 DB·되돌리기 어려움 — 적용 전 재검토)
+### A1. 기반 · 보안 골격  — 상태: 🔄 진행중 (브랜치 `feature/advertiser-portal-a1`)
+- [x] `Role` enum 에 `ADVERTISER` 추가 (USER=마케터 유지, 리네임 안 함)
+- [x] `V18__advertiser_portal.sql` 작성 — §3 전체(users 확장 · invites · grants · leads 3컬럼 · lead_notes.visibility · access_logs · notification_logs)
+- [x] `users.subdomain` NOT NULL 해제 (엔티티 nullable) + 예약어에 `client`/`advertiser`/`partner` 추가
+- [x] 커스텀 `JwtAuthenticationConverter` — `role` 클레임 → `ROLE_*` authority (없으면 hasAuthority 가 항상 실패)
+- [x] `SecurityConfig` 경로 화이트리스트 (`/api/advertiser/**`=ADVERTISER, `/api/**`=USER·ADMIN, `/api/auth/me`=공통)
+- [x] refresh·login 시 DB `active` 재확인 (정지 계정 즉시 차단)
+- [x] 광고주 액세스 토큰 수명 단축 (`app.jwt.advertiser-access-ttl-seconds`, 기본 900초)
+- [x] `User` 엔티티 확장 + `User.advertiser(...)` 정적 팩터리
+- [x] **인가 테스트 신설** `AdvertiserAccessControlTest` (6케이스: 광고주→마케터API 403 / 마케터→자기API 200 / `/me` 공통 / 마케터→광고주영역 403 / 광고주→서브도메인 403 / 익명 401)
+- [x] 백엔드 `test`+`build` 통과(6/6) · 프론트 `tsc -b` 통과
+- [ ] **V18 적용** — 로컬 Postgres(Docker)에서 V1~V18 전체 체인 먼저 검증 → 그다음 Neon
 - [ ] **회귀 스모크(필수)**: 마케터 로그인·폼CRUD·랜딩·공개폼 제출·리드목록/상태/엑셀·통계·연동 전부 정상
-- [ ] 검증: 광고주 role 토큰으로 `/api/forms`·`/api/leads`·`/api/landings` **403**
 - [ ] `main` 병합·푸시 + `PROGRESS.md`·이 체크리스트 갱신
+
+> ⚠️ **Neon 적용은 사용자 확인 후**. Neon 은 실서비스와 공유하는 단일 DB이고 마이그레이션은 되돌리기 어렵다.
 
 ### A2. 마케터 — 광고주 관리  — 상태: ⬜ 예정
 - [ ] 패키지 `com.leadpot.advertiser` 생성 (엔티티·리포지토리·서비스·컨트롤러·DTO)
