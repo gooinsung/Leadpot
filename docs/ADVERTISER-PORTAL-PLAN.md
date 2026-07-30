@@ -108,25 +108,32 @@ UPDATE lead_notes SET visibility = 'MARKETER_ONLY';   -- 과거 마케터 내부
 -- MARKETER_ONLY = 마케터만 / ALL = 마케터+광고주 공유
 
 -- ⑥ 감사 로그
+-- ⚠️ 일부러 FK 를 걸지 않는다: 감사 로그는 append-only 이력이라 광고주 계정을 삭제해도 남아야 한다
+--    (cascade 로 함께 지워지면 감사 기능이 무의미해진다). 계정 삭제 후 식별용으로 이메일 스냅샷 보관.
 CREATE TABLE advertiser_access_logs (
   id BIGSERIAL PRIMARY KEY,
-  advertiser_id BIGINT NOT NULL, form_id BIGINT, lead_id BIGINT,
+  advertiser_id BIGINT NOT NULL, advertiser_email VARCHAR(255),
+  form_id BIGINT, lead_id BIGINT,
   action VARCHAR(30) NOT NULL,   -- LOGIN|VIEW_LEAD|EXPORT|STATUS|MEMO|IMPERSONATE
   detail VARCHAR(300), ip VARCHAR(64),
-  at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL
 );
-CREATE INDEX ix_adv_logs ON advertiser_access_logs(advertiser_id, at DESC);
+CREATE INDEX ix_adv_logs ON advertiser_access_logs(advertiser_id, created_at DESC);
 
--- ⑦ 알림 발송 이력 (분쟁 방어 — §5 참고)
+-- ⑦ 알림 발송 이력 (분쟁 방어 — §5 참고). 같은 이유로 FK 없음.
 CREATE TABLE notification_logs (
   id BIGSERIAL PRIMARY KEY,
   lead_id BIGINT, form_id BIGINT, recipient_user_id BIGINT,
   channel VARCHAR(20) NOT NULL,  -- TELEGRAM|SHEETS
-  success BOOLEAN NOT NULL, error VARCHAR(300),
-  at TIMESTAMPTZ NOT NULL DEFAULT now()
+  success BOOLEAN NOT NULL, error_message VARCHAR(300),
+  created_at TIMESTAMPTZ NOT NULL
 );
-CREATE INDEX ix_notif_logs_lead ON notification_logs(lead_id);
+CREATE INDEX ix_notif_logs_lead ON notification_logs(lead_id, created_at);
 ```
+
+> **컬럼명 주의(실제 V18 기준)**: 로그 테이블 시각 컬럼은 `at` 이 아니라 **`created_at`**(나머지 테이블과 통일 +
+> `at` 은 SQL 키워드와 혼동 여지). 오류 문자열은 `error` 대신 **`error_message`**.
+> `advertiser_invites.created_user_id` 는 **`ON DELETE SET NULL`** — 지정하지 않으면 FK 가 광고주 삭제를 막는다.
 
 ---
 
@@ -315,6 +322,19 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 - **A1이 가장 위험**하다(기존 인증·스키마 수정). 여기서 마케터 전체 기능 회귀 스모크를 충분히 하고 넘어간다.
 - **A1~A5 = 사용자 요청 코어.** A6·A7은 부가라 중간에 멈춰도 서비스가 성립한다.
 - 각 단계 완료 시 `main` 병합·푸시 + `PROGRESS.md` 갱신 (사용자 지시 2026-07-25).
+
+---
+
+## 9-A. 단계 완료 보고 형식 (사용자 확정 2026-07-30)
+
+각 단계(A1~A7)를 끝낼 때마다 사용자에게 **아래 3종 세트**를 준다. 파일명·클래스명 나열은 금지(필요하면 맨 뒤에 짧게).
+
+1. **무엇을 했는지 — 쉬운 말 요약** (기능·효과 중심)
+2. **직접 확인할 항목** — "어디서 무엇을 눌러 무엇을 확인"
+3. **확인할 URL** — 로컬 `http://localhost:5173/...` / 라이브 `https://app.lead-pot.com/...`
+
+- 서버를 띄워야 확인 가능하면 **먼저 띄워두고 URL만 건넨다.**
+- **화면이 없는 단계(백엔드 기반 작업)는 "눈에 보이는 게 없다"고 솔직히 말하고**, 대신 확인 가능한 것(기존 기능 회귀 여부 등)을 제시한다. 억지 확인거리를 만들지 않는다.
 
 ---
 
