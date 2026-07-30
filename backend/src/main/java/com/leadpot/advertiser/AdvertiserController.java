@@ -1,0 +1,118 @@
+package com.leadpot.advertiser;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.leadpot.advertiser.dto.AdvertiserSummary;
+import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
+import com.leadpot.advertiser.dto.GrantUpdateRequest;
+import com.leadpot.advertiser.dto.GrantView;
+import com.leadpot.advertiser.dto.InviteRequest;
+import com.leadpot.advertiser.dto.InviteResponse;
+
+import jakarta.validation.Valid;
+
+/**
+ * 마케터가 자기 광고주 하위계정을 관리하는 API.
+ * <p>
+ * 이 경로는 SecurityConfig 에서 <b>ROLE_USER(마케터)만</b> 허용된다.
+ * 광고주 계정은 여기 접근할 수 없다(자기 위의 마케터나 다른 광고주를 볼 수 없음).
+ */
+@RestController
+@RequestMapping("/api/advertisers")
+public class AdvertiserController {
+
+    private final AdvertiserService advertiserService;
+    private final AdvertiserInviteService inviteService;
+
+    public AdvertiserController(AdvertiserService advertiserService, AdvertiserInviteService inviteService) {
+        this.advertiserService = advertiserService;
+        this.inviteService = inviteService;
+    }
+
+    // ---------- 광고주 계정 ----------
+
+    @GetMapping
+    public List<AdvertiserSummary> list(@AuthenticationPrincipal Jwt jwt) {
+        return advertiserService.list(userId(jwt));
+    }
+
+    @PutMapping("/{id}")
+    public AdvertiserSummary update(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @Valid @RequestBody AdvertiserUpdateRequest request) {
+        return advertiserService.update(userId(jwt), id, request);
+    }
+
+    /** 정지/해제. body: {"active": true|false} */
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<Void> setActive(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestBody Map<String, Boolean> body) {
+        advertiserService.setActive(userId(jwt), id, Boolean.TRUE.equals(body.get("active")));
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        advertiserService.delete(userId(jwt), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ---------- 리드폼 권한 ----------
+
+    /** 권한 부여 화면 데이터: 내 리드폼 전체 + 부여 상태 + 다른 광고주 선점 여부. */
+    @GetMapping("/{id}/grants")
+    public List<GrantView> grants(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return advertiserService.grantViews(userId(jwt), id);
+    }
+
+    /** 권한 일괄 교체(목록에 없는 리드폼은 회수). 다른 광고주가 쓰는 폼이면 409. */
+    @PutMapping("/{id}/grants")
+    public List<GrantView> replaceGrants(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @Valid @RequestBody GrantUpdateRequest request) {
+        return advertiserService.replaceGrants(userId(jwt), id, request);
+    }
+
+    // ---------- 초대 ----------
+
+    /** 초대 발급. 응답의 token 은 이때만 볼 수 있다(DB에는 해시만 저장). */
+    @PostMapping("/invites")
+    public ResponseEntity<InviteResponse> issueInvite(@AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody InviteRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(inviteService.issue(userId(jwt), request));
+    }
+
+    @GetMapping("/invites")
+    public List<InviteResponse> invites(@AuthenticationPrincipal Jwt jwt) {
+        return inviteService.list(userId(jwt));
+    }
+
+    /** 링크 재발급(이전 링크는 즉시 무효). 링크를 잃어버렸을 때 사용. */
+    @PostMapping("/invites/{inviteId}/reissue")
+    public InviteResponse reissueInvite(@AuthenticationPrincipal Jwt jwt, @PathVariable Long inviteId) {
+        return inviteService.reissue(userId(jwt), inviteId);
+    }
+
+    @DeleteMapping("/invites/{inviteId}")
+    public ResponseEntity<Void> cancelInvite(@AuthenticationPrincipal Jwt jwt, @PathVariable Long inviteId) {
+        inviteService.cancel(userId(jwt), inviteId);
+        return ResponseEntity.noContent().build();
+    }
+
+    private Long userId(Jwt jwt) {
+        return Long.valueOf(jwt.getSubject());
+    }
+}

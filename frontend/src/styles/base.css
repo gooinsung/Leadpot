@@ -232,6 +232,12 @@ code {
   border-color: transparent;
   color: var(--green-strong);
 }
+/* 주의/보류 상태 (정지된 계정, 다른 광고주 사용중 등) */
+.pill.w {
+  background: var(--amber-soft);
+  border-color: transparent;
+  color: var(--amber);
+}
 
 /* ---------- 입력 리드폼 ---------- */
 .field {
