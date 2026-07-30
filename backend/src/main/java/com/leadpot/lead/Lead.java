@@ -88,6 +88,21 @@ public class Lead {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /**
+     * 광고주 관점의 처리 상태 (신규/확인/통화완료/부재/종료).
+     * 마케터의 {@link #status}(신규/상담중/완료/불량)와 <b>의도적으로 분리</b>한다 —
+     * 같은 컬럼을 쓰면 광고주가 마케터의 분류(불량 등)를 덮어쓴다.
+     */
+    @Column(name = "advertiser_status", length = 30)
+    private String advertiserStatus;
+
+    @Column(name = "advertiser_status_at")
+    private Instant advertiserStatusAt;
+
+    /** 광고주가 이 리드를 최초로 열어본 시각. 마케터 목록의 '광고주 확인' 표시 + 처리속도 리포트에 쓴다. */
+    @Column(name = "advertiser_seen_at")
+    private Instant advertiserSeenAt;
+
     public Long getId() {
         return id;
     }
@@ -230,5 +245,32 @@ public class Lead {
 
     public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public String getAdvertiserStatus() {
+        return advertiserStatus;
+    }
+
+    public Instant getAdvertiserStatusAt() {
+        return advertiserStatusAt;
+    }
+
+    /** 광고주 상태 변경(변경 시각 함께 기록). */
+    public void changeAdvertiserStatus(String status, Instant at) {
+        this.advertiserStatus = status;
+        this.advertiserStatusAt = at;
+    }
+
+    public Instant getAdvertiserSeenAt() {
+        return advertiserSeenAt;
+    }
+
+    /** 광고주 최초 열람 기록. 이미 값이 있으면 유지한다(최초 시각이 처리속도 지표의 기준). */
+    public boolean markAdvertiserSeen(Instant at) {
+        if (advertiserSeenAt != null) {
+            return false;
+        }
+        advertiserSeenAt = at;
+        return true;
     }
 }

@@ -399,18 +399,35 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > 트랜잭션이 걸린 테스트에서는 재현되지 않아서, `AdvertiserLoginAuditTest` 는 **의도적으로
 > `@Transactional` 을 붙이지 않는다**(붙이면 `readOnly` 가 무력화되어 회귀를 못 잡는다).
 
-### A3. 광고주 포털 코어  — 상태: ⬜ 예정
-- [ ] `requireGrant(advertiserId, formId)` 단일 관문 구현 (grant·만료·active·소속 일치)
-- [ ] `AdvertiserLeadResponse` 신설 — 화이트리스트 필드만 (§4-③)
-- [ ] `/api/advertiser/me`·`/forms`·`/leads`(페이징 상한)·`/leads/{id}`
-- [ ] 상세 조회 시 `advertiser_seen_at` 최초 1회 기록
-- [ ] 상태변경 `PATCH .../status` — 고정 5개(신규/확인/통화완료/부재/종료) 값 검증
-- [ ] 메모 조회·작성 (`visibility=ALL` 만 노출, 광고주 작성분은 ALL)
-- [ ] 프론트 `/client/*` 라우트 + role 기반 리다이렉트 + 마케터 내비 은폐
-- [ ] 광고주 리드 목록(카드형·검색·필터) / 상세(`tel:` 전화버튼·상태·메모) — **모바일 우선(375px)**
-- [ ] 마케터 리드 목록에 **"광고주 확인" 배지** + "미확인만 보기" 필터
-- [ ] 검증: 부여 폼만 노출·미부여 **404** / 응답 JSON 에 ip·utm·device·tags **부재 확인** / DELETE 엔드포인트 부재
-- [ ] `main` 병합·푸시 + 문서 갱신
+### A3. 광고주 포털 코어  — 상태: 🔄 검증 완료(사용자 확인 대기, 브랜치 `feature/advertiser-portal-a3`)
+- [x] `Lead` 엔티티에 V18 컬럼 매핑(`advertiserStatus`/`advertiserStatusAt`/`advertiserSeenAt`),
+      `LeadNote` 에 `visibility` 매핑 + `VISIBILITY_MARKETER_ONLY`/`ALL` 상수
+- [x] `requireGrant(advertiserId, formId)` **단일 관문** — grant 존재·만료·계정 active·소속 마케터 일치·폼 소유자 일치
+- [x] `AdvertiserLeadResponse` 신설 — 6개 필드만(id·answers·createdAt·advertiserStatus·label·seenAt)
+- [x] `AdvertiserLeadStatus` 고정 5개(NEW/CONFIRMED/CALLED/NO_ANSWER/CLOSED) + 한글 라벨
+- [x] `/api/advertiser/me`(화이트라벨)·`/forms`(별칭·미확인수)·`/dashboard`·`/leads`(상한 100)·`/leads/{id}`·
+      `/leads/{id}/status`·`/leads/{id}/notes`·`/lead-statuses`
+- [x] 상세 조회 시 `advertiser_seen_at` **최초 1회만** 기록 + VIEW_LEAD/STATUS/MEMO 감사 로그
+- [x] 메모: 광고주는 `visibility=ALL` 만 조회, 광고주 작성분·광고주 상태변경 이력은 ALL 로 저장
+- [x] 프론트 `/client` = `AdvertiserLeadsPage`(A2 임시 홈 대체) + `AdvertiserTopBar`(마케터 내비 없음, 화이트라벨)
+- [x] 리드 카드 목록(검색·상태필터·페이징·NEW 강조·**`tel:` 전화버튼**) / 상세 모달(큰 전화버튼·상태칩·메모) — **모바일 우선**
+- [x] 미확인 경고 배너(대시보드 카운트 기반) + 폼 선택 칩(미확인 배지)
+- [x] 마케터 리드 목록에 **"👁 광고주 확인" 배지** + **"광고주 미확인만"** 필터 + 메모 공유 여부(`sharedWithAdvertiser`)
+- [x] **테스트 17개 신설** (`AdvertiserLeadAccessTest`) — 전체 **54개** 통과
+- [x] **Neon 실측 E2E**: 부여 폼만 노출·미부여 폼 404 / 응답에 ip·utm·device·tags **부재 확인** /
+      **마케터 내부 메모 광고주에게 미노출 확인**(INTERNAL_SECRET 누출 없음) / 상태 CALLED 반영·마케터 status(SPAM) 불변 /
+      잘못된 상태값 400 / `DELETE /api/advertiser/leads/{id}` **405(부재)** · `DELETE /api/leads/{id}` **403** /
+      최초 열람 시각 1회 고정 / 페이지 상한 100 강제
+- [x] **브라우저 실측(375px)**: 마케터 내비 없음 · 별칭 표시 · `tel:` 링크 · 미확인 배너 · 상태칩 · 좌우 스크롤 없음 /
+      마케터 화면에 배지·필터 정상
+- [ ] `main` 병합·푸시 + 문서 갱신 (사용자 확인 후)
+
+> **A3 설계 메모**
+> - 광고주 응답에서 **`consents`(동의 내역)도 제외**했다. 광고주가 마케팅 수신동의 여부를 알면
+>   영업에 유용할 수 있으나, 사용자 확정 범위에 없어 넣지 않았다 — 필요하면 별도 논의(동의 항목 단위 노출).
+> - **중복 의심 표시도 광고주에게 미노출**(마케터 내부 판단). §8 텔레그램 메시지 규칙과 일관되게 유지.
+> - 마케터가 자기 메모를 광고주와 공유하는 **토글은 아직 없다**(현재는 마케터 메모=MARKETER_ONLY 고정,
+>   광고주 메모·상태이력만 ALL). 필요하면 후속.
 
 ### A4. 내보내기 · 감사 로그  — 상태: ⬜ 예정
 - [ ] `POST /api/advertiser/leads/export` — 기존 `LeadExcelService` 재사용(배정분만)

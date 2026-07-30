@@ -19,7 +19,7 @@ import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
-import { AdvertiserHomePage } from "./pages/AdvertiserHomePage";
+import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
 import { ProtectedRoute, RoleHomeRedirect } from "./components/ProtectedRoute";
 import { currentSubdomain } from "./lib/site";
@@ -193,7 +193,7 @@ function App() {
         path="/client"
         element={
           <ProtectedRoute role="ADVERTISER">
-            <AdvertiserHomePage />
+            <AdvertiserLeadsPage />
           </ProtectedRoute>
         }
       />

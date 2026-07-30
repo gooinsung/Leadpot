@@ -377,12 +377,18 @@ export interface Lead {
   utm: Record<string, unknown> | null;
   tags: string[] | null;
   createdAt: string;
+  /** 광고주 관점 상태(광고주가 붙은 폼일 때만 의미 있음). null = 변경 없음 */
+  advertiserStatus: string | null;
+  /** 광고주가 처음 열어본 시각. null = 아직 안 봄 → 목록에 '광고주 확인' 미표시 */
+  advertiserSeenAt: string | null;
 }
 
 export interface LeadNote {
   id: number;
   kind: "MEMO" | "SYSTEM";
   body: string;
+  /** true = 광고주에게도 보이는 메모(광고주 작성분·광고주 상태변경 이력) */
+  sharedWithAdvertiser: boolean;
   createdAt: string;
 }
 
@@ -884,6 +890,117 @@ export function cancelInvite(inviteId: number): Promise<void> {
 /** 초대 링크(광고주에게 전달할 URL). 현재 접속한 오리진 기준으로 만든다. */
 export function inviteUrl(token: string): string {
   return `${window.location.origin}/invite/${token}`;
+}
+
+// ---------- 광고주 포털 (ROLE_ADVERTISER 전용) ----------
+/** 광고주 처리 상태 — 백엔드 AdvertiserLeadStatus 와 일치(고정 5개). */
+export const ADVERTISER_LEAD_STATUSES = [
+  { value: "NEW", label: "신규" },
+  { value: "CONFIRMED", label: "확인" },
+  { value: "CALLED", label: "통화완료" },
+  { value: "NO_ANSWER", label: "부재" },
+  { value: "CLOSED", label: "종료" },
+] as const;
+
+export function advertiserStatusLabel(v: string | null): string {
+  return ADVERTISER_LEAD_STATUSES.find((s) => s.value === v)?.label ?? "신규";
+}
+
+export interface AdvertiserMe {
+  id: number;
+  email: string;
+  name: string;
+  company: string | null;
+  marketerName: string;
+  marketerCompany: string | null;
+  brandLogoUrl: string | null;
+  brandColor: string | null;
+}
+
+export interface AdvertiserForm {
+  formId: number;
+  /** 마케터가 지정한 표시 이름(내부 폼명이 아님) */
+  name: string;
+  leadCount: number;
+  unseenCount: number;
+  canStatus: boolean;
+  canMemo: boolean;
+  canExport: boolean;
+}
+
+/** 광고주에게 내려오는 리드 — IP·UTM·태그·마케터 상태는 서버에서 제외된다. */
+export interface AdvertiserLead {
+  id: number;
+  answers: LeadAnswer[];
+  createdAt: string;
+  advertiserStatus: string;
+  advertiserStatusLabel: string;
+  advertiserSeenAt: string | null;
+}
+
+export interface AdvertiserLeadPage {
+  items: AdvertiserLead[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface AdvertiserNote {
+  id: number;
+  kind: "MEMO" | "SYSTEM";
+  body: string;
+  mine: boolean;
+  createdAt: string;
+}
+
+export interface AdvertiserDashboard {
+  totalLeads: number;
+  unseenLeads: number;
+  todayLeads: number;
+  byStatus: Record<string, number>;
+}
+
+export interface AdvertiserLeadFilter {
+  formId: number;
+  status?: string;
+  q?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export function getAdvertiserMe(): Promise<AdvertiserMe> {
+  return request<AdvertiserMe>("/api/advertiser/me");
+}
+export function listAdvertiserForms(): Promise<AdvertiserForm[]> {
+  return request<AdvertiserForm[]>("/api/advertiser/forms");
+}
+export function getAdvertiserDashboard(): Promise<AdvertiserDashboard> {
+  return request<AdvertiserDashboard>("/api/advertiser/dashboard");
+}
+export function listAdvertiserLeads(filter: AdvertiserLeadFilter): Promise<AdvertiserLeadPage> {
+  const p = new URLSearchParams({ formId: String(filter.formId) });
+  if (filter.status) p.set("status", filter.status);
+  if (filter.q) p.set("q", filter.q);
+  if (filter.from) p.set("from", filter.from);
+  if (filter.to) p.set("to", filter.to);
+  if (filter.page != null) p.set("page", String(filter.page));
+  if (filter.size != null) p.set("size", String(filter.size));
+  return request<AdvertiserLeadPage>(`/api/advertiser/leads?${p.toString()}`);
+}
+/** 상세 조회 — 서버가 최초 열람 시각을 기록한다(마케터가 '확인' 여부를 알 수 있게). */
+export function getAdvertiserLead(id: number): Promise<AdvertiserLead> {
+  return request<AdvertiserLead>(`/api/advertiser/leads/${id}`);
+}
+export function updateAdvertiserLeadStatus(id: number, status: string): Promise<AdvertiserLead> {
+  return request<AdvertiserLead>(`/api/advertiser/leads/${id}/status`, { method: "PATCH", body: { status } });
+}
+export function listAdvertiserNotes(id: number): Promise<AdvertiserNote[]> {
+  return request<AdvertiserNote[]>(`/api/advertiser/leads/${id}/notes`);
+}
+export function addAdvertiserNote(id: number, body: string): Promise<AdvertiserNote> {
+  return request<AdvertiserNote>(`/api/advertiser/leads/${id}/notes`, { method: "POST", body: { body } });
 }
 
 // ---------- 초대 수락 (비로그인 공개) ----------
