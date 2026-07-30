@@ -20,8 +20,28 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐ 지금 순서 (사용자 확정 2026-07-27)
-> **1) 배포 = ✅ 완료(2026-07-28)** → **2) 다음 작업 = 광고주 페이지 + 관리자 페이지(멀티포털)**.
+> ### ⭐⭐ 지금 할 일 = 광고주 하위계정 포털 A1 (설계 확정 2026-07-30)
+>
+> **정본 문서 = [ADVERTISER-PORTAL-PLAN.md](ADVERTISER-PORTAL-PLAN.md)** — 착수 전 이 문서를 먼저 읽는다.
+>
+> ### 📋 진행상황 정본 = [ADVERTISER-PORTAL-PLAN.md §9-B 실행 체크리스트](ADVERTISER-PORTAL-PLAN.md#9-b-실행-체크리스트--이어받기용--여기가-진행상황-정본)
+> **다른 PC·다른 세션은 `git pull` 후 그 체크리스트에서 체크 안 된 첫 항목부터 이어서 하면 된다.**
+> 작업을 시작·중단·완료할 때마다 그 체크리스트를 갱신하고 커밋한다(A1~A7 세부 항목 전체가 거기 있다).
+>
+> - **방향 확정**: Leadpot = DB마케팅 종합 서비스. 현 도메인(`app.lead-pot.com`)은 **마케터 포털**이고,
+>   그 안에 **광고주 하위계정**(`/client/*`)을 붙인다. 마케터가 광고주를 초대·권한부여하면
+>   광고주는 **지정된 리드폼의 리드만** 열람·상태변경·엑셀·텔레그램 알림을 쓴다.
+> - **구조**: 1 마케터 : N 광고주 / 1 광고주 : N 리드폼(소속 마케터 것만) / **1 리드폼 : 1 광고주(DB UNIQUE)**
+> - **광고주 금지(엄격)**: 삭제·휴지통·복원·영구삭제·가져오기·태그편집·폼/랜딩 조회. `/api/advertiser/**` 에
+>   DELETE 엔드포인트를 **아예 만들지 않는다**(기능 부재 = 최강 방어). 응답도 `AdvertiserLeadResponse` 신설(IP·UTM·태그·마케터status 제외).
+> - **⛔ 보류 전환**: [MULTI-PORTAL-PLAN.md](MULTI-PORTAL-PLAN.md)의 리드 거래/정산 플랫폼 모델은 **채택 안 함**(규제 리스크·콜드스타트).
+>   "광고주가 마케터를 모집하는 서비스"는 **추후 별도 도메인**으로 분리.
+> - **단계**: A1 기반·보안골격 → A2 마케터측 광고주관리 → A3 광고주 포털코어 → A4 내보내기·감사 → A5 알림 → A6 대시보드·실시간 → A7 부가.
+>   **A1이 가장 위험**(기존 인증·스키마 수정) → 마케터 기능 회귀 스모크 필수. Flyway **V18**.
+> - **A1 착수 시 주의(코드 확인함)**: ① Spring Security는 `role` 클레임을 authority로 자동 매핑하지 않음 → 커스텀 `JwtAuthenticationConverter` 없으면 `hasAuthority` 가 조용히 항상 실패 ② `users.subdomain` 이 NOT NULL UNIQUE → 광고주 생성 실패, `DROP NOT NULL` 필요 ③ `lead_notes.visibility` 기본값을 `MARKETER_ONLY` 로 백필(과거 내부 메모 노출 방지)
+>
+> ### (완료) 이전 순서 (사용자 확정 2026-07-27)
+> **1) 배포 = ✅ 완료(2026-07-28)** → **2) 다음 작업 = 광고주 페이지** (→ 위 계획으로 구체화됨)
 >
 > - **① 배포 — ✅ 완료(2026-07-28, wincube PC에서 진행)**. **실서비스 라이브**: 프론트 https://app.lead-pot.com / 백엔드 https://api.lead-pot.com (헬스 UP). 도메인 `lead-pot.com` 구매·Cloudflare 등록 완료.
 >   - **최종 구성**: 백엔드=**Oracle Always Free AMD `VM.Standard.E2.1.Micro`**(공인IP **129.225.198.2**, Ubuntu 22.04, 서울 AD-1) — ARM은 out-of-capacity로 AMD 전환. DB=**Neon 유지**(V17, 재배포 시 마이그레이션 없음). **프론트=같은 VM의 Nginx가 정적 서빙**(`/var/www/leadpot`) — ⚠️ **Cloudflare Pages는 와일드카드(`*.lead-pot.com`) 커스텀 도메인 미지원**이라 서브도메인 랜딩이 안 됨 → Pages 접고 **VM Nginx 일원화**로 결정(사용자 확정). (Pages 프로젝트 `leadpot`는 미사용으로 남음 — 삭제 가능)
