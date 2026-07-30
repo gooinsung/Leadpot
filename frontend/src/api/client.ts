@@ -122,7 +122,8 @@ export interface HealthResponse {
   time: string;
 }
 
-export type Role = "USER" | "ADMIN";
+/** USER=마케터 · ADVERTISER=광고주 하위계정 · ADMIN=운영자 */
+export type Role = "USER" | "ADVERTISER" | "ADMIN";
 export type Plan = "FREE" | "PRO";
 
 export interface AuthUser {
@@ -130,7 +131,8 @@ export interface AuthUser {
   email: string;
   name: string;
   phone: string | null;
-  subdomain: string;
+  /** 광고주 하위계정은 공개 페이지가 없어 null */
+  subdomain: string | null;
   role: Role;
   plan: Plan;
   createdAt: string;
@@ -776,6 +778,135 @@ export async function uploadImage(file: File): Promise<{ url: string }> {
   if (!res.ok) throw await parseError(res);
   // 백엔드가 절대 URL(로컬=서버주소 / R2=공개베이스URL)을 반환
   return (await res.json()) as { url: string };
+}
+
+// ---------- 광고주 하위계정 (마케터가 관리) ----------
+export interface AdvertiserSummary {
+  id: number;
+  email: string;
+  name: string;
+  company: string | null;
+  /** 마케터만 보는 내부 메모 */
+  memo: string | null;
+  active: boolean;
+  /** 부여된 리드폼 수 */
+  grantCount: number;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export interface AdvertiserUpdateInput {
+  name?: string;
+  company?: string;
+  memo?: string;
+}
+
+/** 권한 부여 화면의 한 줄 = 내 리드폼 하나 */
+export interface GrantView {
+  formId: number;
+  formName: string;
+  /** 이 광고주에게 부여됐는지 */
+  granted: boolean;
+  /** 광고주에게 보일 이름(비면 원래 폼 이름) */
+  displayName: string | null;
+  expiresAt: string | null;
+  canStatus: boolean;
+  canMemo: boolean;
+  canExport: boolean;
+  /** 다른 광고주가 이미 쓰는 폼이면 그 이름(1리드폼:1광고주) */
+  takenBy: string | null;
+}
+
+export interface GrantInput {
+  formId: number;
+  displayName?: string | null;
+  expiresAt?: string | null;
+  canStatus?: boolean;
+  canMemo?: boolean;
+  canExport?: boolean;
+}
+
+export interface AdvertiserInvite {
+  id: number;
+  email: string;
+  name: string | null;
+  company: string | null;
+  /** 발급/재발급 응답에만 담긴다(DB에는 해시만 저장 — 이후 다시 볼 수 없음) */
+  token: string | null;
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+}
+
+export interface InviteInput {
+  email: string;
+  name?: string;
+  company?: string;
+}
+
+export function listAdvertisers(): Promise<AdvertiserSummary[]> {
+  return request<AdvertiserSummary[]>("/api/advertisers");
+}
+export function updateAdvertiser(id: number, input: AdvertiserUpdateInput): Promise<AdvertiserSummary> {
+  return request<AdvertiserSummary>(`/api/advertisers/${id}`, { method: "PUT", body: input });
+}
+/** 정지/해제 — 정지하면 로그인·토큰 재발급이 즉시 막힌다. */
+export function setAdvertiserActive(id: number, active: boolean): Promise<void> {
+  return request<void>(`/api/advertisers/${id}/active`, { method: "PATCH", body: { active } });
+}
+export function deleteAdvertiser(id: number): Promise<void> {
+  return request<void>(`/api/advertisers/${id}`, { method: "DELETE" });
+}
+
+/** 권한 부여 화면 데이터(내 리드폼 전체 + 부여 상태 + 선점 여부). */
+export function listGrants(advertiserId: number): Promise<GrantView[]> {
+  return request<GrantView[]>(`/api/advertisers/${advertiserId}/grants`);
+}
+/** 권한 일괄 교체 — 목록에 없는 리드폼은 회수된다. */
+export function replaceGrants(advertiserId: number, grants: GrantInput[]): Promise<GrantView[]> {
+  return request<GrantView[]>(`/api/advertisers/${advertiserId}/grants`, { method: "PUT", body: { grants } });
+}
+
+export function issueInvite(input: InviteInput): Promise<AdvertiserInvite> {
+  return request<AdvertiserInvite>("/api/advertisers/invites", { method: "POST", body: input });
+}
+export function listInvites(): Promise<AdvertiserInvite[]> {
+  return request<AdvertiserInvite[]>("/api/advertisers/invites");
+}
+/** 링크 재발급(이전 링크 즉시 무효). 링크를 잃어버렸을 때. */
+export function reissueInvite(inviteId: number): Promise<AdvertiserInvite> {
+  return request<AdvertiserInvite>(`/api/advertisers/invites/${inviteId}/reissue`, { method: "POST" });
+}
+export function cancelInvite(inviteId: number): Promise<void> {
+  return request<void>(`/api/advertisers/invites/${inviteId}`, { method: "DELETE" });
+}
+
+/** 초대 링크(광고주에게 전달할 URL). 현재 접속한 오리진 기준으로 만든다. */
+export function inviteUrl(token: string): string {
+  return `${window.location.origin}/invite/${token}`;
+}
+
+// ---------- 초대 수락 (비로그인 공개) ----------
+export interface InviteInfo {
+  email: string;
+  name: string | null;
+  company: string | null;
+  marketerName: string;
+  marketerCompany: string | null;
+}
+
+export function getInviteInfo(token: string): Promise<InviteInfo> {
+  return request<InviteInfo>(`/api/public/advertiser-invites/${encodeURIComponent(token)}`, { auth: false });
+}
+export function acceptInvite(
+  token: string,
+  input: { password: string; name?: string; phone?: string },
+): Promise<TokenResponse> {
+  return request<TokenResponse>(`/api/public/advertiser-invites/${encodeURIComponent(token)}`, {
+    method: "POST",
+    body: input,
+    auth: false,
+  });
 }
 
 export { BASE_URL };

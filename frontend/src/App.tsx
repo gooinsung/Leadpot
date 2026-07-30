@@ -18,7 +18,10 @@ import { PublicLandingPage } from "./pages/PublicLandingPage";
 import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AdvertisersPage } from "./pages/AdvertisersPage";
+import { AdvertiserHomePage } from "./pages/AdvertiserHomePage";
+import { InviteAcceptPage } from "./pages/InviteAcceptPage";
+import { ProtectedRoute, RoleHomeRedirect } from "./components/ProtectedRoute";
 import { currentSubdomain } from "./lib/site";
 import "./App.css";
 
@@ -37,7 +40,8 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* 루트는 역할에 따라 분기(마케터→대시보드 / 광고주→/client) */}
+      <Route path="/" element={<RoleHomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route
@@ -176,10 +180,28 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/advertisers"
+        element={
+          <ProtectedRoute>
+            <AdvertisersPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 광고주 포털 (ROLE_ADVERTISER 전용) */}
+      <Route
+        path="/client"
+        element={
+          <ProtectedRoute role="ADVERTISER">
+            <AdvertiserHomePage />
+          </ProtectedRoute>
+        }
+      />
       {/* 공개 (비로그인) */}
       <Route path="/consent/:id" element={<ConsentViewPage />} />
       <Route path="/f/:id" element={<PublicFormPage />} />
       <Route path="/p/:slug" element={<PublicLandingPage />} />
+      <Route path="/invite/:token" element={<InviteAcceptPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

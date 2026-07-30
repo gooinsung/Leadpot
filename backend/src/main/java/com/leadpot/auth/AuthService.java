@@ -4,6 +4,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.advertiser.AdvertiserAuditService;
 import com.leadpot.auth.dto.LoginRequest;
 import com.leadpot.auth.dto.SignupRequest;
 import com.leadpot.auth.dto.TokenResponse;
@@ -22,11 +23,14 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AdvertiserAuditService advertiserAudit;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
+            AdvertiserAuditService advertiserAudit) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.advertiserAudit = advertiserAudit;
     }
 
     @Transactional
@@ -76,8 +80,13 @@ public class AuthService {
         throw new IllegalStateException("서브도메인 생성에 실패했습니다. 다시 시도해주세요.");
     }
 
-    @Transactional(readOnly = true)
     public TokenResponse login(LoginRequest req) {
+        return login(req, null);
+    }
+
+    /** 로그인. 광고주 계정이면 감사 로그에 LOGIN 을 남긴다(마케터가 마지막 접속을 확인할 수 있게). */
+    @Transactional(readOnly = true)
+    public TokenResponse login(LoginRequest req, String ip) {
         String email = normalizeEmail(req.email());
         // 사용자 존재 여부를 노출하지 않도록 실패 메시지는 동일하게 유지
         User user = userRepository.findByEmail(email)
@@ -89,6 +98,7 @@ public class AuthService {
         if (!user.isActive()) {
             throw new InvalidCredentialsException("정지된 계정입니다. 담당자에게 문의해주세요.");
         }
+        advertiserAudit.recordLogin(user, ip);
         return buildTokens(user);
     }
 
@@ -110,6 +120,14 @@ public class AuthService {
         if (!user.isActive()) {
             throw new InvalidRefreshTokenException("정지된 계정입니다.");
         }
+        return buildTokens(user);
+    }
+
+    /**
+     * 계정 생성 직후 자동 로그인 토큰 발급 (광고주 초대 수락 등 가입 외 경로에서 사용).
+     * 토큰 발급 로직을 한 곳으로 유지하기 위해 공개한다.
+     */
+    public TokenResponse issueTokens(User user) {
         return buildTokens(user);
     }
 

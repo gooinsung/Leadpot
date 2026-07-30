@@ -67,4 +67,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(HttpStatus.CONFLICT.value(), "SUBDOMAIN_TAKEN", e.getMessage()));
     }
+
+    /** 요금제 한도 초과(광고주 계정 수 등). 결제 유도가 필요한 상태라 409 로 구분한다. */
+    @ExceptionHandler(PlanLimitExceededException.class)
+    public ResponseEntity<ApiError> handlePlanLimit(PlanLimitExceededException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(HttpStatus.CONFLICT.value(), "PLAN_LIMIT_EXCEEDED", e.getMessage()));
+    }
+
+    /** 상태 충돌(이미 부여된 리드폼, 중복 초대 등). */
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiError> handleConflict(ConflictException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(HttpStatus.CONFLICT.value(), "CONFLICT", e.getMessage()));
+    }
 }

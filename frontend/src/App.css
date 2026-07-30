@@ -1341,3 +1341,120 @@ td.num {
     position: static;
   }
 }
+
+/* ---------- 광고주 관리 (A2) ---------- */
+/* 안내 박스: 제3자 제공 확인·주의 문구 */
+.notice-box {
+  background: var(--indigo-soft);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.notice-box.warn {
+  background: var(--amber-soft);
+  color: var(--text);
+}
+
+/* 초대 링크 복사 줄 */
+.copy-box {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+.copy-box .input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.invite-modal {
+  max-width: 560px;
+}
+.grant-modal {
+  max-width: 720px;
+}
+
+/* 리드폼 권한 목록 */
+.grant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.grant-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--bg);
+}
+.grant-row.is-taken {
+  opacity: 0.6;
+  background: var(--surface-2);
+}
+.grant-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.grant-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.grant-row.is-taken .grant-check {
+  cursor: not-allowed;
+}
+.grant-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grant-options {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.grant-perms {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.grant-perms label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+/* 모달 하단 액션 줄 */
+.grant-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .grant-perms {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .copy-box {
+    flex-direction: column;
+  }
+}

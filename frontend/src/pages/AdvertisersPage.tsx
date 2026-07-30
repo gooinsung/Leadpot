@@ -1,0 +1,454 @@
+import { useEffect, useState } from "react";
+import {
+  ApiError,
+  cancelInvite,
+  deleteAdvertiser,
+  inviteUrl,
+  issueInvite,
+  listAdvertisers,
+  listInvites,
+  reissueInvite,
+  setAdvertiserActive,
+  updateAdvertiser,
+  type AdvertiserInvite,
+  type AdvertiserSummary,
+} from "../api/client";
+import { TopBar } from "../components/TopBar";
+import { Pagination, usePaging } from "../components/Pagination";
+import { GrantEditor } from "../components/GrantEditor";
+
+const fmt = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR") : "-");
+
+export function AdvertisersPage() {
+  const [items, setItems] = useState<AdvertiserSummary[]>([]);
+  const [invites, setInvites] = useState<AdvertiserInvite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // 초대 발급 모달
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ email: "", name: "", company: "" });
+  const [issued, setIssued] = useState<AdvertiserInvite | null>(null);
+  const [issuing, setIssuing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const [grantTarget, setGrantTarget] = useState<AdvertiserSummary | null>(null);
+  const [editTarget, setEditTarget] = useState<AdvertiserSummary | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", company: "", memo: "" });
+
+  const paging = usePaging(items, 10);
+  const pendingInvites = invites.filter((i) => !i.acceptedAt);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [advertisers, inviteList] = await Promise.all([listAdvertisers(), listInvites()]);
+      setItems(advertisers);
+      setInvites(inviteList);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function onIssue() {
+    setError("");
+    setIssuing(true);
+    try {
+      const res = await issueInvite({
+        email: inviteForm.email.trim(),
+        name: inviteForm.name.trim() || undefined,
+        company: inviteForm.company.trim() || undefined,
+      });
+      setIssued(res);
+      setCopied(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "초대 발급에 실패했습니다.");
+    } finally {
+      setIssuing(false);
+    }
+  }
+
+  async function onReissue(inviteId: number) {
+    setError("");
+    try {
+      const res = await reissueInvite(inviteId);
+      setIssued(res);
+      setCopied(false);
+      setInviteOpen(true);
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "재발급에 실패했습니다.");
+    }
+  }
+
+  async function onCancelInvite(inviteId: number, email: string) {
+    if (!window.confirm(`${email} 초대를 취소할까요? 발급된 링크는 즉시 무효가 됩니다.`)) return;
+    await cancelInvite(inviteId);
+    load();
+  }
+
+  async function onToggleActive(a: AdvertiserSummary) {
+    const next = !a.active;
+    const msg = next
+      ? `${a.email} 계정을 다시 활성화할까요?`
+      : `${a.email} 계정을 정지할까요? 로그인 중이어도 곧 접속이 차단됩니다.`;
+    if (!window.confirm(msg)) return;
+    await setAdvertiserActive(a.id, next);
+    load();
+  }
+
+  async function onDelete(a: AdvertiserSummary) {
+    const ok = window.confirm(
+      `${a.email} 광고주 계정을 삭제할까요?\n\n` +
+        `· 부여한 리드폼 권한도 함께 사라집니다.\n` +
+        `· 리드 데이터는 그대로 남습니다(광고주 계정만 삭제).\n` +
+        `· 열람·다운로드 기록은 감사 목적으로 보존됩니다.`,
+    );
+    if (!ok) return;
+    await deleteAdvertiser(a.id);
+    load();
+  }
+
+  function openEdit(a: AdvertiserSummary) {
+    setEditTarget(a);
+    setEditForm({ name: a.name ?? "", company: a.company ?? "", memo: a.memo ?? "" });
+  }
+
+  async function onSaveEdit() {
+    if (!editTarget) return;
+    await updateAdvertiser(editTarget.id, {
+      name: editForm.name.trim() || undefined,
+      company: editForm.company,
+      memo: editForm.memo,
+    });
+    setEditTarget(null);
+    load();
+  }
+
+  function closeInviteModal() {
+    setInviteOpen(false);
+    setIssued(null);
+    setInviteForm({ email: "", name: "", company: "" });
+    setError("");
+  }
+
+  async function copyLink(token: string) {
+    try {
+      await navigator.clipboard.writeText(inviteUrl(token));
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <TopBar />
+      <main className="wrap dashboard">
+        <div className="dash-head">
+          <div>
+            <p className="eyebrow">광고주 관리</p>
+            <h1 className="dash-title">광고주</h1>
+            <p className="dash-sub">
+              광고주 계정을 만들어 <strong>지정한 리드폼의 리드만</strong> 보게 할 수 있습니다. 광고주는 확인·상태변경·엑셀
+              내려받기만 가능하고 <strong>삭제는 할 수 없습니다.</strong>
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={() => setInviteOpen(true)}>
+            + 광고주 초대
+          </button>
+        </div>
+
+        {error && !inviteOpen && <p className="auth-error">{error}</p>}
+
+        {pendingInvites.length > 0 && (
+          <div className="card card-pad" style={{ marginBottom: 16 }}>
+            <div className="card-h">초대 대기 중 ({pendingInvites.length})</div>
+            <p className="dash-sub" style={{ marginTop: 4 }}>
+              광고주가 링크로 접속해 비밀번호를 정하면 계정이 만들어집니다.
+            </p>
+            <table style={{ marginTop: 12 }}>
+              <thead>
+                <tr>
+                  <th>이메일</th>
+                  <th>회사</th>
+                  <th>만료</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingInvites.map((i) => (
+                  <tr key={i.id}>
+                    <td>{i.email}</td>
+                    <td>{i.company ?? "-"}</td>
+                    <td className="num">{fmt(i.expiresAt)}</td>
+                    <td>
+                      <button className="btn btn-ghost btn-sm" onClick={() => onReissue(i.id)}>
+                        링크 재발급
+                      </button>
+                      <button className="btn btn-ghost btn-sm danger" onClick={() => onCancelInvite(i.id, i.email)}>
+                        취소
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {loading ? (
+          <p className="dash-sub">불러오는 중…</p>
+        ) : items.length === 0 ? (
+          <div className="card card-pad empty-state">
+            <p>아직 등록된 광고주가 없습니다.</p>
+            <button className="btn btn-primary" onClick={() => setInviteOpen(true)}>
+              첫 광고주 초대하기
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>광고주</th>
+                    <th>회사</th>
+                    <th>리드폼</th>
+                    <th>마지막 접속</th>
+                    <th>상태</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paging.pageItems.map((a) => (
+                    <tr key={a.id}>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{a.name}</div>
+                        <div className="dash-sub" style={{ fontSize: 13 }}>
+                          {a.email}
+                        </div>
+                        {a.memo && (
+                          <div className="dash-sub" style={{ fontSize: 12, marginTop: 2 }}>
+                            📝 {a.memo}
+                          </div>
+                        )}
+                      </td>
+                      <td>{a.company ?? "-"}</td>
+                      <td className="num">
+                        {a.grantCount > 0 ? (
+                          <span className="pill i">{a.grantCount}개</span>
+                        ) : (
+                          <span className="dash-sub">없음</span>
+                        )}
+                      </td>
+                      <td className="num">{fmt(a.lastLoginAt)}</td>
+                      <td>{a.active ? <span className="pill g">활성</span> : <span className="pill w">정지</span>}</td>
+                      <td>
+                        <button className="btn btn-primary btn-sm" onClick={() => setGrantTarget(a)}>
+                          리드폼 권한
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(a)}>
+                          정보
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => onToggleActive(a)}>
+                          {a.active ? "정지" : "활성화"}
+                        </button>
+                        <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(a)}>
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              total={paging.total}
+              page={paging.page}
+              pages={paging.pages}
+              pageSize={paging.pageSize}
+              onPage={paging.setPage}
+              onPageSize={paging.setPageSize}
+              unit="명"
+            />
+          </>
+        )}
+      </main>
+
+      {/* 초대 발급 모달 */}
+      {inviteOpen && (
+        <div className="lead-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && closeInviteModal()}>
+          <div className="card lead-modal invite-modal" role="dialog" aria-modal="true">
+            <div className="lead-modal-head">
+              <div>
+                <p className="eyebrow" style={{ margin: 0 }}>
+                  광고주 관리
+                </p>
+                <h2 style={{ margin: "4px 0 0" }}>{issued ? "초대 링크 생성 완료" : "광고주 초대"}</h2>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={closeInviteModal}>
+                닫기
+              </button>
+            </div>
+
+            <div className="lead-modal-body">
+              {!issued ? (
+                <>
+                  <p className="dash-sub" style={{ marginTop: 0 }}>
+                    초대 링크를 만들어 카톡·메일로 전달하세요. 광고주가 직접 비밀번호를 정합니다(마케터는 광고주 비밀번호를
+                    알 수 없습니다).
+                  </p>
+                  {error && <p className="auth-error">{error}</p>}
+                  <div className="field">
+                    <label>이메일 *</label>
+                    <input
+                      className="input"
+                      type="email"
+                      value={inviteForm.email}
+                      onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                      placeholder="advertiser@example.com"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>담당자 이름</label>
+                    <input
+                      className="input"
+                      value={inviteForm.name}
+                      onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                      placeholder="홍길동"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>회사명</label>
+                    <input
+                      className="input"
+                      value={inviteForm.company}
+                      onChange={(e) => setInviteForm({ ...inviteForm, company: e.target.value })}
+                      placeholder="○○병원"
+                    />
+                  </div>
+                  <div className="grant-foot">
+                    <span />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn btn-ghost" onClick={closeInviteModal}>
+                        취소
+                      </button>
+                      <button className="btn btn-primary" disabled={issuing || !inviteForm.email.trim()} onClick={onIssue}>
+                        {issuing ? "발급 중…" : "초대 링크 만들기"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="dash-sub" style={{ marginTop: 0 }}>
+                    <strong>{issued.email}</strong> 님에게 아래 링크를 전달하세요.
+                  </p>
+                  <div className="notice-box warn">
+                    ⚠️ 이 링크는 <strong>지금만 볼 수 있습니다.</strong> 창을 닫으면 다시 확인할 수 없고, 필요하면 목록에서
+                    재발급해야 합니다.
+                  </div>
+                  <div className="copy-box">
+                    <input
+                      className="input"
+                      readOnly
+                      value={issued.token ? inviteUrl(issued.token) : ""}
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    <button className="btn btn-primary" onClick={() => issued.token && copyLink(issued.token)}>
+                      {copied ? "복사됨 ✓" : "복사"}
+                    </button>
+                  </div>
+                  <p className="dash-sub" style={{ fontSize: 13 }}>
+                    유효기간: {fmt(issued.expiresAt)}까지
+                  </p>
+                  <div className="grant-foot">
+                    <span />
+                    <button className="btn btn-primary" onClick={closeInviteModal}>
+                      확인
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 정보 수정 모달 */}
+      {editTarget && (
+        <div className="lead-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setEditTarget(null)}>
+          <div className="card lead-modal invite-modal" role="dialog" aria-modal="true">
+            <div className="lead-modal-head">
+              <div>
+                <p className="eyebrow" style={{ margin: 0 }}>
+                  {editTarget.email}
+                </p>
+                <h2 style={{ margin: "4px 0 0" }}>광고주 정보</h2>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditTarget(null)}>
+                닫기
+              </button>
+            </div>
+            <div className="lead-modal-body">
+              <div className="field">
+                <label>담당자 이름</label>
+                <input
+                  className="input"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>회사명</label>
+                <input
+                  className="input"
+                  value={editForm.company}
+                  onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>내부 메모 (광고주에게 보이지 않습니다)</label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={editForm.memo}
+                  onChange={(e) => setEditForm({ ...editForm, memo: e.target.value })}
+                  placeholder="단가, 계약기간, 담당자 특이사항 등"
+                />
+              </div>
+              <div className="grant-foot">
+                <span />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-ghost" onClick={() => setEditTarget(null)}>
+                    취소
+                  </button>
+                  <button className="btn btn-primary" onClick={onSaveEdit}>
+                    저장
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {grantTarget && (
+        <GrantEditor
+          advertiser={grantTarget}
+          onClose={() => setGrantTarget(null)}
+          onSaved={() => {
+            setGrantTarget(null);
+            load();
+          }}
+        />
+      )}
+    </div>
+  );
+}

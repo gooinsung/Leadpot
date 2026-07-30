@@ -13,6 +13,8 @@ const THEME_LABEL: Record<Theme, string> = {
 export function TopBar() {
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
+  // 광고주 하위계정에는 마케터 내비를 보여주지 않는다(서버에서도 접근이 차단되어 있다).
+  const isMarketer = user?.role === "USER" || user?.role === "ADMIN";
 
   return (
     <header className="topbar">
@@ -22,7 +24,7 @@ export function TopBar() {
             <LeadpotMark />
             Leadpot
           </Link>
-          {user && (
+          {user && isMarketer && (
             <nav className="topbar-nav">
               <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
                 대시보드
@@ -38,6 +40,9 @@ export function TopBar() {
               </NavLink>
               <NavLink to="/html-components" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
                 요소
+              </NavLink>
+              <NavLink to="/advertisers" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+                광고주
               </NavLink>
               <NavLink to="/stats" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
                 통계

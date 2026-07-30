@@ -372,19 +372,32 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > 로컬에서 마이그레이션·테스트를 그대로 적용해도 된다. 오픈 이후에는 개발/운영 분리(Neon 브랜치) 필요.
 > 참고: 이 PC 는 Docker Desktop 이 응답하지 않는다(2026-07-30, 12분 대기 후 포기) — 로컬 Postgres 대안은 불가.
 
-### A2. 마케터 — 광고주 관리  — 상태: ⬜ 예정
-- [ ] 패키지 `com.leadpot.advertiser` 생성 (엔티티·리포지토리·서비스·컨트롤러·DTO)
-- [ ] 초대 발급 `POST /api/advertisers/invites` (토큰 **해시 저장**, 만료일)
-- [ ] 초대 조회·취소 / 공개 수락 API 2개 (`/api/public/advertiser-invites/{token}`)
-- [ ] 초대 수락 → 광고주 계정 생성(role=ADVERTISER, parent_user_id, active)
-- [ ] 광고주 목록·수정·정지/해제·삭제(grant 연쇄)
-- [ ] grant 부여/회수 `PUT /api/advertisers/{id}/grants` + **1폼:1광고주 위반 시 409**
-- [ ] 플랜별 광고주 수 상한 검사 (`users.plan` 연동)
-- [ ] 프론트 `/advertisers` 페이지 — 목록·초대모달(링크 복사)·권한부여 화면
-- [ ] 권한부여 화면에 **제3자 제공 확인 문구**(동의문서 연결)
-- [ ] TopBar 내비에 "광고주" 추가
-- [ ] 검증: 초대→수락→로그인 / 이미 붙은 폼 재부여 거부 / 상한 초과 거부 / 타 마케터 광고주 접근 404
-- [ ] `main` 병합·푸시 + 문서 갱신
+### A2. 마케터 — 광고주 관리  — 상태: 🔄 검증 완료(사용자 확인 대기, 브랜치 `feature/advertiser-portal-a2`)
+- [x] 패키지 `com.leadpot.advertiser` 생성 (엔티티 3·리포지토리 3·서비스 4·컨트롤러 2·DTO 8)
+- [x] 초대 발급 `POST /api/advertisers/invites` (토큰 256비트 난수, **SHA-256 해시만 저장**, 기본 7일 만료)
+- [x] 초대 목록·취소·**재발급**(링크 분실 대응, 이전 링크 즉시 무효) / 공개 수락 API 2개
+- [x] 초대 수락 → 광고주 계정 생성(role=ADVERTISER, parent_user_id, active, subdomain=null) + 자동 로그인
+- [x] 광고주 목록(부여 폼 수·마지막 접속)·수정·정지/해제·삭제
+- [x] grant 부여/회수 `PUT /api/advertisers/{id}/grants` (전체 교체 방식) + **1폼:1광고주 위반 시 409**
+- [x] 플랜별 광고주 수 상한 (`app.advertiser.max-free=1`, PRO=무제한). **대기 중 초대도 자리로 계산**(상한 우회 방지)
+- [x] LOGIN 감사 로그 + `lastLoginAt` (열람·내보내기 기록은 A3·A4)
+- [x] 프론트 `/advertisers` — 목록·초대모달(링크 1회 노출·복사)·대기 초대 표·정보 수정
+- [x] `GrantEditor` — 내 리드폼 전체 + 폼별 별칭·만료일·권한 3종, **선점된 폼은 선택 불가(takenBy 표시)**
+- [x] 권한부여 화면에 **제3자 제공 확인 문구**
+- [x] 초대 수락 화면 `/invite/:token` (모바일 우선) + 역할별 라우팅(`/client`) + 광고주에겐 마케터 내비 숨김
+- [x] TopBar 내비에 "광고주" 추가
+- [x] **테스트 14개 신설** (`AdvertiserGrantRulesTest` 11 + `AdvertiserLoginAuditTest` 3) — 전체 37개 통과
+- [x] **Neon 실측 E2E**: 초대→링크확인→수락(201·role=ADVERTISER·subdomain=null)→재사용 409 /
+      FREE 상한 409 / 권한부여(별칭·canExport=false 반영)·grantCount / **1폼:1광고주 409(친절한 메시지)** /
+      takenBy 표시 / 광고주 로그인 200·expiresIn=900·마케터 API 403 유지 / lastLoginAt 기록
+- [ ] `main` 병합·푸시 + 문서 갱신 (사용자 확인 후)
+
+> 🐛 **A2에서 잡은 버그(기록)**: 감사 로그를 같은 빈 안에서 `this.record()` 로 호출해
+> `REQUIRES_NEW` 가 프록시를 거치지 않았다. 그 결과 INSERT 가 로그인의 `readOnly` 트랜잭션에 참여해
+> "cannot execute INSERT in a read-only transaction" → 트랜잭션이 rollback-only 로 오염 →
+> **광고주 로그인이 401로 실패**. `AdvertiserAuditWriter` 를 별도 빈으로 분리해 해결.
+> 트랜잭션이 걸린 테스트에서는 재현되지 않아서, `AdvertiserLoginAuditTest` 는 **의도적으로
+> `@Transactional` 을 붙이지 않는다**(붙이면 `readOnly` 가 무력화되어 회귀를 못 잡는다).
 
 ### A3. 광고주 포털 코어  — 상태: ⬜ 예정
 - [ ] `requireGrant(advertiserId, formId)` 단일 관문 구현 (grant·만료·active·소속 일치)

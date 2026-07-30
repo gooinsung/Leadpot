@@ -17,7 +17,9 @@ import com.leadpot.auth.dto.SignupRequest;
 import com.leadpot.auth.dto.SubdomainRequest;
 import com.leadpot.auth.dto.TokenResponse;
 import com.leadpot.auth.dto.UserResponse;
+import com.leadpot.common.ClientIp;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 /** 인증 API. 가입/로그인/재발급은 공개, /me 는 액세스 토큰 필요. */
@@ -37,8 +39,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request,
+            HttpServletRequest http) {
+        return ResponseEntity.ok(authService.login(request, ClientIp.of(http)));
     }
 
     @PostMapping("/refresh")
