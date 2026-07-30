@@ -1611,96 +1611,6 @@ td.num {
   font-size: 16px; /* iOS 자동확대 방지 */
 }
 
-/* 리드 카드 목록 */
-.cl-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.cl-card {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.cl-card.is-new {
-  border-color: var(--amber);
-}
-.cl-card-main {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  font: inherit;
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  padding: 14px 16px;
-}
-.lc-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.lc-title {
-  font-size: 15px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.lc-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.lc-status {
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--surface-2);
-}
-.lc-status.s-CONFIRMED {
-  background: var(--indigo-soft);
-  color: var(--indigo-strong);
-}
-.lc-status.s-CALLED {
-  background: var(--green-soft);
-  color: var(--green-strong);
-}
-.lc-status.s-NO_ANSWER {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-.lc-status.s-CLOSED {
-  background: var(--surface-2);
-  color: var(--muted);
-}
-.lc-date {
-  font-variant-numeric: tabular-nums;
-}
-/* 전화 버튼: 큰 탭 타깃(모바일) */
-.cl-card-call {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 60px;
-  font-size: 22px;
-  text-decoration: none;
-  background: var(--green-soft);
-  border-left: 1px solid var(--border);
-}
-.cl-card-call:hover {
-  filter: brightness(0.97);
-  text-decoration: none;
-}
-
 .client-paging {
   display: flex;
   align-items: center;
@@ -1792,4 +1702,77 @@ td.num {
     font-size: 18px;
     padding: 16px 18px;
   }
+}
+
+/* 광고주 리드 목록: 마케터 목록과 같은 카드 구조를 쓰되 미확인 건을 강조 */
+.lead-card.adv-unseen {
+  border-color: var(--amber);
+}
+
+/* ---------- 광고주 상태 색상 (한 벌로 정의해 목록/상세/셀렉트에서 같은 색을 쓴다) ----------
+   신규=주의(미조치) · 확인=진행시작 · 통화완료=접촉성공 · 부재=재시도필요 · 전환=매출성사 · 종료=마감
+   ⭐ 브랜드 그린은 '전환'(실제 판매)에만 쓴다 — 성과 지표를 한눈에 구분하기 위함. */
+.st-NEW {
+  background: var(--rose-soft);
+  color: var(--rose);
+  border-color: transparent;
+}
+.st-CONFIRMED {
+  background: var(--indigo-soft);
+  color: var(--indigo-strong);
+  border-color: transparent;
+}
+.st-CALLED {
+  background: var(--violet-soft);
+  color: var(--violet);
+  border-color: transparent;
+}
+.st-NO_ANSWER {
+  background: var(--amber-soft);
+  color: var(--amber);
+  border-color: transparent;
+}
+.st-CONVERTED {
+  background: var(--green-soft);
+  color: var(--green-strong);
+  border-color: transparent;
+  font-weight: 700;
+}
+.st-CLOSED {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-color: transparent;
+}
+/* 상세 모달의 상태 선택 칩: .chip.on 기본색(인디고)보다 특정도를 높여 상태색이 이기게 한다 */
+.status-picker .chip.on.st-NEW {
+  background: var(--rose);
+  color: #fff;
+}
+.status-picker .chip.on.st-CONFIRMED {
+  background: var(--indigo-strong);
+  color: #fff;
+}
+.status-picker .chip.on.st-CALLED {
+  background: var(--violet);
+  color: #fff;
+}
+.status-picker .chip.on.st-NO_ANSWER {
+  background: var(--amber);
+  color: #fff;
+}
+.status-picker .chip.on.st-CONVERTED {
+  background: var(--green-strong);
+  color: #fff;
+}
+.status-picker .chip.on.st-CLOSED {
+  background: var(--muted);
+  color: #fff;
+}
+/* 상태 선택 칩: 미선택=연한 상태색 + 테두리 / 선택=진한 상태색 채움 + 굵게 */
+.status-picker .chip {
+  border-color: var(--border);
+}
+.status-picker .chip.on {
+  border-color: transparent;
+  font-weight: 800;
 }

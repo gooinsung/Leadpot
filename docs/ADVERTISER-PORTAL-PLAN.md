@@ -36,7 +36,7 @@ Leadpot = DB마케팅 종합 서비스
 | 광고주 권한 | 열람 · **상태변경** · 메모 · 엑셀 내보내기 |
 | 광고주 **금지** | 삭제·휴지통·복원·영구삭제·가져오기·태그편집·폼/랜딩 조회·다른 광고주 존재 인지 |
 | 공개 시점 제한 | **없음** (권한 부여 시 그 폼의 리드 전체 열람. `visible_from` 개념 폐기) |
-| 광고주 상태값 | **고정 5개**: 신규 / 확인 / 통화완료 / 부재 / 종료 |
+| 광고주 상태값 | **고정 6개**: 신규 / 확인 / 통화완료 / 부재 / **전환** / 종료 (전환 = 실제 판매 성사) |
 | 연락처 마스킹 | **없음 (전체 공개)** — 광고주 본업이 전화 영업. 유출 방어는 감사로그·다운로드추적·워터마크로 |
 | 광고주 미노출 정보 | UTM · IP · 디바이스/OS/브라우저 · referer · 태그 · 마케터 status · 내부 폼명 |
 | `lead_notes` | `visibility` 추가. **기존 메모 전부 `MARKETER_ONLY`로 백필**(과거 내부 메모 보호) |
@@ -240,7 +240,7 @@ GET   /api/advertiser/dashboard               미확인 건수·오늘 접수·�
 GET   /api/advertiser/leads?formId=&...       목록(페이징 상한 강제)
 GET   /api/advertiser/leads/updates?since=    실시간 폴링(신규분만)
 GET   /api/advertiser/leads/{id}              상세 (+ seen_at 최초 1회 기록, VIEW_LEAD 로그)
-PATCH /api/advertiser/leads/{id}/status       상태변경 (고정 5개)
+PATCH /api/advertiser/leads/{id}/status       상태변경 (고정 6개)
 GET   /api/advertiser/leads/{id}/notes        메모(visibility=ALL 만)
 POST  /api/advertiser/leads/{id}/notes        메모 작성
 POST  /api/advertiser/leads/export            엑셀/CSV (+ EXPORT 로그·워터마크)
@@ -404,7 +404,10 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
       `LeadNote` 에 `visibility` 매핑 + `VISIBILITY_MARKETER_ONLY`/`ALL` 상수
 - [x] `requireGrant(advertiserId, formId)` **단일 관문** — grant 존재·만료·계정 active·소속 마케터 일치·폼 소유자 일치
 - [x] `AdvertiserLeadResponse` 신설 — 6개 필드만(id·answers·createdAt·advertiserStatus·label·seenAt)
-- [x] `AdvertiserLeadStatus` 고정 5개(NEW/CONFIRMED/CALLED/NO_ANSWER/CLOSED) + 한글 라벨
+- [x] `AdvertiserLeadStatus` 고정 6개(NEW/CONFIRMED/CALLED/NO_ANSWER/**CONVERTED**/CLOSED) + 한글 라벨
+      · 상태별 색상 구분(App.css `.st-*` 한 벌을 목록·상세·셀렉트가 공유).
+      **브랜드 그린은 '전환'(실제 판매)에만** 사용 — 성과를 한눈에 구분. 통화완료는 신규 `--violet` 토큰
+      · ⚠️ `LABELS` 는 `Map.copyOf` 가 아니라 `Collections.unmodifiableMap` 이어야 순서가 보존된다(copyOf 는 순서 미보장)
 - [x] `/api/advertiser/me`(화이트라벨)·`/forms`(별칭·미확인수)·`/dashboard`·`/leads`(상한 100)·`/leads/{id}`·
       `/leads/{id}/status`·`/leads/{id}/notes`·`/lead-statuses`
 - [x] 상세 조회 시 `advertiser_seen_at` **최초 1회만** 기록 + VIEW_LEAD/STATUS/MEMO 감사 로그

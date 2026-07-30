@@ -893,12 +893,16 @@ export function inviteUrl(token: string): string {
 }
 
 // ---------- 광고주 포털 (ROLE_ADVERTISER 전용) ----------
-/** 광고주 처리 상태 — 백엔드 AdvertiserLeadStatus 와 일치(고정 5개). */
+/**
+ * 광고주 처리 상태 — 백엔드 AdvertiserLeadStatus 와 일치(고정 6개, 진행 순서대로).
+ * CONVERTED(전환)는 실제 판매가 성사된 리드 — 광고 성과의 최종 지표라 '통화완료'와 구분한다.
+ */
 export const ADVERTISER_LEAD_STATUSES = [
   { value: "NEW", label: "신규" },
   { value: "CONFIRMED", label: "확인" },
   { value: "CALLED", label: "통화완료" },
   { value: "NO_ANSWER", label: "부재" },
+  { value: "CONVERTED", label: "전환" },
   { value: "CLOSED", label: "종료" },
 ] as const;
 
