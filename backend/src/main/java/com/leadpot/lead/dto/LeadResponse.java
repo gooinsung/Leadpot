@@ -22,7 +22,11 @@ public record LeadResponse(
         String referer,
         Map<String, Object> utm,
         List<String> tags,
-        Instant createdAt) {
+        Instant createdAt,
+        /** 광고주 관점 상태(광고주가 부여된 폼일 때만 의미 있음). null = 아직 변경 없음. */
+        String advertiserStatus,
+        /** 광고주가 이 리드를 처음 열어본 시각. null 이면 아직 안 봤다는 뜻(목록의 '광고주 확인' 표시). */
+        Instant advertiserSeenAt) {
 
     public static LeadResponse from(Lead l) {
         return new LeadResponse(
@@ -40,6 +44,8 @@ public record LeadResponse(
                 l.getReferer(),
                 l.getUtm(),
                 l.getTags(),
-                l.getCreatedAt());
+                l.getCreatedAt(),
+                l.getAdvertiserStatus(),
+                l.getAdvertiserSeenAt());
     }
 }

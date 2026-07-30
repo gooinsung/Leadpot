@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  advertiserStatusLabel,
   ApiError,
   BASE_URL,
   deleteLead,
@@ -42,6 +43,7 @@ export function LeadsListPage() {
   const [showEmbed, setShowEmbed] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
   const [dupOnly, setDupOnly] = useState(false); // 중복만 보기
+  const [advUnseenOnly, setAdvUnseenOnly] = useState(false); // 광고주 미확인만 보기
   const [tagFilter, setTagFilter] = useState(""); // "" = 전체 태그
   const [detail, setDetail] = useState<Lead | null>(null); // 상세 모달 대상
   const fileRef = useRef<HTMLInputElement>(null);
@@ -153,6 +155,7 @@ export function LeadsListPage() {
       (l) =>
         (!statusFilter || l.status === statusFilter) &&
         (!dupOnly || dupIds.has(l.id)) &&
+        (!advUnseenOnly || !l.advertiserSeenAt) &&
         (!tagFilter || (l.tags ?? []).includes(tagFilter)) &&
         (!dateFrom || kstDate(l.createdAt) >= dateFrom) &&
         (!dateTo || kstDate(l.createdAt) <= dateTo) &&
@@ -163,7 +166,7 @@ export function LeadsListPage() {
               (a.label || "").toLowerCase().includes(needle),
           )),
     );
-  }, [leads, q, statusFilter, dupOnly, dupIds, tagFilter, dateFrom, dateTo]);
+  }, [leads, q, statusFilter, dupOnly, advUnseenOnly, dupIds, tagFilter, dateFrom, dateTo]);
 
   const paging = usePaging(filtered, 10);
 
@@ -381,8 +384,17 @@ export function LeadsListPage() {
               중복만 보기{dupIds.size ? ` (${dupIds.size})` : ""}
             </button>
           )}
-          {(q || statusFilter || dupOnly || tagFilter || dateFrom || dateTo) && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); setTagFilter(""); setDateFrom(""); setDateTo(""); }}>필터 초기화</button>
+          {!trashed && leads.some((l) => l.advertiserSeenAt) && (
+            <button
+              className={`btn btn-sm ${advUnseenOnly ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setAdvUnseenOnly((v) => !v)}
+              title="광고주가 아직 열어보지 않은 리드만 표시"
+            >
+              광고주 미확인만
+            </button>
+          )}
+          {(q || statusFilter || dupOnly || advUnseenOnly || tagFilter || dateFrom || dateTo) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); setAdvUnseenOnly(false); setTagFilter(""); setDateFrom(""); setDateTo(""); }}>필터 초기화</button>
           )}
           {!trashed && (
             <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -420,6 +432,15 @@ export function LeadsListPage() {
                     {new Date(l.createdAt).toLocaleString("ko-KR")}
                     {!trashed && dupIds.has(l.id) && (
                       <span className="badge b-bad" style={{ marginLeft: 8 }} title={`중복 판정 항목: ${uniqueFieldLabels.join(", ")}`}>중복</span>
+                    )}
+                    {!trashed && l.advertiserSeenAt && (
+                      <span
+                        className="badge b-normal"
+                        style={{ marginLeft: 8 }}
+                        title={`광고주가 ${new Date(l.advertiserSeenAt).toLocaleString("ko-KR")}에 열람${l.advertiserStatus ? ` · 광고주 상태: ${advertiserStatusLabel(l.advertiserStatus)}` : ""}`}
+                      >
+                        👁 광고주 확인
+                      </span>
                     )}
                   </span>
                   {trashed ? (
