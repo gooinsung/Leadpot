@@ -20,6 +20,8 @@ import { StatsPage } from "./pages/StatsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
 import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
+import { ClientLoginPage } from "./pages/ClientLoginPage";
+import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
 import { ProtectedRoute, RoleHomeRedirect } from "./components/ProtectedRoute";
 import { currentSubdomain } from "./lib/site";
@@ -188,6 +190,9 @@ function App() {
           </ProtectedRoute>
         }
       />
+      {/* 광고주 전용 로그인·비밀번호 재설정 (비로그인 공개) */}
+      <Route path="/client/login" element={<ClientLoginPage />} />
+      <Route path="/client/reset/:token" element={<ClientResetPasswordPage />} />
       {/* 광고주 포털 (ROLE_ADVERTISER 전용) */}
       <Route
         path="/client"

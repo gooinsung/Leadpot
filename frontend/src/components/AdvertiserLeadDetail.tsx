@@ -141,7 +141,7 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
                     <button
                       key={s.value}
                       disabled={busy}
-                      className={lead.advertiserStatus === s.value ? `chip on s-${s.value}` : "chip"}
+                      className={lead.advertiserStatus === s.value ? `chip on st-${s.value}` : `chip st-${s.value}`}
                       onClick={() => onStatus(s.value)}
                     >
                       {s.label}

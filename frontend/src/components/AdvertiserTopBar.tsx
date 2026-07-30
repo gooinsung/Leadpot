@@ -45,7 +45,15 @@ export function AdvertiserTopBar() {
           <button className="theme-btn" type="button" onClick={toggle} aria-label="테마 전환">
             {THEME_LABEL[theme]}
           </button>
-          <button className="theme-btn" type="button" onClick={logout}>
+          <button
+            className="theme-btn"
+            type="button"
+            onClick={() => {
+              logout();
+              // 광고주는 회원가입 링크가 없는 전용 로그인 화면으로 보낸다
+              window.location.replace("/client/login");
+            }}
+          >
             로그아웃
           </button>
         </div>

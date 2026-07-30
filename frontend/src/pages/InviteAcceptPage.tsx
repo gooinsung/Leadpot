@@ -1,6 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { acceptInvite, ApiError, getInviteInfo, setTokens, type InviteInfo } from "../api/client";
+import {
+  acceptInvite,
+  ApiError,
+  getInviteInfo,
+  rememberClientBrand,
+  setTokens,
+  type InviteInfo,
+} from "../api/client";
 import { TopBar } from "../components/TopBar";
 
 /**
@@ -30,6 +37,8 @@ export function InviteAcceptPage() {
         if (!alive) return;
         setInfo(res);
         setName(res.name ?? "");
+        // 로그인 화면에서 담당 마케터 이름을 보여주기 위해 기억해둔다(화이트라벨 1단계)
+        rememberClientBrand({ marketerName: res.marketerName, marketerCompany: res.marketerCompany });
       } catch (e) {
         if (alive) setLoadError(e instanceof ApiError ? e.message : "초대 링크를 확인할 수 없습니다.");
       } finally {

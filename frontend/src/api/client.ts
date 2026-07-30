@@ -892,13 +892,84 @@ export function inviteUrl(token: string): string {
   return `${window.location.origin}/invite/${token}`;
 }
 
+// ---------- 광고주 비밀번호 재설정 ----------
+export interface PasswordResetIssued {
+  email: string;
+  /** 발급 시점에만 값이 있다(DB에는 해시만 저장) */
+  token: string;
+  expiresAt: string;
+}
+
+export interface PasswordResetInfo {
+  email: string;
+  marketerName: string | null;
+  marketerCompany: string | null;
+}
+
+/** 마케터가 광고주 비밀번호 재설정 링크 발급(이전 링크는 즉시 무효). */
+export function issuePasswordReset(advertiserId: number): Promise<PasswordResetIssued> {
+  return request<PasswordResetIssued>(`/api/advertisers/${advertiserId}/password-reset`, { method: "POST" });
+}
+
+export function passwordResetUrl(token: string): string {
+  return `${window.location.origin}/client/reset/${token}`;
+}
+
+export function getPasswordResetInfo(token: string): Promise<PasswordResetInfo> {
+  return request<PasswordResetInfo>(`/api/public/advertiser-password-resets/${encodeURIComponent(token)}`, {
+    auth: false,
+  });
+}
+
+export function completePasswordReset(token: string, password: string): Promise<TokenResponse> {
+  return request<TokenResponse>(`/api/public/advertiser-password-resets/${encodeURIComponent(token)}`, {
+    method: "POST",
+    body: { password },
+    auth: false,
+  });
+}
+
+// ---------- 광고주 브랜드 기억 (로그인 화면 화이트라벨용) ----------
+const CLIENT_BRAND_KEY = "leadpot-client-brand";
+
+export interface ClientBrand {
+  marketerName: string | null;
+  marketerCompany: string | null;
+}
+
+/**
+ * 초대 수락·비밀번호 재설정 시점에 담당 마케터를 기억해둔다.
+ * 로그인 화면에서는 아직 로그인 전이라 서버에 물어볼 수 없으므로,
+ * 이 값으로 "○○ 리드 확인" 처럼 마케터 이름을 보여준다(없으면 리드팟 기본).
+ */
+export function rememberClientBrand(brand: ClientBrand) {
+  try {
+    localStorage.setItem(CLIENT_BRAND_KEY, JSON.stringify(brand));
+  } catch {
+    // 저장 실패는 무시(브랜드 표시는 부가 기능)
+  }
+}
+
+export function getClientBrand(): ClientBrand | null {
+  try {
+    const raw = localStorage.getItem(CLIENT_BRAND_KEY);
+    return raw ? (JSON.parse(raw) as ClientBrand) : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------- 광고주 포털 (ROLE_ADVERTISER 전용) ----------
-/** 광고주 처리 상태 — 백엔드 AdvertiserLeadStatus 와 일치(고정 5개). */
+/**
+ * 광고주 처리 상태 — 백엔드 AdvertiserLeadStatus 와 일치(고정 6개, 진행 순서대로).
+ * CONVERTED(전환)는 실제 판매가 성사된 리드 — 광고 성과의 최종 지표라 '통화완료'와 구분한다.
+ */
 export const ADVERTISER_LEAD_STATUSES = [
   { value: "NEW", label: "신규" },
   { value: "CONFIRMED", label: "확인" },
   { value: "CALLED", label: "통화완료" },
   { value: "NO_ANSWER", label: "부재" },
+  { value: "CONVERTED", label: "전환" },
   { value: "CLOSED", label: "종료" },
 ] as const;
 

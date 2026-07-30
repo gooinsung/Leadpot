@@ -28,6 +28,9 @@
   --amber-soft: #fdf1dc;
   --rose: #f04452;
   --rose-soft: #fde5e7;
+  /* 광고주 상태 '통화완료' 전용 — 인디고/그린과 구분되는 보라 계열 */
+  --violet: #8b3ce0;
+  --violet-soft: #f3e9fd;
 
   /* System */
   --radius: 14px;
@@ -62,6 +65,8 @@
     --amber-soft: #35290f;
     --rose: #ff6b76;
     --rose-soft: #3a1a1f;
+    --violet: #c08cf7;
+    --violet-soft: #2b1f45;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
     --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
   }
@@ -86,6 +91,9 @@
   --amber-soft: #fdf1dc;
   --rose: #f04452;
   --rose-soft: #fde5e7;
+  /* 광고주 상태 '통화완료' 전용 — 인디고/그린과 구분되는 보라 계열 */
+  --violet: #8b3ce0;
+  --violet-soft: #f3e9fd;
   --shadow: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 23, 42, 0.14);
   --shadow-lg: 0 24px 60px -24px rgba(29, 35, 120, 0.34);
 }
@@ -109,6 +117,8 @@
   --amber-soft: #35290f;
   --rose: #ff6b76;
   --rose-soft: #3a1a1f;
+  --violet: #c08cf7;
+  --violet-soft: #2b1f45;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
 }

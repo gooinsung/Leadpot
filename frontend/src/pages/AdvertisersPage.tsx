@@ -5,6 +5,8 @@ import {
   deleteAdvertiser,
   inviteUrl,
   issueInvite,
+  issuePasswordReset,
+  passwordResetUrl,
   listAdvertisers,
   listInvites,
   reissueInvite,
@@ -12,6 +14,7 @@ import {
   updateAdvertiser,
   type AdvertiserInvite,
   type AdvertiserSummary,
+  type PasswordResetIssued,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { Pagination, usePaging } from "../components/Pagination";
@@ -33,6 +36,9 @@ export function AdvertisersPage() {
   const [copied, setCopied] = useState(false);
 
   const [grantTarget, setGrantTarget] = useState<AdvertiserSummary | null>(null);
+  // 비밀번호 재설정 링크(발급 직후 1회만 표시)
+  const [resetIssued, setResetIssued] = useState<PasswordResetIssued | null>(null);
+  const [resetCopied, setResetCopied] = useState(false);
   const [editTarget, setEditTarget] = useState<AdvertiserSummary | null>(null);
   const [editForm, setEditForm] = useState({ name: "", company: "", memo: "" });
 
@@ -112,6 +118,36 @@ export function AdvertisersPage() {
     if (!ok) return;
     await deleteAdvertiser(a.id);
     load();
+  }
+
+  async function onIssueReset(a: AdvertiserSummary) {
+    const ok = window.confirm(
+      `${a.email} 의 비밀번호 재설정 링크를 발급할까요?
+
+` +
+        `· 링크를 전달하면 광고주가 새 비밀번호를 직접 정합니다.
+` +
+        `· 이전에 발급한 재설정 링크는 즉시 무효가 됩니다.
+` +
+        `· 현재 비밀번호는 광고주가 새로 정할 때까지 그대로 쓸 수 있습니다.`,
+    );
+    if (!ok) return;
+    setError("");
+    try {
+      setResetIssued(await issuePasswordReset(a.id));
+      setResetCopied(false);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "재설정 링크 발급에 실패했습니다.");
+    }
+  }
+
+  async function copyResetLink(token: string) {
+    try {
+      await navigator.clipboard.writeText(passwordResetUrl(token));
+      setResetCopied(true);
+    } catch {
+      setResetCopied(false);
+    }
   }
 
   function openEdit(a: AdvertiserSummary) {
@@ -255,6 +291,13 @@ export function AdvertisersPage() {
                         </button>
                         <button className="btn btn-ghost btn-sm" onClick={() => openEdit(a)}>
                           정보
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => onIssueReset(a)}
+                          title="광고주가 비밀번호를 잊었을 때 재설정 링크를 발급합니다"
+                        >
+                          비번 재설정
                         </button>
                         <button className="btn btn-ghost btn-sm" onClick={() => onToggleActive(a)}>
                           {a.active ? "정지" : "활성화"}
@@ -433,6 +476,55 @@ export function AdvertisersPage() {
                     저장
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 재설정 링크 (발급 직후 1회만) */}
+      {resetIssued && (
+        <div className="lead-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setResetIssued(null)}>
+          <div className="card lead-modal invite-modal" role="dialog" aria-modal="true">
+            <div className="lead-modal-head">
+              <div>
+                <p className="eyebrow" style={{ margin: 0 }}>
+                  {resetIssued.email}
+                </p>
+                <h2 style={{ margin: "4px 0 0" }}>비밀번호 재설정 링크</h2>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setResetIssued(null)}>
+                닫기
+              </button>
+            </div>
+            <div className="lead-modal-body">
+              <p className="dash-sub" style={{ marginTop: 0 }}>
+                이 링크를 광고주에게 전달하세요. 광고주가 <strong>직접 새 비밀번호를 정합니다</strong>(마케터는 알 수
+                없습니다).
+              </p>
+              <div className="notice-box warn">
+                ⚠️ 이 링크는 <strong>지금만 볼 수 있습니다.</strong> 창을 닫으면 다시 확인할 수 없고, 필요하면 다시
+                발급해야 합니다.
+              </div>
+              <div className="copy-box">
+                <input
+                  className="input"
+                  readOnly
+                  value={passwordResetUrl(resetIssued.token)}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button className="btn btn-primary" onClick={() => copyResetLink(resetIssued.token)}>
+                  {resetCopied ? "복사됨 ✓" : "복사"}
+                </button>
+              </div>
+              <p className="dash-sub" style={{ fontSize: 13 }}>
+                유효기간: {fmt(resetIssued.expiresAt)}까지 (1회용)
+              </p>
+              <div className="grant-foot">
+                <span />
+                <button className="btn btn-primary" onClick={() => setResetIssued(null)}>
+                  확인
+                </button>
               </div>
             </div>
           </div>

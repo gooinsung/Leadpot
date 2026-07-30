@@ -4,7 +4,8 @@ import type { AuthUser, LoginInput, SignupInput } from "../api/client";
 export interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean; // 최초 세션 복원 중 여부
-  login: (input: LoginInput) => Promise<void>;
+  /** 로그인 성공 시 계정 정보를 반환한다(역할에 따라 이동할 화면을 정하기 위해). */
+  login: (input: LoginInput) => Promise<AuthUser>;
   signup: (input: SignupInput) => Promise<void>;
   logout: () => void;
   updateUser: (user: AuthUser) => void; // 계정 정보 부분 갱신(서브도메인 변경 등)

@@ -36,7 +36,7 @@ Leadpot = DB마케팅 종합 서비스
 | 광고주 권한 | 열람 · **상태변경** · 메모 · 엑셀 내보내기 |
 | 광고주 **금지** | 삭제·휴지통·복원·영구삭제·가져오기·태그편집·폼/랜딩 조회·다른 광고주 존재 인지 |
 | 공개 시점 제한 | **없음** (권한 부여 시 그 폼의 리드 전체 열람. `visible_from` 개념 폐기) |
-| 광고주 상태값 | **고정 5개**: 신규 / 확인 / 통화완료 / 부재 / 종료 |
+| 광고주 상태값 | **고정 6개**: 신규 / 확인 / 통화완료 / 부재 / **전환** / 종료 (전환 = 실제 판매 성사) |
 | 연락처 마스킹 | **없음 (전체 공개)** — 광고주 본업이 전화 영업. 유출 방어는 감사로그·다운로드추적·워터마크로 |
 | 광고주 미노출 정보 | UTM · IP · 디바이스/OS/브라우저 · referer · 태그 · 마케터 status · 내부 폼명 |
 | `lead_notes` | `visibility` 추가. **기존 메모 전부 `MARKETER_ONLY`로 백필**(과거 내부 메모 보호) |
@@ -240,7 +240,7 @@ GET   /api/advertiser/dashboard               미확인 건수·오늘 접수·�
 GET   /api/advertiser/leads?formId=&...       목록(페이징 상한 강제)
 GET   /api/advertiser/leads/updates?since=    실시간 폴링(신규분만)
 GET   /api/advertiser/leads/{id}              상세 (+ seen_at 최초 1회 기록, VIEW_LEAD 로그)
-PATCH /api/advertiser/leads/{id}/status       상태변경 (고정 5개)
+PATCH /api/advertiser/leads/{id}/status       상태변경 (고정 6개)
 GET   /api/advertiser/leads/{id}/notes        메모(visibility=ALL 만)
 POST  /api/advertiser/leads/{id}/notes        메모 작성
 POST  /api/advertiser/leads/export            엑셀/CSV (+ EXPORT 로그·워터마크)
@@ -404,7 +404,10 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
       `LeadNote` 에 `visibility` 매핑 + `VISIBILITY_MARKETER_ONLY`/`ALL` 상수
 - [x] `requireGrant(advertiserId, formId)` **단일 관문** — grant 존재·만료·계정 active·소속 마케터 일치·폼 소유자 일치
 - [x] `AdvertiserLeadResponse` 신설 — 6개 필드만(id·answers·createdAt·advertiserStatus·label·seenAt)
-- [x] `AdvertiserLeadStatus` 고정 5개(NEW/CONFIRMED/CALLED/NO_ANSWER/CLOSED) + 한글 라벨
+- [x] `AdvertiserLeadStatus` 고정 6개(NEW/CONFIRMED/CALLED/NO_ANSWER/**CONVERTED**/CLOSED) + 한글 라벨
+      · 상태별 색상 구분(App.css `.st-*` 한 벌을 목록·상세·셀렉트가 공유).
+      **브랜드 그린은 '전환'(실제 판매)에만** 사용 — 성과를 한눈에 구분. 통화완료는 신규 `--violet` 토큰
+      · ⚠️ `LABELS` 는 `Map.copyOf` 가 아니라 `Collections.unmodifiableMap` 이어야 순서가 보존된다(copyOf 는 순서 미보장)
 - [x] `/api/advertiser/me`(화이트라벨)·`/forms`(별칭·미확인수)·`/dashboard`·`/leads`(상한 100)·`/leads/{id}`·
       `/leads/{id}/status`·`/leads/{id}/notes`·`/lead-statuses`
 - [x] 상세 조회 시 `advertiser_seen_at` **최초 1회만** 기록 + VIEW_LEAD/STATUS/MEMO 감사 로그
@@ -428,6 +431,34 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > - **중복 의심 표시도 광고주에게 미노출**(마케터 내부 판단). §8 텔레그램 메시지 규칙과 일관되게 유지.
 > - 마케터가 자기 메모를 광고주와 공유하는 **토글은 아직 없다**(현재는 마케터 메모=MARKETER_ONLY 고정,
 >   광고주 메모·상태이력만 ALL). 필요하면 후속.
+
+### A3-B. 광고주 전용 로그인 · 비밀번호 복구  — 상태: 🔄 검증 완료(사용자 확인 대기)
+> A4 착수 전 사용자 요청으로 먼저 진행. **비밀번호 분실 시 복구 경로가 아예 없던 문제**를 함께 해결.
+
+- [x] **`/client/login` 광고주 전용 로그인** — 회원가입 링크 **제거**(가장 큰 문제였음),
+      "담당자에게 받은 계정으로 로그인" 문구, 분실 안내는 "담당 마케터에게 재설정 링크 요청"
+- [x] 마케터가 실수로 들어와도 에러 없이 `/dashboard` 로 보낸다(`login()` 이 AuthUser 반환하도록 변경)
+- [x] `ProtectedRoute` 가 역할별 로그인 화면으로 보낸다(`loginPathFor`) + 광고주 로그아웃 → `/client/login`
+- [x] **V19 마이그레이션** `advertiser_password_resets`(토큰 해시만·1회용·기본 48시간)
+- [x] 마케터: `POST /api/advertisers/{id}/password-reset` → 링크 1회 노출(모달·복사).
+      새로 발급하면 이전 링크 즉시 무효
+- [x] 공개: `GET/POST /api/public/advertiser-password-resets/{token}` → 광고주가 직접 새 비번 설정 + 자동 로그인
+- [x] 초대 중복 이메일 에러 메시지에 "비밀번호 재설정" 안내 추가(막다른 길 제거)
+- [x] **화이트라벨 1단계**: 초대 수락·재설정 시점에 담당 마케터를 기억(`rememberClientBrand`)해
+      로그인 화면 제목·브랜드에 표시. 서버 조회 없이 동작(로그인 전에는 소속을 알 수 없으므로)
+- [x] **테스트 8개 신설**(`AdvertiserPasswordResetTest`) — 전체 **62개** 통과
+- [x] **Neon 실측**: V19 적용 / 발급→링크확인→새비번 설정 200 / 새 비번 로그인 200 · 이전 비번 401 /
+      링크 재사용 409 / 광고주 토큰으로 발급 시도 403 / 남의 광고주·마케터 계정 대상 404
+- [x] **브라우저 실측**: `/client/login` 회원가입 링크 없음 확인 · 재설정 화면 모바일(16px·좌우스크롤 없음) ·
+      브랜드 기억 후 제목이 "A2Marketer 리드 확인" 으로 표시
+- [ ] `main` 병합·푸시 (사용자 확인 후)
+
+> **마케터가 임시 비밀번호를 정해주는 방식을 쓰지 않은 이유**: 마케터가 광고주 비밀번호를 알게 되면
+> "내가 안 봤다"는 광고주 주장과 감사 로그가 충돌해 §5 분쟁 방어의 증거 가치가 사라진다(초대와 같은 논리).
+>
+> **남은 한계(기록)**: 비밀번호를 바꿔도 **이미 발급된 리프레시 토큰은 만료까지 유효**하다.
+> 완전 무효화에는 `users.token_version` 같은 토큰 버전 필드가 필요하다 — 지금 범위에서는 과하다고 보고 보류.
+> (광고주 액세스 토큰 15분 + 계정 정지 시 즉시 차단은 이미 동작한다.)
 
 ### A4. 내보내기 · 감사 로그  — 상태: ⬜ 예정
 - [ ] `POST /api/advertiser/leads/export` — 기존 `LeadExcelService` 재사용(배정분만)
