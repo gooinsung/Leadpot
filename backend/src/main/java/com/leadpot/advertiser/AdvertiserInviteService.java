@@ -61,7 +61,9 @@ public class AdvertiserInviteService {
         String email = normalizeEmail(req.email());
 
         if (userRepository.existsByEmail(email)) {
-            throw new EmailAlreadyUsedException("이미 리드팟에 등록된 이메일입니다. 다른 이메일로 초대해주세요.");
+            throw new EmailAlreadyUsedException(
+                    "이미 리드팟에 등록된 이메일입니다. 이미 만든 광고주 계정이라면"
+                            + " 목록에서 '비밀번호 재설정'으로 링크를 보내주세요.");
         }
         inviteRepository.findByMarketerIdAndEmailAndAcceptedAtIsNull(marketerId, email)
                 .filter(i -> i.isUsable(Instant.now()))

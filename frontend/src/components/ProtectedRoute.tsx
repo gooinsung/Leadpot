@@ -8,6 +8,11 @@ export function homePathFor(role: Role | undefined): string {
   return role === "ADVERTISER" ? "/client" : "/dashboard";
 }
 
+/** 역할별 로그인 화면. 광고주는 회원가입 링크가 없는 전용 화면으로 보낸다. */
+export function loginPathFor(role: Role | undefined): string {
+  return role === "ADVERTISER" ? "/client/login" : "/login";
+}
+
 /**
  * 인증이 필요한 라우트 가드 (K5 접근권한의 진입점).
  *
@@ -30,7 +35,7 @@ export function ProtectedRoute({
     return <div className="page-loading">불러오는 중…</div>;
   }
   if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to={loginPathFor(role)} state={{ from: location.pathname }} replace />;
   }
   // 관리자는 마케터 화면을 함께 쓸 수 있다.
   const allowed = role === "USER" ? user.role === "USER" || user.role === "ADMIN" : user.role === role;

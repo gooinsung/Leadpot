@@ -23,6 +23,7 @@ import com.leadpot.advertiser.dto.GrantUpdateRequest;
 import com.leadpot.advertiser.dto.GrantView;
 import com.leadpot.advertiser.dto.InviteRequest;
 import com.leadpot.advertiser.dto.InviteResponse;
+import com.leadpot.advertiser.dto.PasswordResetResponse;
 
 import jakarta.validation.Valid;
 
@@ -38,10 +39,13 @@ public class AdvertiserController {
 
     private final AdvertiserService advertiserService;
     private final AdvertiserInviteService inviteService;
+    private final AdvertiserPasswordResetService passwordResetService;
 
-    public AdvertiserController(AdvertiserService advertiserService, AdvertiserInviteService inviteService) {
+    public AdvertiserController(AdvertiserService advertiserService, AdvertiserInviteService inviteService,
+            AdvertiserPasswordResetService passwordResetService) {
         this.advertiserService = advertiserService;
         this.inviteService = inviteService;
+        this.passwordResetService = passwordResetService;
     }
 
     // ---------- 광고주 계정 ----------
@@ -69,6 +73,16 @@ public class AdvertiserController {
     public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         advertiserService.delete(userId(jwt), id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 비밀번호 재설정 링크 발급. 광고주가 비밀번호를 잊었을 때 사용한다.
+     * 응답의 token 은 이때만 볼 수 있고, 광고주가 새 비밀번호를 직접 정한다
+     * (마케터는 광고주 비밀번호를 알 수 없다 — 감사 로그의 증거 가치 유지).
+     */
+    @PostMapping("/{id}/password-reset")
+    public PasswordResetResponse issuePasswordReset(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return passwordResetService.issue(userId(jwt), id);
     }
 
     // ---------- 리드폼 권한 ----------
