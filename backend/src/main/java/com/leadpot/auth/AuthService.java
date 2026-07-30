@@ -85,6 +85,10 @@ public class AuthService {
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new InvalidCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
+        // 정지된 계정(광고주 계약 해지 등)은 비밀번호가 맞아도 로그인 불가
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException("정지된 계정입니다. 담당자에게 문의해주세요.");
+        }
         return buildTokens(user);
     }
 
@@ -101,13 +105,18 @@ public class AuthService {
         Long userId = jwtService.parseRefreshTokenUserId(refreshToken);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new InvalidRefreshTokenException("해당 계정을 찾을 수 없습니다."));
+        // 재발급 시점에 계정 상태를 다시 확인한다. 리프레시 토큰은 수명이 길어서
+        // 이 검사가 없으면 계정을 정지해도 토큰만으로 계속 접근할 수 있다.
+        if (!user.isActive()) {
+            throw new InvalidRefreshTokenException("정지된 계정입니다.");
+        }
         return buildTokens(user);
     }
 
     private TokenResponse buildTokens(User user) {
         String access = jwtService.issueAccessToken(user);
         String refresh = jwtService.issueRefreshToken(user);
-        return TokenResponse.of(access, refresh, jwtService.getAccessTtlSeconds(), UserResponse.from(user));
+        return TokenResponse.of(access, refresh, jwtService.getAccessTtlSeconds(user), UserResponse.from(user));
     }
 
     private String normalizeEmail(String email) {

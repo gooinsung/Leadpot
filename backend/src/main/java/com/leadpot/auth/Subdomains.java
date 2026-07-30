@@ -14,7 +14,9 @@ public final class Subdomains {
             "www", "api", "app", "admin", "mail", "smtp", "ftp", "root",
             "static", "assets", "cdn", "dashboard", "login", "signup", "logout",
             "public", "leadpot", "blog", "help", "support", "dev", "staging",
-            "test", "status", "docs", "img", "images", "media", "files");
+            "test", "status", "docs", "img", "images", "media", "files",
+            // 포털 네임스페이스 예비(광고주 포털 등)
+            "client", "advertiser", "partner");
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";

@@ -37,6 +37,7 @@ public class JwtService {
     private final NimbusJwtDecoder refreshDecoder;
     private final String issuer;
     private final long accessTtlSeconds;
+    private final long advertiserAccessTtlSeconds;
     private final long refreshTtlSeconds;
 
     public JwtService(
@@ -44,10 +45,12 @@ public class JwtService {
             SecretKey jwtSecretKey,
             @Value("${app.jwt.issuer}") String issuer,
             @Value("${app.jwt.access-ttl-seconds}") long accessTtlSeconds,
+            @Value("${app.jwt.advertiser-access-ttl-seconds}") long advertiserAccessTtlSeconds,
             @Value("${app.jwt.refresh-ttl-seconds}") long refreshTtlSeconds) {
         this.encoder = encoder;
         this.issuer = issuer;
         this.accessTtlSeconds = accessTtlSeconds;
+        this.advertiserAccessTtlSeconds = advertiserAccessTtlSeconds;
         this.refreshTtlSeconds = refreshTtlSeconds;
         // 리프레시 토큰 전용 디코더: 서명/만료 + token_type=refresh 검증
         this.refreshDecoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey)
@@ -55,13 +58,18 @@ public class JwtService {
                 .build();
     }
 
-    public long getAccessTtlSeconds() {
-        return accessTtlSeconds;
+    /**
+     * 계정별 액세스 토큰 수명.
+     * 광고주는 더 짧게 준다 — 권한 회수·계정 정지가 재발급 시점에 반영되므로
+     * 수명이 짧을수록 회수가 빨리 실효된다(리프레시 때 active 를 다시 확인한다).
+     */
+    public long getAccessTtlSeconds(User user) {
+        return user != null && user.isAdvertiser() ? advertiserAccessTtlSeconds : accessTtlSeconds;
     }
 
     /** 액세스 토큰 발급. */
     public String issueAccessToken(User user) {
-        return issue(user, TYPE_ACCESS, accessTtlSeconds);
+        return issue(user, TYPE_ACCESS, getAccessTtlSeconds(user));
     }
 
     /** 리프레시 토큰 발급. */

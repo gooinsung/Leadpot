@@ -108,25 +108,32 @@ UPDATE lead_notes SET visibility = 'MARKETER_ONLY';   -- 과거 마케터 내부
 -- MARKETER_ONLY = 마케터만 / ALL = 마케터+광고주 공유
 
 -- ⑥ 감사 로그
+-- ⚠️ 일부러 FK 를 걸지 않는다: 감사 로그는 append-only 이력이라 광고주 계정을 삭제해도 남아야 한다
+--    (cascade 로 함께 지워지면 감사 기능이 무의미해진다). 계정 삭제 후 식별용으로 이메일 스냅샷 보관.
 CREATE TABLE advertiser_access_logs (
   id BIGSERIAL PRIMARY KEY,
-  advertiser_id BIGINT NOT NULL, form_id BIGINT, lead_id BIGINT,
+  advertiser_id BIGINT NOT NULL, advertiser_email VARCHAR(255),
+  form_id BIGINT, lead_id BIGINT,
   action VARCHAR(30) NOT NULL,   -- LOGIN|VIEW_LEAD|EXPORT|STATUS|MEMO|IMPERSONATE
   detail VARCHAR(300), ip VARCHAR(64),
-  at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL
 );
-CREATE INDEX ix_adv_logs ON advertiser_access_logs(advertiser_id, at DESC);
+CREATE INDEX ix_adv_logs ON advertiser_access_logs(advertiser_id, created_at DESC);
 
--- ⑦ 알림 발송 이력 (분쟁 방어 — §5 참고)
+-- ⑦ 알림 발송 이력 (분쟁 방어 — §5 참고). 같은 이유로 FK 없음.
 CREATE TABLE notification_logs (
   id BIGSERIAL PRIMARY KEY,
   lead_id BIGINT, form_id BIGINT, recipient_user_id BIGINT,
   channel VARCHAR(20) NOT NULL,  -- TELEGRAM|SHEETS
-  success BOOLEAN NOT NULL, error VARCHAR(300),
-  at TIMESTAMPTZ NOT NULL DEFAULT now()
+  success BOOLEAN NOT NULL, error_message VARCHAR(300),
+  created_at TIMESTAMPTZ NOT NULL
 );
-CREATE INDEX ix_notif_logs_lead ON notification_logs(lead_id);
+CREATE INDEX ix_notif_logs_lead ON notification_logs(lead_id, created_at);
 ```
+
+> **컬럼명 주의(실제 V18 기준)**: 로그 테이블 시각 컬럼은 `at` 이 아니라 **`created_at`**(나머지 테이블과 통일 +
+> `at` 은 SQL 키워드와 혼동 여지). 오류 문자열은 `error` 대신 **`error_message`**.
+> `advertiser_invites.created_user_id` 는 **`ON DELETE SET NULL`** — 지정하지 않으면 FK 가 광고주 삭제를 막는다.
 
 ---
 
@@ -318,25 +325,52 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 
 ---
 
+## 9-A. 단계 완료 보고 형식 (사용자 확정 2026-07-30)
+
+각 단계(A1~A7)를 끝낼 때마다 사용자에게 **아래 3종 세트**를 준다. 파일명·클래스명 나열은 금지(필요하면 맨 뒤에 짧게).
+
+1. **무엇을 했는지 — 쉬운 말 요약** (기능·효과 중심)
+2. **직접 확인할 항목** — "어디서 무엇을 눌러 무엇을 확인"
+3. **확인할 URL** — 로컬 `http://localhost:5173/...` / 라이브 `https://app.lead-pot.com/...`
+
+- 서버를 띄워야 확인 가능하면 **먼저 띄워두고 URL만 건넨다.**
+- **화면이 없는 단계(백엔드 기반 작업)는 "눈에 보이는 게 없다"고 솔직히 말하고**, 대신 확인 가능한 것(기존 기능 회귀 여부 등)을 제시한다. 억지 확인거리를 만들지 않는다.
+
+---
+
 ## 9-B. 실행 체크리스트 ⭐ (이어받기용 — 여기가 진행상황 정본)
 
 > **규칙**: 작업을 시작·중단·완료할 때마다 **이 체크리스트를 갱신하고 커밋**한다.
 > 다른 PC·다른 세션은 git pull 후 **이 표에서 체크 안 된 첫 항목**부터 이어서 하면 된다.
 > 상태: `[ ]` 예정 · `[~]` 진행중 · `[x]` 완료 · `[-]` 건너뜀(이유 병기)
 
-### A1. 기반 · 보안 골격  — 상태: ⬜ 예정
-- [ ] `Role` enum 에 `ADVERTISER` 추가 (USER=마케터 유지, 리네임 안 함)
-- [ ] `V18__advertiser_portal.sql` 작성 — §3 전체(users 확장 · invites · grants · leads 3컬럼 · lead_notes.visibility · access_logs · notification_logs)
-- [ ] `users.subdomain` NOT NULL 해제 + `Subdomains`·`PublicSiteController`·가입로직 null 영향 점검
-- [ ] 커스텀 `JwtAuthenticationConverter` — `role` 클레임 → `ROLE_*` authority (없으면 hasAuthority 가 항상 실패)
-- [ ] `SecurityConfig` 경로 화이트리스트 (`/api/advertiser/**`=ADVERTISER, `/api/**`=USER)
-- [ ] refresh 시 DB `active`·`parent_user_id` 재확인 (권한 회수 즉시 반영)
-- [ ] 광고주 액세스 토큰 수명 단축
-- [ ] 백엔드 `test`+`build` / 프론트 `tsc -b`+prod 빌드 통과
-- [ ] **V18 Neon 적용** + Flyway validate 통과 (⚠️ 공유 DB·되돌리기 어려움 — 적용 전 재검토)
-- [ ] **회귀 스모크(필수)**: 마케터 로그인·폼CRUD·랜딩·공개폼 제출·리드목록/상태/엑셀·통계·연동 전부 정상
-- [ ] 검증: 광고주 role 토큰으로 `/api/forms`·`/api/leads`·`/api/landings` **403**
+### A1. 기반 · 보안 골격  — 상태: 🔄 진행중 (브랜치 `feature/advertiser-portal-a1`)
+- [x] `Role` enum 에 `ADVERTISER` 추가 (USER=마케터 유지, 리네임 안 함)
+- [x] `V18__advertiser_portal.sql` 작성 — §3 전체(users 확장 · invites · grants · leads 3컬럼 · lead_notes.visibility · access_logs · notification_logs)
+- [x] `users.subdomain` NOT NULL 해제 (엔티티 nullable) + 예약어에 `client`/`advertiser`/`partner` 추가
+- [x] 커스텀 `JwtAuthenticationConverter` — `role` 클레임 → `ROLE_*` authority (없으면 hasAuthority 가 항상 실패)
+- [x] `SecurityConfig` 경로 화이트리스트 (`/api/advertiser/**`=ADVERTISER, `/api/**`=USER·ADMIN, `/api/auth/me`=공통)
+- [x] refresh·login 시 DB `active` 재확인 (정지 계정 즉시 차단)
+- [x] 광고주 액세스 토큰 수명 단축 (`app.jwt.advertiser-access-ttl-seconds`, 기본 900초)
+- [x] `User` 엔티티 확장 + `User.advertiser(...)` 정적 팩터리
+- [x] **인가 테스트 신설** `AdvertiserAccessControlTest` (6케이스: 광고주→마케터API 403 / 마케터→자기API 200 / `/me` 공통 / 마케터→광고주영역 403 / 광고주→서브도메인 403 / 익명 401)
+- [x] 백엔드 `test`+`build` 통과(6/6) · 프론트 `tsc -b` 통과
+- [x] V18 설계 리뷰 후 보완(감사로그 FK 제거·이메일 스냅샷, invites set null, `created_at`/`error_message` 개명)
+- [x] **V18 Neon 적용 완료** — `now at version v18` (PostgreSQL 18.4). 사용자 결정: 아직 오픈 전이라 개발 DB로 취급
+- [x] **스키마 실측 검증** — 신규 테이블 4개 / users 신규 컬럼 6개 + subdomain nullable / leads 광고주 3컬럼 /
+      `lead_notes.visibility` 기존 5행 전부 `MARKETER_ONLY` 백필 / `uq_advertiser_form_grants_form` UNIQUE 존재 /
+      감사로그 FK 0개(설계대로)
+- [x] **회귀 스모크 통과** — 가입·로그인·`/me`·폼CRUD·공개폼조회·공개제출·리드목록·상세·상태변경(SYSTEM 이력 한글 정상)·
+      태그·휴지통/복원·엑셀(3663B)·통계·연동·서브도메인 변경 전부 정상
+- [x] **실서버 인가 검증** — 광고주 계정으로 마케터 API 10종 전부 403 / `/api/auth/me` 200 /
+      서브도메인 변경 403 / `expiresIn=900`(광고주 단축 수명 적용)
+- [x] **정지 즉시 차단 검증** — `active=false` 후 로그인 401 + 기존 리프레시 토큰 재발급 401
+- [x] 테스트용 광고주 계정 삭제 정리(삭제가 FK 에 막히지 않는 것도 함께 확인)
 - [ ] `main` 병합·푸시 + `PROGRESS.md`·이 체크리스트 갱신
+
+> **DB 운영 방식(사용자 확정 2026-07-30)**: 아직 서비스 오픈 전이므로 Neon 을 **개발 DB로 취급**한다.
+> 로컬에서 마이그레이션·테스트를 그대로 적용해도 된다. 오픈 이후에는 개발/운영 분리(Neon 브랜치) 필요.
+> 참고: 이 PC 는 Docker Desktop 이 응답하지 않는다(2026-07-30, 12분 대기 후 포기) — 로컬 Postgres 대안은 불가.
 
 ### A2. 마케터 — 광고주 관리  — 상태: ⬜ 예정
 - [ ] 패키지 `com.leadpot.advertiser` 생성 (엔티티·리포지토리·서비스·컨트롤러·DTO)
