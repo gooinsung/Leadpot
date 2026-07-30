@@ -344,7 +344,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > 다른 PC·다른 세션은 git pull 후 **이 표에서 체크 안 된 첫 항목**부터 이어서 하면 된다.
 > 상태: `[ ]` 예정 · `[~]` 진행중 · `[x]` 완료 · `[-]` 건너뜀(이유 병기)
 
-### A1. 기반 · 보안 골격  — 상태: 🔄 진행중 (브랜치 `feature/advertiser-portal-a1`)
+### A1. 기반 · 보안 골격  — 상태: ✅ 완료 (`main` 병합·푸시)
 - [x] `Role` enum 에 `ADVERTISER` 추가 (USER=마케터 유지, 리네임 안 함)
 - [x] `V18__advertiser_portal.sql` 작성 — §3 전체(users 확장 · invites · grants · leads 3컬럼 · lead_notes.visibility · access_logs · notification_logs)
 - [x] `users.subdomain` NOT NULL 해제 (엔티티 nullable) + 예약어에 `client`/`advertiser`/`partner` 추가
@@ -366,13 +366,13 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
       서브도메인 변경 403 / `expiresIn=900`(광고주 단축 수명 적용)
 - [x] **정지 즉시 차단 검증** — `active=false` 후 로그인 401 + 기존 리프레시 토큰 재발급 401
 - [x] 테스트용 광고주 계정 삭제 정리(삭제가 FK 에 막히지 않는 것도 함께 확인)
-- [ ] `main` 병합·푸시 + `PROGRESS.md`·이 체크리스트 갱신
+- [x] `main` 병합·푸시 + `PROGRESS.md`·이 체크리스트 갱신
 
 > **DB 운영 방식(사용자 확정 2026-07-30)**: 아직 서비스 오픈 전이므로 Neon 을 **개발 DB로 취급**한다.
 > 로컬에서 마이그레이션·테스트를 그대로 적용해도 된다. 오픈 이후에는 개발/운영 분리(Neon 브랜치) 필요.
 > 참고: 이 PC 는 Docker Desktop 이 응답하지 않는다(2026-07-30, 12분 대기 후 포기) — 로컬 Postgres 대안은 불가.
 
-### A2. 마케터 — 광고주 관리  — 상태: 🔄 검증 완료(사용자 확인 대기, 브랜치 `feature/advertiser-portal-a2`)
+### A2. 마케터 — 광고주 관리  — 상태: ✅ 완료 (`main` 병합·푸시)
 - [x] 패키지 `com.leadpot.advertiser` 생성 (엔티티 3·리포지토리 3·서비스 4·컨트롤러 2·DTO 8)
 - [x] 초대 발급 `POST /api/advertisers/invites` (토큰 256비트 난수, **SHA-256 해시만 저장**, 기본 7일 만료)
 - [x] 초대 목록·취소·**재발급**(링크 분실 대응, 이전 링크 즉시 무효) / 공개 수락 API 2개
@@ -390,7 +390,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 - [x] **Neon 실측 E2E**: 초대→링크확인→수락(201·role=ADVERTISER·subdomain=null)→재사용 409 /
       FREE 상한 409 / 권한부여(별칭·canExport=false 반영)·grantCount / **1폼:1광고주 409(친절한 메시지)** /
       takenBy 표시 / 광고주 로그인 200·expiresIn=900·마케터 API 403 유지 / lastLoginAt 기록
-- [ ] `main` 병합·푸시 + 문서 갱신 (사용자 확인 후)
+- [x] `main` 병합·푸시 + 문서 갱신
 
 > 🐛 **A2에서 잡은 버그(기록)**: 감사 로그를 같은 빈 안에서 `this.record()` 로 호출해
 > `REQUIRES_NEW` 가 프록시를 거치지 않았다. 그 결과 INSERT 가 로그인의 `readOnly` 트랜잭션에 참여해
@@ -399,7 +399,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > 트랜잭션이 걸린 테스트에서는 재현되지 않아서, `AdvertiserLoginAuditTest` 는 **의도적으로
 > `@Transactional` 을 붙이지 않는다**(붙이면 `readOnly` 가 무력화되어 회귀를 못 잡는다).
 
-### A3. 광고주 포털 코어  — 상태: 🔄 검증 완료(사용자 확인 대기, 브랜치 `feature/advertiser-portal-a3`)
+### A3. 광고주 포털 코어  — 상태: ✅ 완료 (`main` 병합·푸시)
 - [x] `Lead` 엔티티에 V18 컬럼 매핑(`advertiserStatus`/`advertiserStatusAt`/`advertiserSeenAt`),
       `LeadNote` 에 `visibility` 매핑 + `VISIBILITY_MARKETER_ONLY`/`ALL` 상수
 - [x] `requireGrant(advertiserId, formId)` **단일 관문** — grant 존재·만료·계정 active·소속 마케터 일치·폼 소유자 일치
@@ -423,7 +423,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
       최초 열람 시각 1회 고정 / 페이지 상한 100 강제
 - [x] **브라우저 실측(375px)**: 마케터 내비 없음 · 별칭 표시 · `tel:` 링크 · 미확인 배너 · 상태칩 · 좌우 스크롤 없음 /
       마케터 화면에 배지·필터 정상
-- [ ] `main` 병합·푸시 + 문서 갱신 (사용자 확인 후)
+- [x] `main` 병합·푸시 + 문서 갱신
 
 > **A3 설계 메모**
 > - 광고주 응답에서 **`consents`(동의 내역)도 제외**했다. 광고주가 마케팅 수신동의 여부를 알면
@@ -432,7 +432,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > - 마케터가 자기 메모를 광고주와 공유하는 **토글은 아직 없다**(현재는 마케터 메모=MARKETER_ONLY 고정,
 >   광고주 메모·상태이력만 ALL). 필요하면 후속.
 
-### A3-B. 광고주 전용 로그인 · 비밀번호 복구  — 상태: 🔄 검증 완료(사용자 확인 대기)
+### A3-B. 광고주 전용 로그인 · 비밀번호 복구  — 상태: ✅ 완료 (`main` 병합·푸시)
 > A4 착수 전 사용자 요청으로 먼저 진행. **비밀번호 분실 시 복구 경로가 아예 없던 문제**를 함께 해결.
 
 - [x] **`/client/login` 광고주 전용 로그인** — 회원가입 링크 **제거**(가장 큰 문제였음),
@@ -451,7 +451,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
       링크 재사용 409 / 광고주 토큰으로 발급 시도 403 / 남의 광고주·마케터 계정 대상 404
 - [x] **브라우저 실측**: `/client/login` 회원가입 링크 없음 확인 · 재설정 화면 모바일(16px·좌우스크롤 없음) ·
       브랜드 기억 후 제목이 "A2Marketer 리드 확인" 으로 표시
-- [ ] `main` 병합·푸시 (사용자 확인 후)
+- [x] `main` 병합·푸시
 
 > **마케터가 임시 비밀번호를 정해주는 방식을 쓰지 않은 이유**: 마케터가 광고주 비밀번호를 알게 되면
 > "내가 안 봤다"는 광고주 주장과 감사 로그가 충돌해 §5 분쟁 방어의 증거 가치가 사라진다(초대와 같은 논리).
@@ -460,16 +460,16 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > 완전 무효화에는 `users.token_version` 같은 토큰 버전 필드가 필요하다 — 지금 범위에서는 과하다고 보고 보류.
 > (광고주 액세스 토큰 15분 + 계정 정지 시 즉시 차단은 이미 동작한다.)
 
-### A4. 내보내기 · 감사 로그  — 상태: ⬜ 예정
+### A4. 내보내기 · 감사 로그  — 상태: ⬜ 예정 (A5 다음)
 - [ ] `POST /api/advertiser/leads/export` — 기존 `LeadExcelService` 재사용(배정분만)
 - [ ] 내보내기 파일 하단 워터마크(광고주 이메일·일시)
 - [ ] 일일 내보내기 횟수·건수 제한
-- [ ] `advertiser_access_logs` 기록 — LOGIN·VIEW_LEAD·EXPORT·STATUS·MEMO
+- [x] `advertiser_access_logs` 기록 — LOGIN(A2)·VIEW_LEAD·STATUS·MEMO(A3) **완료** / **EXPORT 만 남음**
 - [ ] 마케터 화면 활동 이력 탭 (`GET /api/advertisers/{id}/logs`)
 - [ ] 검증: 다운로드 후 로그 1행 / 제한 초과 거부 / 워터마크 확인
 - [ ] `main` 병합·푸시 + 문서 갱신
 
-### A5. 알림 확장  — 상태: ⬜ 예정
+### A5. 알림 확장  — 상태: ⬜ **다음 작업** (사용자 요청 핵심 기능 → A4보다 먼저)
 - [ ] `NotificationService` 발송 대상 목록화 (마케터 + grant 광고주들)
 - [ ] 광고주 메시지 정제 — `display_name`, UTM/IP 제외, 중복문구 제외, 상세 딥링크
 - [ ] `notification_logs` 기록 (성공/실패·채널·수신자)
@@ -478,8 +478,8 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 - [ ] `main` 병합·푸시 + 문서 갱신
 
 ### A6. 광고주 대시보드 · 실시간  — 상태: ⬜ 예정
-- [ ] `GET /api/advertiser/dashboard` (미확인 건수·오늘 접수·상태 분포)
-- [ ] 대시보드 화면 + **미확인 리드 경고 배너**
+- [x] `GET /api/advertiser/dashboard` (미확인 건수·오늘 접수·상태 분포) — **A3에서 완료**
+- [x] 대시보드 화면 + **미확인 리드 경고 배너** — **A3에서 완료**
 - [ ] `GET /api/advertiser/leads/updates?since=` + 프론트 폴링(30초) 자동 갱신
 - [ ] 검증: 새 리드 자동 등장 / 배너 카운트 정확 / 폴링이 서버 부하 유발 안 함
 - [ ] `main` 병합·푸시 + 문서 갱신
@@ -487,7 +487,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 ### A7. 부가 기능  — 상태: ⬜ 예정
 - [ ] 처리속도 리포트 (접수→최초열람, 접수→첫 상태변경, 미확인율) — 마케터·광고주 양쪽
 - [ ] 리포트 화면 + 엑셀 다운로드 + `@media print` 인쇄 PDF (서버 PDF 미도입 — §8)
-- [ ] 화이트라벨 (마케터 `brand_logo_url`·`brand_color` → 광고주 화면 적용)
+- [ ] 화이트라벨 **완성** — 광고주 화면 읽기·로그인 브랜드 기억은 완료(A3-B). **마케터가 로고·색상을 설정하는 UI 만 남음**
 - [ ] 광고주 화면 미리보기(impersonate) — **읽기 전용 강제** + IMPERSONATE 로그
 - [ ] 검증: 지표 수치 실측 검증 / 미리보기에서 상태변경·메모 차단 확인
 - [ ] `main` 병합·푸시 + 문서 갱신
