@@ -144,7 +144,7 @@ export function IpBlocksPage() {
                 <p>아직 차단한 IP가 없습니다.</p>
               </div>
             ) : (
-              <div className="card" style={{ marginBottom: 28 }}>
+              <div className="card card-table" style={{ marginBottom: 28 }}>
                 <table>
                   <thead>
                     <tr>
@@ -190,7 +190,7 @@ export function IpBlocksPage() {
                 <p>차단된 제출 시도가 아직 없습니다.</p>
               </div>
             ) : (
-              <div className="card">
+              <div className="card card-table">
                 <table>
                   <thead>
                     <tr>

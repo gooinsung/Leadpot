@@ -304,7 +304,7 @@ export function AdvertisersPage() {
           </div>
         ) : (
           <>
-            <div className="card">
+            <div className="card card-table">
               <table>
                 <thead>
                   <tr>

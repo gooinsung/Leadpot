@@ -32,6 +32,23 @@
   --violet: #8b3ce0;
   --violet-soft: #f3e9fd;
 
+  /* ── ink: *-soft 배경 위에 올리는 "글자색" (U3 대비 개선) ──
+     --amber/--rose 등 원색을 연한 배경 위 작은 글자에 쓰면 대비가 2~3:1로 떨어져
+     읽기 힘들다. 배지·pill·칩의 텍스트는 반드시 아래 ink 토큰을 쓴다(라이트 ≥4.5:1).
+     배경 채움(칩 선택 상태 등)에는 원색/-strong 을 그대로 쓴다. */
+  --indigo-ink: #2d35a3;
+  --green-ink: #0a7355;
+  --amber-ink: #8a5200;
+  --rose-ink: #c0202d;
+  --violet-ink: #6b21b0;
+
+  /* Typography scale — 새 스타일은 px 대신 이 토큰을 쓴다(U3) */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 15px;
+  --fs-xl: 20px;
+
   /* System */
   --radius: 14px;
   --radius-sm: 9px;
@@ -67,6 +84,12 @@
     --rose-soft: #3a1a1f;
     --violet: #c08cf7;
     --violet-soft: #2b1f45;
+    /* 다크: *-soft 가 어두운 배경이므로 ink 는 밝은 색 */
+    --indigo-ink: #a9b0ff;
+    --green-ink: #4fe0b4;
+    --amber-ink: #f9c46b;
+    --rose-ink: #ff8e96;
+    --violet-ink: #d2a8fb;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
     --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
   }
@@ -94,6 +117,11 @@
   /* 광고주 상태 '통화완료' 전용 — 인디고/그린과 구분되는 보라 계열 */
   --violet: #8b3ce0;
   --violet-soft: #f3e9fd;
+  --indigo-ink: #2d35a3;
+  --green-ink: #0a7355;
+  --amber-ink: #8a5200;
+  --rose-ink: #c0202d;
+  --violet-ink: #6b21b0;
   --shadow: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 23, 42, 0.14);
   --shadow-lg: 0 24px 60px -24px rgba(29, 35, 120, 0.34);
 }
@@ -119,6 +147,11 @@
   --rose-soft: #3a1a1f;
   --violet: #c08cf7;
   --violet-soft: #2b1f45;
+  --indigo-ink: #a9b0ff;
+  --green-ink: #4fe0b4;
+  --amber-ink: #f9c46b;
+  --rose-ink: #ff8e96;
+  --violet-ink: #d2a8fb;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
 }
