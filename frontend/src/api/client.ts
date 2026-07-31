@@ -459,6 +459,15 @@ export interface InboxFilter {
   page?: number;
   size?: number;
 }
+/** 일괄 상태변경(U2). 내 것이 아닌 id 는 서버가 건너뛴다. { updated } 반환. */
+export function bulkUpdateLeadStatus(ids: number[], status: string): Promise<{ updated: number }> {
+  return request<{ updated: number }>("/api/leads/bulk/status", { method: "PATCH", body: { ids, status } });
+}
+/** 일괄 휴지통 이동(U2). { trashed } 반환. */
+export function bulkTrashLeads(ids: number[]): Promise<{ trashed: number }> {
+  return request<{ trashed: number }>("/api/leads/bulk/trash", { method: "POST", body: { ids } });
+}
+
 /** 내 모든 리드폼의 리드를 한 스트림으로(필터·페이징 + rail 카운트). */
 export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {
   const p = new URLSearchParams();

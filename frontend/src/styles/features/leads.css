@@ -137,7 +137,7 @@
 .inbox-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
 .inbox-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px;
+  grid-template-columns: 32px minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px;
   gap: 14px; align-items: center;
   padding: 14px 16px; border: none; border-bottom: 1px solid var(--border);
   background: transparent; cursor: pointer; text-align: left; font: inherit; width: 100%;
@@ -145,6 +145,22 @@
 .inbox-row:last-child { border-bottom: none; }
 .inbox-row:hover { background: var(--surface-2); }
 .inbox-row.active { background: var(--indigo-soft); }
+.inbox-row.selected { background: color-mix(in srgb, var(--indigo-soft) 70%, var(--surface)); }
+.ir-check { display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.ir-check input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--indigo); }
+
+/* 일괄 작업 툴바 */
+.inbox-bulk {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.bulk-check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.bulk-check input { width: 16px; height: 16px; accent-color: var(--indigo); }
+.bulk-hint { font-size: 12.5px; color: var(--muted); }
+.bulk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bulk-count { font-size: 13px; font-weight: 700; color: var(--indigo-strong); }
+.bulk-select { width: auto; font-size: 13px; padding: 6px 10px; }
 .ir-name { font-size: 14.5px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; min-width: 0; }
 .inbox-row.unread .ir-name { font-weight: 800; }
 .ir-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--indigo); flex: none; }
@@ -153,9 +169,10 @@
 .ir-time { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 .inbox-pager { margin-top: 4px; }
 @media (max-width: 720px) {
-  .inbox-row { grid-template-columns: 1fr auto; row-gap: 6px; }
-  .ir-phone, .ir-src { grid-column: 1; }
-  .ir-time { grid-row: 1; }
+  .inbox-row { grid-template-columns: 28px 1fr auto; row-gap: 6px; }
+  .ir-name { grid-column: 2; }
+  .ir-phone, .ir-src { grid-column: 2; }
+  .ir-time { grid-column: 3; grid-row: 1; }
 }
 
 /* ── PANE 3 · 사이드 패널 ── */

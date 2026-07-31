@@ -322,6 +322,48 @@ public class LeadService {
         }
     }
 
+    /**
+     * 일괄 상태변경(U2). 내 것이 아닌 id 는 건너뛴다(부분 성공). 실제 변경 건수를 돌려준다.
+     * 각 건은 {@link #updateStatus} 를 재사용해 상태 변경 이력(SYSTEM 메모)도 남긴다.
+     */
+    @Transactional
+    public int bulkUpdateStatus(Long ownerId, List<Long> ids, String status) {
+        if (!STATUSES.contains(status)) {
+            throw new InvalidSubmissionException("상태 값이 올바르지 않습니다.");
+        }
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (Long id : ids) {
+            try {
+                updateStatus(ownerId, id, status); // 소유권 확인 + 이력 기록 재사용(자기호출이라 별도 tx 아님)
+                n++;
+            } catch (NotFoundException ignored) {
+                // 내 리드가 아니면 조용히 건너뛴다(부분 성공).
+            }
+        }
+        return n;
+    }
+
+    /** 일괄 휴지통 이동(U2). 내 것이 아닌 id 는 건너뛴다. 실제 처리 건수를 돌려준다. */
+    @Transactional
+    public int bulkSoftDelete(Long ownerId, List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (Long id : ids) {
+            try {
+                softDelete(ownerId, id);
+                n++;
+            } catch (NotFoundException ignored) {
+                // 내 리드가 아니면 건너뛴다.
+            }
+        }
+        return n;
+    }
+
     // ---------- 리드 상세 / 메모(이력) / 태그 (본인 리드폼만 K5) ----------
 
     /** 리드 단건 상세(본인 리드폼만). */

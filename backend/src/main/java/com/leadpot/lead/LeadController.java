@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.leadpot.lead.dto.BulkLeadRequest;
 import com.leadpot.lead.dto.ImportResult;
 import com.leadpot.lead.dto.InboxResponse;
 import com.leadpot.lead.dto.LeadExportRequest;
@@ -111,6 +112,18 @@ public class LeadController {
             @RequestBody Map<String, String> body) {
         leadService.updateStatus(userId(jwt), id, body.get("status"));
         return ResponseEntity.noContent().build();
+    }
+
+    /** 일괄 상태변경(U2). body: {"ids":[...], "status":"..."}. 처리 건수 반환. */
+    @PatchMapping("/bulk/status")
+    public Map<String, Integer> bulkStatus(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
+        return Map.of("updated", leadService.bulkUpdateStatus(userId(jwt), req.ids(), req.status()));
+    }
+
+    /** 일괄 휴지통 이동(U2). body: {"ids":[...]}. 처리 건수 반환. */
+    @PostMapping("/bulk/trash")
+    public Map<String, Integer> bulkTrash(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
+        return Map.of("trashed", leadService.bulkSoftDelete(userId(jwt), req.ids()));
     }
 
     /** 휴지통으로 이동(soft delete). */

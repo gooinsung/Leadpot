@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ApiError,
   addLeadNote,
+  bulkTrashLeads,
+  bulkUpdateLeadStatus,
   getInbox,
   getLead,
   listLeadNotes,
@@ -58,6 +60,9 @@ export function LeadInboxPage() {
 
   // 사이드 패널
   const [openId, setOpenId] = useState<number | null>(null);
+  // 일괄 선택
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const today = (() => {
     const d = new Date();
@@ -67,6 +72,7 @@ export function LeadInboxPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setSelected(new Set()); // 목록이 바뀌면 선택 초기화(선택은 현재 화면 기준)
     try {
       const res = await getInbox({
         unseen: view === "unseen",
@@ -106,6 +112,49 @@ export function LeadInboxPage() {
   // 상태 변경 후 목록·패널 갱신
   async function onStatusChanged() {
     await load();
+  }
+
+  // ---- 일괄 선택 ----
+  const pageIds = data?.items.map((i) => i.id) ?? [];
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function toggleSelectAll() {
+    setSelected((prev) => (pageIds.length > 0 && pageIds.every((id) => prev.has(id)) ? new Set() : new Set(pageIds)));
+  }
+  async function onBulkStatus(status: string) {
+    if (selected.size === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setError("");
+    try {
+      await bulkUpdateLeadStatus([...selected], status);
+      await load(); // 선택 초기화 포함
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "일괄 상태변경에 실패했습니다.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+  async function onBulkTrash() {
+    if (selected.size === 0 || bulkBusy) return;
+    if (!window.confirm(`${selected.size}건을 휴지통으로 이동할까요?`)) return;
+    setBulkBusy(true);
+    setError("");
+    try {
+      await bulkTrashLeads([...selected]);
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "일괄 이동에 실패했습니다.");
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   return (
@@ -171,6 +220,36 @@ export function LeadInboxPage() {
 
           {error && <p className="auth-error">{error}</p>}
 
+          {/* 일괄 작업 툴바 */}
+          {(data?.items.length ?? 0) > 0 && (
+            <div className="inbox-bulk">
+              <label className="bulk-check">
+                <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+                전체 선택
+              </label>
+              {selected.size > 0 ? (
+                <div className="bulk-actions">
+                  <span className="bulk-count">{selected.size}건 선택</span>
+                  <select
+                    className="input bulk-select"
+                    value=""
+                    disabled={bulkBusy}
+                    onChange={(e) => e.target.value && onBulkStatus(e.target.value)}
+                  >
+                    <option value="">상태 변경…</option>
+                    {LEAD_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}(으)로</option>
+                    ))}
+                  </select>
+                  <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
+                  <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={() => setSelected(new Set())}>선택 해제</button>
+                </div>
+              ) : (
+                <span className="bulk-hint">체크해서 여러 건을 한 번에 상태변경·정리하세요</span>
+              )}
+            </div>
+          )}
+
           {loading && !data ? (
             <p className="inbox-empty">불러오는 중…</p>
           ) : (data?.items.length ?? 0) === 0 ? (
@@ -179,7 +258,14 @@ export function LeadInboxPage() {
             <>
               <div className="inbox-rows" role="list">
                 {data!.items.map((it) => (
-                  <InboxRow key={it.id} item={it} active={openId === it.id} onOpen={() => setOpenId(it.id)} />
+                  <InboxRow
+                    key={it.id}
+                    item={it}
+                    active={openId === it.id}
+                    selected={selected.has(it.id)}
+                    onOpen={() => setOpenId(it.id)}
+                    onToggle={() => toggleSelect(it.id)}
+                  />
                 ))}
               </div>
               <div className="inbox-pager">
@@ -223,16 +309,23 @@ function RailItem({
 }
 
 /* ---------- list row ---------- */
-function InboxRow({ item, active, onOpen }: { item: InboxItem; active: boolean; onOpen: () => void }) {
+function InboxRow({
+  item, active, selected, onOpen, onToggle,
+}: {
+  item: InboxItem; active: boolean; selected: boolean; onOpen: () => void; onToggle: () => void;
+}) {
   const phone = pickPhone(item.answers);
   const unread = item.status === "NEW";
   return (
-    <button
-      type="button"
+    <div
       role="listitem"
-      className={`inbox-row${active ? " active" : ""}${unread ? " unread" : ""}`}
+      className={`inbox-row${active ? " active" : ""}${unread ? " unread" : ""}${selected ? " selected" : ""}`}
       onClick={onOpen}
     >
+      {/* 체크박스: 행 열기와 분리(클릭 전파 차단) */}
+      <label className="ir-check" onClick={(e) => e.stopPropagation()}>
+        <input type="checkbox" checked={selected} onChange={onToggle} aria-label="리드 선택" />
+      </label>
       <span className="ir-name">
         {unread && <span className="ir-dot" />}
         {pickName(item.answers)}
@@ -241,7 +334,7 @@ function InboxRow({ item, active, onOpen }: { item: InboxItem; active: boolean; 
       <span className="ir-src" title={item.formName}>{item.formName}</span>
       <span className={`pill ld-pill ld-${item.status}`}>{statusLabel(item.status)}</span>
       <span className="ir-time">{new Date(item.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}</span>
-    </button>
+    </div>
   );
 }
 
