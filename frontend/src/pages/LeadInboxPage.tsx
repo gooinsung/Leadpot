@@ -1,22 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ApiError,
-  addLeadNote,
   bulkTrashLeads,
   bulkUpdateLeadStatus,
   getInbox,
-  getLead,
-  listLeadNotes,
-  updateLeadStatus,
   LEAD_STATUSES,
   type InboxItem,
   type InboxResponse,
-  type Lead,
   type LeadAnswer,
-  type LeadNote,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { Pagination } from "../components/Pagination";
+import { LeadSidePanel } from "../components/LeadSidePanel";
 
 const PAGE_SIZE = 25;
 
@@ -284,7 +279,13 @@ export function LeadInboxPage() {
 
         {/* ── PANE 3 · 사이드 패널(상세) ── */}
         {openId != null && (
-          <LeadSidePanel leadId={openId} onClose={() => setOpenId(null)} onChanged={onStatusChanged} />
+          <LeadSidePanel
+            leadId={openId}
+            formName={data?.items.find((i) => i.id === openId)?.formName}
+            onClose={() => setOpenId(null)}
+            onChanged={onStatusChanged}
+            showFormLink
+          />
         )}
       </div>
     </div>
@@ -338,133 +339,3 @@ function InboxRow({
   );
 }
 
-/* ---------- side panel (상세) ---------- */
-function LeadSidePanel({ leadId, onClose, onChanged }: { leadId: number; onClose: () => void; onChanged: () => void }) {
-  const [lead, setLead] = useState<Lead | null>(null);
-  const [notes, setNotes] = useState<LeadNote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [memo, setMemo] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [l, n] = await Promise.all([getLead(leadId), listLeadNotes(leadId)]);
-      setLead(l);
-      setNotes(n);
-    } catch {
-      setLead(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [leadId]);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
-
-  async function changeStatus(status: string) {
-    if (!lead || status === lead.status) return;
-    setBusy(true);
-    try {
-      await updateLeadStatus(leadId, status);
-      await reload();
-      onChanged();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitMemo() {
-    if (!memo.trim()) return;
-    setBusy(true);
-    try {
-      await addLeadNote(leadId, memo.trim());
-      setMemo("");
-      await reload();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <aside className="inbox-panel">
-      <div className="ip-head">
-        <span className="ip-title">리드 상세</span>
-        <button className="btn btn-ghost btn-sm" onClick={onClose}>닫기 ✕</button>
-      </div>
-
-      {loading ? (
-        <p className="inbox-empty">불러오는 중…</p>
-      ) : !lead ? (
-        <p className="inbox-empty">불러오지 못했습니다.</p>
-      ) : (
-        <div className="ip-body">
-          {/* 답변 */}
-          <div className="ip-section-label">답변</div>
-          <div className="card card-pad ip-answers">
-            {lead.answers.map((a) => (
-              <div key={a.label} className="ip-answer">
-                <span className="ip-k">{a.label}</span>
-                <span className="ip-v">{a.value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* 방문자 정보 요약 */}
-          {(lead.referer || lead.device) && (
-            <>
-              <div className="ip-section-label">방문자</div>
-              <div className="card card-pad ip-answers">
-                {lead.referer && <div className="ip-answer"><span className="ip-k">유입</span><span className="ip-v">{lead.referer}</span></div>}
-                {lead.device && <div className="ip-answer"><span className="ip-k">기기</span><span className="ip-v">{[lead.device, lead.os, lead.browser].filter(Boolean).join(" · ")}</span></div>}
-              </div>
-            </>
-          )}
-
-          {/* 상태 */}
-          <div className="ip-section-label">상태</div>
-          <div className="ip-status-picker">
-            {LEAD_STATUSES.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                className={`chip ld-chip ld-${s.value}${lead.status === s.value ? " on" : ""}`}
-                disabled={busy}
-                onClick={() => changeStatus(s.value)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 메모 / 이력 */}
-          <div className="ip-section-label">메모 · 이력</div>
-          {notes.length > 0 && (
-            <ul className="ip-notes">
-              {notes.map((n) => (
-                <li key={n.id} className={`ip-note${n.kind === "SYSTEM" ? " sys" : ""}`}>
-                  <span className="ip-note-meta">
-                    {n.kind === "SYSTEM" ? "이력" : "메모"} · {new Date(n.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
-                  </span>
-                  <div>{n.body}</div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <textarea
-            className="input"
-            rows={2}
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="메모 추가…"
-          />
-          <div className="ip-actions">
-            <a className="btn btn-ghost btn-sm" href={`/forms/${lead.formId}/leads`}>폼에서 열기 →</a>
-            <button className="btn btn-primary btn-sm" onClick={submitMemo} disabled={busy || !memo.trim()}>메모 저장</button>
-          </div>
-        </div>
-      )}
-    </aside>
-  );
-}

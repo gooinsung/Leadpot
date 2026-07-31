@@ -19,7 +19,7 @@ import {
   type Lead,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
-import { LeadDetailModal } from "../components/LeadDetailModal";
+import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
 
 // ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
@@ -45,7 +45,7 @@ export function LeadsListPage() {
   const [dupOnly, setDupOnly] = useState(false); // 중복만 보기
   const [advUnseenOnly, setAdvUnseenOnly] = useState(false); // 광고주 미확인만 보기
   const [tagFilter, setTagFilter] = useState(""); // "" = 전체 태그
-  const [detail, setDetail] = useState<Lead | null>(null); // 상세 모달 대상
+  const [detailId, setDetailId] = useState<number | null>(null); // 상세 사이드 패널 대상(U2: 모달 → 패널)
   const fileRef = useRef<HTMLInputElement>(null);
   // 내보내기 모달(형식·컬럼 선택)
   const [exportOpen, setExportOpen] = useState(false);
@@ -451,7 +451,12 @@ export function LeadsListPage() {
                     </div>
                   ) : (
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setDetail(l)}>상세</button>
+                      <button
+                        className={`btn btn-sm ${detailId === l.id ? "btn-primary" : "btn-ghost"}`}
+                        onClick={() => setDetailId(l.id)}
+                      >
+                        상세
+                      </button>
                       <select
                         className={`lead-status-select ${statusClass(l.status)}`}
                         value={l.status}
@@ -497,15 +502,13 @@ export function LeadsListPage() {
           </>
         )}
       </main>
-      {detail && (
-        <LeadDetailModal
-          lead={detail}
+      {detailId != null && (
+        <LeadSidePanel
+          leadId={detailId}
           formName={form?.name || "리드"}
-          onClose={() => setDetail(null)}
-          onChange={(updated) => {
-            setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-            setDetail(updated);
-          }}
+          variant="drawer"
+          onClose={() => setDetailId(null)}
+          onChanged={(updated) => setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)))}
         />
       )}
     </div>
