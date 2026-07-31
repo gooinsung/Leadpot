@@ -27,9 +27,27 @@ export function pickPhone(answers: LeadAnswer[]): string | null {
   return cand ? cand.trim() : null;
 }
 
-/** 목록에선 뒷자리를 가린다(개인정보). 상세 패널에선 전체 노출. */
+/** 전화번호로 볼 수 있는 형태(숫자·공백·괄호·+·하이픈만). */
+const PHONE_ONLY_RE = /^[\d\s()+-]+$/;
+
+/**
+ * 목록에선 뒷자리를 가린다(개인정보). 상세 패널에선 전체 노출.
+ * 뒤 4자리를 가리고 앞부분에 표준 하이픈을 넣는다 — 국번은 02(서울)만 2자리, 나머지는 3자리.
+ * 예) 01011111111 → 010-1111-·· / 0212345678 → 02-1234-··
+ * 전화번호로 보이지 않으면 원본을 그대로 둔다.
+ */
 export function maskPhone(v: string): string {
-  return v.replace(/(\d{2,4})[-\s]?(\d{3,4})[-\s]?(\d{4})/, (_m, a, b) => `${a}-${b}-··`);
+  if (!PHONE_ONLY_RE.test(v.trim())) return v;
+  const digits = v.replace(/\D/g, "");
+  const head = digits.slice(0, -4);
+  // 국내 번호(9~11자리)는 표준 하이픈으로, 그 외(국제표기 등)는 형식 없이 —
+  // 어느 쪽이든 뒤 4자리는 반드시 가린다.
+  if (digits.length >= 9 && digits.length <= 11) {
+    const areaLen = head.startsWith("02") ? 2 : 3;
+    return `${head.slice(0, areaLen)}-${head.slice(areaLen)}-··`;
+  }
+  if (digits.length >= 7) return `${head}-··`;
+  return v;
 }
 
 /**
