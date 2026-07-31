@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
+import com.leadpot.advertiser.dto.BrandSettings;
 import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
 import com.leadpot.advertiser.dto.GrantUpdateRequest;
 import com.leadpot.advertiser.dto.GrantView;
@@ -23,6 +24,7 @@ import com.leadpot.auth.Role;
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
 import com.leadpot.common.error.ConflictException;
+import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.common.error.PlanLimitExceededException;
 import com.leadpot.form.Form;
@@ -82,6 +84,37 @@ public class AdvertiserService {
     @Transactional(readOnly = true)
     public User requireOwned(Long marketerId, Long advertiserId) {
         return loadOwned(marketerId, advertiserId);
+    }
+
+    // ---------- 화이트라벨(마케터 브랜드) ----------
+
+    /** 내 브랜드(로고·색상) 조회. 광고주 화면 상단에 이 값이 표시된다. */
+    @Transactional(readOnly = true)
+    public BrandSettings getBrand(Long marketerId) {
+        return BrandSettings.from(loadMarketer(marketerId));
+    }
+
+    /** 내 브랜드 저장. 색상은 #RGB/#RRGGBB 형식만 허용, 빈 값이면 해제(기본 브랜드로 되돌림). */
+    @Transactional
+    public BrandSettings updateBrand(Long marketerId, BrandSettings req) {
+        User marketer = loadMarketer(marketerId);
+        String logo = blankToNull(req.logoUrl());
+        if (logo != null && logo.length() > 500) {
+            throw new InvalidSubmissionException("로고 URL이 너무 깁니다.");
+        }
+        String color = blankToNull(req.color());
+        if (color != null && !color.matches("^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$")) {
+            throw new InvalidSubmissionException("색상은 #RRGGBB 형식이어야 합니다. (예: #4f46e5)");
+        }
+        marketer.setBrandLogoUrl(logo);
+        marketer.setBrandColor(color);
+        return BrandSettings.from(marketer);
+    }
+
+    private User loadMarketer(Long marketerId) {
+        return userRepository.findById(marketerId)
+                .filter(u -> u.getRole() != Role.ADVERTISER)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다."));
     }
 
     /** 내 광고주의 활동 이력(최신순, 상한 200). 열람·상태변경·메모·내보내기·로그인 기록. */

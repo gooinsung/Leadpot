@@ -20,7 +20,14 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A7(부가: 리포트·화이트라벨 UI·미리보기)** — A1~A6 완료. **A7이 마지막**
+> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A7 남은 조각(처리속도 리포트 · 광고주 화면 미리보기)** — A1~A6 + A7 화이트라벨 완료
+>
+> #### ✅ 2026-07-31 세션 완료 — **A7 화이트라벨 UI** (브랜치 `feature/a7-whitelabel`)
+>
+> - **`GET/PUT /api/advertisers/brand`** — 마케터가 자기 로고 URL·색상 저장/조회(`BrandSettings` DTO, 색상 `#RRGGBB` 검증·빈값이면 해제). 컬럼(`users.brand_logo_url`·`brand_color`)·광고주 화면 읽기(`AdvertiserMeResponse`·`AdvertiserTopBar`)는 이미 있었음 → **설정 API+UI만 추가, 마이그레이션 없음**.
+> - **프론트 `BrandSettingsCard`**(`/advertisers` 상단, 접기/펼치기): 로고 파일 업로드(기존 `uploadImage`)·URL 직접입력·로고 제거 / 색상 피커+hex 입력 / **실시간 미리보기**(광고주 상단바 모습) / 저장.
+> - **검증**: `AdvertiserBrandTest` 4개(저장·조회, **광고주 me 반영**, 색상형식 거부, 빈값 해제) + 백엔드 전체 통과 · 프론트 tsc+prod 빌드.
+> - **다음**: A7 남은 2조각(리포트·미리보기). 각각 독립적이라 나눠서 진행 가능.
 >
 > #### ✅ 2026-07-31 세션 완료 — **A6 실시간 폴링** (브랜치 `feature/a6-advertiser-realtime`)
 >

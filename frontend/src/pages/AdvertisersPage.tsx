@@ -21,6 +21,7 @@ import {
 import { TopBar } from "../components/TopBar";
 import { Pagination, usePaging } from "../components/Pagination";
 import { GrantEditor } from "../components/GrantEditor";
+import { BrandSettingsCard } from "../components/BrandSettingsCard";
 
 const fmt = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR") : "-");
 
@@ -220,6 +221,8 @@ export function AdvertisersPage() {
         </div>
 
         {error && !inviteOpen && <p className="auth-error">{error}</p>}
+
+        <BrandSettingsCard />
 
         {pendingInvites.length > 0 && (
           <div className="card card-pad" style={{ marginBottom: 16 }}>

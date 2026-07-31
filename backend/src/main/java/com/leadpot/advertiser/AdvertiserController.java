@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
+import com.leadpot.advertiser.dto.BrandSettings;
 import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
 import com.leadpot.advertiser.dto.GrantUpdateRequest;
 import com.leadpot.advertiser.dto.GrantView;
@@ -82,6 +83,20 @@ public class AdvertiserController {
     public List<AdvertiserLogResponse> logs(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestParam(required = false) Integer limit) {
         return advertiserService.logs(userId(jwt), id, limit);
+    }
+
+    // ---------- 화이트라벨(내 브랜드) ----------
+
+    /** 내 브랜드(로고·색상) 조회. 광고주 화면 상단에 표시된다. */
+    @GetMapping("/brand")
+    public BrandSettings getBrand(@AuthenticationPrincipal Jwt jwt) {
+        return advertiserService.getBrand(userId(jwt));
+    }
+
+    /** 내 브랜드 저장. 색상은 #RRGGBB 형식, 빈 값이면 해제. */
+    @PutMapping("/brand")
+    public BrandSettings updateBrand(@AuthenticationPrincipal Jwt jwt, @RequestBody BrandSettings request) {
+        return advertiserService.updateBrand(userId(jwt), request);
     }
 
     /**

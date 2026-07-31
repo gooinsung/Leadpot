@@ -881,6 +881,18 @@ export function getAdvertiserLogs(advertiserId: number, limit?: number): Promise
   return request<AdvertiserLog[]>(`/api/advertisers/${advertiserId}/logs${qs}`);
 }
 
+/** 화이트라벨(마케터 브랜드) — 광고주 화면 상단에 표시되는 로고·색상. */
+export interface BrandSettings {
+  logoUrl: string | null;
+  color: string | null;
+}
+export function getBrand(): Promise<BrandSettings> {
+  return request<BrandSettings>("/api/advertisers/brand");
+}
+export function updateBrand(input: BrandSettings): Promise<BrandSettings> {
+  return request<BrandSettings>("/api/advertisers/brand", { method: "PUT", body: input });
+}
+
 /** 권한 부여 화면 데이터(내 리드폼 전체 + 부여 상태 + 선점 여부). */
 export function listGrants(advertiserId: number): Promise<GrantView[]> {
   return request<GrantView[]>(`/api/advertisers/${advertiserId}/grants`);
