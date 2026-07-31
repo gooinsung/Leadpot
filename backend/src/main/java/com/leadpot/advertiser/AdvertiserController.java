@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.leadpot.advertiser.dto.AdvertiserLogResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
 import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
 import com.leadpot.advertiser.dto.GrantUpdateRequest;
@@ -73,6 +75,13 @@ public class AdvertiserController {
     public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         advertiserService.delete(userId(jwt), id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 광고주 활동 이력(최신순). 열람·상태변경·메모·내보내기·로그인 — 개인정보 취급 추적. */
+    @GetMapping("/{id}/logs")
+    public List<AdvertiserLogResponse> logs(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestParam(required = false) Integer limit) {
+        return advertiserService.logs(userId(jwt), id, limit);
     }
 
     /**

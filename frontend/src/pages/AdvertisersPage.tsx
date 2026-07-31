@@ -3,6 +3,7 @@ import {
   ApiError,
   cancelInvite,
   deleteAdvertiser,
+  getAdvertiserLogs,
   inviteUrl,
   issueInvite,
   issuePasswordReset,
@@ -13,6 +14,7 @@ import {
   setAdvertiserActive,
   updateAdvertiser,
   type AdvertiserInvite,
+  type AdvertiserLog,
   type AdvertiserSummary,
   type PasswordResetIssued,
 } from "../api/client";
@@ -41,6 +43,23 @@ export function AdvertisersPage() {
   const [resetCopied, setResetCopied] = useState(false);
   const [editTarget, setEditTarget] = useState<AdvertiserSummary | null>(null);
   const [editForm, setEditForm] = useState({ name: "", company: "", memo: "" });
+  // 활동 이력 모달
+  const [logsTarget, setLogsTarget] = useState<AdvertiserSummary | null>(null);
+  const [logs, setLogs] = useState<AdvertiserLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  async function openLogs(a: AdvertiserSummary) {
+    setLogsTarget(a);
+    setLogs([]);
+    setLogsLoading(true);
+    try {
+      setLogs(await getAdvertiserLogs(a.id));
+    } catch {
+      setLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
+  }
 
   const paging = usePaging(items, 10);
   const pendingInvites = invites.filter((i) => !i.acceptedAt);
@@ -294,6 +313,13 @@ export function AdvertisersPage() {
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"
+                          onClick={() => openLogs(a)}
+                          title="열람·상태변경·메모·내보내기 등 활동 이력"
+                        >
+                          활동 이력
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
                           onClick={() => onIssueReset(a)}
                           title="광고주가 비밀번호를 잊었을 때 재설정 링크를 발급합니다"
                         >
@@ -540,6 +566,58 @@ export function AdvertisersPage() {
             load();
           }}
         />
+      )}
+
+      {/* 활동 이력 모달 */}
+      {logsTarget && (
+        <div className="lead-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setLogsTarget(null)}>
+          <div className="card lead-modal invite-modal" role="dialog" aria-modal="true">
+            <div className="lead-modal-head">
+              <div>
+                <p className="eyebrow" style={{ margin: 0 }}>
+                  {logsTarget.email}
+                </p>
+                <h2 style={{ margin: "4px 0 0" }}>활동 이력</h2>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setLogsTarget(null)}>
+                닫기
+              </button>
+            </div>
+            <div className="lead-modal-body">
+              {logsLoading ? (
+                <p className="dash-sub">불러오는 중…</p>
+              ) : logs.length === 0 ? (
+                <p className="dash-sub">아직 활동 이력이 없습니다.</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>일시</th>
+                      <th>활동</th>
+                      <th>상세</th>
+                      <th>IP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((l) => (
+                      <tr key={l.id}>
+                        <td className="num">{fmt(l.createdAt)}</td>
+                        <td>{l.actionLabel}</td>
+                        <td className="dash-sub">
+                          {l.detail || (l.leadId ? `리드 #${l.leadId}` : "")}
+                        </td>
+                        <td className="dash-sub">{l.ip || ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <p className="dash-sub" style={{ fontSize: 12, marginTop: 10 }}>
+                열람·상태변경·메모·내보내기·로그인 기록입니다. 개인정보 취급 추적과 분쟁 대비를 위해 보관됩니다.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

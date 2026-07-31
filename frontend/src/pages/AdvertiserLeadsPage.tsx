@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   ADVERTISER_LEAD_STATUSES,
   ApiError,
+  downloadAdvertiserLeads,
   getAdvertiserDashboard,
   listAdvertiserForms,
   listAdvertiserLeads,
@@ -59,6 +60,7 @@ export function AdvertiserLeadsPage() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -146,6 +148,27 @@ export function AdvertiserLeadsPage() {
   const shown = unseenOnly ? leads.filter((l) => !l.advertiserSeenAt) : leads;
   const pages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const hasFilter = !!(q || statusFilter || dateFrom || dateTo || unseenOnly);
+
+  // 현재 화면 필터를 그대로 반영해 내보낸다. 실패(권한·일일상한)는 알림으로 보여준다.
+  async function onExport(format: "xlsx" | "csv") {
+    if (formId == null || exporting) return;
+    setExporting(true);
+    setError("");
+    try {
+      await downloadAdvertiserLeads(formId, {
+        format,
+        status: statusFilter || undefined,
+        q: q.trim() || undefined,
+        from: dateFrom || undefined,
+        to: dateTo || undefined,
+        formName: currentForm?.name || "leads",
+      });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "내보내기에 실패했습니다.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -277,6 +300,16 @@ export function AdvertiserLeadsPage() {
               >
                 필터 초기화
               </button>
+            )}
+            {currentForm?.canExport && (
+              <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => onExport("xlsx")} disabled={exporting}>
+                  {exporting ? "내보내는 중…" : "엑셀"}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => onExport("csv")} disabled={exporting}>
+                  CSV
+                </button>
+              </div>
             )}
           </div>
         )}

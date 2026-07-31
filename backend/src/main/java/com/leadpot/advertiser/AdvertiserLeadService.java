@@ -3,11 +3,14 @@ package com.leadpot.advertiser;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
 import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
+import com.leadpot.common.error.PlanLimitExceededException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
 import com.leadpot.lead.Lead;
@@ -47,6 +51,8 @@ public class AdvertiserLeadService {
     private static final int MAX_PAGE_SIZE = 100;
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter DT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(KST);
 
     private final UserRepository userRepository;
     private final FormRepository formRepository;
@@ -54,19 +60,26 @@ public class AdvertiserLeadService {
     private final LeadRepository leadRepository;
     private final LeadNoteRepository noteRepository;
     private final AdvertiserAuditService audit;
+    private final AdvertiserAccessLogRepository accessLogRepository;
+    /** 광고주 리드 내보내기 일일 횟수 상한(유출 방어). 0 이하면 무제한. */
+    private final int exportDailyMax;
 
     public AdvertiserLeadService(UserRepository userRepository,
             FormRepository formRepository,
             AdvertiserFormGrantRepository grantRepository,
             LeadRepository leadRepository,
             LeadNoteRepository noteRepository,
-            AdvertiserAuditService audit) {
+            AdvertiserAuditService audit,
+            AdvertiserAccessLogRepository accessLogRepository,
+            @Value("${app.advertiser.export-daily-max:20}") int exportDailyMax) {
         this.userRepository = userRepository;
         this.formRepository = formRepository;
         this.grantRepository = grantRepository;
         this.leadRepository = leadRepository;
         this.noteRepository = noteRepository;
         this.audit = audit;
+        this.accessLogRepository = accessLogRepository;
+        this.exportDailyMax = exportDailyMax;
     }
 
     // ---------- 단일 관문 ----------
@@ -188,28 +201,7 @@ public class AdvertiserLeadService {
             String from, String to, Integer page, Integer size) {
         requireGrant(advertiserId, formId);
 
-        List<Lead> all = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId);
-        List<Lead> filtered = new ArrayList<>();
-        Instant fromAt = startOfDay(from);
-        Instant toAt = endOfDay(to);
-        String needle = q == null ? null : q.trim().toLowerCase();
-
-        for (Lead lead : all) {
-            String s = lead.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : lead.getAdvertiserStatus();
-            if (status != null && !status.isBlank() && !status.equals(s)) {
-                continue;
-            }
-            if (fromAt != null && lead.getCreatedAt() != null && lead.getCreatedAt().isBefore(fromAt)) {
-                continue;
-            }
-            if (toAt != null && lead.getCreatedAt() != null && !lead.getCreatedAt().isBefore(toAt)) {
-                continue;
-            }
-            if (needle != null && !needle.isEmpty() && !matches(lead, needle)) {
-                continue;
-            }
-            filtered.add(lead);
-        }
+        List<Lead> filtered = filterLeads(formId, status, q, from, to);
         // 정렬 불필요: 리포지토리가 createdAt DESC 로 주고, 필터링은 순서를 유지한다.
         int pageSize = size == null || size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
         int pageIndex = page == null || page < 0 ? 0 : page;
@@ -302,6 +294,123 @@ public class AdvertiserLeadService {
                 .orElseThrow(() -> new NotFoundException("리드를 찾을 수 없습니다."));
         requireGrant(advertiserId, lead.getFormId());
         return lead;
+    }
+
+    // ---------- 내보내기 (A4) ----------
+
+    /**
+     * 배정받은 리드를 엑셀/CSV 표(0행=헤더)로 만든다. 화면과 동일한 <b>화이트리스트 컬럼</b>만 담는다:
+     * 접수일시 · 광고주 상태 · 답변 항목. <b>IP·UTM·기기 등 추적정보는 절대 넣지 않는다</b>.
+     * 마지막 행에 워터마크(다운로드한 광고주 이메일·일시)를 붙이고 EXPORT 감사 로그를 남긴다.
+     * <p>
+     * 일일 횟수 상한을 초과하면 {@link PlanLimitExceededException}(유출 방어). 권한(can_export) 없으면 404.
+     */
+    @Transactional
+    public List<List<String>> export(Long advertiserId, Long formId, String status, String q,
+            String from, String to, String ip) {
+        AdvertiserFormGrant grant = requireGrant(advertiserId, formId);
+        if (!grant.isCanExport()) {
+            throw new NotFoundException("내보낼 권한이 없습니다.");
+        }
+        enforceExportLimit(advertiserId);
+
+        List<Lead> leads = filterLeads(formId, status, q, from, to);
+        List<List<String>> matrix = buildExportMatrix(leads);
+
+        String email = emailOf(advertiserId);
+        // 워터마크: 유출 시 출처를 특정할 수 있게 파일 맨 아래에 남긴다.
+        matrix.add(List.of("다운로드: " + nn(email) + " / " + DT.format(Instant.now())));
+
+        audit.record(new AdvertiserAccessLog(advertiserId, email, AdvertiserAccessLog.ACTION_EXPORT, ip)
+                .target(formId, null, leads.size() + "건 내보내기"));
+        return matrix;
+    }
+
+    /** 오늘 이미 상한만큼 내보냈으면 거부. `advertiser_access_logs` 의 EXPORT 카운트로 판정(별도 테이블 불필요). */
+    private void enforceExportLimit(Long advertiserId) {
+        if (exportDailyMax <= 0) {
+            return;
+        }
+        Instant since = LocalDate.now(KST).atStartOfDay(KST).toInstant();
+        long today = accessLogRepository.countByAdvertiserIdAndActionAndCreatedAtAfter(
+                advertiserId, AdvertiserAccessLog.ACTION_EXPORT, since);
+        if (today >= exportDailyMax) {
+            throw new PlanLimitExceededException(
+                    "오늘 내보내기 횟수(" + exportDailyMax + "회)를 모두 사용했습니다. 내일 다시 시도해주세요.");
+        }
+    }
+
+    /** 컬럼 = 접수일시·상태 + (리드들의 답변 라벨을 처음 등장 순서로). */
+    private List<List<String>> buildExportMatrix(List<Lead> leads) {
+        LinkedHashSet<String> answerCols = new LinkedHashSet<>();
+        for (Lead l : leads) {
+            if (l.getAnswers() != null) {
+                for (Map<String, Object> a : l.getAnswers()) {
+                    String label = str(a.get("label"));
+                    if (!label.isBlank()) {
+                        answerCols.add(label);
+                    }
+                }
+            }
+        }
+        List<String> header = new ArrayList<>();
+        header.add("접수일시");
+        header.add("상태");
+        header.addAll(answerCols);
+
+        List<List<String>> matrix = new ArrayList<>();
+        matrix.add(header);
+        for (Lead l : leads) {
+            Map<String, String> ans = new HashMap<>();
+            if (l.getAnswers() != null) {
+                for (Map<String, Object> a : l.getAnswers()) {
+                    ans.put(str(a.get("label")), str(a.get("value")));
+                }
+            }
+            List<String> row = new ArrayList<>(header.size());
+            row.add(l.getCreatedAt() != null ? DT.format(l.getCreatedAt()) : "");
+            String st = l.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : l.getAdvertiserStatus();
+            row.add(AdvertiserLeadStatus.label(st));
+            for (String c : answerCols) {
+                row.add(ans.getOrDefault(c, ""));
+            }
+            matrix.add(row);
+        }
+        return matrix;
+    }
+
+    /** 목록·내보내기가 공유하는 필터(상태·검색어·기간). grant 검증은 호출자 책임. */
+    private List<Lead> filterLeads(Long formId, String status, String q, String from, String to) {
+        List<Lead> all = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId);
+        List<Lead> filtered = new ArrayList<>();
+        Instant fromAt = startOfDay(from);
+        Instant toAt = endOfDay(to);
+        String needle = q == null ? null : q.trim().toLowerCase();
+        for (Lead lead : all) {
+            String s = lead.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : lead.getAdvertiserStatus();
+            if (status != null && !status.isBlank() && !status.equals(s)) {
+                continue;
+            }
+            if (fromAt != null && lead.getCreatedAt() != null && lead.getCreatedAt().isBefore(fromAt)) {
+                continue;
+            }
+            if (toAt != null && lead.getCreatedAt() != null && !lead.getCreatedAt().isBefore(toAt)) {
+                continue;
+            }
+            if (needle != null && !needle.isEmpty() && !matches(lead, needle)) {
+                continue;
+            }
+            filtered.add(lead);
+        }
+        return filtered;
+    }
+
+    private static String str(Object o) {
+        return o == null ? "" : o.toString();
+    }
+
+    private static String nn(String s) {
+        return s == null ? "" : s;
     }
 
     private String emailOf(Long advertiserId) {

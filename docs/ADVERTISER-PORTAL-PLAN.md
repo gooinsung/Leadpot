@@ -314,7 +314,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 | **A1** 기반·보안 골격 | V18 마이그레이션 / Role 확장 / **role→authority 컨버터** / 경로 화이트리스트 / subdomain nullable / refresh 시 active 재확인 | 광고주 토큰으로 `/api/forms`·`/api/leads`·`/api/landings` **전부 403** · 마케터 기존 기능 회귀 없음 |
 | **A2** 마케터 광고주 관리 | 초대 발급·수락·계정 생성 / 목록·수정·정지·삭제 / grant 부여(1:1 제약·별칭·만료) / 플랜 상한 | 초대→수락→로그인 성공 / 이미 붙은 폼 재부여 거부 / 플랜 상한 초과 거부 |
 | **A3** 광고주 포털 코어 | `AdvertiserLeadResponse` / 폼·리드 목록·상세 / 상태변경(고정5) / 메모(visibility) / **seen_at + 확인 배지** / 모바일 | 부여 폼만 노출·미부여 404 / 응답에 IP·UTM **부재 확인** / 마케터 목록에 확인 배지 |
-| **A4** 내보내기·감사 | 엑셀/CSV(배정분만) / 감사 로그 전 액션 / 다운로드 추적·워터마크·횟수 제한 | 다운로드 후 로그 기록 / 제한 초과 거부 / 마케터 화면에 이력 표시 |
+| **A4** 내보내기·감사 ✅ | 엑셀/CSV(배정분·화이트리스트 컬럼) / EXPORT 감사 로그 / 워터마크 / 일일 20회 상한 / 마케터 활동이력 모달 | `AdvertiserExportTest` 5개 통과 · 컬럼에 IP·UTM 없음 확인 |
 | **A5** 알림 ✅ | 텔레그램 대상 확장 / 광고주 메시지 정제 / `notification_logs` / `/client/integrations`(계정 단위) | `planDispatches` 대상 선정 테스트 7개 통과 · 실수신은 사용자 봇 필요 |
 | **A6** 대시보드·실시간 | 미확인 배너 / 폴링 갱신 / 간단 통계 | 새 리드 자동 등장 / 배너 카운트 정확 |
 | **A7** 부가 | 처리속도 리포트 / 리포트 다운로드(엑셀·인쇄PDF) / 화이트라벨 / 미리보기(읽기전용) | 지표 계산 검증 / 미리보기에서 쓰기 차단 확인 |
@@ -460,14 +460,17 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > 완전 무효화에는 `users.token_version` 같은 토큰 버전 필드가 필요하다 — 지금 범위에서는 과하다고 보고 보류.
 > (광고주 액세스 토큰 15분 + 계정 정지 시 즉시 차단은 이미 동작한다.)
 
-### A4. 내보내기 · 감사 로그  — 상태: ⬜ 예정 (A5 다음)
-- [ ] `POST /api/advertiser/leads/export` — 기존 `LeadExcelService` 재사용(배정분만)
-- [ ] 내보내기 파일 하단 워터마크(광고주 이메일·일시)
-- [ ] 일일 내보내기 횟수·건수 제한
-- [x] `advertiser_access_logs` 기록 — LOGIN(A2)·VIEW_LEAD·STATUS·MEMO(A3) **완료** / **EXPORT 만 남음**
-- [ ] 마케터 화면 활동 이력 탭 (`GET /api/advertisers/{id}/logs`)
-- [ ] 검증: 다운로드 후 로그 1행 / 제한 초과 거부 / 워터마크 확인
-- [ ] `main` 병합·푸시 + 문서 갱신
+### A4. 내보내기 · 감사 로그  — 상태: ✅ **완료** (2026-07-31)
+- [x] `POST /api/advertiser/leads/export` — 화면 필터(status·q·from·to) 반영, `LeadExcelService.dataXlsx`/CSV 재사용. **광고주 전용 매트릭스**(화이트리스트 컬럼: 접수일시·광고주상태·답변 — **IP·UTM·기기 제외**)
+- [x] 내보내기 파일 하단 워터마크(`다운로드: {광고주 이메일} / {일시}`)
+- [x] 일일 내보내기 **횟수** 제한 — `app.advertiser.export-daily-max`(기본 20). **건수 제한은 계정 단위 결정으로 생략**(사용자 확정 2026-07-31). `advertiser_access_logs` EXPORT 카운트로 판정(스키마 변경 없음)
+- [x] `advertiser_access_logs` 기록 — LOGIN(A2)·VIEW_LEAD·STATUS·MEMO(A3) + **EXPORT(A4)** 완료
+- [x] 마케터 화면 활동 이력 탭 (`GET /api/advertisers/{id}/logs`) — `/advertisers` 목록의 **'활동 이력'** 버튼 → 모달(일시·활동·상세·IP)
+- [x] 검증: `AdvertiserExportTest` 5개(화이트리스트 컬럼·워터마크·EXPORT 로그·권한없음 차단·일일상한 초과 거부) + 백엔드 전체 통과 / 프론트 빌드 통과
+- [ ] `main` 병합·푸시
+
+> **결정 기록**: 일일 제한은 **횟수만**(하루 20회, `APP_ADVERTISER_EXPORT_DAILY_MAX` 로 조정). 건수 제한은 단순화로 생략.
+> **내보내기 컬럼 = 화면 화이트리스트 그대로**(IP·UTM·기기 없음). 마케터 `exportMatrix`(IP/UTM 포함)는 재사용하지 않고 광고주 전용 매트릭스 신설.
 
 ### A5. 알림 확장  — 상태: ✅ **완료** (2026-07-31)
 - [x] `NotificationService` 발송 대상 목록화 (마케터 + grant 광고주) — `planDispatches()` 순수 조회로 분리(테스트 가능)

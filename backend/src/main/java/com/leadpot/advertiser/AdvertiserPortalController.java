@@ -1,14 +1,19 @@
 package com.leadpot.advertiser;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,7 +29,7 @@ import com.leadpot.integration.IntegrationService;
 import com.leadpot.integration.dto.IntegrationRequest;
 import com.leadpot.integration.dto.IntegrationResponse;
 import com.leadpot.integration.dto.TestResult;
-import org.springframework.web.bind.annotation.PutMapping;
+import com.leadpot.lead.LeadExcelService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -45,8 +50,11 @@ public class AdvertiserPortalController {
 
     private final AdvertiserLeadService leadService;
     private final IntegrationService integrationService;
+    private final LeadExcelService excelService;
 
-    public AdvertiserPortalController(AdvertiserLeadService leadService, IntegrationService integrationService) {
+    public AdvertiserPortalController(AdvertiserLeadService leadService, IntegrationService integrationService,
+            LeadExcelService excelService) {
+        this.excelService = excelService;
         this.leadService = leadService;
         this.integrationService = integrationService;
     }
@@ -113,6 +121,69 @@ public class AdvertiserPortalController {
     @GetMapping("/lead-statuses")
     public Map<String, String> statuses() {
         return AdvertiserLeadStatus.LABELS;
+    }
+
+    /**
+     * 배정받은 리드 내보내기(A4). 화면 필터(status·q·from·to)를 그대로 반영한다.
+     * 화이트리스트 컬럼(접수일시·상태·답변)만, 파일 하단 워터마크, EXPORT 감사 로그, 일일 횟수 상한.
+     * format=xlsx|csv(기본 xlsx).
+     */
+    @PostMapping("/leads/export")
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestParam(required = false) String format,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            HttpServletRequest http) {
+        List<List<String>> matrix = leadService.export(userId(jwt), formId, status, q, from, to, ClientIp.of(http));
+        boolean csv = "csv".equalsIgnoreCase(format);
+        String base = "leads_" + formId;
+        if (csv) {
+            byte[] out = withBom(toCsv(matrix));
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + ".csv\"")
+                    .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                    .body(out);
+        }
+        byte[] body = excelService.dataXlsx("리드", matrix);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + ".xlsx\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(body);
+    }
+
+    private static byte[] withBom(String csv) {
+        byte[] bom = { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF };
+        byte[] body = csv.getBytes(StandardCharsets.UTF_8);
+        byte[] out = new byte[bom.length + body.length];
+        System.arraycopy(bom, 0, out, 0, bom.length);
+        System.arraycopy(body, 0, out, bom.length, body.length);
+        return out;
+    }
+
+    private static String toCsv(List<List<String>> matrix) {
+        StringBuilder sb = new StringBuilder();
+        for (List<String> row : matrix) {
+            for (int i = 0; i < row.size(); i++) {
+                if (i > 0) {
+                    sb.append(',');
+                }
+                sb.append(csvCell(row.get(i)));
+            }
+            sb.append("\r\n");
+        }
+        return sb.toString();
+    }
+
+    /** CSV 셀 이스케이프(콤마·따옴표·개행이 있으면 큰따옴표로 감싸고 내부 따옴표는 2배). */
+    private static String csvCell(String v) {
+        String s = v == null ? "" : v;
+        if (s.contains(",") || s.contains("\"") || s.contains("\n") || s.contains("\r")) {
+            return "\"" + s.replace("\"", "\"\"") + "\"";
+        }
+        return s;
     }
 
     // ---------- 알림 연동(A5) ----------

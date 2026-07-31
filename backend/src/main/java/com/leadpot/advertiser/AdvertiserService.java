@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.advertiser.dto.AdvertiserLogResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
 import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
 import com.leadpot.advertiser.dto.GrantUpdateRequest;
@@ -81,6 +82,16 @@ public class AdvertiserService {
     @Transactional(readOnly = true)
     public User requireOwned(Long marketerId, Long advertiserId) {
         return loadOwned(marketerId, advertiserId);
+    }
+
+    /** 내 광고주의 활동 이력(최신순, 상한 200). 열람·상태변경·메모·내보내기·로그인 기록. */
+    @Transactional(readOnly = true)
+    public List<AdvertiserLogResponse> logs(Long marketerId, Long advertiserId, Integer limit) {
+        loadOwned(marketerId, advertiserId); // 내 광고주가 아니면 404
+        int size = limit == null || limit <= 0 ? 100 : Math.min(limit, 200);
+        return logRepository
+                .findByAdvertiserIdOrderByCreatedAtDesc(advertiserId, org.springframework.data.domain.PageRequest.of(0, size))
+                .stream().map(AdvertiserLogResponse::from).toList();
     }
 
     @Transactional

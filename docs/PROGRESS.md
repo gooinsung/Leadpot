@@ -20,7 +20,19 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A4(내보내기·감사이력)** — A1~A3 · A3-B · **A5 완료**
+> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A6(실시간 폴링)** — A1~A5 완료 (A6·A7만 남음, 부가)
+>
+> #### ✅ 2026-07-31 세션 완료 — **A4 내보내기·감사이력** (브랜치 `feature/a4-advertiser-export`)
+>
+> - **광고주 엑셀/CSV 내보내기** `POST /api/advertiser/leads/export` — 화면 필터(status·q·from·to) 반영. **화이트리스트 컬럼(접수일시·광고주상태·답변)만, IP·UTM·기기 제외**(마케터 exportMatrix 재사용 안 하고 광고주 전용 매트릭스 신설). `LeadExcelService.dataXlsx`/CSV·BOM 재사용.
+> - **워터마크**: 파일 맨 아래 `다운로드: {광고주 이메일} / {일시}` 행.
+> - **일일 상한**: `app.advertiser.export-daily-max`(기본 **20회**, `APP_ADVERTISER_EXPORT_DAILY_MAX`). `advertiser_access_logs` EXPORT 카운트로 판정 → **스키마 변경 없음**. 초과 시 `PlanLimitExceededException`(409). **건수 제한은 생략(사용자 결정)**.
+> - **EXPORT 감사 로그** 기록(권한 can_export 없으면 404 차단).
+> - **마케터 활동이력**: `GET /api/advertisers/{id}/logs` + `/advertisers` 목록의 **'활동 이력' 버튼 → 모달**(일시·활동·상세·IP). LOGIN·VIEW_LEAD·STATUS·MEMO·EXPORT.
+> - **검증**: `AdvertiserExportTest` 5개(화이트리스트 컬럼·워터마크·EXPORT 로그·권한없음 차단·일일상한) + 백엔드 전체 통과 · 프론트 tsc+prod 빌드.
+> - **다음**: `main` 병합·푸시(=CI 자동배포).
+>
+> #### (직전) A1~A3 · A3-B · A5 완료 — 아래 기록 참조
 >
 > **정본 문서 = [ADVERTISER-PORTAL-PLAN.md](ADVERTISER-PORTAL-PLAN.md)** — 착수 전 먼저 읽는다.
 > **진행상황 정본 = [§9-B 실행 체크리스트](ADVERTISER-PORTAL-PLAN.md#9-b-실행-체크리스트--이어받기용--여기가-진행상황-정본)**
@@ -52,10 +64,10 @@
 > - **테스트 62개 통과** (광고주 관련 45개 신설: 인가경계 6 · 권한규칙 11 · 로그인감사 3 · 리드격리 17 · 비번재설정 8)
 > - **Flyway V19 까지 Neon 적용 완료** → 다음 마이그레이션은 **V20**
 >
-> #### 👉 다음 = **A4 (내보내기·감사이력)** ← A5 완료 후
+> #### 👉 다음 = **A6 (실시간 폴링)** ← A4·A5 완료 후. A6·A7만 남음(둘 다 부가 기능)
 >
-> - **A4** 광고주 엑셀 내보내기(배정분만·기존 `LeadExcelService` 재사용) + 파일 하단 워터마크(광고주 이메일·일시) + 일일 내보내기 횟수·건수 제한 + **마케터 화면 활동이력 탭**(`GET /api/advertisers/{id}/logs`)
->   · 참고: 열람·상태변경·메모 감사기록은 **A3에서 이미 동작 중**. EXPORT 기록과 조회 UI 만 남음
+> - **A6** `GET /api/advertiser/leads/updates?since=` + 프론트 30초 폴링 자동 갱신. 참고: 대시보드 API·미확인 배너는 **A3에서 이미 완료** → 폴링만 붙이면 됨.
+> - **A7** 처리속도 리포트 / 리포트 엑셀·인쇄PDF / **화이트라벨 완성**(마케터가 로고·색상 설정하는 UI만 남음) / 광고주 화면 미리보기(읽기전용·IMPERSONATE 로그).
 > · ⚠️ A5 관찰: 폼 1건 제출에 발송이 N+1건이 된다(마케터+광고주). `NotificationService` 스레드풀이 2개라 광고주가 아주 많으면 지연 가능(지금은 문제 없음, 인지만)
 > - **A6** 실시간 갱신(30초 폴링) · 참고: 대시보드 API·미확인 배너는 **A3에서 이미 완료**
 > - **A7** 처리속도 리포트 / 리포트 엑셀·인쇄PDF / **화이트라벨 완성** / 광고주 화면 미리보기(읽기전용)

@@ -12,6 +12,9 @@ public interface AdvertiserAccessLogRepository extends JpaRepository<AdvertiserA
 
     List<AdvertiserAccessLog> findByAdvertiserIdOrderByCreatedAtDesc(Long advertiserId, Pageable pageable);
 
+    /** 오늘(또는 임의 시점 이후) 특정 액션 횟수 — 내보내기 일일 상한 판정용. */
+    long countByAdvertiserIdAndActionAndCreatedAtAfter(Long advertiserId, String action, Instant since);
+
     /** 광고주별 마지막 로그인 시각(목록 표시용). */
     @Query("select max(l.createdAt) from AdvertiserAccessLog l"
             + " where l.advertiserId = :advertiserId and l.action = 'LOGIN'")

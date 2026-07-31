@@ -864,6 +864,23 @@ export function deleteAdvertiser(id: number): Promise<void> {
   return request<void>(`/api/advertisers/${id}`, { method: "DELETE" });
 }
 
+/** 광고주 활동 이력 한 줄(개인정보 취급 추적 · 분쟁 방어 증거). */
+export interface AdvertiserLog {
+  id: number;
+  action: string;
+  actionLabel: string;
+  formId: number | null;
+  leadId: number | null;
+  detail: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+/** 마케터 화면: 내 광고주의 활동 이력(최신순). */
+export function getAdvertiserLogs(advertiserId: number, limit?: number): Promise<AdvertiserLog[]> {
+  const qs = limit ? `?limit=${limit}` : "";
+  return request<AdvertiserLog[]>(`/api/advertisers/${advertiserId}/logs${qs}`);
+}
+
 /** 권한 부여 화면 데이터(내 리드폼 전체 + 부여 상태 + 선점 여부). */
 export function listGrants(advertiserId: number): Promise<GrantView[]> {
   return request<GrantView[]>(`/api/advertisers/${advertiserId}/grants`);
@@ -1087,6 +1104,36 @@ export function updateAdvertiserIntegration(input: IntegrationSettings): Promise
 /** 내 텔레그램 채널 테스트 발송. */
 export function testAdvertiserIntegration(): Promise<IntegrationTestResult> {
   return request<IntegrationTestResult>("/api/advertiser/integrations/test", { method: "POST" });
+}
+
+/**
+ * 배정받은 리드 내보내기(A4). 화면 필터를 그대로 반영해 서버가 파일을 만든다.
+ * 화이트리스트 컬럼(접수일시·상태·답변)만 + 하단 워터마크. 일일 횟수 상한 초과 시 에러.
+ */
+export async function downloadAdvertiserLeads(
+  formId: number,
+  opts: { format: "csv" | "xlsx"; status?: string; q?: string; from?: string; to?: string; formName?: string },
+): Promise<void> {
+  const tokens = getTokens();
+  const p = new URLSearchParams({ formId: String(formId), format: opts.format });
+  if (opts.status) p.set("status", opts.status);
+  if (opts.q) p.set("q", opts.q);
+  if (opts.from) p.set("from", opts.from);
+  if (opts.to) p.set("to", opts.to);
+  const res = await fetch(`${BASE_URL}/api/advertiser/leads/export?${p.toString()}`, {
+    method: "POST",
+    headers: { ...(tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}) },
+  });
+  if (!res.ok) throw await parseError(res);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${opts.formName || "leads"}.${opts.format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // ---------- 초대 수락 (비로그인 공개) ----------
