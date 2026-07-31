@@ -1,9 +1,11 @@
 package com.leadpot.lead;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,9 +21,11 @@ import com.leadpot.form.FormBlock;
 import com.leadpot.form.FormService;
 import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormResponse;
+import com.leadpot.form.dto.FormSummary;
 import com.leadpot.integration.NotificationService;
 import com.leadpot.ipblock.IpBlockService;
 import com.leadpot.lead.dto.ImportResult;
+import com.leadpot.lead.dto.InboxResponse;
 import com.leadpot.lead.dto.LeadNoteResponse;
 import com.leadpot.lead.dto.LeadResponse;
 import com.leadpot.lead.dto.LeadSubmitRequest;
@@ -133,6 +137,114 @@ public class LeadService {
                 .filter(l -> st.isEmpty() || st.equals(l.getStatus()))
                 .filter(l -> needle.isEmpty() || matchesQuery(l, needle))
                 .map(LeadResponse::from).toList();
+    }
+
+    // ---------- 통합 인박스 (U1) ----------
+
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final String STATUS_NEW = "NEW";
+    private static final int INBOX_DEFAULT_SIZE = 25;
+    private static final int INBOX_MAX_SIZE = 100;
+
+    /**
+     * 통합 인박스: 내 <b>모든 리드폼의 활성 리드</b>를 한 스트림으로. 필터(상태·검색·출처폼·기간·미확인)·페이징.
+     * 왼쪽 rail 카운트는 <b>필터와 무관하게 전체 기준</b>으로 계산한다. "미확인" = 상태 {@code NEW}(신규).
+     */
+    @Transactional(readOnly = true)
+    public InboxResponse inbox(Long ownerId, String status, String q, Long formId,
+            String from, String to, boolean unseen, Integer page, Integer size) {
+        // 1) 내 폼(formId → 이름)
+        Map<Long, String> nameById = new LinkedHashMap<>();
+        for (FormSummary f : formService.list(ownerId)) {
+            nameById.put(f.id(), f.name());
+        }
+        int pageSize = size == null || size <= 0 ? INBOX_DEFAULT_SIZE : Math.min(size, INBOX_MAX_SIZE);
+        if (nameById.isEmpty()) {
+            return new InboxResponse(List.of(), 0, 0, pageSize,
+                    new InboxResponse.Counts(0, 0, 0, List.of(), Map.of()));
+        }
+        List<Long> formIds = new ArrayList<>(nameById.keySet());
+
+        // 2) 전체 활성 리드(최신순)
+        List<Lead> all = leadRepository.findByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(formIds);
+
+        // 3) 카운트 — 전체 기준(rail 숫자용)
+        Instant todayStart = LocalDate.now(KST).atStartOfDay(KST).toInstant();
+        long unseenCount = 0;
+        long todayCount = 0;
+        Map<Long, Long> perForm = new LinkedHashMap<>();
+        formIds.forEach(id -> perForm.put(id, 0L));
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        for (Lead l : all) {
+            String s = l.getStatus() == null ? STATUS_NEW : l.getStatus();
+            byStatus.merge(s, 1L, Long::sum);
+            if (STATUS_NEW.equals(s)) {
+                unseenCount++;
+            }
+            if (l.getCreatedAt() != null && !l.getCreatedAt().isBefore(todayStart)) {
+                todayCount++;
+            }
+            perForm.merge(l.getFormId(), 1L, Long::sum);
+        }
+        List<InboxResponse.FormCount> byForm = new ArrayList<>();
+        for (Long id : formIds) {
+            byForm.add(new InboxResponse.FormCount(id, nameById.get(id), perForm.getOrDefault(id, 0L)));
+        }
+
+        // 4) 필터
+        Instant fromAt = startOfDay(from);
+        Instant toAt = endOfDay(to);
+        String st = status == null ? "" : status.trim();
+        String needle = q == null ? "" : q.trim().toLowerCase();
+        List<Lead> filtered = new ArrayList<>();
+        for (Lead l : all) {
+            String s = l.getStatus() == null ? STATUS_NEW : l.getStatus();
+            if (formId != null && !formId.equals(l.getFormId())) {
+                continue;
+            }
+            if (unseen && !STATUS_NEW.equals(s)) {
+                continue;
+            }
+            if (!st.isEmpty() && !st.equals(s)) {
+                continue;
+            }
+            if (fromAt != null && l.getCreatedAt() != null && l.getCreatedAt().isBefore(fromAt)) {
+                continue;
+            }
+            if (toAt != null && l.getCreatedAt() != null && !l.getCreatedAt().isBefore(toAt)) {
+                continue;
+            }
+            if (!needle.isEmpty() && !matchesQuery(l, needle)) {
+                continue;
+            }
+            filtered.add(l);
+        }
+
+        // 5) 페이징
+        int pageIndex = page == null || page < 0 ? 0 : page;
+        int start = Math.min(pageIndex * pageSize, filtered.size());
+        int end = Math.min(start + pageSize, filtered.size());
+        List<InboxResponse.Item> items = filtered.subList(start, end).stream()
+                .map(l -> new InboxResponse.Item(l.getId(), l.getFormId(), nameById.get(l.getFormId()),
+                        l.getAnswers(), l.getStatus(), l.getTags(), l.getCreatedAt()))
+                .toList();
+
+        return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
+                new InboxResponse.Counts(all.size(), unseenCount, todayCount, byForm, byStatus));
+    }
+
+    private static Instant startOfDay(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(date.trim()).atStartOfDay(KST).toInstant();
+    }
+
+    private static Instant endOfDay(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(date.trim()).plusDays(1).atStartOfDay(KST).toInstant();
     }
 
     /** 답변 값/라벨에 검색어(소문자)가 포함되는지. */

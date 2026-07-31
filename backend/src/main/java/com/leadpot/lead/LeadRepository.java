@@ -21,6 +21,9 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
 
     List<Lead> findTop10ByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(java.util.Collection<Long> formIds);
 
+    // 통합 인박스(U1): 내 모든 폼의 활성 리드 합산(최신순).
+    List<Lead> findByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(java.util.Collection<Long> formIds);
+
     // 중복 방지: 기간 내 활성 리드(항목 값 대조용). 휴지통 리드는 중복으로 보지 않음.
     List<Lead> findByFormIdAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(Long formId, java.time.Instant after);
 

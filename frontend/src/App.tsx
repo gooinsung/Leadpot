@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { LeadInboxPage } from "./pages/LeadInboxPage";
 import { FormsListPage } from "./pages/FormsListPage";
 import { FormEditPage } from "./pages/FormEditPage";
 import { ConsentDocsListPage } from "./pages/ConsentDocsListPage";
@@ -54,6 +55,14 @@ function App() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inbox"
+        element={
+          <ProtectedRoute>
+            <LeadInboxPage />
           </ProtectedRoute>
         }
       />

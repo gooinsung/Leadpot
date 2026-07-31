@@ -425,6 +425,55 @@ export function listLeads(formId: number, filter: LeadFilter = {}): Promise<Lead
   return request<Lead[]>(`/api/leads?${p.toString()}`);
 }
 
+// ---------- 통합 인박스 (U1) ----------
+export interface InboxItem {
+  id: number;
+  formId: number;
+  formName: string;
+  answers: LeadAnswer[];
+  status: string;
+  tags: string[] | null;
+  createdAt: string;
+}
+export interface InboxCounts {
+  all: number;
+  unseen: number;
+  today: number;
+  byForm: { formId: number; formName: string; count: number }[];
+  byStatus: Record<string, number>;
+}
+export interface InboxResponse {
+  items: InboxItem[];
+  total: number;
+  page: number;
+  size: number;
+  counts: InboxCounts;
+}
+export interface InboxFilter {
+  status?: string;
+  q?: string;
+  formId?: number;
+  from?: string;
+  to?: string;
+  unseen?: boolean;
+  page?: number;
+  size?: number;
+}
+/** 내 모든 리드폼의 리드를 한 스트림으로(필터·페이징 + rail 카운트). */
+export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {
+  const p = new URLSearchParams();
+  if (filter.status) p.set("status", filter.status);
+  if (filter.q) p.set("q", filter.q);
+  if (filter.formId != null) p.set("formId", String(filter.formId));
+  if (filter.from) p.set("from", filter.from);
+  if (filter.to) p.set("to", filter.to);
+  if (filter.unseen) p.set("unseen", "true");
+  if (filter.page != null) p.set("page", String(filter.page));
+  if (filter.size != null) p.set("size", String(filter.size));
+  const qs = p.toString();
+  return request<InboxResponse>(`/api/leads/inbox${qs ? `?${qs}` : ""}`);
+}
+
 /** 리드를 휴지통으로 이동(soft delete). */
 export function deleteLead(id: number): Promise<void> {
   return request<void>(`/api/leads/${id}`, { method: "DELETE" });

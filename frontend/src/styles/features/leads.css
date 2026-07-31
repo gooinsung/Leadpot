@@ -74,3 +74,111 @@
 .lead-status-select.b-wait { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
 .lead-status-select.b-bad { background: var(--rose-soft); color: var(--rose); border-color: transparent; }
 
+/* ============================================================
+   통합 인박스(U1) — LeadInboxPage
+   3-pane: 필터 rail · 목록 · 사이드 패널. 넓은 프레임(풀폭).
+   가독성 우선: 넉넉한 행 높이 · 미확인 강조 · 상태색 일관.
+   ============================================================ */
+
+/* 마케터 리드 상태색: NEW=인디고(주의) · IN_PROGRESS=앰버 · DONE=그린 · SPAM=로즈 */
+.ld-NEW { --ld: var(--indigo); --ld-soft: var(--indigo-soft); --ld-strong: var(--indigo-strong); }
+.ld-IN_PROGRESS { --ld: var(--amber); --ld-soft: var(--amber-soft); --ld-strong: var(--amber); }
+.ld-DONE { --ld: var(--green); --ld-soft: var(--green-soft); --ld-strong: var(--green-strong); }
+.ld-SPAM { --ld: var(--rose); --ld-soft: var(--rose-soft); --ld-strong: var(--rose); }
+
+.ld-pill { background: var(--ld-soft); color: var(--ld-strong); border-color: transparent; font-weight: 700; }
+.ld-dot { width: 8px; height: 8px; border-radius: 3px; display: inline-block; background: var(--ld); flex: none; }
+
+/* 3-pane 셸: 상단바(60px) 아래 전체 높이, 풀폭 */
+.inbox-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: calc(100vh - 60px);
+}
+@media (max-width: 900px) {
+  .inbox-shell { flex-direction: column; }
+}
+
+/* ── PANE 1 · 필터 rail ── */
+.inbox-rail {
+  width: 236px;
+  flex: none;
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+  overflow-y: auto;
+  background: var(--surface);
+}
+@media (max-width: 900px) { .inbox-rail { width: 100%; border-right: none; border-bottom: 1px solid var(--border); } }
+.inbox-search { margin-bottom: 14px; font-size: 13px; }
+.rail-group {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); margin: 16px 8px 6px;
+}
+.rail-group:first-of-type { margin-top: 4px; }
+.rail-item {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--muted);
+  padding: 8px 10px; border-radius: 9px; border: none; background: transparent;
+  cursor: pointer; text-align: left; margin-bottom: 1px;
+}
+.rail-item:hover { background: var(--surface-2); }
+.rail-item.on { background: var(--indigo-soft); color: var(--indigo-strong); }
+.rail-item.muted { color: var(--muted); }
+.rail-item-label { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-count { font-size: 11.5px; font-weight: 700; color: var(--muted); background: var(--surface-2); border-radius: 999px; padding: 1px 8px; flex: none; font-variant-numeric: tabular-nums; }
+.rail-item.on .rail-count { background: var(--indigo); color: #fff; }
+
+/* ── PANE 2 · 목록 ── */
+.inbox-list { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px; }
+.inbox-list-head { margin-bottom: 14px; }
+.inbox-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.inbox-sub { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.inbox-empty { color: var(--muted); padding: 40px 0; text-align: center; }
+.inbox-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.inbox-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px;
+  gap: 14px; align-items: center;
+  padding: 14px 16px; border: none; border-bottom: 1px solid var(--border);
+  background: transparent; cursor: pointer; text-align: left; font: inherit; width: 100%;
+}
+.inbox-row:last-child { border-bottom: none; }
+.inbox-row:hover { background: var(--surface-2); }
+.inbox-row.active { background: var(--indigo-soft); }
+.ir-name { font-size: 14.5px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; min-width: 0; }
+.inbox-row.unread .ir-name { font-weight: 800; }
+.ir-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--indigo); flex: none; }
+.ir-phone { font-size: 13.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ir-src { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 7px; padding: 2px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; justify-self: start; max-width: 100%; }
+.ir-time { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.inbox-pager { margin-top: 4px; }
+@media (max-width: 720px) {
+  .inbox-row { grid-template-columns: 1fr auto; row-gap: 6px; }
+  .ir-phone, .ir-src { grid-column: 1; }
+  .ir-time { grid-row: 1; }
+}
+
+/* ── PANE 3 · 사이드 패널 ── */
+.inbox-panel {
+  width: 400px; flex: none; border-left: 1px solid var(--border);
+  background: var(--surface); overflow-y: auto; display: flex; flex-direction: column;
+}
+@media (max-width: 900px) { .inbox-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); } }
+.ip-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); }
+.ip-title { font-weight: 800; font-size: 15px; }
+.ip-body { padding: 16px 18px; }
+.ip-section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 16px 0 8px; }
+.ip-section-label:first-child { margin-top: 0; }
+.ip-answers { display: flex; flex-direction: column; gap: 6px; }
+.ip-answer { display: flex; gap: 12px; font-size: 14px; }
+.ip-k { min-width: 84px; color: var(--muted); font-weight: 600; flex: none; }
+.ip-v { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.ip-status-picker { display: flex; flex-wrap: wrap; gap: 7px; }
+.ld-chip { border-color: var(--border); }
+.ld-chip.on { background: var(--ld-strong); border-color: transparent; color: #fff; font-weight: 800; }
+.ip-notes { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ip-note { background: var(--surface-2); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13.5px; }
+.ip-note.sys { color: var(--muted); }
+.ip-note-meta { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
+.ip-actions { display: flex; gap: 8px; justify-content: space-between; margin-top: 12px; }
+

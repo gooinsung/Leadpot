@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.leadpot.lead.dto.ImportResult;
+import com.leadpot.lead.dto.InboxResponse;
 import com.leadpot.lead.dto.LeadExportRequest;
 import com.leadpot.lead.dto.LeadNoteResponse;
 import com.leadpot.lead.dto.LeadResponse;
@@ -51,6 +52,23 @@ public class LeadController {
     @GetMapping("/count")
     public Map<String, Long> count(@AuthenticationPrincipal Jwt jwt) {
         return Map.of("total", leadService.countByOwner(userId(jwt)));
+    }
+
+    /**
+     * 통합 인박스(U1): 내 모든 리드폼의 리드를 한 스트림으로. 필터·페이징 + 사이드 rail 카운트.
+     * unseen=true 면 미확인(신규 NEW)만.
+     */
+    @GetMapping("/inbox")
+    public InboxResponse inbox(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long formId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false, defaultValue = "false") boolean unseen,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return leadService.inbox(userId(jwt), status, q, formId, from, to, unseen, page, size);
     }
 
     /** 리드 단건 상세(본인 리드폼만). */

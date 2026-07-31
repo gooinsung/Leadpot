@@ -29,6 +29,9 @@ export function TopBar() {
               <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
                 대시보드
               </NavLink>
+              <NavLink to="/inbox" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+                리드
+              </NavLink>
               <NavLink to="/forms" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
                 리드폼
               </NavLink>
