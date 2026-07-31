@@ -96,13 +96,14 @@
 .ld-dot { width: 8px; height: 8px; border-radius: 3px; display: inline-block; background: var(--ld); flex: none; }
 
 /* 3-pane 셸: 상단바(60px) 아래 전체 높이, 풀폭 */
+/* 넓은 화면은 좌측 LNB 옆이라 위쪽 바가 없다. 좁은 화면에만 상단 바(56px)를 뺀다. */
 .inbox-shell {
   display: flex;
   align-items: stretch;
-  min-height: calc(100vh - 60px);
+  min-height: 100vh;
 }
 @media (max-width: 900px) {
-  .inbox-shell { flex-direction: column; }
+  .inbox-shell { flex-direction: column; min-height: calc(100vh - 56px); }
 }
 
 /* ── PANE 1 · 필터 rail ── */
