@@ -355,10 +355,11 @@ export function LeadsListPage() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }} title="접수일시(KST) 범위로 검색">
-            <input className="input" type="date" style={{ width: 150 }} value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} aria-label="접수 시작일" />
+          {/* 좁은 화면에서 두 날짜 입력이 줄바꿈되지 않아 문서 폭을 넘겼다 → wrap + 축소 허용 */}
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }} title="접수일시(KST) 범위로 검색">
+            <input className="input" type="date" style={{ width: 150, maxWidth: "100%" }} value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} aria-label="접수 시작일" />
             <span className="dash-sub" style={{ fontSize: 12 }}>~</span>
-            <input className="input" type="date" style={{ width: 150 }} value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} aria-label="접수 종료일" />
+            <input className="input" type="date" style={{ width: 150, maxWidth: "100%" }} value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} aria-label="접수 종료일" />
           </div>
           {allTags.length > 0 && (
             <select className="input" style={{ width: 140 }} value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
