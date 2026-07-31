@@ -1,6 +1,8 @@
 package com.leadpot.advertiser;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
+import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
 import com.leadpot.advertiser.dto.BrandSettings;
 import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
@@ -29,6 +32,8 @@ import com.leadpot.common.error.NotFoundException;
 import com.leadpot.common.error.PlanLimitExceededException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
+import com.leadpot.lead.Lead;
+import com.leadpot.lead.LeadRepository;
 
 /**
  * 마케터가 자기 광고주 하위계정을 관리하는 서비스.
@@ -44,6 +49,7 @@ public class AdvertiserService {
     private final AdvertiserFormGrantRepository grantRepository;
     private final AdvertiserAccessLogRepository logRepository;
     private final AdvertiserInviteRepository inviteRepository;
+    private final LeadRepository leadRepository;
     private final int maxFree;
     private final int maxPro;
 
@@ -52,6 +58,7 @@ public class AdvertiserService {
             AdvertiserFormGrantRepository grantRepository,
             AdvertiserAccessLogRepository logRepository,
             AdvertiserInviteRepository inviteRepository,
+            LeadRepository leadRepository,
             @Value("${app.advertiser.max-free}") int maxFree,
             @Value("${app.advertiser.max-pro}") int maxPro) {
         this.userRepository = userRepository;
@@ -59,6 +66,7 @@ public class AdvertiserService {
         this.grantRepository = grantRepository;
         this.logRepository = logRepository;
         this.inviteRepository = inviteRepository;
+        this.leadRepository = leadRepository;
         this.maxFree = maxFree;
         this.maxPro = maxPro;
     }
@@ -115,6 +123,58 @@ public class AdvertiserService {
         return userRepository.findById(marketerId)
                 .filter(u -> u.getRole() != Role.ADVERTISER)
                 .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다."));
+    }
+
+    // ---------- 처리속도 리포트(A7, 마케터 관점) ----------
+
+    /**
+     * 내 광고주의 처리속도 리포트 — 그 광고주에게 부여된 <b>모든 유효 리드폼의 리드를 합산</b>한다.
+     * 광고주 자기 리포트(폼 1개)와 같은 지표를 쓰되 범위만 넓힌다(광고주 실적 비교용).
+     */
+    @Transactional(readOnly = true)
+    public AdvertiserReportResponse responseTimeReport(Long marketerId, Long advertiserId, String from, String to) {
+        User adv = loadOwned(marketerId, advertiserId);
+        Instant fromAt = startOfDay(from);
+        Instant toAt = endOfDay(to);
+
+        List<Lead> leads = new ArrayList<>();
+        Instant now = Instant.now();
+        for (AdvertiserFormGrant grant : grantRepository.findByAdvertiserId(advertiserId)) {
+            if (!grant.isEffective(now)) {
+                continue;
+            }
+            // 폼이 실제로 내 것인지 재확인(방어).
+            if (formRepository.findByIdAndOwnerId(grant.getFormId(), marketerId).isEmpty()) {
+                continue;
+            }
+            for (Lead lead : leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(grant.getFormId())) {
+                if (fromAt != null && lead.getCreatedAt() != null && lead.getCreatedAt().isBefore(fromAt)) {
+                    continue;
+                }
+                if (toAt != null && lead.getCreatedAt() != null && !lead.getCreatedAt().isBefore(toAt)) {
+                    continue;
+                }
+                leads.add(lead);
+            }
+        }
+        String name = adv.getCompany() != null && !adv.getCompany().isBlank() ? adv.getCompany() : adv.getName();
+        return AdvertiserReportResponse.from(leads, null, name, from, to);
+    }
+
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+    private static Instant startOfDay(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(date.trim()).atStartOfDay(KST).toInstant();
+    }
+
+    private static Instant endOfDay(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(date.trim()).plusDays(1).atStartOfDay(KST).toInstant();
     }
 
     /** 내 광고주의 활동 이력(최신순, 상한 200). 열람·상태변경·메모·내보내기·로그인 기록. */

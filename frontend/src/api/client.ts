@@ -881,6 +881,19 @@ export function getAdvertiserLogs(advertiserId: number, limit?: number): Promise
   return request<AdvertiserLog[]>(`/api/advertisers/${advertiserId}/logs${qs}`);
 }
 
+/** 마케터 화면: 내 광고주의 처리속도 리포트(배정 폼 전체 합산). AdvertiserReport 타입 재사용. */
+export function getAdvertiserResponseReport(
+  advertiserId: number,
+  from?: string,
+  to?: string,
+): Promise<AdvertiserReport> {
+  const p = new URLSearchParams();
+  if (from) p.set("from", from);
+  if (to) p.set("to", to);
+  const qs = p.toString() ? `?${p.toString()}` : "";
+  return request<AdvertiserReport>(`/api/advertisers/${advertiserId}/reports/response-time${qs}`);
+}
+
 /** 화이트라벨(마케터 브랜드) — 광고주 화면 상단에 표시되는 로고·색상. */
 export interface BrandSettings {
   logoUrl: string | null;

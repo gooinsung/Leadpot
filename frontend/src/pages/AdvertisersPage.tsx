@@ -4,6 +4,7 @@ import {
   cancelInvite,
   deleteAdvertiser,
   getAdvertiserLogs,
+  getAdvertiserResponseReport,
   inviteUrl,
   issueInvite,
   issuePasswordReset,
@@ -15,6 +16,7 @@ import {
   updateAdvertiser,
   type AdvertiserInvite,
   type AdvertiserLog,
+  type AdvertiserReport,
   type AdvertiserSummary,
   type PasswordResetIssued,
 } from "../api/client";
@@ -24,6 +26,17 @@ import { GrantEditor } from "../components/GrantEditor";
 import { BrandSettingsCard } from "../components/BrandSettingsCard";
 
 const fmt = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR") : "-");
+
+/** 초 → 사람이 읽는 시간(분/시간). null 이면 '—'. */
+function fmtDuration(sec: number | null): string {
+  if (sec == null) return "—";
+  if (sec < 60) return `${sec}초`;
+  const m = Math.round(sec / 60);
+  if (m < 60) return `${m}분`;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return mm ? `${h}시간 ${mm}분` : `${h}시간`;
+}
 
 export function AdvertisersPage() {
   const [items, setItems] = useState<AdvertiserSummary[]>([]);
@@ -59,6 +72,24 @@ export function AdvertisersPage() {
       setLogs([]);
     } finally {
       setLogsLoading(false);
+    }
+  }
+
+  // 처리속도 리포트 모달
+  const [reportTarget, setReportTarget] = useState<AdvertiserSummary | null>(null);
+  const [report, setReport] = useState<AdvertiserReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  async function openReport(a: AdvertiserSummary) {
+    setReportTarget(a);
+    setReport(null);
+    setReportLoading(true);
+    try {
+      setReport(await getAdvertiserResponseReport(a.id));
+    } catch {
+      setReport(null);
+    } finally {
+      setReportLoading(false);
     }
   }
 
@@ -323,6 +354,13 @@ export function AdvertisersPage() {
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"
+                          onClick={() => openReport(a)}
+                          title="접수→열람/상태 평균, 미확인율 등 처리속도"
+                        >
+                          리포트
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
                           onClick={() => onIssueReset(a)}
                           title="광고주가 비밀번호를 잊었을 때 재설정 링크를 발급합니다"
                         >
@@ -569,6 +607,65 @@ export function AdvertisersPage() {
             load();
           }}
         />
+      )}
+
+      {/* 처리속도 리포트 모달 */}
+      {reportTarget && (
+        <div className="lead-modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setReportTarget(null)}>
+          <div className="card lead-modal invite-modal" role="dialog" aria-modal="true">
+            <div className="lead-modal-head">
+              <div>
+                <p className="eyebrow" style={{ margin: 0 }}>
+                  {reportTarget.company || reportTarget.email}
+                </p>
+                <h2 style={{ margin: "4px 0 0" }}>처리속도 리포트</h2>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setReportTarget(null)}>
+                닫기
+              </button>
+            </div>
+            <div className="lead-modal-body">
+              {reportLoading ? (
+                <p className="dash-sub">불러오는 중…</p>
+              ) : !report ? (
+                <p className="dash-sub">리포트를 불러오지 못했습니다.</p>
+              ) : report.total === 0 ? (
+                <p className="dash-sub">배정된 리드폼에 아직 리드가 없습니다.</p>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
+                    <div className="card card-pad">
+                      <span className="ck-label">총 접수</span>
+                      <div className="ck-val" style={{ fontSize: 22 }}>{report.total.toLocaleString()}</div>
+                    </div>
+                    <div className="card card-pad">
+                      <span className="ck-label">미확인율</span>
+                      <div className="ck-val" style={{ fontSize: 22 }}>{Math.round(report.unseenRate * 100)}%</div>
+                    </div>
+                    <div className="card card-pad">
+                      <span className="ck-label">평균 확인까지</span>
+                      <div className="ck-val" style={{ fontSize: 18 }}>{fmtDuration(report.avgSecondsToSeen)}</div>
+                    </div>
+                    <div className="card card-pad">
+                      <span className="ck-label">평균 처리까지</span>
+                      <div className="ck-val" style={{ fontSize: 18 }}>{fmtDuration(report.avgSecondsToStatus)}</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {report.statusCounts.map((s) => (
+                      <span key={s.status} className={`pill st-${s.status}`}>
+                        {s.label} {s.count}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="dash-sub" style={{ fontSize: 12, marginTop: 12 }}>
+                    이 광고주에게 배정된 <b>모든 리드폼</b>을 합산한 값입니다. '평균 처리까지'는 광고주의 상태 변경 시각 기준입니다.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 활동 이력 모달 */}

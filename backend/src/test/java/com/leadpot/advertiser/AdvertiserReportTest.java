@@ -1,6 +1,7 @@
 package com.leadpot.advertiser;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.advertiser.dto.GrantUpdateRequest;
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
+import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
 import com.leadpot.form.FormType;
@@ -98,6 +100,36 @@ class AdvertiserReportTest {
         assertThat(r.unseenRate()).isEqualTo(0);
     }
 
+    @Test
+    @DisplayName("마케터 리포트는 광고주의 여러 폼 리드를 합산한다")
+    void marketerReportAggregatesAcrossForms() {
+        // form 에 1건, 두 번째 폼에 2건 → 총 3건 합산
+        saveLead();
+        Form form2 = formRepository.save(new Form(marketer.getId(), "리포트폼2", FormType.BASIC));
+        saveLeadOn(form2);
+        saveLeadOn(form2);
+        advertiserService.replaceGrants(marketer.getId(), advertiser.getId(),
+                new GrantUpdateRequest(List.of(
+                        new GrantUpdateRequest.Item(form.getId(), null, null, true, true, true),
+                        new GrantUpdateRequest.Item(form2.getId(), null, null, true, true, true))));
+
+        AdvertiserReportResponse r =
+                advertiserService.responseTimeReport(marketer.getId(), advertiser.getId(), null, null);
+        assertThat(r.total()).isEqualTo(3);
+        assertThat(r.formId()).isNull(); // 합산이라 특정 폼이 아님
+    }
+
+    @Test
+    @DisplayName("다른 마케터의 광고주 리포트는 404")
+    void otherMarketerCannotReport() {
+        User other = userRepository.save(new User("rep-m2@test.local",
+                passwordEncoder.encode("pw12345678"), "마케터2", null));
+        other.setSubdomain("rep-m2");
+        userRepository.save(other);
+        assertThatThrownBy(() -> advertiserService.responseTimeReport(other.getId(), advertiser.getId(), null, null))
+                .isInstanceOf(NotFoundException.class);
+    }
+
     private User marketer() {
         User u = new User("rep-m@test.local", passwordEncoder.encode("pw12345678"), "마케터", null);
         u.setSubdomain("rep-m");
@@ -105,8 +137,12 @@ class AdvertiserReportTest {
     }
 
     private Lead saveLead() {
+        return saveLeadOn(form);
+    }
+
+    private Lead saveLeadOn(Form f) {
         Lead l = new Lead();
-        l.setFormId(form.getId());
+        l.setFormId(f.getId());
         l.setAnswers(List.of(Map.of("label", "이름", "value", "홍길동")));
         return leadRepository.save(l);
     }

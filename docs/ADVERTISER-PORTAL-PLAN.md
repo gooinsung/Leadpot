@@ -495,13 +495,14 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 > **설계 기록**: 별도 `updates` 엔드포인트(가벼운 count)로 새 리드만 감지. 프론트는 유휴면 자동 reload, 아니면 배너로만 알림 → **모바일에서 스크롤·입력 중 화면이 튀지 않음**. 기준선(since)은 formId 바뀔 때만 리셋.
 
 ### A7. 부가 기능  — 상태: 🔄 진행 중 (화이트라벨·광고주 리포트 완료, 미리보기 남음)
-- [x] **처리속도 리포트(광고주 화면)** (2026-07-31) — `GET /api/advertiser/reports?formId=&from=&to=`: 접수→최초열람 평균·접수→상태변경 평균·미확인율·상태 분포. `/client/report` 화면(리드폼·기간 선택·KPI 카드·상태 막대) + **`@media print` 인쇄(PDF 저장)**
-  - ⚠️ "접수→첫 상태변경"은 `advertiser_status_at`(광고주 전용·최근 변경 시각)으로 계산 — 대부분 1회라 실질 동일. "첫" 정밀값은 향후 필요 시
-  - ⏳ **마케터측 리포트**(`GET /api/advertisers/{id}/reports/response-time`, 광고주별 집계)는 남김 — 다음 조각
+- [x] **처리속도 리포트** (2026-07-31) — 지표 계산은 `AdvertiserReportResponse.from(leads,...)` 정적 팩토리로 추출해 **광고주·마케터 공용**
+  - **광고주 화면**: `GET /api/advertiser/reports?formId=&from=&to=`(폼 1개) + `/client/report`(리드폼·기간·KPI 카드·상태 막대·**`@media print` 인쇄PDF**)
+  - **마케터 화면**: `GET /api/advertisers/{id}/reports/response-time`(광고주의 **배정 폼 전체 합산**) + `/advertisers` 목록의 **'리포트' 버튼 → 모달**(KPI·상태 분포)
+  - ⚠️ "접수→첫 상태변경"은 `advertiser_status_at`(광고주 전용·최근 변경)으로 계산 — 대부분 1회라 실질 동일. "첫" 정밀값은 향후 필요 시
 - [x] **화이트라벨 완성** (2026-07-31) — `GET/PUT /api/advertisers/brand`(로고 URL·색상, #RRGGBB 검증·빈값 해제) + `/advertisers` 상단 **'브랜드 설정' 카드**(로고 업로드·색상 피커·실시간 미리보기). 광고주 화면 읽기·로그인 브랜드 기억은 A3-B에서 완료
 - [ ] 광고주 화면 미리보기(impersonate) — **읽기 전용 강제** + IMPERSONATE 로그
-- [x] 검증: `AdvertiserReportTest` 2개(응답시간 집계·빈 데이터) + `AdvertiserBrandTest` 4개 + 백엔드 전체 통과 / 프론트 빌드
-- [ ] 남은 것: 마케터측 리포트 + 미리보기(impersonate) → 완료 후 A7 전체 마감
+- [x] 검증: `AdvertiserReportTest` 4개(광고주 집계·빈 데이터·**마케터 폼합산**·타마케터 404) + `AdvertiserBrandTest` 4개 + 백엔드 전체 통과 / 프론트 빌드
+- [ ] 남은 것: **광고주 화면 미리보기(impersonate)** 만 → 완료 후 A7·전체 마감
 
 ### 후속(이번 범위 밖, 별도 논의)
 - [ ] 구독 기반 리포트 **메일·문자 자동발송** (지금은 다운로드까지만)

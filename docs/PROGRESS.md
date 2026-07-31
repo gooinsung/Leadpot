@@ -20,9 +20,16 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A7 남은 2조각(마케터측 리포트 · 광고주 화면 미리보기)** — A1~A6 + A7(화이트라벨·광고주 리포트) 완료
+> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A7 마지막 조각(광고주 화면 미리보기/impersonate)** — A1~A6 + A7(화이트라벨·리포트 양쪽) 완료
 >
-> #### ✅ 2026-07-31 세션 완료 — **A7 처리속도 리포트(광고주 화면)** (브랜치 `feature/a7-report`)
+> #### ✅ 2026-07-31 세션 완료 — **A7 마케터측 처리속도 리포트** (브랜치 `feature/a7-marketer-report`)
+>
+> - **`GET /api/advertisers/{id}/reports/response-time`** — 광고주에게 배정된 **모든 유효 폼의 리드를 합산**(마케터 소유 재확인). 지표 계산은 `AdvertiserReportResponse.from(leads, formId, name, from, to)` **정적 팩토리로 추출 → 광고주(폼1개)·마케터(합산) 공용**(중복 제거).
+> - **프론트**: `/advertisers` 목록의 **'리포트' 버튼 → 모달**(KPI 카드 4개 + 상태 분포 pill). `AdvertiserService`에 `LeadRepository` 주입 + KST 기간 필터.
+> - **검증**: `AdvertiserReportTest` +2개(마케터 폼 합산·타마케터 404) = 총 4개, 백엔드 전체 통과 · 프론트 빌드.
+> - **다음**: A7 마지막 = 광고주 화면 미리보기(impersonate, 읽기전용 강제·IMPERSONATE 로그) → 그러면 **광고주 포털 A1~A7 전부 완료**.
+>
+> #### ✅ 2026-07-31 세션 완료 — **A7 처리속도 리포트(광고주 화면)** (병합됨 `cb621c3`)
 >
 > - **`GET /api/advertiser/reports?formId=&from=&to=`** — `AdvertiserReportResponse`: 총 접수·미확인율·**접수→최초열람 평균**(초, `advertiser_seen_at`)·**접수→상태변경 평균**(초, `advertiser_status_at`)·상태 분포(6개). `filterLeads` 재사용, grant 검증.
 >   - ⚠️ "접수→첫 상태변경"은 `advertiser_status_at`(광고주 전용·**최근** 변경)으로 근사 — 대부분 1회라 실질 동일. 정직하게 "상태 변경"으로 라벨.

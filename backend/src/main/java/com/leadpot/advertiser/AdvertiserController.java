@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
+import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
 import com.leadpot.advertiser.dto.BrandSettings;
 import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
@@ -83,6 +84,13 @@ public class AdvertiserController {
     public List<AdvertiserLogResponse> logs(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestParam(required = false) Integer limit) {
         return advertiserService.logs(userId(jwt), id, limit);
+    }
+
+    /** 광고주 처리속도 리포트(A7): 배정 폼 전체 합산. 접수→열람/상태 평균·미확인율·상태 분포. */
+    @GetMapping("/{id}/reports/response-time")
+    public AdvertiserReportResponse responseTimeReport(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+        return advertiserService.responseTimeReport(userId(jwt), id, from, to);
     }
 
     // ---------- 화이트라벨(내 브랜드) ----------
