@@ -147,30 +147,173 @@
   background: var(--indigo-soft);
 }
 
-/*
-  좁은 화면 대응(임시 — 내비 정본 정리는 U4).
-  상단바가 줄지 않아 문서 폭이 뷰포트를 넘고, 그 탓에
-  position:fixed 인 리드 상세 서랍(.lead-drawer)까지 화면 밖으로 밀려났다.
-  내비만 자체 가로 스크롤로 접어 문서 폭 넘침을 없앤다.
-*/
+/* ---------- 내비 드롭다운(U4) ----------
+   링크 9개를 평평하게 늘어놓지 않고 '제작'·'설정' 으로 묶는다.
+   최상위 = 매일 쓰는 것(대시보드·리드·광고주·통계). */
+.nav-group {
+  position: relative;
+}
+.nav-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+.nav-caret,
+.account-caret {
+  font-size: 10px;
+  opacity: 0.7;
+}
+.nav-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 210px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.nav-menu-right {
+  left: auto;
+  right: 0;
+}
+.nav-menu-head {
+  padding: 8px 10px 6px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+.nav-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-menu-item:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+.nav-menu-item.on {
+  color: var(--indigo-strong);
+  background: var(--indigo-soft);
+}
+.nav-menu-item.danger {
+  color: var(--rose-ink, #b42318);
+}
+.nav-menu-desc {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* 계정 메뉴 — 이메일·테마·로그아웃을 아바타 하나로 모았다. */
+.account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.account-btn:hover,
+.account-btn.on {
+  background: var(--surface-2);
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--indigo);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* 좁은 화면: 내비를 감추고 햄버거 → 드로어로 한 번에 펼친다(가로 스크롤로 훑지 않게). */
+.topbar-burger {
+  display: none;
+  padding: 6px 10px;
+  font-size: 18px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.topbar-drawer {
+  display: none;
+}
 @media (max-width: 900px) {
-  .topbar-left {
-    gap: 12px;
-    flex: 1 1 auto;
-  }
   .topbar-nav {
-    overflow-x: auto;
-    scrollbar-width: none; /* Firefox */
-    -webkit-overflow-scrolling: touch;
-  }
-  .topbar-nav::-webkit-scrollbar {
     display: none;
   }
-  .topbar-actions {
-    flex-shrink: 0;
+  .topbar-burger {
+    display: inline-block;
+  }
+  .topbar-drawer {
+    display: block;
+    padding: 10px 0 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .drawer-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 0;
+  }
+  .drawer-group + .drawer-group {
+    border-top: 1px dashed var(--border);
+  }
+  .drawer-group-title {
+    width: 100%;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .drawer-link {
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .drawer-link.on {
+    color: var(--indigo-strong);
+    background: var(--indigo-soft);
+    border-color: transparent;
   }
   .topbar-email {
-    display: none; /* 좁은 화면에선 내비에 폭을 양보 */
+    display: none;
   }
 }
 
