@@ -13,6 +13,18 @@ const THEME_LABEL: Record<Theme, string> = {
 type NavItem = { to: string; label: string; desc?: string };
 type NavSection = { title?: string; items: NavItem[] };
 
+/** 섹션 펼침 상태는 기억한다 — 안 그러면 페이지를 옮길 때마다 다시 접혀 성가시다. */
+const SECTIONS_KEY = "lp.lnb.sections";
+
+function readOpenSections(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(SECTIONS_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
 /**
  * 좌측 내비(LNB) 구성 — 메뉴가 늘어나도 세로로 확장되고, 위계를 섹션으로 드러낸다.
  * 드롭다운과 달리 열어보지 않아도 어디에 무엇이 있는지 한눈에 보인다.
@@ -53,6 +65,7 @@ export function TopBar() {
   const { pathname } = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(readOpenSections);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // 광고주 하위계정에는 마케터 내비를 보여주지 않는다(서버에서도 접근이 차단되어 있다).
@@ -86,6 +99,27 @@ export function TopBar() {
       window.removeEventListener("keydown", onKey);
     };
   }, [accountOpen, drawerOpen]);
+
+  const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
+
+  /** 제목 없는 섹션은 항상 열려 있고, 지금 보고 있는 페이지가 든 섹션도 강제로 열어둔다. */
+  function isSectionOpen(section: NavSection): boolean {
+    if (!section.title) return true;
+    if (section.items.some((i) => isActive(i.to))) return true;
+    return openSections[section.title] ?? false;
+  }
+
+  function toggleSection(title: string) {
+    setOpenSections((prev) => {
+      const next = { ...prev, [title]: !(prev[title] ?? false) };
+      try {
+        localStorage.setItem(SECTIONS_KEY, JSON.stringify(next));
+      } catch {
+        /* 저장 실패는 무시 — 접힘 상태만 기억 못 할 뿐이다 */
+      }
+      return next;
+    });
+  }
 
   const account = user && (
     <div className="lnb-account">
@@ -125,21 +159,35 @@ export function TopBar() {
         </Link>
         {showNav && (
           <nav className="lnb-nav">
-            {NAV.map((section, i) => (
-              <div key={section.title ?? i} className="lnb-section">
-                {section.title && <div className="lnb-section-title">{section.title}</div>}
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) => (isActive ? "lnb-link on" : "lnb-link")}
-                  >
-                    <span className="lnb-link-label">{item.label}</span>
-                    {item.desc && <span className="lnb-link-desc">{item.desc}</span>}
-                  </NavLink>
-                ))}
-              </div>
-            ))}
+            {NAV.map((section, i) => {
+              const expanded = isSectionOpen(section);
+              return (
+                <div key={section.title ?? i} className="lnb-section">
+                  {section.title && (
+                    <button
+                      type="button"
+                      className={`lnb-section-toggle${expanded ? " open" : ""}`}
+                      aria-expanded={expanded}
+                      onClick={() => toggleSection(section.title as string)}
+                    >
+                      <span>{section.title}</span>
+                      <span className="lnb-section-caret" aria-hidden="true">▾</span>
+                    </button>
+                  )}
+                  {expanded &&
+                    section.items.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) => (isActive ? "lnb-link on" : "lnb-link")}
+                      >
+                        <span className="lnb-link-label">{item.label}</span>
+                        {item.desc && <span className="lnb-link-desc">{item.desc}</span>}
+                      </NavLink>
+                    ))}
+                </div>
+              );
+            })}
           </nav>
         )}
         <div className="lnb-foot">{account}</div>
