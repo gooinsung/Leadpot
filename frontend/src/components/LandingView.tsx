@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { getLandingLive, recordEvent, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
+import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
 
 /** 블록 여백(위/아래/좌우, px) → 인라인 스타일. */
@@ -71,7 +72,7 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
             return url ? <img key={i} className="landing-img" src={url} alt={(b.alt as string) || ""} style={ms} /> : null;
           }
           if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
-          if (b.type === "HTML") return <div key={i} className="landing-html" style={ms} dangerouslySetInnerHTML={{ __html: (b.html as string) || "" }} />;
+          if (b.type === "HTML") return <HtmlBlock key={i} className="landing-html" style={ms} html={(b.html as string) || ""} />;
           if (b.type === "FORM") {
             const form = formOf(b);
             if (!form) return null;

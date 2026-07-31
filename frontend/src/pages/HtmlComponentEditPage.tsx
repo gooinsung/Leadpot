@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { HtmlBlock } from "../components/HtmlBlock";
 import {
   ApiError,
   createHtmlComponent,
@@ -101,7 +102,7 @@ export function HtmlComponentEditPage() {
           <div className="preview-panel">
             <div className="card-h">미리보기</div>
             <div className="preview-frame">
-              <div dangerouslySetInnerHTML={{ __html: html }} />
+              <HtmlBlock html={html} debounceMs={600} />
             </div>
           </div>
         </div>

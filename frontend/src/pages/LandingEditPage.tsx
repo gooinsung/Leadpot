@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { HtmlBlock } from "../components/HtmlBlock";
 import {
   ApiError,
   createLanding,
@@ -271,7 +272,8 @@ export function LandingEditPage() {
                       ? <img key={i} className="landing-img" src={b.url as string} alt="" style={ms} />
                       : <div key={i} className="fr-img-ph" style={{ margin: 16, ...ms }}>이미지</div>;
                   if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
-                  if (b.type === "HTML") return <div key={i} className="landing-html" style={ms} dangerouslySetInnerHTML={{ __html: (b.html as string) || "" }} />;
+                  // 편집 중엔 타이핑마다 스크립트가 다시 돌지 않게 늦춘다(타이머 누적 방지).
+                  if (b.type === "HTML") return <HtmlBlock key={i} className="landing-html" style={ms} html={(b.html as string) || ""} debounceMs={600} />;
                   if (b.type === "FORM") {
                     const fid = b.formId as number | null;
                     const detail = fid != null ? formDetails[fid] : undefined;

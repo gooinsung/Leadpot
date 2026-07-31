@@ -1,0 +1,188 @@
+import { useEffect, useRef, type CSSProperties } from "react";
+
+/**
+ * 사용자가 넣은 HTML 조각을 렌더한다 — 랜딩·리드폼의 HTML 블록과 요소 미리보기 공용.
+ *
+ * **왜 필요한가**: `dangerouslySetInnerHTML`(= `innerHTML`)만 쓰면 `<script>` 가 DOM 에는
+ * 들어가지만 **실행되지 않는다**(HTML 표준. React 제약이 아니다). 그래서 카운트다운 타이머·
+ * 스크롤 등장 효과처럼 JS 가 필요한 요소가 동작하지 않았다. 특히 요소를 `opacity:0` 으로
+ * 숨겨두고 JS 로 보이게 하는 흔한 패턴은 **영구히 안 보였다.**
+ *
+ * 여기서는 HTML 을 붙인 뒤 `<script>` 를 다시 만들어 교체해 실행시키고,
+ * 블록이 사라지거나 내용이 바뀔 때 **스크립트가 만든 것들을 되돌린다**(아래 참고).
+ *
+ * **같은 문서에 주입한다**(iframe·Shadow DOM 아님) — 의도된 선택이다.
+ * 플로팅/고정 헤더(`position: fixed`)가 화면 기준으로 붙어야 하고,
+ * 사용자 코드가 `document.getElementById(...)` 로 자기 요소를 찾기 때문이다.
+ * 그 대가로 블록의 `<style>` 은 페이지 전역에 적용된다 — `body`·`*` 같은 전역 선택자를
+ * 쓰면 화면 전체가 영향을 받는다(편집 화면 포함). 블록 CSS 는 고유 클래스로 한정할 것.
+ *
+ * **정리(cleanup) 범위**: 스크립트 실행 중에 만든 `setInterval`·`setTimeout`,
+ * `addEventListener`(document·window), `IntersectionObserver`·`MutationObserver`·
+ * `ResizeObserver` 를 추적해 되돌린다. 편집 미리보기에서 타이머가 누적돼 화면이
+ * 멈추는 것을 막기 위한 것이다.
+ * - 실행이 끝난 뒤(이벤트 핸들러 안 등) 새로 만든 타이머·리스너는 추적하지 못한다.
+ * - 외부 `src` 스크립트는 비동기로 나중에 실행되므로 추적·보정 대상이 아니다.
+ * - `document.write`·`document.currentScript` 에 의존하는 코드는 동작하지 않는다.
+ *
+ * **보안**: HTML 블록은 이 변경 *이전에도* 임의 JS 실행이 가능했다(`<img onerror>` 같은
+ * 인라인 이벤트 핸들러는 innerHTML 로도 실행된다 — 실측 확인). 작성자는 리드폼·랜딩을
+ * 소유한 마케터 본인뿐이라(광고주 계정에는 HTML 편집 권한이 없다) 신뢰 경계가 넓어지지 않는다.
+ */
+export function HtmlBlock({
+  html,
+  className,
+  style,
+  debounceMs = 0,
+}: {
+  html: string;
+  className?: string;
+  style?: CSSProperties;
+  /** 내용이 자주 바뀌는 편집 미리보기에서 재실행을 늦춘다(ms). 타이핑마다 스크립트가 도는 것을 막는다. */
+  debounceMs?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = ref.current;
+    if (!host) return;
+
+    let cleanup: (() => void) | null = null;
+    const apply = () => {
+      cleanup = injectAndRun(host, html);
+    };
+
+    if (debounceMs > 0) {
+      const timer = window.setTimeout(apply, debounceMs);
+      return () => {
+        window.clearTimeout(timer);
+        cleanup?.();
+      };
+    }
+    apply();
+    return () => cleanup?.();
+  }, [html, debounceMs]);
+
+  return <div ref={ref} className={className} style={style} />;
+}
+
+/** 스크립트가 만든 것들을 되돌리려고 실행 중에 모아두는 자리. */
+type Tracked = {
+  intervals: number[];
+  timeouts: number[];
+  listeners: Array<{ target: EventTarget; type: string; listener: EventListenerOrEventListenerObject; options?: boolean | AddEventListenerOptions }>;
+  observers: Array<{ disconnect: () => void }>;
+};
+
+/** HTML 을 붙이고 스크립트를 실행한 뒤, 되돌리는 함수를 반환한다. */
+function injectAndRun(host: HTMLElement, html: string): () => void {
+  host.innerHTML = html;
+
+  const scripts = Array.from(host.querySelectorAll("script"));
+  if (scripts.length === 0) {
+    return () => {
+      host.innerHTML = "";
+    };
+  }
+
+  const tracked: Tracked = { intervals: [], timeouts: [], listeners: [], observers: [] };
+  const restore = patchGlobals(tracked);
+  try {
+    for (const old of scripts) {
+      const fresh = document.createElement("script");
+      for (const attr of Array.from(old.attributes)) fresh.setAttribute(attr.name, attr.value);
+      fresh.textContent = old.textContent;
+      old.replaceWith(fresh); // 삽입 시점에 실행된다(인라인은 동기)
+    }
+  } finally {
+    restore();
+  }
+
+  return () => {
+    tracked.intervals.forEach((id) => window.clearInterval(id));
+    tracked.timeouts.forEach((id) => window.clearTimeout(id));
+    tracked.listeners.forEach(({ target, type, listener, options }) => {
+      target.removeEventListener(type, listener, options);
+    });
+    tracked.observers.forEach((o) => {
+      try {
+        o.disconnect();
+      } catch {
+        /* 이미 정리됐으면 무시 */
+      }
+    });
+    host.innerHTML = "";
+  };
+}
+
+/** 이미 지나간 준비 이벤트 — 등록해도 다시 발생하지 않으므로 즉시 실행으로 바꿔준다. */
+const READY_EVENTS = new Set(["DOMContentLoaded", "load"]);
+
+/**
+ * 스크립트 실행 구간에만 전역을 감싸 만들어지는 것들을 기록한다.
+ * 반환된 함수를 부르면 전역이 원래대로 돌아간다.
+ */
+function patchGlobals(tracked: Tracked): () => void {
+  const undo: Array<() => void> = [];
+
+  // 타이머 — 편집 미리보기에서 누적되면 화면이 멈춘다.
+  const origInterval = window.setInterval;
+  const origTimeout = window.setTimeout;
+  window.setInterval = ((...args: Parameters<typeof window.setInterval>) => {
+    const id = origInterval(...args);
+    tracked.intervals.push(id);
+    return id;
+  }) as typeof window.setInterval;
+  window.setTimeout = ((...args: Parameters<typeof window.setTimeout>) => {
+    const id = origTimeout(...args);
+    tracked.timeouts.push(id);
+    return id;
+  }) as typeof window.setTimeout;
+  undo.push(() => {
+    window.setInterval = origInterval;
+    window.setTimeout = origTimeout;
+  });
+
+  // addEventListener — 준비 이벤트는 즉시 실행, 나머지는 기록해 두고 나중에 해제.
+  for (const target of [document, window] as Array<Document | Window>) {
+    const original = target.addEventListener;
+    const patched = function (
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions,
+    ) {
+      if (listener == null) return;
+      if (READY_EVENTS.has(type) && typeof listener === "function") {
+        // 동기 실행 중 DOM 조작과 섞이지 않게 마이크로태스크로 미룬다.
+        void Promise.resolve().then(() => (listener as EventListener)(new Event(type)));
+        return;
+      }
+      tracked.listeners.push({ target, type, listener, options });
+      original.call(target, type, listener, options);
+    };
+    (target as unknown as Record<string, unknown>).addEventListener = patched;
+    undo.push(() => {
+      (target as unknown as Record<string, unknown>).addEventListener = original;
+    });
+  }
+
+  // 옵저버 — 스크롤 등장 효과(IntersectionObserver)가 대표적.
+  for (const name of ["IntersectionObserver", "MutationObserver", "ResizeObserver"] as const) {
+    const Original = (window as unknown as Record<string, unknown>)[name] as
+      | (new (...args: never[]) => { disconnect: () => void })
+      | undefined;
+    if (!Original) continue;
+    const Patched = function (this: unknown, ...args: never[]) {
+      const instance = new Original(...args);
+      tracked.observers.push(instance);
+      return instance;
+    } as unknown as typeof Original;
+    Patched.prototype = Original.prototype;
+    (window as unknown as Record<string, unknown>)[name] = Patched;
+    undo.push(() => {
+      (window as unknown as Record<string, unknown>)[name] = Original;
+    });
+  }
+
+  return () => undo.forEach((fn) => fn());
+}

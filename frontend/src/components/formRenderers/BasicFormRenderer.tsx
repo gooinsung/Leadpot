@@ -1,4 +1,5 @@
 import type { FormBlock, FormInput } from "../../api/client";
+import { HtmlBlock } from "../HtmlBlock";
 import { ConsentView } from "./ConsentView";
 import { resolveStyle } from "./formStyle";
 
@@ -42,7 +43,7 @@ function BlockView({ block }: { block: FormBlock }) {
     }
     case "HTML": {
       const html = (block.content?.html as string) || "";
-      return <div className="fr-html" dangerouslySetInnerHTML={{ __html: html }} />;
+      return <HtmlBlock className="fr-html" html={html} />;
     }
     case "TEXT":
       return <p className="fr-text">{(block.content?.text as string) || ""}</p>;

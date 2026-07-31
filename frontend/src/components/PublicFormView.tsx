@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { HtmlBlock } from "./HtmlBlock";
 import {
   ApiError,
   submitLead,
@@ -214,7 +215,7 @@ function LiveBlock({ block, idx, value, onChange }: { block: FormBlock; idx: num
       return url ? <img className="fr-img" src={url} alt={(block.content?.alt as string) || ""} /> : null;
     }
     case "HTML":
-      return <div className="fr-html" dangerouslySetInnerHTML={{ __html: (block.content?.html as string) || "" }} />;
+      return <HtmlBlock className="fr-html" html={(block.content?.html as string) || ""} />;
     case "TEXT":
       return <p className="fr-text">{(block.content?.text as string) || ""}</p>;
     case "DIVIDER":
