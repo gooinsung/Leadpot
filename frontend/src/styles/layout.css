@@ -120,10 +120,13 @@
   display: flex;
   align-items: center;
   gap: 22px;
+  min-width: 0; /* 좁은 화면에서 내비가 상단바를 밀어 문서 폭을 넓히지 않게 */
 }
 .topbar-nav {
   display: flex;
+  flex-wrap: nowrap;
   gap: 6px;
+  min-width: 0;
 }
 .nav-link {
   font-size: 14px;
@@ -132,6 +135,7 @@
   text-decoration: none;
   padding: 6px 10px;
   border-radius: 8px;
+  white-space: nowrap; /* 없으면 좁은 화면에서 글자가 세로로 쪼개진다 */
 }
 .nav-link:hover {
   background: var(--surface-2);
@@ -140,5 +144,32 @@
 .nav-link.on {
   color: var(--indigo-strong);
   background: var(--indigo-soft);
+}
+
+/*
+  좁은 화면 대응(임시 — 내비 정본 정리는 U4).
+  상단바가 줄지 않아 문서 폭이 뷰포트를 넘고, 그 탓에
+  position:fixed 인 리드 상세 서랍(.lead-drawer)까지 화면 밖으로 밀려났다.
+  내비만 자체 가로 스크롤로 접어 문서 폭 넘침을 없앤다.
+*/
+@media (max-width: 900px) {
+  .topbar-left {
+    gap: 12px;
+    flex: 1 1 auto;
+  }
+  .topbar-nav {
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -webkit-overflow-scrolling: touch;
+  }
+  .topbar-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .topbar-actions {
+    flex-shrink: 0;
+  }
+  .topbar-email {
+    display: none; /* 좁은 화면에선 내비에 폭을 양보 */
+  }
 }
 
