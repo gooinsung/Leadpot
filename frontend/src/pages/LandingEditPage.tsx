@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
 import { HtmlBlock } from "../components/HtmlBlock";
 import {
   ApiError,
@@ -262,8 +263,11 @@ export function LandingEditPage() {
                 <button className={device === "pc" ? "on" : ""} onClick={() => setDevice("pc")}>🖥️ PC</button>
               </div>
             </div>
+            {/* iframe 이 곧 '기기' — 자기 뷰포트를 가지므로 미디어쿼리가 실제 폰과 같게 평가된다.
+                예전처럼 박스만 좁히면 @media 가 브라우저 창 폭을 봐서 미리보기만 어긋났다. */}
             <div className={`lp-preview-stage ${device}`}>
-              <div className="lp-preview-device">
+              <DevicePreviewFrame width={device === "mobile" ? 375 : 1280} height={device === "mobile" ? 760 : 900}>
+              <div className="lp-preview-device in-frame">
                 {blocks.length === 0 && <p className="dash-sub" style={{ padding: 24, textAlign: "center" }}>블록을 추가하면 미리보기가 표시됩니다.</p>}
                 {blocks.map((b, i) => {
                   const ms = blockStyle(b);
@@ -294,6 +298,7 @@ export function LandingEditPage() {
                   return null;
                 })}
               </div>
+              </DevicePreviewFrame>
             </div>
           </div>
         </div>

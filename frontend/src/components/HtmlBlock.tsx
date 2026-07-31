@@ -85,10 +85,18 @@ type Tracked = {
   observers: Array<{ disconnect: () => void }>;
 };
 
-/** HTML 을 붙이고 CSS 를 블록 안으로 격리한 뒤 스크립트를 실행한다. 되돌리는 함수를 반환. */
+/**
+ * HTML 을 붙이고 CSS 를 블록 안으로 격리한 뒤 스크립트를 실행한다. 되돌리는 함수를 반환.
+ *
+ * ⚠️ 기기 미리보기는 iframe 안에서 렌더된다. iframe 은 **문서·window·CSSOM 클래스가 전부 다르므로**
+ * 전역 `document`/`window` 를 쓰면 안 되고 항상 호스트가 속한 문서(`host.ownerDocument`)를 따라간다.
+ */
 function injectAndRun(host: HTMLElement, html: string, scope: string): () => void {
+  const doc = host.ownerDocument;
+  const win = doc.defaultView ?? window;
+
   host.innerHTML = html;
-  scopeStyles(host, scope);
+  scopeStyles(host, scope, win);
 
   const scripts = Array.from(host.querySelectorAll("script"));
   if (scripts.length === 0) {
@@ -98,10 +106,10 @@ function injectAndRun(host: HTMLElement, html: string, scope: string): () => voi
   }
 
   const tracked: Tracked = { intervals: [], timeouts: [], listeners: [], observers: [] };
-  const restore = patchGlobals(tracked);
+  const restore = patchGlobals(tracked, win, doc);
   try {
     for (const old of scripts) {
-      const fresh = document.createElement("script");
+      const fresh = doc.createElement("script");
       for (const attr of Array.from(old.attributes)) fresh.setAttribute(attr.name, attr.value);
       fresh.textContent = old.textContent;
       old.replaceWith(fresh); // 삽입 시점에 실행된다(인라인은 동기)
@@ -111,8 +119,8 @@ function injectAndRun(host: HTMLElement, html: string, scope: string): () => voi
   }
 
   return () => {
-    tracked.intervals.forEach((id) => window.clearInterval(id));
-    tracked.timeouts.forEach((id) => window.clearTimeout(id));
+    tracked.intervals.forEach((id) => win.clearInterval(id));
+    tracked.timeouts.forEach((id) => win.clearTimeout(id));
     tracked.listeners.forEach(({ target, type, listener, options }) => {
       target.removeEventListener(type, listener, options);
     });
@@ -137,14 +145,18 @@ function injectAndRun(host: HTMLElement, html: string, scope: string): () => voi
 /** 페이지 루트를 겨냥하는 선택자 — 블록 루트가 대신 받는다. */
 const ROOT_SELECTORS = new Set(["html", ":root", "body", "html body"]);
 
-/** 블록 안 모든 `<style>` 의 선택자를 블록 스코프로 한정한다. */
-function scopeStyles(host: HTMLElement, scope: string) {
+/**
+ * 블록 안 모든 `<style>` 의 선택자를 블록 스코프로 한정한다.
+ * `win` 은 호스트가 속한 창 — iframe 안에서는 CSSOM 클래스가 부모와 다른 객체라
+ * `instanceof` 는 반드시 그 창의 클래스로 판정해야 한다.
+ */
+function scopeStyles(host: HTMLElement, scope: string, win: Window) {
   for (const styleEl of Array.from(host.querySelectorAll("style"))) {
     const sheet = styleEl.sheet; // 문서에 붙어 있어야 접근 가능(innerHTML 직후 가능)
     if (!sheet) continue;
     let scoped: string;
     try {
-      scoped = scopeRules(sheet.cssRules, scope);
+      scoped = scopeRules(sheet.cssRules, scope, win);
     } catch {
       continue; // 읽을 수 없으면 원본을 그대로 둔다(격리 실패보다 렌더 실패가 더 나쁘다)
     }
@@ -152,15 +164,23 @@ function scopeStyles(host: HTMLElement, scope: string) {
   }
 }
 
-function scopeRules(rules: CSSRuleList, scope: string): string {
+/** iframe 창의 CSSOM 생성자들 — 부모 창의 것과 다른 객체라 instanceof 판정에 그대로 써야 한다. */
+type CssomWindow = Window & {
+  CSSStyleRule: typeof CSSStyleRule;
+  CSSMediaRule: typeof CSSMediaRule;
+  CSSSupportsRule?: typeof CSSSupportsRule;
+};
+
+function scopeRules(rules: CSSRuleList, scope: string, win: Window): string {
+  const w = win as CssomWindow;
   let out = "";
   for (const rule of Array.from(rules)) {
-    if (rule instanceof CSSStyleRule) {
+    if (rule instanceof w.CSSStyleRule) {
       out += `${scopeSelector(rule.selectorText, scope)}{${rule.style.cssText}}\n`;
-    } else if (rule instanceof CSSMediaRule) {
-      out += `@media ${rule.conditionText}{${scopeRules(rule.cssRules, scope)}}\n`;
-    } else if (typeof CSSSupportsRule !== "undefined" && rule instanceof CSSSupportsRule) {
-      out += `@supports ${rule.conditionText}{${scopeRules(rule.cssRules, scope)}}\n`;
+    } else if (rule instanceof w.CSSMediaRule) {
+      out += `@media ${rule.conditionText}{${scopeRules(rule.cssRules, scope, win)}}\n`;
+    } else if (w.CSSSupportsRule && rule instanceof w.CSSSupportsRule) {
+      out += `@supports ${rule.conditionText}{${scopeRules(rule.cssRules, scope, win)}}\n`;
     } else {
       // @keyframes·@font-face·@import 등은 스코프 개념이 없으므로 그대로 둔다.
       out += `${rule.cssText}\n`;
@@ -196,29 +216,29 @@ const READY_EVENTS = new Set(["DOMContentLoaded", "load"]);
  * 스크립트 실행 구간에만 전역을 감싸 만들어지는 것들을 기록한다.
  * 반환된 함수를 부르면 전역이 원래대로 돌아간다.
  */
-function patchGlobals(tracked: Tracked): () => void {
+function patchGlobals(tracked: Tracked, win: Window, doc: Document): () => void {
   const undo: Array<() => void> = [];
 
   // 타이머 — 편집 미리보기에서 누적되면 화면이 멈춘다.
-  const origInterval = window.setInterval;
-  const origTimeout = window.setTimeout;
-  window.setInterval = ((...args: Parameters<typeof window.setInterval>) => {
-    const id = origInterval(...args);
+  const origInterval = win.setInterval;
+  const origTimeout = win.setTimeout;
+  win.setInterval = ((...args: Parameters<typeof window.setInterval>) => {
+    const id = origInterval.apply(win, args);
     tracked.intervals.push(id);
     return id;
   }) as typeof window.setInterval;
-  window.setTimeout = ((...args: Parameters<typeof window.setTimeout>) => {
-    const id = origTimeout(...args);
+  win.setTimeout = ((...args: Parameters<typeof window.setTimeout>) => {
+    const id = origTimeout.apply(win, args);
     tracked.timeouts.push(id);
     return id;
   }) as typeof window.setTimeout;
   undo.push(() => {
-    window.setInterval = origInterval;
-    window.setTimeout = origTimeout;
+    win.setInterval = origInterval;
+    win.setTimeout = origTimeout;
   });
 
   // addEventListener — 준비 이벤트는 즉시 실행, 나머지는 기록해 두고 나중에 해제.
-  for (const target of [document, window] as Array<Document | Window>) {
+  for (const target of [doc, win] as Array<Document | Window>) {
     const original = target.addEventListener;
     const patched = function (
       type: string,
@@ -241,10 +261,9 @@ function patchGlobals(tracked: Tracked): () => void {
   }
 
   // 옵저버 — 스크롤 등장 효과(IntersectionObserver)가 대표적.
+  const winAny = win as unknown as Record<string, unknown>;
   for (const name of ["IntersectionObserver", "MutationObserver", "ResizeObserver"] as const) {
-    const Original = (window as unknown as Record<string, unknown>)[name] as
-      | (new (...args: never[]) => { disconnect: () => void })
-      | undefined;
+    const Original = winAny[name] as (new (...args: never[]) => { disconnect: () => void }) | undefined;
     if (!Original) continue;
     const Patched = function (this: unknown, ...args: never[]) {
       const instance = new Original(...args);
@@ -252,9 +271,9 @@ function patchGlobals(tracked: Tracked): () => void {
       return instance;
     } as unknown as typeof Original;
     Patched.prototype = Original.prototype;
-    (window as unknown as Record<string, unknown>)[name] = Patched;
+    winAny[name] = Patched;
     undo.push(() => {
-      (window as unknown as Record<string, unknown>)[name] = Original;
+      winAny[name] = Original;
     });
   }
 

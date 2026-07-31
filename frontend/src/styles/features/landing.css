@@ -37,6 +37,30 @@
 .lp-preview-stage.mobile .lp-preview-device {
   max-width: 360px;
 }
+
+/* 기기 미리보기 iframe — iframe 이 곧 '기기'다(자기 뷰포트를 가져 미디어쿼리가 실제 폰과 같게 평가된다).
+   패널보다 넓은 기기(PC)는 실제 폭으로 렌더한 뒤 transform 으로 축소한다. */
+.lp-device-wrap {
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+.lp-device-frame {
+  border: none;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transform-origin: top center;
+  flex: none;
+}
+/* iframe 안에서는 iframe 자체가 기기 틀이므로 안쪽 래퍼의 기기 장식·폭 제한을 없앤다. */
+.lp-preview-device.in-frame {
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
 .lp-preview-stage.pc {
   overflow-x: hidden;
 }
