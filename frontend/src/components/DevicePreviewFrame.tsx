@@ -17,14 +17,18 @@ import { createPortal } from "react-dom";
  */
 export function DevicePreviewFrame({
   width,
-  height,
+  fitHeight,
   children,
   title = "미리보기",
 }: {
   /** iframe 뷰포트 폭(px). 이 값이 미디어쿼리 기준이 된다. */
   width: number;
-  /** iframe 높이(px). 내용이 넘치면 iframe 안에서 스크롤된다. */
-  height: number;
+  /**
+   * 화면에서 차지할 높이(px). 축소된 뒤의 최종 높이다.
+   * 기기 높이는 `fitHeight / scale` 로 잡아, 축소해도 이만큼 보이게 한다.
+   * 스크롤은 **iframe 안에서만** 일어난다(바깥 스테이지는 스크롤하지 않는다 — 이중 스크롤 방지).
+   */
+  fitHeight: number;
   children: ReactNode;
   title?: string;
 }) {
@@ -71,12 +75,12 @@ export function DevicePreviewFrame({
   }, []);
 
   return (
-    <div ref={wrapRef} className="lp-device-wrap" style={{ height: height * scale }}>
+    <div ref={wrapRef} className="lp-device-wrap" style={{ height: fitHeight }}>
       <iframe
         ref={frameRef}
         title={title}
         className="lp-device-frame"
-        style={{ width, height, transform: `scale(${scale})` }}
+        style={{ width, height: fitHeight / scale, transform: `scale(${scale})` }}
         // 같은 오리진이어야 부모 스타일 복사·포털이 가능하다. 스크립트는 허용(블록 JS 실행).
         sandbox="allow-scripts allow-same-origin"
       />

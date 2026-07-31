@@ -54,6 +54,8 @@ export function LandingEditPage() {
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
   const [device, setDevice] = useState<"mobile" | "pc">("mobile");
+  // 미리보기 높이는 화면에 맞춘다 — 기기 iframe 이 이 높이를 채우고 스크롤도 그 안에서만 일어난다.
+  const [previewH, setPreviewH] = useState(() => previewHeight());
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -62,6 +64,12 @@ export function LandingEditPage() {
 
   useEffect(() => {
     listForms().then(setForms).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setPreviewH(previewHeight());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
@@ -266,7 +274,7 @@ export function LandingEditPage() {
             {/* iframe 이 곧 '기기' — 자기 뷰포트를 가지므로 미디어쿼리가 실제 폰과 같게 평가된다.
                 예전처럼 박스만 좁히면 @media 가 브라우저 창 폭을 봐서 미리보기만 어긋났다. */}
             <div className={`lp-preview-stage ${device}`}>
-              <DevicePreviewFrame width={device === "mobile" ? 375 : 1280} height={device === "mobile" ? 760 : 900}>
+              <DevicePreviewFrame width={device === "mobile" ? 375 : 1280} fitHeight={previewH}>
               <div className="lp-preview-device in-frame">
                 {blocks.length === 0 && <p className="dash-sub" style={{ padding: 24, textAlign: "center" }}>블록을 추가하면 미리보기가 표시됩니다.</p>}
                 {blocks.map((b, i) => {
@@ -305,6 +313,11 @@ export function LandingEditPage() {
       </main>
     </div>
   );
+}
+
+/** 미리보기 기기 높이 — 창 높이에 맞춰 스테이지가 화면을 넘지 않게 한다. */
+function previewHeight(): number {
+  return Math.max(420, Math.round(window.innerHeight * 0.72));
 }
 
 function blockLabel(t: LandingBlockType): string {

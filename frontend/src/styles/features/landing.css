@@ -18,13 +18,13 @@
   padding: 5px 12px;
   font-size: 12px;
 }
+/* 스크롤은 기기 iframe 안에서만 일어난다 — 스테이지까지 스크롤하면 스크롤바가 두 겹으로 보인다. */
 .lp-preview-stage {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
-  max-height: 74vh;
-  overflow-y: auto;
+  overflow: hidden;
 }
 .lp-preview-device {
   background: var(--surface);
