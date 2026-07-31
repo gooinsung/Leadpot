@@ -1,0 +1,344 @@
+/* ============================================================
+   Leadpot · features/advertiser.css — 광고주 관리·포털
+   마케터측 광고주 관리(A2) · 광고주 포털(A3, 모바일 퍼스트): 배너·칩·상세. (상태 색상은 components.css)
+   토큰: styles/tokens.css · 구조 지도: styles/README.md
+   ============================================================ */
+
+/* ---------- 광고주 관리 (A2) ---------- */
+/* 안내 박스: 제3자 제공 확인·주의 문구 */
+.notice-box {
+  background: var(--indigo-soft);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.notice-box.warn {
+  background: var(--amber-soft);
+  color: var(--text);
+}
+
+/* 초대 링크 복사 줄 */
+.copy-box {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+.copy-box .input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.invite-modal {
+  max-width: 560px;
+}
+.grant-modal {
+  max-width: 720px;
+}
+
+/* 리드폼 권한 목록 */
+.grant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.grant-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--bg);
+}
+.grant-row.is-taken {
+  opacity: 0.6;
+  background: var(--surface-2);
+}
+.grant-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.grant-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.grant-row.is-taken .grant-check {
+  cursor: not-allowed;
+}
+.grant-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grant-options {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.grant-perms {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.grant-perms label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+/* 모달 하단 액션 줄 */
+.grant-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .grant-perms {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .copy-box {
+    flex-direction: column;
+  }
+}
+
+
+/* ---------- 광고주 포털 (A3) — 모바일 퍼스트 ----------
+   광고주는 텔레그램 알림 → 링크 → 목록 → 상세 → 전화 순으로 휴대폰에서 사용한다. */
+.client-wrap {
+  flex: 1;
+  padding-top: 20px;
+  padding-bottom: 48px;
+}
+.client-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.client-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 4px;
+  word-break: keep-all;
+}
+.client-kpis {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.client-kpis > div {
+  text-align: right;
+}
+.ck-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.ck-val {
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 미확인 리드 경고 배너 */
+.unseen-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--amber-soft);
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.unseen-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  flex-shrink: 0;
+}
+.unseen-go {
+  margin-left: auto;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 리드폼 선택 칩 */
+.client-forms {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+}
+.chip {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chip.on {
+  background: var(--indigo-strong);
+  border-color: transparent;
+  color: #fff;
+}
+.chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.chip-badge {
+  background: var(--amber);
+  color: #fff;
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.client-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.client-filters .input {
+  flex: 1;
+  min-width: 130px;
+  font-size: 16px; /* iOS 자동확대 방지 */
+}
+
+.client-paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* 광고주 상세 모달 */
+.client-modal {
+  max-width: 560px;
+}
+.call-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  font-size: 17px;
+  padding: 15px 18px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+.call-btn:hover {
+  text-decoration: none;
+}
+.status-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.note-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.note.sys {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+}
+.note-body {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.note-at {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.note-add {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.brand-logo {
+  height: 26px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+}
+
+@media (max-width: 600px) {
+  .client-head {
+    flex-direction: column;
+  }
+  .client-kpis {
+    align-self: stretch;
+    justify-content: flex-start;
+    gap: 20px;
+  }
+  .client-kpis > div {
+    text-align: left;
+  }
+  .call-btn {
+    font-size: 18px;
+    padding: 16px 18px;
+  }
+}
+
+/* 광고주 리드 목록: 마케터 목록과 같은 카드 구조를 쓰되 미확인 건을 강조 */
+.lead-card.adv-unseen {
+  border-color: var(--amber);
+}
+

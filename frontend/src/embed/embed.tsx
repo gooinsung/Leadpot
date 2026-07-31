@@ -2,9 +2,19 @@ import { createRoot } from "react-dom/client";
 import { getPublicForm, recordVisit } from "../api/client";
 import { PublicFormView } from "../components/PublicFormView";
 import { initPixels } from "../lib/pixels";
+// 스타일 레이어를 개별 인라인으로 가져온다(구조: styles/README.md).
+// tokens 만 :root→:host 로 치환하므로 따로 두고, 나머지는 그대로 이어붙인다.
 import tokensCss from "../styles/tokens.css?inline";
 import baseCss from "../styles/base.css?inline";
-import appCss from "../App.css?inline";
+import componentsCss from "../styles/components.css?inline";
+import layoutCss from "../styles/layout.css?inline";
+import authCss from "../styles/features/auth.css?inline";
+import statsCss from "../styles/features/stats.css?inline";
+import formBuilderCss from "../styles/features/form-builder.css?inline";
+import landingCss from "../styles/features/landing.css?inline";
+import publicCss from "../styles/features/public.css?inline";
+import leadsCss from "../styles/features/leads.css?inline";
+import advertiserCss from "../styles/features/advertiser.css?inline";
 
 /**
  * 외부 사이트 임베드(M6) 진입점 — 자립 스크립트로 빌드된다(vite.embed.config.ts, IIFE).
@@ -22,7 +32,15 @@ const ATTR = "data-leadpot-form";
 const SHADOW_CSS = [
   tokensCss.replace(/:root/g, ":host"),
   baseCss,
-  appCss,
+  componentsCss,
+  layoutCss,
+  authCss,
+  statsCss,
+  formBuilderCss,
+  landingCss,
+  publicCss,
+  leadsCss,
+  advertiserCss,
   `.lp-embed{display:block;width:100%;font-family:var(--sans);color:var(--text);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;}
    .lp-embed .public-form-card{min-height:0;max-width:100%;}`,
 ].join("\n");

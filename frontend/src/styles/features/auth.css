@@ -1,0 +1,111 @@
+/* ============================================================
+   Leadpot · features/auth.css — 로그인·회원가입
+   인증 화면(데스크톱) + 모바일 대응. LoginPage·SignupPage·ClientLoginPage 등
+   토큰: styles/tokens.css · 구조 지도: styles/README.md
+   ============================================================ */
+
+/* ---------- 인증 화면 ---------- */
+.auth-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 48px;
+  padding-bottom: 48px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 720px;
+}
+.auth-card.card-pad {
+  padding: 60px 72px 56px;
+}
+.auth-title {
+  font-size: 40px;
+  font-weight: 800;
+  margin-top: 6px;
+  line-height: 1.2;
+}
+.auth-sub {
+  color: var(--muted);
+  font-size: 16px;
+  margin: 10px 0 30px;
+}
+.auth-submit {
+  width: 100%;
+  margin-top: 14px;
+  font-size: 17px;
+  padding: 15px 18px;
+  border-radius: 12px;
+}
+/* 인증 화면 한정: 입력/라벨/필드를 크게 (다른 화면 영향 없음) */
+.auth-card .eyebrow {
+  font-size: 13px;
+}
+.auth-card .field {
+  margin-bottom: 20px;
+}
+.auth-card .field label {
+  font-size: 15px;
+}
+.auth-card .input {
+  font-size: 16px;
+  padding: 15px 16px;
+  border-radius: 12px;
+}
+.auth-error {
+  color: var(--rose);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.auth-ok {
+  color: var(--green, #2fa36b);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.field-error {
+  color: var(--rose);
+  font-size: 12px;
+}
+.field-optional {
+  color: var(--muted);
+  font-weight: 400;
+}
+.auth-switch {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--muted);
+  text-align: center;
+}
+
+
+/* ---------- 인증 화면 모바일 대응 ----------
+   데스크톱 기준(.auth-card.card-pad = 좌우 72px, 제목 40px)이면 375px 화면에서
+   입력 영역이 ~230px 로 좁아진다. 광고주 초대 링크(/invite/:token)는 카톡으로 받아
+   휴대폰에서 여는 경우가 많으므로(모바일 퍼스트) 좁은 화면에서 여백·제목을 줄인다.
+   ⚠️ 이 블록은 위의 .auth-title / .auth-sub 규칙보다 뒤에 와야 적용된다(같은 특정도 → 나중 선언 우선). */
+@media (max-width: 640px) {
+  .auth-wrap {
+    padding-top: 20px;
+    padding-bottom: 32px;
+    align-items: flex-start;
+  }
+  .auth-card.card-pad {
+    padding: 28px 20px 24px;
+  }
+  .auth-title {
+    font-size: 26px;
+  }
+  .auth-sub {
+    font-size: 15px;
+    margin: 8px 0 22px;
+  }
+  .auth-card .field {
+    margin-bottom: 16px;
+  }
+  .auth-submit {
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+}
+

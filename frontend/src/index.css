@@ -1,3 +1,27 @@
-/* Leadpot 전역 스타일 진입점 — 디자인 토큰 + 기본/컴포넌트 스타일을 불러온다. */
+/* ============================================================
+   Leadpot 스타일 진입점 (main.tsx 가 이 파일 하나만 import)
+   ------------------------------------------------------------
+   레이어 순서(= 캐스케이드 순서). 아래로 갈수록 나중에 로드되어
+   같은 특정도에서 이긴다. 새 스타일은 "가장 알맞은 레이어"에 추가한다.
+
+   1) tokens      디자인 토큰(색·간격·타이포·그림자). 값만, 규칙 없음.
+   2) base        리셋 + 요소 기본값(h1/p/a…) + 공통 프리미티브(.btn/.card/.input…)
+   3) components  여러 화면이 공유하는 복합 UI(.lead-modal/테이블/세그먼트/상태색)
+   4) layout      앱 셸(app-shell·상단바·내비·대시보드 골격)
+   5) features/*  페이지·기능별 스타일(서로 네임스페이스가 겹치지 않음)
+
+   전체 구조 설명은 styles/README.md 참고.
+   ============================================================ */
+
 @import "./styles/tokens.css";
 @import "./styles/base.css";
+@import "./styles/components.css";
+@import "./styles/layout.css";
+
+@import "./styles/features/auth.css";
+@import "./styles/features/stats.css";
+@import "./styles/features/form-builder.css";
+@import "./styles/features/landing.css";
+@import "./styles/features/public.css";
+@import "./styles/features/leads.css";
+@import "./styles/features/advertiser.css";

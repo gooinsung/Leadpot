@@ -1,0 +1,144 @@
+/* ============================================================
+   Leadpot · layout.css — 앱 셸(app shell)
+   화면 뼈대: app-shell·로딩·상단바 액션·상단바 내비·대시보드 골격
+   토큰: styles/tokens.css · 구조 지도: styles/README.md
+   ============================================================ */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--muted);
+}
+
+/* 상단바 우측 액션 */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar-email {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* ---------- 대시보드 ---------- */
+.dashboard {
+  flex: 1;
+  padding-top: 40px;
+  padding-bottom: 56px;
+}
+.dash-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.dash-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+.dash-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 32px;
+}
+.kpi {
+  padding: 22px 24px;
+}
+.k-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.k-val {
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.upcoming-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.upcoming-item {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  background: var(--bg);
+}
+.upcoming-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.upcoming-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.upcoming-desc {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+@media (max-width: 720px) {
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .upcoming-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- 상단바 내비 ---------- */
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.topbar-nav {
+  display: flex;
+  gap: 6px;
+}
+.nav-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.nav-link:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+.nav-link.on {
+  color: var(--indigo-strong);
+  background: var(--indigo-soft);
+}
+

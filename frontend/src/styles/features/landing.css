@@ -1,0 +1,158 @@
+/* ============================================================
+   Leadpot · features/landing.css — 랜딩 빌더·공개 랜딩
+   랜딩 편집기 미리보기(PC/모바일) · 공개 랜딩(/p/:slug) · CTA 오버레이. LandingEditPage·PublicLandingPage
+   토큰: styles/tokens.css · 구조 지도: styles/README.md
+   ============================================================ */
+
+/* ---------- 랜딩 편집기 미리보기 (PC/모바일 전환) ---------- */
+.lp-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.lp-device-seg {
+  margin-bottom: 0;
+}
+.lp-device-seg button {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.lp-preview-stage {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  max-height: 74vh;
+  overflow-y: auto;
+}
+.lp-preview-device {
+  background: var(--surface);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  margin: 0 auto;
+  transition: max-width 0.2s ease;
+}
+.lp-preview-stage.mobile .lp-preview-device {
+  max-width: 360px;
+}
+.lp-preview-stage.pc {
+  overflow-x: hidden;
+}
+/* PC 미리보기: 패널 폭에 꽉 채우되 넘치지 않도록(좌우 스크롤 방지) */
+.lp-preview-stage.pc .lp-preview-device {
+  width: 100%;
+  max-width: 100%;
+}
+/* PC 미리보기에선 리드폼/텍스트가 페이지 폭에 맞춰 넓게 */
+.lp-preview-stage.pc .landing-form-card {
+  max-width: 460px;
+  margin: 16px auto;
+}
+/* 미리보기 내부 블록은 공개 랜딩과 동일한 룩을 사용 */
+.lp-preview-device .landing-form-card {
+  margin: 14px 16px;
+}
+
+.landing-form-slot {
+  border: 1.5px dashed var(--green);
+  background: var(--green-soft);
+  color: var(--green-strong);
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 13px;
+  margin: 12px 0;
+}
+.landing-preview .landing-text {
+  font-size: 14px;
+  margin: 10px 0;
+  white-space: pre-wrap;
+}
+
+/* ---------- 공개 랜딩(/p/:slug) — 모바일 최적화 ---------- */
+.landing-public {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.landing-public-inner {
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--surface);
+  min-height: 100vh;
+}
+.landing-img {
+  display: block;
+  width: 100%;
+}
+.landing-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+  padding: 4px 20px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.landing-html {
+  padding: 4px 20px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.landing-cta {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 16px 20px;
+  min-height: 52px;
+  font-size: 17px;
+}
+.landing-form-card {
+  margin: 16px 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+/* CTA 오버레이(배경 블러 + 모달) */
+.landing-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 20, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+  padding: 0;
+}
+.landing-overlay-card {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  padding: 26px 20px calc(26px + env(safe-area-inset-bottom));
+  max-height: 92vh;
+  overflow-y: auto;
+  animation: overlayUp 0.2s ease;
+}
+.landing-overlay-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+@keyframes overlayUp {
+  from { transform: translateY(24px); opacity: 0.6; }
+  to { transform: none; opacity: 1; }
+}
+@media (min-width: 640px) {
+  .landing-overlay { align-items: center; }
+  .landing-overlay-card { border-radius: 18px; }
+}
+

@@ -1,0 +1,159 @@
+/* ============================================================
+   Leadpot · features/public.css — 공개 폼·동의·완료
+   공개 리드폼(/f/:id, 모바일 최적화) · 동의문서 공개뷰 · 완료 화면. embed(임베드)에서도 사용
+   토큰: styles/tokens.css · 구조 지도: styles/README.md
+   ============================================================ */
+
+/* 동의 문서 공개 뷰 */
+.consent-view {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 48px 20px;
+}
+.consent-view-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 40px;
+}
+.consent-view-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+.consent-doc-body {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.consent-doc-body :where(h1, h2, h3) {
+  margin: 16px 0 8px;
+}
+
+/* 완료 화면 미리보기 */
+.completion {
+  text-align: center;
+  padding: 20px 8px;
+}
+.completion-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+.completion-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+.completion-msg {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+.completion-note {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  text-align: center;
+}
+.completion-url {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--indigo);
+  word-break: break-all;
+}
+.phone-verify-note {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--indigo-strong);
+  background: var(--indigo-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+
+/* 공개 리드폼(/f/:id) */
+.public-form {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 40px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.public-form-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  padding: 28px;
+}
+.public-form-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+
+/* 공개 리드폼: 모바일 최적화(99% 모바일). 입력창 16px로 iOS 자동확대 방지, 큰 탭 타깃. */
+.public-form-card .input {
+  font-size: 16px;
+  padding: 13px 14px;
+}
+.public-form-card .btn {
+  min-height: 50px;
+  font-size: 16px;
+}
+.public-form-card .fr-check {
+  font-size: 14px;
+  gap: 10px;
+}
+.public-form-card .fr-check input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.public-form-card .sfr-opt {
+  padding: 15px 16px;
+}
+@media (max-width: 640px) {
+  .public-form {
+    padding: 0;
+    align-items: stretch;
+  }
+  .public-form-card {
+    max-width: 100%;
+    min-height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+  }
+  /* 공개 동의 문서 뷰도 모바일 풀폭 */
+  .consent-view {
+    padding: 0;
+  }
+  .consent-view-inner {
+    min-height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 28px 20px;
+  }
+}
+

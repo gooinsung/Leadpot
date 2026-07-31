@@ -1,0 +1,76 @@
+/* ============================================================
+   Leadpot · features/leads.css — 리드 목록
+   마케터 리드 목록 카드/줄. LeadsListPage. (상세 모달은 components.css)
+   토큰: styles/tokens.css · 구조 지도: styles/README.md
+   ============================================================ */
+
+/* 리드 목록 */
+.public-link {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--indigo);
+  word-break: break-all;
+}
+.leads {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lead-card {
+  padding: 16px 18px;
+}
+.lead-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.lead-time {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lead-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.lead-answer {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+.lead-a-label {
+  min-width: 110px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.lead-a-value {
+  color: var(--text);
+  font-weight: 600;
+}
+.lead-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.lead-status-select {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.lead-status-select.b-normal { background: var(--green-soft); color: var(--green-strong); border-color: transparent; }
+.lead-status-select.b-wait { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+.lead-status-select.b-bad { background: var(--rose-soft); color: var(--rose); border-color: transparent; }
+
