@@ -243,6 +243,16 @@
   .fl-actions { grid-area: 4 / 1 / 4 / -1; justify-content: flex-start; margin-top: 4px; }
 }
 
+/* LNB(224px) 가 생기면서 인박스는 4단이 됐다 — 1400px 미만에서는 rail·패널을 줄이고
+   행의 최소 열 폭도 낮춰 가로 스크롤이 생기지 않게 한다.
+   (안 줄이면 LNB 224 + rail 236 + 행 최소폭 524 + 패널 400 = 1384px 가 필요하다) */
+@media (max-width: 1400px) {
+  .inbox-rail { width: 184px; }
+  .inbox-panel { width: 344px; }
+  .inbox-list { padding: 20px 16px; }
+  .inbox-row { grid-template-columns: 28px minmax(84px, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 78px 108px; gap: 10px; }
+}
+
 /* ── PANE 3 · 사이드 패널 ── */
 .inbox-panel {
   width: 400px; flex: none; border-left: 1px solid var(--border);
