@@ -20,9 +20,17 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A7 남은 조각(처리속도 리포트 · 광고주 화면 미리보기)** — A1~A6 + A7 화이트라벨 완료
+> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A7 남은 2조각(마케터측 리포트 · 광고주 화면 미리보기)** — A1~A6 + A7(화이트라벨·광고주 리포트) 완료
 >
-> #### ✅ 2026-07-31 세션 완료 — **A7 화이트라벨 UI** (브랜치 `feature/a7-whitelabel`)
+> #### ✅ 2026-07-31 세션 완료 — **A7 처리속도 리포트(광고주 화면)** (브랜치 `feature/a7-report`)
+>
+> - **`GET /api/advertiser/reports?formId=&from=&to=`** — `AdvertiserReportResponse`: 총 접수·미확인율·**접수→최초열람 평균**(초, `advertiser_seen_at`)·**접수→상태변경 평균**(초, `advertiser_status_at`)·상태 분포(6개). `filterLeads` 재사용, grant 검증.
+>   - ⚠️ "접수→첫 상태변경"은 `advertiser_status_at`(광고주 전용·**최근** 변경)으로 근사 — 대부분 1회라 실질 동일. 정직하게 "상태 변경"으로 라벨.
+> - **프론트 `/client/report`**(`AdvertiserReportPage`): 리드폼·기간 선택 + KPI 카드 4개(총 접수·미확인율·평균 확인까지·평균 처리까지) + 상태 분포 막대 + **`@media print` 인쇄(PDF 저장)**. `AdvertiserTopBar`에 '리포트' 내비 추가.
+> - **검증**: `AdvertiserReportTest` 2개(응답시간 정확 집계·빈 데이터 안전) + 백엔드 전체 통과 · 프론트 tsc+prod 빌드.
+> - **다음**: 마케터측 리포트(`GET /api/advertisers/{id}/reports/response-time`, 광고주별 집계) + 광고주 화면 미리보기(impersonate, 읽기전용) → A7 마감.
+>
+> #### ✅ 2026-07-31 세션 완료 — **A7 화이트라벨 UI** (병합됨 `78ba936`)
 >
 > - **`GET/PUT /api/advertisers/brand`** — 마케터가 자기 로고 URL·색상 저장/조회(`BrandSettings` DTO, 색상 `#RRGGBB` 검증·빈값이면 해제). 컬럼(`users.brand_logo_url`·`brand_color`)·광고주 화면 읽기(`AdvertiserMeResponse`·`AdvertiserTopBar`)는 이미 있었음 → **설정 API+UI만 추가, 마이그레이션 없음**.
 > - **프론트 `BrandSettingsCard`**(`/advertisers` 상단, 접기/펼치기): 로고 파일 업로드(기존 `uploadImage`)·URL 직접입력·로고 제거 / 색상 피커+hex 입력 / **실시간 미리보기**(광고주 상단바 모습) / 저장.

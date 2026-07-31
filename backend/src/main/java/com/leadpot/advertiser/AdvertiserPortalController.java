@@ -24,6 +24,7 @@ import com.leadpot.advertiser.dto.AdvertiserLeadPage;
 import com.leadpot.advertiser.dto.AdvertiserLeadResponse;
 import com.leadpot.advertiser.dto.AdvertiserMeResponse;
 import com.leadpot.advertiser.dto.AdvertiserNoteResponse;
+import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.common.ClientIp;
 import com.leadpot.integration.IntegrationService;
 import com.leadpot.integration.dto.IntegrationRequest;
@@ -131,6 +132,13 @@ public class AdvertiserPortalController {
     public Map<String, Object> updates(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
             @RequestParam(required = false) String since) {
         return leadService.updates(userId(jwt), formId, since);
+    }
+
+    /** 처리속도 리포트(A7): 접수→최초열람·상태변경 평균, 미확인율, 상태 분포. 기간 필터. */
+    @GetMapping("/reports")
+    public AdvertiserReportResponse report(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+        return leadService.report(userId(jwt), formId, from, to);
     }
 
     /**

@@ -21,6 +21,7 @@ import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
 import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
 import { AdvertiserIntegrationsPage } from "./pages/AdvertiserIntegrationsPage";
+import { AdvertiserReportPage } from "./pages/AdvertiserReportPage";
 import { ClientLoginPage } from "./pages/ClientLoginPage";
 import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
@@ -208,6 +209,14 @@ function App() {
         element={
           <ProtectedRoute role="ADVERTISER">
             <AdvertiserIntegrationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/client/report"
+        element={
+          <ProtectedRoute role="ADVERTISER">
+            <AdvertiserReportPage />
           </ProtectedRoute>
         }
       />

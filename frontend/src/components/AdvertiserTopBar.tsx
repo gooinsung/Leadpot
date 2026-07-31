@@ -44,6 +44,9 @@ export function AdvertiserTopBar() {
             <NavLink to="/client" end className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
               리드
             </NavLink>
+            <NavLink to="/client/report" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
+              리포트
+            </NavLink>
             <NavLink to="/client/integrations" className={({ isActive }) => (isActive ? "nav-link on" : "nav-link")}>
               알림 설정
             </NavLink>

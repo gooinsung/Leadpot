@@ -1113,6 +1113,27 @@ export function getAdvertiserLeadUpdates(formId: number, since?: string): Promis
   return request<AdvertiserLeadUpdates>(`/api/advertiser/leads/updates?formId=${formId}${qs}`);
 }
 
+/** 처리속도 리포트(A7): 접수→열람/상태 평균, 미확인율, 상태 분포. */
+export interface AdvertiserReport {
+  formId: number;
+  formName: string;
+  from: string | null;
+  to: string | null;
+  total: number;
+  seen: number;
+  unseen: number;
+  unseenRate: number;
+  avgSecondsToSeen: number | null;
+  avgSecondsToStatus: number | null;
+  statusCounts: { status: string; label: string; count: number }[];
+}
+export function getAdvertiserReport(formId: number, from?: string, to?: string): Promise<AdvertiserReport> {
+  const p = new URLSearchParams({ formId: String(formId) });
+  if (from) p.set("from", from);
+  if (to) p.set("to", to);
+  return request<AdvertiserReport>(`/api/advertiser/reports?${p.toString()}`);
+}
+
 // ---------- 광고주 알림 연동 (A5) ----------
 // integration_settings 는 계정당 1행이라 마케터용 타입(IntegrationSettings/IntegrationTestResult)을 그대로 재사용한다.
 /** 내 텔레그램 알림 설정 조회. */

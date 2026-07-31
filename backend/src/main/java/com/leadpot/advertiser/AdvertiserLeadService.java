@@ -1,11 +1,13 @@
 package com.leadpot.advertiser;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,7 @@ import com.leadpot.advertiser.dto.AdvertiserLeadPage;
 import com.leadpot.advertiser.dto.AdvertiserLeadResponse;
 import com.leadpot.advertiser.dto.AdvertiserMeResponse;
 import com.leadpot.advertiser.dto.AdvertiserNoteResponse;
+import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.auth.Role;
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
@@ -243,6 +246,58 @@ public class AdvertiserLeadService {
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    /**
+     * 처리속도 리포트(A7): 기간 내 배정 리드의 응답성 지표.
+     * 접수→최초열람 평균 · 접수→상태변경 평균 · 미확인율 · 상태 분포. 조회만 한다.
+     */
+    @Transactional(readOnly = true)
+    public AdvertiserReportResponse report(Long advertiserId, Long formId, String from, String to) {
+        AdvertiserFormGrant grant = requireGrant(advertiserId, formId);
+        List<Lead> leads = filterLeads(formId, null, null, from, to);
+
+        int total = leads.size();
+        long seenSum = 0;
+        int seenN = 0;
+        long statusSum = 0;
+        int statusN = 0;
+
+        // 상태별 건수 — 6개 상태를 정의 순서대로 0 으로 초기화(빈 상태도 표에 보이게).
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (String code : AdvertiserLeadStatus.LABELS.keySet()) {
+            counts.put(code, 0);
+        }
+        for (Lead l : leads) {
+            String st = l.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : l.getAdvertiserStatus();
+            counts.merge(st, 1, Integer::sum);
+            Instant created = l.getCreatedAt();
+            if (created != null && l.getAdvertiserSeenAt() != null) {
+                seenSum += Math.max(0, Duration.between(created, l.getAdvertiserSeenAt()).getSeconds());
+                seenN++;
+            }
+            if (created != null && l.getAdvertiserStatusAt() != null) {
+                statusSum += Math.max(0, Duration.between(created, l.getAdvertiserStatusAt()).getSeconds());
+                statusN++;
+            }
+        }
+        int seen = seenN;
+        int unseen = total - seen;
+        double unseenRate = total == 0 ? 0 : (double) unseen / total;
+        Long avgSeen = seenN > 0 ? seenSum / seenN : null;
+        Long avgStatus = statusN > 0 ? statusSum / statusN : null;
+
+        List<AdvertiserReportResponse.StatusCount> statusCounts = counts.entrySet().stream()
+                .map(e -> new AdvertiserReportResponse.StatusCount(
+                        e.getKey(), AdvertiserLeadStatus.label(e.getKey()), e.getValue()))
+                .toList();
+
+        String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
+                ? grant.getDisplayName()
+                : formRepository.findById(formId).map(Form::getName).orElse("리드폼");
+
+        return new AdvertiserReportResponse(formId, name, from, to, total, seen, unseen, unseenRate,
+                avgSeen, avgStatus, statusCounts);
     }
 
     /** 리드 상세. 최초 열람이면 {@code advertiser_seen_at} 을 남긴다(마케터 목록의 '확인' 표시 근거). */
