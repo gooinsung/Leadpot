@@ -21,20 +21,21 @@
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
 > ### 🎨 UI/UX 개선 단계 진행 중 (2026-07-31) — 정본 계획 [UIUX-PLAN.md](UIUX-PLAN.md)
-> **⏸ 세션 마감(다른 환경에서 이어받기). 아래 "이어받는 사람은 여기부터" 참고. 모두 `main` 병합·푸시·배포됨(최신 `e403b8b`).**
 >
 > - ✅ **U0 CSS 구조화** (`7f298ed`): `App.css` 1778줄 모놀리식 → 레이어(tokens/base/components/layout/features) + `frontend/src/styles/README.md` 지도. 동작·시각 변화 0(번들 크기 동일 검증).
 > - ✅ **U1 통합 리드 인박스** (`29fcb47`): `GET /api/leads/inbox`(전체 폼 합산·필터·페이징+출처폼명, 미확인=신규NEW) + `/inbox` 3-pane 페이지(rail·목록·사이드패널) + TopBar '리드' 내비. 폼별 뷰(`/forms/:id/leads`)는 유지. `InboxTest` 5개.
-> - 🔄 **U2 일괄 작업** (`e403b8b`): `PATCH /api/leads/bulk/status`·`POST /api/leads/bulk/trash`(부분성공, 처리건수) + 인박스 체크박스·전체선택·일괄 툴바(상태변경/휴지통). `BulkLeadTest` 3개.
+> - ✅ **U2 일괄 작업** (`e403b8b`): `PATCH /api/leads/bulk/status`·`POST /api/leads/bulk/trash`(부분성공, 처리건수) + 인박스 체크박스·전체선택·일괄 툴바(상태변경/휴지통). `BulkLeadTest` 3개.
+> - ✅ **U2 사이드 패널 통일** (이번 세션, 프론트 전용): 공용 **`components/LeadSidePanel.tsx`** 신설(인박스 로컬 패널 추출·확장) — `variant="pane"`(인박스 3-pane) / `variant="drawer"`(폼별 목록 우측 서랍, **딤 배경 없어 목록 맥락 유지**). 내용 합집합 = 답변·상태칩·**태그 편집**·방문자(IP/언어/유입/UTM)·메모·이력(삭제)·ESC 닫기. `LeadsListPage` 의 모달 → 이 패널로 교체, **`LeadDetailModal.tsx` 삭제**. CSS는 `features/leads.css`(`.lead-drawer`·`.ip-tags`·`.ip-head-*`).
+>   - **결정**: 일괄작업은 **인박스에만** 둔다(폼별 뷰는 카드 레이아웃이라 체크박스가 어색 + 일괄은 여러 폼을 아우르는 성격). 폼별 뷰 표 정리는 U3에서.
+>   - **검증**: `tsc -b` + prod(embed 포함) 빌드 통과. ⚠️ **실앱 시각 확인은 아직(아래 1번)**.
 >
 > #### 👉 이어받는 사람은 여기부터 (다음에 할 일, 우선순위 순)
-> 1. **[검증] 실앱에서 인박스·일괄작업 눈으로 확인** — ⚠️ 이번 세션은 로컬 인증(CORS)·백엔드 제약으로 **실앱 화면을 못 봤다**. 정적 프리뷰(레이아웃)만 확인함. **로그인해서** ①`/inbox` 리드·rail 카운트 정상 ②사이드패널 상태변경·메모 저장 ③체크박스 일괄 상태변경/휴지통 ④**CSS 구조화 후 기존 화면들(대시보드·리드폼·리드목록·랜딩·광고주 등) 안 깨졌는지** 회귀 확인. 깨진 곳 있으면 그 feature CSS 파일에서 수정.
-> 2. **[U2 마무리] 폼별 리드 페이지 사이드 패널 통일** — `frontend/src/pages/LeadsListPage.tsx` 가 지금 `LeadDetailModal`(모달) 사용. 이걸 인박스와 같은 **사이드 패널**로 통일(일관성). `LeadInboxPage.tsx` 의 `LeadSidePanel` 을 공용 컴포넌트로 추출해 양쪽에서 재사용 권장. (일괄작업도 폼별 뷰에 넣을지 그때 판단)
-> 3. **[U3 가독성 패스]** (사용자 1순위 가치) — 넓은 프레임 전면 적용 + 표/타이포/간격/행밀도 정리 + 상태색·대비 점검. UIUX-PLAN.md U3.
-> 4. 이후 U4(내비 정리)·U5(빈화면/로딩/에러/토스트)·U6(광고주 포털)·U7(비주얼 컨셉 확정). 컨셉 4선/인박스 프리뷰는 아래 "참고 링크".
+> 1. **[검증] 실앱에서 인박스·일괄작업·사이드패널 눈으로 확인** — ⚠️ 로그인이 필요해 아직 **실앱 화면을 못 봤다**(정적 프리뷰만). **로그인해서** ①`/inbox` 리드·rail 카운트 정상 ②사이드패널 상태변경·태그·메모 저장 ③체크박스 일괄 상태변경/휴지통 ④**폼별 리드 목록의 '상세' → 우측 서랍**이 목록 가리지 않고 잘 뜨는지(모바일 포함) ⑤**CSS 구조화 후 기존 화면들(대시보드·리드폼·리드목록·랜딩·광고주 등) 안 깨졌는지** 회귀 확인. 깨진 곳은 해당 feature CSS 파일에서 수정.
+> 2. **[U3 가독성 패스]** (사용자 1순위 가치) — 넓은 프레임 전면 적용 + 표/타이포/간격/행밀도 정리 + 상태색·대비 점검. UIUX-PLAN.md U3.
+> 3. 이후 U4(내비 정리)·U5(빈화면/로딩/에러/토스트)·U6(광고주 포털)·U7(비주얼 컨셉 확정). 컨셉 4선/인박스 프리뷰는 아래 "참고 링크".
 >
 > #### ⚙️ 이어받을 때 알아둘 것
-> - **로컬 실행**(이 세션=wincube PC): JDK21=`C:\Users\wincube\.jdks\ms-21.0.11`, 백엔드 `cd backend && JAVA_HOME=<위경로> ./gradlew.bat bootRun`(⚠️ `application-local.properties`=Neon 접속정보, gitignore·PC마다 별도). 프론트 `cd frontend && npm run dev`. **로컬 백엔드는 실데이터(Neon 공유) 건드림 주의.**
+> - **로컬 실행**(PC별 경로 다름 — wincube PC 예시): JDK21=`C:\Users\wincube\.jdks\ms-21.0.11`, 백엔드 `cd backend && JAVA_HOME=<위경로> ./gradlew.bat bootRun`(⚠️ `application-local.properties`=Neon 접속정보, gitignore·PC마다 별도). 프론트 `cd frontend && npm run dev`. **로컬 백엔드는 실데이터(Neon 공유) 건드림 주의.**
 > - **CSS 구조**: `frontend/src/styles/README.md` 먼저 읽기. 새 스타일은 알맞은 레이어에. 인박스 스타일은 `features/leads.css`.
 > - **배포**: `main` push → CI 자동배포(프론트 rsync 즉시 / 백엔드 재빌드 ~2~4분, 그 사이 API 502 순단 정상). `gh` CLI 없어 CI상태는 GitHub Actions 페이지 or `curl api.github.com/repos/gooinsung/Leadpot/actions/runs`.
 > - **참고 링크(이 세션 산출물)**: 디자인 컨셉 4선 `claude.ai/code/artifact/a2a7625e-...` · 인박스 와이어프레임 `.../5ce77b6e-...` · 인박스 실스타일 프리뷰(U1+U2) `.../b5da78c9-...`
