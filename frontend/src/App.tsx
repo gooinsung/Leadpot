@@ -19,6 +19,7 @@ import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
+import { AdvertiserPreviewPage } from "./pages/AdvertiserPreviewPage";
 import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
 import { AdvertiserIntegrationsPage } from "./pages/AdvertiserIntegrationsPage";
 import { AdvertiserReportPage } from "./pages/AdvertiserReportPage";
@@ -189,6 +190,14 @@ function App() {
         element={
           <ProtectedRoute>
             <AdvertisersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/advertisers/:id/preview"
+        element={
+          <ProtectedRoute>
+            <AdvertiserPreviewPage />
           </ProtectedRoute>
         }
       />

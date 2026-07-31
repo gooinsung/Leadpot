@@ -20,9 +20,19 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### ⭐⭐ 지금 할 일 = 광고주 포털 **A7 마지막 조각(광고주 화면 미리보기/impersonate)** — A1~A6 + A7(화이트라벨·리포트 양쪽) 완료
+> ### 🎉 광고주 포털 **A1~A7 전부 완료** (2026-07-31) — 다음 할 일은 사용자와 정할 것
 >
-> #### ✅ 2026-07-31 세션 완료 — **A7 마케터측 처리속도 리포트** (브랜치 `feature/a7-marketer-report`)
+> **광고주 포털이 끝났다.** 남은 것은 오픈 전 챙길 것(개발/운영 DB 분리·백업 등, 아래 "🚧 오픈 전 챙길 것" 참고)과, 후속 기능(구독 리포트 메일발송·광고주 팀계정·외부 CRM 웹훅 등, 계획서 §후속) — **무엇을 다음으로 할지는 사용자와 상의해서 정한다.**
+>
+> #### ✅ 2026-07-31 세션 완료 — **A7 광고주 화면 미리보기(impersonate)** (브랜치 `feature/a7-preview`)
+>
+> - **마케터측 읽기 전용 미리보기**: `GET /api/advertisers/{id}/preview`(폼·대시보드)·`/preview/leads`·`/preview/leads/{leadId}`(상세+메모)·`POST /preview/exit`. 쓰기 매핑을 **아예 만들지 않아 구조적으로 읽기 전용**.
+> - **§5 증거 오염 방지**: 리드 상세는 `AdvertiserLeadService.leadReadOnly`(seen·VIEW_LEAD 미기록). 진입·이탈은 **IMPERSONATE 로그**(광고주 활동 이력에 남아 투명).
+> - `AdvertiserService`에 `AdvertiserLeadService`+`AdvertiserAuditService` 주입(순환 없음). 모든 preview 메서드가 `loadOwned` 로 소유권 재확인.
+> - **프론트**: `/advertisers/:id/preview`(`AdvertiserPreviewPage`) — "읽기 전용" 배너 + 폼 칩 + 리드 목록(상태 pill·확인 배지, 쓰기 UI 없음) + 읽기 전용 상세 모달(답변·메모). `/advertisers` 목록에 **'미리보기' 버튼**.
+> - **검증**: `AdvertiserPreviewTest` 4개(**미리보기해도 seen 미기록**·진입 IMPERSONATE·이탈 로그·타마케터 404) + 백엔드 전체 통과 · 프론트 빌드.
+>
+> #### ✅ 2026-07-31 세션 완료 — **A7 마케터측 처리속도 리포트** (병합됨 `7e06fff`)
 >
 > - **`GET /api/advertisers/{id}/reports/response-time`** — 광고주에게 배정된 **모든 유효 폼의 리드를 합산**(마케터 소유 재확인). 지표 계산은 `AdvertiserReportResponse.from(leads, formId, name, from, to)` **정적 팩토리로 추출 → 광고주(폼1개)·마케터(합산) 공용**(중복 제거).
 > - **프론트**: `/advertisers` 목록의 **'리포트' 버튼 → 모달**(KPI 카드 4개 + 상태 분포 pill). `AdvertiserService`에 `LeadRepository` 주입 + KST 기간 필터.

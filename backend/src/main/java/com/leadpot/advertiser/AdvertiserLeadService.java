@@ -273,6 +273,16 @@ public class AdvertiserLeadService {
         return AdvertiserLeadResponse.from(lead);
     }
 
+    /**
+     * 리드 상세 <b>읽기 전용</b> — 마케터 미리보기(impersonate) 전용.
+     * {@link #lead}과 달리 <b>열람 시각(seen)·VIEW_LEAD 로그를 남기지 않는다</b>.
+     * 마케터가 들여다본 것을 광고주가 확인한 것처럼 기록하면 §5 분쟁 방어의 증거가 오염되기 때문이다.
+     */
+    @Transactional(readOnly = true)
+    public AdvertiserLeadResponse leadReadOnly(Long advertiserId, Long leadId) {
+        return AdvertiserLeadResponse.from(requireOwnedLead(advertiserId, leadId));
+    }
+
     /** 광고주 상태 변경. 마케터의 status 는 건드리지 않는다. */
     @Transactional
     public AdvertiserLeadResponse updateStatus(Long advertiserId, Long leadId, String status, String ip) {

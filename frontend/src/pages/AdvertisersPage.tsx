@@ -21,6 +21,7 @@ import {
   type PasswordResetIssued,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { useNavigate } from "react-router-dom";
 import { Pagination, usePaging } from "../components/Pagination";
 import { GrantEditor } from "../components/GrantEditor";
 import { BrandSettingsCard } from "../components/BrandSettingsCard";
@@ -39,6 +40,7 @@ function fmtDuration(sec: number | null): string {
 }
 
 export function AdvertisersPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<AdvertiserSummary[]>([]);
   const [invites, setInvites] = useState<AdvertiserInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -358,6 +360,13 @@ export function AdvertisersPage() {
                           title="접수→열람/상태 평균, 미확인율 등 처리속도"
                         >
                           리포트
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => navigate(`/advertisers/${a.id}/preview`)}
+                          title="광고주가 보는 화면을 읽기 전용으로 미리보기"
+                        >
+                          미리보기
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"

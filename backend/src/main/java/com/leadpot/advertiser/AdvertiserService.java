@@ -15,7 +15,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.advertiser.dto.AdvertiserLeadPage;
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
+import com.leadpot.advertiser.dto.AdvertiserPreviewLead;
+import com.leadpot.advertiser.dto.AdvertiserPreviewResponse;
 import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
 import com.leadpot.advertiser.dto.BrandSettings;
@@ -50,6 +53,8 @@ public class AdvertiserService {
     private final AdvertiserAccessLogRepository logRepository;
     private final AdvertiserInviteRepository inviteRepository;
     private final LeadRepository leadRepository;
+    private final AdvertiserLeadService leadService;
+    private final AdvertiserAuditService audit;
     private final int maxFree;
     private final int maxPro;
 
@@ -59,6 +64,8 @@ public class AdvertiserService {
             AdvertiserAccessLogRepository logRepository,
             AdvertiserInviteRepository inviteRepository,
             LeadRepository leadRepository,
+            AdvertiserLeadService leadService,
+            AdvertiserAuditService audit,
             @Value("${app.advertiser.max-free}") int maxFree,
             @Value("${app.advertiser.max-pro}") int maxPro) {
         this.userRepository = userRepository;
@@ -67,6 +74,8 @@ public class AdvertiserService {
         this.logRepository = logRepository;
         this.inviteRepository = inviteRepository;
         this.leadRepository = leadRepository;
+        this.leadService = leadService;
+        this.audit = audit;
         this.maxFree = maxFree;
         this.maxPro = maxPro;
     }
@@ -159,6 +168,50 @@ public class AdvertiserService {
         }
         String name = adv.getCompany() != null && !adv.getCompany().isBlank() ? adv.getCompany() : adv.getName();
         return AdvertiserReportResponse.from(leads, null, name, from, to);
+    }
+
+    // ---------- 광고주 화면 미리보기(A7, impersonate·읽기 전용) ----------
+    //
+    // ⛔ 여기에는 조회 메서드만 둔다. 상태변경·메모·내보내기 같은 쓰기는 <b>엔드포인트 자체를 만들지 않는다</b>.
+    //    마케터가 광고주인 척 데이터를 바꾸면 감사 로그가 오염돼 §5 분쟁 방어의 증거 가치가 사라진다.
+    //    리드 상세도 seen 을 남기지 않는 leadReadOnly 를 쓴다. 진입·이탈은 IMPERSONATE 로 남긴다.
+
+    /** 미리보기 진입: 폼 목록·대시보드(광고주가 보는 것과 동일). 진입을 IMPERSONATE 로 기록. */
+    @Transactional
+    public AdvertiserPreviewResponse previewEnter(Long marketerId, Long advertiserId, String ip) {
+        User adv = loadOwned(marketerId, advertiserId);
+        logImpersonate(adv, ip, "미리보기 진입 (마케터 " + marketerId + ")");
+        return new AdvertiserPreviewResponse(adv.getId(), adv.getName(), adv.getCompany(),
+                leadService.forms(advertiserId), leadService.dashboard(advertiserId));
+    }
+
+    /** 미리보기 리드 목록(읽기 전용). 광고주 목록과 동일한 필터·페이징. */
+    @Transactional(readOnly = true)
+    public AdvertiserLeadPage previewLeads(Long marketerId, Long advertiserId, Long formId,
+            String status, String q, String from, String to, Integer page, Integer size) {
+        loadOwned(marketerId, advertiserId);
+        return leadService.leads(advertiserId, formId, status, q, from, to, page, size);
+    }
+
+    /** 미리보기 리드 상세(읽기 전용) + 공유 메모. seen 을 남기지 않는다. */
+    @Transactional(readOnly = true)
+    public AdvertiserPreviewLead previewLead(Long marketerId, Long advertiserId, Long leadId) {
+        loadOwned(marketerId, advertiserId);
+        return new AdvertiserPreviewLead(
+                leadService.leadReadOnly(advertiserId, leadId),
+                leadService.notes(advertiserId, leadId));
+    }
+
+    /** 미리보기 이탈 기록(프론트가 화면을 나갈 때 best-effort 호출). */
+    @Transactional
+    public void previewExit(Long marketerId, Long advertiserId, String ip) {
+        User adv = loadOwned(marketerId, advertiserId);
+        logImpersonate(adv, ip, "미리보기 종료 (마케터 " + marketerId + ")");
+    }
+
+    private void logImpersonate(User advertiser, String ip, String detail) {
+        audit.record(new AdvertiserAccessLog(advertiser.getId(), advertiser.getEmail(),
+                AdvertiserAccessLog.ACTION_IMPERSONATE, ip).target(null, null, detail));
     }
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");

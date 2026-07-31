@@ -317,7 +317,7 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 | **A4** 내보내기·감사 ✅ | 엑셀/CSV(배정분·화이트리스트 컬럼) / EXPORT 감사 로그 / 워터마크 / 일일 20회 상한 / 마케터 활동이력 모달 | `AdvertiserExportTest` 5개 통과 · 컬럼에 IP·UTM 없음 확인 |
 | **A5** 알림 ✅ | 텔레그램 대상 확장 / 광고주 메시지 정제 / `notification_logs` / `/client/integrations`(계정 단위) | `planDispatches` 대상 선정 테스트 7개 통과 · 실수신은 사용자 봇 필요 |
 | **A6** 대시보드·실시간 ✅ | 미확인 배너(A3) / **30초 폴링**(updates 엔드포인트) / 유휴 자동갱신·아니면 새로고침 배너 | `AdvertiserUpdatesTest` 4개 통과 · 화면 안 흔들고 새 리드 감지 |
-| **A7** 부가 | 처리속도 리포트 / 리포트 다운로드(엑셀·인쇄PDF) / 화이트라벨 / 미리보기(읽기전용) | 지표 계산 검증 / 미리보기에서 쓰기 차단 확인 |
+| **A7** 부가 ✅ | 처리속도 리포트(양쪽·인쇄PDF) / 화이트라벨 UI / 미리보기(읽기전용·IMPERSONATE) | 리포트/브랜드/미리보기 테스트 통과 · 미리보기 seen 미기록 확인 |
 
 - **A1이 가장 위험**하다(기존 인증·스키마 수정). 여기서 마케터 전체 기능 회귀 스모크를 충분히 하고 넘어간다.
 - **A1~A5 = 사용자 요청 코어.** A6·A7은 부가라 중간에 멈춰도 서비스가 성립한다.
@@ -494,15 +494,15 @@ GET   /api/advertiser/reports                 기간 리포트(화면 + 엑셀)
 
 > **설계 기록**: 별도 `updates` 엔드포인트(가벼운 count)로 새 리드만 감지. 프론트는 유휴면 자동 reload, 아니면 배너로만 알림 → **모바일에서 스크롤·입력 중 화면이 튀지 않음**. 기준선(since)은 formId 바뀔 때만 리셋.
 
-### A7. 부가 기능  — 상태: 🔄 진행 중 (화이트라벨·광고주 리포트 완료, 미리보기 남음)
+### A7. 부가 기능  — 상태: ✅ **완료** (2026-07-31) — 광고주 포털 A1~A7 전부 완료
 - [x] **처리속도 리포트** (2026-07-31) — 지표 계산은 `AdvertiserReportResponse.from(leads,...)` 정적 팩토리로 추출해 **광고주·마케터 공용**
   - **광고주 화면**: `GET /api/advertiser/reports?formId=&from=&to=`(폼 1개) + `/client/report`(리드폼·기간·KPI 카드·상태 막대·**`@media print` 인쇄PDF**)
   - **마케터 화면**: `GET /api/advertisers/{id}/reports/response-time`(광고주의 **배정 폼 전체 합산**) + `/advertisers` 목록의 **'리포트' 버튼 → 모달**(KPI·상태 분포)
   - ⚠️ "접수→첫 상태변경"은 `advertiser_status_at`(광고주 전용·최근 변경)으로 계산 — 대부분 1회라 실질 동일. "첫" 정밀값은 향후 필요 시
 - [x] **화이트라벨 완성** (2026-07-31) — `GET/PUT /api/advertisers/brand`(로고 URL·색상, #RRGGBB 검증·빈값 해제) + `/advertisers` 상단 **'브랜드 설정' 카드**(로고 업로드·색상 피커·실시간 미리보기). 광고주 화면 읽기·로그인 브랜드 기억은 A3-B에서 완료
-- [ ] 광고주 화면 미리보기(impersonate) — **읽기 전용 강제** + IMPERSONATE 로그
-- [x] 검증: `AdvertiserReportTest` 4개(광고주 집계·빈 데이터·**마케터 폼합산**·타마케터 404) + `AdvertiserBrandTest` 4개 + 백엔드 전체 통과 / 프론트 빌드
-- [ ] 남은 것: **광고주 화면 미리보기(impersonate)** 만 → 완료 후 A7·전체 마감
+- [x] **광고주 화면 미리보기(impersonate)** (2026-07-31) — 마케터측 **읽기 전용** 엔드포인트(`GET /api/advertisers/{id}/preview`·`/preview/leads`·`/preview/leads/{leadId}`, `POST /preview/exit`). 쓰기 매핑을 만들지 않아 **구조적으로 읽기 전용**. 리드 상세는 `leadReadOnly`(seen 미기록)로 **§5 증거 오염 방지**. 진입·이탈 **IMPERSONATE 로그**. 프론트 `/advertisers/:id/preview`(읽기 전용 배너·폼·리드 목록·읽기 전용 상세 모달)
+- [x] 검증: `AdvertiserPreviewTest` 4개(**미리보기해도 seen 미기록**·진입 IMPERSONATE·이탈 로그·타마케터 404) + `AdvertiserReportTest` 4개 + `AdvertiserBrandTest` 4개 + 백엔드 전체 통과 / 프론트 빌드
+- [x] ✅ **A7 완료 → 광고주 포털 A1~A7 전체 완료**
 
 ### 후속(이번 범위 밖, 별도 논의)
 - [ ] 구독 기반 리포트 **메일·문자 자동발송** (지금은 다운로드까지만)

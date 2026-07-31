@@ -894,6 +894,42 @@ export function getAdvertiserResponseReport(
   return request<AdvertiserReport>(`/api/advertisers/${advertiserId}/reports/response-time${qs}`);
 }
 
+// ---------- 광고주 화면 미리보기(A7, 읽기 전용) ----------
+export interface AdvertiserPreview {
+  advertiserId: number;
+  advertiserName: string;
+  advertiserCompany: string | null;
+  forms: AdvertiserForm[];
+  dashboard: AdvertiserDashboard;
+}
+export interface AdvertiserPreviewLead {
+  lead: AdvertiserLead;
+  notes: AdvertiserNote[];
+}
+/** 미리보기 진입(IMPERSONATE 로그). 폼 목록·대시보드를 광고주 시점으로 받는다. */
+export function previewEnter(advertiserId: number): Promise<AdvertiserPreview> {
+  return request<AdvertiserPreview>(`/api/advertisers/${advertiserId}/preview`);
+}
+/** 미리보기 리드 목록(읽기 전용). */
+export function previewLeads(advertiserId: number, filter: AdvertiserLeadFilter): Promise<AdvertiserLeadPage> {
+  const p = new URLSearchParams({ formId: String(filter.formId) });
+  if (filter.status) p.set("status", filter.status);
+  if (filter.q) p.set("q", filter.q);
+  if (filter.from) p.set("from", filter.from);
+  if (filter.to) p.set("to", filter.to);
+  if (filter.page != null) p.set("page", String(filter.page));
+  if (filter.size != null) p.set("size", String(filter.size));
+  return request<AdvertiserLeadPage>(`/api/advertisers/${advertiserId}/preview/leads?${p.toString()}`);
+}
+/** 미리보기 리드 상세(읽기 전용, seen 미기록) + 공유 메모. */
+export function previewLead(advertiserId: number, leadId: number): Promise<AdvertiserPreviewLead> {
+  return request<AdvertiserPreviewLead>(`/api/advertisers/${advertiserId}/preview/leads/${leadId}`);
+}
+/** 미리보기 이탈 기록(best-effort). */
+export function previewExit(advertiserId: number): Promise<void> {
+  return request<void>(`/api/advertisers/${advertiserId}/preview/exit`, { method: "POST" });
+}
+
 /** 화이트라벨(마케터 브랜드) — 광고주 화면 상단에 표시되는 로고·색상. */
 export interface BrandSettings {
   logoUrl: string | null;

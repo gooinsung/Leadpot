@@ -18,10 +18,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.leadpot.advertiser.dto.AdvertiserLeadPage;
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
+import com.leadpot.advertiser.dto.AdvertiserPreviewLead;
+import com.leadpot.advertiser.dto.AdvertiserPreviewResponse;
 import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.advertiser.dto.AdvertiserSummary;
 import com.leadpot.advertiser.dto.BrandSettings;
+import com.leadpot.common.ClientIp;
+
+import jakarta.servlet.http.HttpServletRequest;
 import com.leadpot.advertiser.dto.AdvertiserUpdateRequest;
 import com.leadpot.advertiser.dto.GrantUpdateRequest;
 import com.leadpot.advertiser.dto.GrantView;
@@ -91,6 +97,41 @@ public class AdvertiserController {
     public AdvertiserReportResponse responseTimeReport(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestParam(required = false) String from, @RequestParam(required = false) String to) {
         return advertiserService.responseTimeReport(userId(jwt), id, from, to);
+    }
+
+    // ---------- 광고주 화면 미리보기(A7, impersonate·읽기 전용) ----------
+    // 쓰기 매핑을 만들지 않는다(구조적 읽기 전용). 진입/이탈은 IMPERSONATE 로그로 남는다.
+
+    /** 미리보기 진입: 폼 목록·대시보드(광고주 시점). IMPERSONATE 로그 기록. */
+    @GetMapping("/{id}/preview")
+    public AdvertiserPreviewResponse previewEnter(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            HttpServletRequest http) {
+        return advertiserService.previewEnter(userId(jwt), id, ClientIp.of(http));
+    }
+
+    /** 미리보기 리드 목록(읽기 전용). */
+    @GetMapping("/{id}/preview/leads")
+    public AdvertiserLeadPage previewLeads(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestParam Long formId, @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q, @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to, @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return advertiserService.previewLeads(userId(jwt), id, formId, status, q, from, to, page, size);
+    }
+
+    /** 미리보기 리드 상세(읽기 전용, seen 미기록) + 공유 메모. */
+    @GetMapping("/{id}/preview/leads/{leadId}")
+    public AdvertiserPreviewLead previewLead(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @PathVariable Long leadId) {
+        return advertiserService.previewLead(userId(jwt), id, leadId);
+    }
+
+    /** 미리보기 이탈 기록(best-effort). */
+    @PostMapping("/{id}/preview/exit")
+    public ResponseEntity<Void> previewExit(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            HttpServletRequest http) {
+        advertiserService.previewExit(userId(jwt), id, ClientIp.of(http));
+        return ResponseEntity.noContent().build();
     }
 
     // ---------- 화이트라벨(내 브랜드) ----------
