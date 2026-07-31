@@ -14,8 +14,13 @@ import { useEffect, useRef, type CSSProperties } from "react";
  * **같은 문서에 주입한다**(iframe·Shadow DOM 아님) — 의도된 선택이다.
  * 플로팅/고정 헤더(`position: fixed`)가 화면 기준으로 붙어야 하고,
  * 사용자 코드가 `document.getElementById(...)` 로 자기 요소를 찾기 때문이다.
- * 그 대가로 블록의 `<style>` 은 페이지 전역에 적용된다 — `body`·`*` 같은 전역 선택자를
- * 쓰면 화면 전체가 영향을 받는다(편집 화면 포함). 블록 CSS 는 고유 클래스로 한정할 것.
+ * (Shadow DOM 은 후자가 깨지고, iframe 은 전자가 깨진다.)
+ *
+ * 같은 문서를 쓰면 블록의 `<style>` 이 페이지 전역에 새는 게 문제인데 —
+ * 워드프레스·티스토리·AI 가 만들어주는 코드에는 `* { margin:0 }`, `body { padding-top:70px }`
+ * 같은 **전역 리셋이 흔히 들어 있어** 랜딩 전체와 관리자 화면까지 깨뜨렸다.
+ * 그래서 주입할 때 **블록의 CSS 를 그 블록 안으로 자동 격리한다**(`scopeStyles`).
+ * 덕분에 코드를 훑어보지 않고 그대로 붙여도 다른 화면이 망가지지 않는다.
  *
  * **정리(cleanup) 범위**: 스크립트 실행 중에 만든 `setInterval`·`setTimeout`,
  * `addEventListener`(document·window), `IntersectionObserver`·`MutationObserver`·
@@ -29,6 +34,9 @@ import { useEffect, useRef, type CSSProperties } from "react";
  * 인라인 이벤트 핸들러는 innerHTML 로도 실행된다 — 실측 확인). 작성자는 리드폼·랜딩을
  * 소유한 마케터 본인뿐이라(광고주 계정에는 HTML 편집 권한이 없다) 신뢰 경계가 넓어지지 않는다.
  */
+/** 블록마다 다른 스코프를 줘서 블록끼리도 CSS 가 섞이지 않게 한다. */
+let scopeSeq = 0;
+
 export function HtmlBlock({
   html,
   className,
@@ -42,14 +50,17 @@ export function HtmlBlock({
   debounceMs?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const scopeId = useRef<string>("");
+  if (!scopeId.current) scopeId.current = `lp-hb-${++scopeSeq}`;
 
   useEffect(() => {
     const host = ref.current;
     if (!host) return;
 
+    host.setAttribute("data-lp-hb", scopeId.current);
     let cleanup: (() => void) | null = null;
     const apply = () => {
-      cleanup = injectAndRun(host, html);
+      cleanup = injectAndRun(host, html, `[data-lp-hb="${scopeId.current}"]`);
     };
 
     if (debounceMs > 0) {
@@ -74,9 +85,10 @@ type Tracked = {
   observers: Array<{ disconnect: () => void }>;
 };
 
-/** HTML 을 붙이고 스크립트를 실행한 뒤, 되돌리는 함수를 반환한다. */
-function injectAndRun(host: HTMLElement, html: string): () => void {
+/** HTML 을 붙이고 CSS 를 블록 안으로 격리한 뒤 스크립트를 실행한다. 되돌리는 함수를 반환. */
+function injectAndRun(host: HTMLElement, html: string, scope: string): () => void {
   host.innerHTML = html;
+  scopeStyles(host, scope);
 
   const scripts = Array.from(host.querySelectorAll("script"));
   if (scripts.length === 0) {
@@ -113,6 +125,68 @@ function injectAndRun(host: HTMLElement, html: string): () => void {
     });
     host.innerHTML = "";
   };
+}
+
+/* ============================================================
+   블록 CSS 격리
+   블록의 <style> 규칙 선택자 앞에 블록 스코프를 붙여, 페이지 전역으로 새지 않게 한다.
+   선택자 파싱은 직접 하지 않고 **브라우저의 CSSOM**(styleEl.sheet.cssRules)을 쓴다 —
+   정규식으로 CSS 를 쪼개는 것보다 정확하다.
+   ============================================================ */
+
+/** 페이지 루트를 겨냥하는 선택자 — 블록 루트가 대신 받는다. */
+const ROOT_SELECTORS = new Set(["html", ":root", "body", "html body"]);
+
+/** 블록 안 모든 `<style>` 의 선택자를 블록 스코프로 한정한다. */
+function scopeStyles(host: HTMLElement, scope: string) {
+  for (const styleEl of Array.from(host.querySelectorAll("style"))) {
+    const sheet = styleEl.sheet; // 문서에 붙어 있어야 접근 가능(innerHTML 직후 가능)
+    if (!sheet) continue;
+    let scoped: string;
+    try {
+      scoped = scopeRules(sheet.cssRules, scope);
+    } catch {
+      continue; // 읽을 수 없으면 원본을 그대로 둔다(격리 실패보다 렌더 실패가 더 나쁘다)
+    }
+    styleEl.textContent = scoped;
+  }
+}
+
+function scopeRules(rules: CSSRuleList, scope: string): string {
+  let out = "";
+  for (const rule of Array.from(rules)) {
+    if (rule instanceof CSSStyleRule) {
+      out += `${scopeSelector(rule.selectorText, scope)}{${rule.style.cssText}}\n`;
+    } else if (rule instanceof CSSMediaRule) {
+      out += `@media ${rule.conditionText}{${scopeRules(rule.cssRules, scope)}}\n`;
+    } else if (typeof CSSSupportsRule !== "undefined" && rule instanceof CSSSupportsRule) {
+      out += `@supports ${rule.conditionText}{${scopeRules(rule.cssRules, scope)}}\n`;
+    } else {
+      // @keyframes·@font-face·@import 등은 스코프 개념이 없으므로 그대로 둔다.
+      out += `${rule.cssText}\n`;
+    }
+  }
+  return out;
+}
+
+function scopeSelector(selectorText: string, scope: string): string {
+  return selectorText
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const lower = part.toLowerCase();
+      // `* { margin:0 }` 같은 전역 리셋 → 블록 루트와 그 자손까지만
+      if (part === "*") return `${scope},${scope} *`;
+      // `body { padding-top:70px }` → 블록 루트가 페이지 루트 역할을 대신한다
+      if (ROOT_SELECTORS.has(lower)) return scope;
+      // `body .foo` → `<scope> .foo`
+      if (/^(html|body)\b/i.test(part)) {
+        return `${scope} ${part.replace(/^(html|body)\b\s*/i, "")}`.trim();
+      }
+      return `${scope} ${part}`;
+    })
+    .join(",");
 }
 
 /** 이미 지나간 준비 이벤트 — 등록해도 다시 발생하지 않으므로 즉시 실행으로 바꿔준다. */
