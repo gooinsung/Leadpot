@@ -29,12 +29,15 @@
 | `form-builder.css` | 리드폼 빌더(편집기·렌더러·스텝·색상) | `.builder-*` `.step-*` |
 | `landing.css` | 랜딩 빌더·공개 랜딩(`/p/:slug`) | `.lp-*` (landing) |
 | `public.css` | 공개 폼(`/f/:id`)·동의·완료 — **임베드에서도 사용** | `.public-form-*` |
-| `leads.css` | 마케터 리드 목록 | `.lead-list-*` |
+| `leads.css` | 마케터 리드 화면 — 폼별 목록·통합 인박스·상세 사이드 패널 | `.flead-*`(폼별 행) `.inbox-*`(인박스) `.ip-*`(패널) `.ld-*`(상태색) |
 | `advertiser.css` | 광고주 관리(A2)·광고주 포털(A3) | `.client-*` `.adv-*` |
 
 ## 규칙 (컨벤션)
 
-- **토큰 우선**: 색·간격·그림자는 하드코딩하지 말고 `var(--token)` 을 쓴다. 새 색이 필요하면 먼저 `tokens.css` 에 토큰을 추가한다.
+- **토큰 우선**: 색·간격·그림자는 하드코딩하지 말고 `var(--token)` 을 쓴다. 새 색이 필요하면 먼저 `tokens.css` 에 토큰을 추가한다. 글자 크기는 `--fs-xs|sm|md|lg|xl`.
+- **연한 배경 위 글자색은 ink 토큰**(U3): `--amber`·`--rose` 같은 원색을 `*-soft` 배경 위 작은 글자에 쓰면 대비가 2~3:1 로 떨어진다. 텍스트에는 반드시 `--amber-ink`·`--rose-ink`·`--green-ink`·`--indigo-ink`·`--violet-ink` 를 쓴다(라이트 ≥4.5:1, 다크는 밝은 값으로 자동 전환). 배경을 꽉 채우는 경우(선택된 칩 등)에만 원색/`-strong` 을 쓴다.
+- **상태색은 한 벌만**: 마케터 리드 상태 = `.ld-*`(features/leads.css) · 광고주 리드 상태 = `.st-*`(components.css). 두 클래스는 `--ld-*`/`--st-*` 변수를 내보내므로, 색이 필요한 다른 컴포넌트(예: `.lead-status-select`)는 그 변수를 참조한다. 상태별 규칙을 새로 복사하지 않는다.
+- **표는 `card card-table`**: 표를 카드에 넣을 때 `card-table` 을 함께 준다(헤더 톤·행 hover 가 둥근 모서리를 넘지 않게 클리핑).
 - **레이어 존중**: 공통으로 재사용될 UI → `base`(단일) 또는 `components`(복합). 특정 화면 전용 → 해당 `features/*`. 애매하면 features 에 두고, 두 번째 화면이 쓰기 시작하면 components 로 올린다.
 - **네임스페이스**: feature 클래스는 화면을 알 수 있는 접두어를 쓴다(`.client-*`, `.stat-*` …). 전역 오염을 막는다.
 - **다크 모드**: 색은 토큰으로만 다룬다. `tokens.css` 가 라이트/다크(+ `data-theme` 수동 지정)를 모두 정의하므로, 컴포넌트는 토큰만 쓰면 자동 대응된다.

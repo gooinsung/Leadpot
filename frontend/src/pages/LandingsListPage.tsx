@@ -54,7 +54,7 @@ export function LandingsListPage() {
           </div>
         ) : (
           <>
-          <div className="card">
+          <div className="card card-table">
             <table>
               <thead>
                 <tr><th>제목</th><th>공개 주소</th><th>상태</th><th>수정일</th><th></th></tr>

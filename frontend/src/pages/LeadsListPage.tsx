@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   advertiserStatusLabel,
   ApiError,
-  BASE_URL,
   deleteLead,
   downloadLeads,
   downloadLeadTemplate,
@@ -21,6 +20,7 @@ import {
 import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
+import { leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
 
 // ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
 function kstDate(iso: string): string {
@@ -168,7 +168,7 @@ export function LeadsListPage() {
     );
   }, [leads, q, statusFilter, dupOnly, advUnseenOnly, dupIds, tagFilter, dateFrom, dateTo]);
 
-  const paging = usePaging(filtered, 10);
+  const paging = usePaging(filtered, 25); // 컴팩트 행이라 한 화면에 더 많이(U3)
 
   function copyLink() {
     navigator.clipboard?.writeText(publicUrl).then(() => {
@@ -232,24 +232,17 @@ export function LeadsListPage() {
     }
   }
 
-  function statusClass(status: string) {
-    if (status === "DONE") return "b-normal";
-    if (status === "SPAM") return "b-bad";
-    if (status === "IN_PROGRESS") return "b-wait";
-    return "";
-  }
-  const statusLabel = (v: string) => LEAD_STATUSES.find((s) => s.value === v)?.label ?? v;
-
   return (
     <div className="app-shell">
       <TopBar />
-      <main className="wrap dashboard">
+      <main className={`wrap dashboard${detailId != null ? " with-drawer" : ""}`}>
         <div className="dash-head">
           <div>
             <p className="eyebrow">리드(수집 DB)</p>
             <h1 className="dash-title">{form ? form.name : "리드"}</h1>
             <p className="dash-sub">
-              {trashed ? "휴지통" : "수집됨"} {filtered.length}건 · 백엔드 API <code>{BASE_URL}</code>
+              {trashed ? "휴지통" : "수집됨"} {filtered.length.toLocaleString()}건
+              {!trashed && " · 줄을 클릭하면 상세(전체 답변·연락처·메모)가 열립니다"}
             </p>
           </div>
           <div className="edit-actions">
@@ -424,79 +417,95 @@ export function LeadsListPage() {
           </div>
         ) : (
           <>
-          <div className="leads">
-            {paging.pageItems.map((l) => (
-              <div className="card card-pad lead-card" key={l.id}>
-                <div className="lead-head">
-                  <span className="lead-time">
-                    {new Date(l.createdAt).toLocaleString("ko-KR")}
+          {/* 한 리드 = 한 줄(U3). 전체 답변·방문자정보는 줄을 클릭해 여는 상세 패널에서 본다. */}
+          <div className={`flead-rows${trashed ? " trash" : ""}`} role="list">
+            <div className="flead-head" aria-hidden="true">
+              <span>이름</span>
+              <span>연락처</span>
+              <span>답변 요약</span>
+              <span>상태</span>
+              <span>접수일시</span>
+              <span />
+            </div>
+            {paging.pageItems.map((l) => {
+              const name = pickName(l.answers);
+              const phone = pickPhone(l.answers);
+              const summary = summarizeAnswers(l.answers, [name, phone]);
+              return (
+                <div
+                  role="listitem"
+                  key={l.id}
+                  className={`flead-row${detailId === l.id ? " active" : ""}`}
+                  onClick={() => setDetailId(l.id)}
+                  title="클릭하면 상세(전체 답변·방문자정보·메모)가 열립니다"
+                >
+                  <span className="fl-name">
+                    <span className="fl-name-text">{name}</span>
                     {!trashed && dupIds.has(l.id) && (
-                      <span className="badge b-bad" style={{ marginLeft: 8 }} title={`중복 판정 항목: ${uniqueFieldLabels.join(", ")}`}>중복</span>
+                      <span className="fl-flag dup" title={`중복 판정 항목: ${uniqueFieldLabels.join(", ")}`}>중복</span>
                     )}
                     {!trashed && l.advertiserSeenAt && (
                       <span
-                        className="badge b-normal"
-                        style={{ marginLeft: 8 }}
+                        className="fl-flag seen"
                         title={`광고주가 ${new Date(l.advertiserSeenAt).toLocaleString("ko-KR")}에 열람${l.advertiserStatus ? ` · 광고주 상태: ${advertiserStatusLabel(l.advertiserStatus)}` : ""}`}
                       >
-                        👁 광고주 확인
+                        👁
                       </span>
                     )}
                   </span>
-                  {trashed ? (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span className={`badge ${statusClass(l.status)}`}>{statusLabel(l.status)}</span>
-                      <button className="btn btn-ghost btn-sm" onClick={() => onRestore(l.id)}>복원</button>
-                      <button className="btn btn-ghost btn-sm danger" onClick={() => onPermanent(l.id)}>영구삭제</button>
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <button
-                        className={`btn btn-sm ${detailId === l.id ? "btn-primary" : "btn-ghost"}`}
-                        onClick={() => setDetailId(l.id)}
-                      >
-                        상세
-                      </button>
+                  <span className="fl-phone">{phone ? maskPhone(phone) : "—"}</span>
+                  <span className="fl-summary" title={summary}>
+                    {summary || "—"}
+                    {(l.tags?.length ?? 0) > 0 && (
+                      <span className="fl-tags">
+                        {l.tags!.map((t) => (
+                          <button
+                            key={t}
+                            className="fl-tag"
+                            title="이 태그로 필터"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTagFilter(t);
+                            }}
+                          >
+                            #{t}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <span className="fl-status" onClick={(e) => e.stopPropagation()}>
+                    {trashed ? (
+                      <span className={`pill ld-pill ld-${l.status}`}>{leadStatusLabel(l.status)}</span>
+                    ) : (
                       <select
-                        className={`lead-status-select ${statusClass(l.status)}`}
+                        className={`lead-status-select ld-${l.status}`}
                         value={l.status}
                         onChange={(e) => onStatus(l.id, e.target.value)}
+                        aria-label="리드 상태"
                       >
                         {LEAD_STATUSES.map((s) => (
                           <option key={s.value} value={s.value}>{s.label}</option>
                         ))}
                       </select>
+                    )}
+                  </span>
+                  <span className="fl-time">
+                    {new Date(l.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
+                  </span>
+                  <span className="fl-actions" onClick={(e) => e.stopPropagation()}>
+                    {trashed ? (
+                      <>
+                        <button className="btn btn-ghost btn-sm" onClick={() => onRestore(l.id)}>복원</button>
+                        <button className="btn btn-ghost btn-sm danger" onClick={() => onPermanent(l.id)}>영구삭제</button>
+                      </>
+                    ) : (
                       <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(l.id)}>삭제</button>
-                    </div>
-                  )}
+                    )}
+                  </span>
                 </div>
-                {(l.tags?.length ?? 0) > 0 && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "0 0 8px" }}>
-                    {l.tags!.map((t) => (
-                      <span key={t} className="badge" style={{ cursor: "pointer" }} onClick={() => setTagFilter(t)} title="이 태그로 필터">
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="lead-answers">
-                  {l.answers.map((a, i) => (
-                    <div className="lead-answer" key={i}>
-                      <span className="lead-a-label">{a.label}</span>
-                      <span className="lead-a-value">{a.value || "-"}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="lead-meta">
-                  <span>🖥️ {l.device ?? "-"} · {l.os ?? "-"} · {l.browser ?? "-"}</span>
-                  <span>🌐 {l.submitterIp ?? "-"}</span>
-                  {l.referer && <span>↩️ {l.referer}</span>}
-                  {l.utm && Object.keys(l.utm).length > 0 && (
-                    <span>📢 {Object.entries(l.utm).map(([k, v]) => `${k}=${v}`).join(" · ")}</span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="건" />
           </>

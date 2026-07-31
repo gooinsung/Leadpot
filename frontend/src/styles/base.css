@@ -199,17 +199,18 @@ code {
   border-radius: 50%;
   background: currentColor;
 }
+/* 연한 배경 위 글자는 ink 토큰(대비 ≥4.5:1) — tokens.css 참고 */
 .b-normal {
   background: var(--green-soft);
-  color: var(--green-strong);
+  color: var(--green-ink);
 }
 .b-wait {
   background: var(--amber-soft);
-  color: var(--amber);
+  color: var(--amber-ink);
 }
 .b-bad {
   background: var(--rose-soft);
-  color: var(--rose);
+  color: var(--rose-ink);
 }
 
 /* ---------- 알약 태그 ---------- */
@@ -225,18 +226,18 @@ code {
 .pill.i {
   background: var(--indigo-soft);
   border-color: transparent;
-  color: var(--indigo-strong);
+  color: var(--indigo-ink);
 }
 .pill.g {
   background: var(--green-soft);
   border-color: transparent;
-  color: var(--green-strong);
+  color: var(--green-ink);
 }
 /* 주의/보류 상태 (정지된 계정, 다른 광고주 사용중 등) */
 .pill.w {
   background: var(--amber-soft);
   border-color: transparent;
-  color: var(--amber);
+  color: var(--amber-ink);
 }
 
 /* ---------- 입력 리드폼 ---------- */

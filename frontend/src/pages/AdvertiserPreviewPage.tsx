@@ -159,7 +159,7 @@ export function AdvertiserPreviewPage() {
           </div>
         ) : (
           <>
-            <div className="card" style={{ overflow: "hidden" }}>
+            <div className="card card-table">
               <table>
                 <thead>
                   <tr>

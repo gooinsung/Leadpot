@@ -53,7 +53,7 @@ export function ConsentDocsListPage() {
           </div>
         ) : (
           <>
-          <div className="card">
+          <div className="card card-table">
             <table>
               <thead>
                 <tr>

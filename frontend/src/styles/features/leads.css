@@ -1,16 +1,19 @@
 /* ============================================================
    Leadpot · features/leads.css — 리드 목록
-   마케터 리드 목록 카드/줄. LeadsListPage. (상세 모달은 components.css)
+   마케터 리드 화면: 폼별 목록(LeadsListPage) · 통합 인박스(LeadInboxPage) ·
+   상세 사이드 패널(LeadSidePanel). 두 목록은 같은 "행 목록" 시각언어를 공유한다(U3).
    토큰: styles/tokens.css · 구조 지도: styles/README.md
    ============================================================ */
 
 /* 리드 목록 */
 .public-link {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--indigo);
   word-break: break-all;
 }
+/* 카드형 리드 목록 — 광고주 포털(AdvertiserLeadsPage)·광고주 리드 상세가 사용.
+   마케터 화면은 U3에서 행 목록(.flead-*)으로 옮겼다. 광고주 화면은 U6에서 다룬다. */
 .leads {
   display: flex;
   flex-direction: column;
@@ -26,7 +29,7 @@
   margin-bottom: 12px;
 }
 .lead-time {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -40,7 +43,7 @@
 .lead-answer {
   display: flex;
   gap: 12px;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 .lead-a-label {
   min-width: 110px;
@@ -56,23 +59,24 @@
   flex-wrap: wrap;
   gap: 14px;
   margin-top: 12px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
+/* 상태 셀렉트 — 색은 함께 붙는 상태 클래스(.ld-* / .st-*)가 정의한 변수에서 가져온다.
+   변수가 없으면 중립색. (U3: 클래스별 중복 규칙 제거 + 광고주 셀렉트 색 적용 문제 해결) */
 .lead-status-select {
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 4px 12px;
-  background: var(--surface-2);
-  color: var(--text);
+  padding: 5px 12px;
+  background: var(--st-soft, var(--ld-soft, var(--surface-2)));
+  color: var(--st-ink, var(--ld-ink, var(--text)));
+  border-color: var(--st-soft, var(--ld-soft, var(--border)));
   cursor: pointer;
+  max-width: 100%;
 }
-.lead-status-select.b-normal { background: var(--green-soft); color: var(--green-strong); border-color: transparent; }
-.lead-status-select.b-wait { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
-.lead-status-select.b-bad { background: var(--rose-soft); color: var(--rose); border-color: transparent; }
 
 /* ============================================================
    통합 인박스(U1) — LeadInboxPage
@@ -80,13 +84,15 @@
    가독성 우선: 넉넉한 행 높이 · 미확인 강조 · 상태색 일관.
    ============================================================ */
 
-/* 마케터 리드 상태색: NEW=인디고(주의) · IN_PROGRESS=앰버 · DONE=그린 · SPAM=로즈 */
-.ld-NEW { --ld: var(--indigo); --ld-soft: var(--indigo-soft); --ld-strong: var(--indigo-strong); }
-.ld-IN_PROGRESS { --ld: var(--amber); --ld-soft: var(--amber-soft); --ld-strong: var(--amber); }
-.ld-DONE { --ld: var(--green); --ld-soft: var(--green-soft); --ld-strong: var(--green-strong); }
-.ld-SPAM { --ld: var(--rose); --ld-soft: var(--rose-soft); --ld-strong: var(--rose); }
+/* 마케터 리드 상태색 — 이 한 벌이 마케터 화면의 유일한 상태색 출처다(U3).
+   NEW=인디고(주의) · IN_PROGRESS=앰버 · DONE=그린 · SPAM=로즈
+   --ld=점 원색 / --ld-soft=연한 배경 / --ld-ink=연배경 위 글자(대비 확보) / --ld-fill=선택 시 채움 */
+.ld-NEW { --ld: var(--indigo); --ld-soft: var(--indigo-soft); --ld-ink: var(--indigo-ink); --ld-fill: var(--indigo-strong); }
+.ld-IN_PROGRESS { --ld: var(--amber); --ld-soft: var(--amber-soft); --ld-ink: var(--amber-ink); --ld-fill: var(--amber-ink); }
+.ld-DONE { --ld: var(--green); --ld-soft: var(--green-soft); --ld-ink: var(--green-ink); --ld-fill: var(--green-strong); }
+.ld-SPAM { --ld: var(--rose); --ld-soft: var(--rose-soft); --ld-ink: var(--rose-ink); --ld-fill: var(--rose-ink); }
 
-.ld-pill { background: var(--ld-soft); color: var(--ld-strong); border-color: transparent; font-weight: 700; }
+.ld-pill { background: var(--ld-soft); color: var(--ld-ink); border-color: transparent; font-weight: 700; }
 .ld-dot { width: 8px; height: 8px; border-radius: 3px; display: inline-block; background: var(--ld); flex: none; }
 
 /* 3-pane 셸: 상단바(60px) 아래 전체 높이, 풀폭 */
@@ -134,17 +140,24 @@
 .inbox-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .inbox-sub { font-size: 13.5px; font-weight: 600; color: var(--muted); }
 .inbox-empty { color: var(--muted); padding: 40px 0; text-align: center; }
-.inbox-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-.inbox-row {
+/* 행 목록 공통 골격 — 통합 인박스(.inbox-row)와 폼별 목록(.flead-row)이 공유(U3).
+   열 구성만 각자 다르고, 테두리·간격·상태(hover/active/selected)는 한 곳에서 관리한다. */
+.inbox-rows,
+.flead-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.inbox-row,
+.flead-row {
   display: grid;
-  grid-template-columns: 32px minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px;
   gap: 14px; align-items: center;
   padding: 14px 16px; border: none; border-bottom: 1px solid var(--border);
   background: transparent; cursor: pointer; text-align: left; font: inherit; width: 100%;
 }
-.inbox-row:last-child { border-bottom: none; }
-.inbox-row:hover { background: var(--surface-2); }
-.inbox-row.active { background: var(--indigo-soft); }
+.inbox-row { grid-template-columns: 32px minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px; }
+.inbox-row:last-child,
+.flead-row:last-child { border-bottom: none; }
+.inbox-row:hover,
+.flead-row:hover { background: var(--surface-2); }
+.inbox-row.active,
+.flead-row.active { background: var(--indigo-soft); }
 .inbox-row.selected { background: color-mix(in srgb, var(--indigo-soft) 70%, var(--surface)); }
 .ir-check { display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .ir-check input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--indigo); }
@@ -175,6 +188,60 @@
   .ir-time { grid-column: 3; grid-row: 1; }
 }
 
+/* ============================================================
+   폼별 리드 목록 행 (U3) — LeadsListPage
+   한 리드 = 한 줄: 이름(+플래그) · 연락처(마스킹) · 나머지 답변 요약 1줄 ·
+   상태 · 접수일시 · 액션. 전체 답변·방문자정보는 '상세' 사이드 패널에서 본다.
+   ============================================================ */
+/* 헤더 줄과 데이터 줄이 반드시 같은 열 폭을 쓰도록 변수 한 곳에서 정의.
+   액션 열은 휴지통(복원·영구삭제 2개)일 때만 넓힌다. */
+.flead-rows { --fl-act: 72px; }
+.flead-rows.trash { --fl-act: 140px; }
+.flead-row,
+.flead-head { grid-template-columns: minmax(110px, 1.15fr) minmax(105px, 0.85fr) minmax(0, 2fr) 132px 128px var(--fl-act); }
+.fl-name { font-size: var(--fs-lg); font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; min-width: 0; }
+.fl-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-phone { font-size: var(--fs-md); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 나머지 답변을 " · " 로 이어 붙인 한 줄 요약 — 넘치면 말줄임 */
+.fl-summary { font-size: var(--fs-sm); color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-time { font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.fl-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.fl-status { min-width: 0; }
+/* 플래그(중복·광고주 확인) — 행에서는 아이콘만, 뜻은 title 로 */
+.fl-flag {
+  font-size: var(--fs-xs); font-weight: 700; line-height: 1;
+  padding: 3px 7px; border-radius: 7px; flex: none;
+  background: var(--surface-2); color: var(--muted);
+}
+.fl-flag.dup { background: var(--rose-soft); color: var(--rose-ink); }
+.fl-flag.seen { background: var(--green-soft); color: var(--green-ink); }
+/* 태그 칩 — 요약 줄 끝에 붙는다(클릭하면 그 태그로 필터) */
+.fl-tags { display: inline-flex; gap: 5px; margin-left: 8px; vertical-align: middle; }
+.fl-tag {
+  font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: var(--indigo-soft); color: var(--indigo-ink); border: none; cursor: pointer; font-family: inherit;
+}
+.fl-tag:hover { background: color-mix(in srgb, var(--indigo-soft) 70%, var(--indigo)); }
+/* 목록 상단 헤더 줄 — 표의 thead 역할 (열 폭은 위 .flead-row 와 공유) */
+.flead-head {
+  display: grid;
+  gap: 14px; padding: 10px 16px;
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+/* 좁은 화면: 2열 4행으로 접는다(관리자 화면은 데스크톱 우선이지만 깨지지 않게).
+   1행 이름|상태 · 2행 연락처|접수일시 · 3행 요약 · 4행 액션 */
+@media (max-width: 900px) {
+  .flead-row { grid-template-columns: minmax(0, 1fr) max-content; gap: 4px 10px; }
+  .flead-head { display: none; }
+  .fl-name { grid-area: 1 / 1; }
+  .fl-status { grid-area: 1 / 2; justify-self: end; }
+  .fl-phone { grid-area: 2 / 1; }
+  .fl-time { grid-area: 2 / 2; text-align: right; white-space: nowrap; }
+  .fl-summary { grid-area: 3 / 1 / 3 / -1; }
+  .fl-actions { grid-area: 4 / 1 / 4 / -1; justify-content: flex-start; margin-top: 4px; }
+}
+
 /* ── PANE 3 · 사이드 패널 ── */
 .inbox-panel {
   width: 400px; flex: none; border-left: 1px solid var(--border);
@@ -194,7 +261,7 @@
 .ip-v { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
 .ip-status-picker { display: flex; flex-wrap: wrap; gap: 7px; }
 .ld-chip { border-color: var(--border); }
-.ld-chip.on { background: var(--ld-strong); border-color: transparent; color: #fff; font-weight: 800; }
+.ld-chip.on { background: var(--ld-fill); border-color: transparent; color: #fff; font-weight: 800; }
 .ip-notes { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .ip-note { background: var(--surface-2); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13.5px; }
 .ip-note.sys { color: var(--muted); }
@@ -224,5 +291,10 @@
 }
 @media (max-width: 720px) {
   .lead-drawer { width: 100%; border-left: none; }
+}
+/* 서랍이 열린 동안에는 본문 오른쪽을 그만큼 비워 목록이 가려지지 않게 한다(넓은 화면에서만).
+   좁은 화면에서는 서랍이 목록 위에 겹친다. */
+@media (min-width: 1100px) {
+  .dashboard.with-drawer { padding-right: 452px; }
 }
 

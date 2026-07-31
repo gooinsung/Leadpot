@@ -7,33 +7,13 @@ import {
   LEAD_STATUSES,
   type InboxItem,
   type InboxResponse,
-  type LeadAnswer,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { Pagination } from "../components/Pagination";
 import { LeadSidePanel } from "../components/LeadSidePanel";
+import { leadStatusLabel as statusLabel, maskPhone, pickName, pickPhone } from "../lib/leadDisplay";
 
 const PAGE_SIZE = 25;
-
-/** 상태 → 라벨. */
-function statusLabel(s: string): string {
-  return LEAD_STATUSES.find((x) => x.value === s)?.label ?? s;
-}
-
-/** 답변에서 이름/연락처를 뽑아 목록에 요약 표시. */
-function pickName(answers: LeadAnswer[]): string {
-  const byLabel = answers.find((a) => /이름|성함|name/i.test(a.label));
-  return (byLabel?.value || answers[0]?.value || "—").trim();
-}
-function pickPhone(answers: LeadAnswer[]): string | null {
-  const byLabel = answers.find((a) => /연락처|전화|휴대|phone|tel/i.test(a.label));
-  const cand = byLabel?.value || answers.find((a) => /01[016789][-\s]?\d{3,4}[-\s]?\d{4}/.test(a.value))?.value;
-  return cand ? cand.trim() : null;
-}
-/** 목록에선 뒷자리를 가린다(개인정보). 상세 패널에선 전체 노출. */
-function maskPhone(v: string): string {
-  return v.replace(/(\d{2,4})[-\s]?(\d{3,4})[-\s]?(\d{4})/, (_m, a, b) => `${a}-${b}-··`);
-}
 
 /**
  * 통합 리드 인박스(U1) — 내 모든 리드폼의 리드를 한 곳에서.

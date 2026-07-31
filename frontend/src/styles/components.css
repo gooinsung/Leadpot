@@ -12,16 +12,21 @@ table {
 th,
 td {
   text-align: left;
-  padding: 12px 16px;
-  font-size: 14px;
+  padding: 13px 16px;
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  vertical-align: middle;
   border-bottom: 1px solid var(--border);
 }
+/* 헤더 행은 살짝 톤을 깔아 본문과 분리(스캔하기 쉽게) */
 th {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   color: var(--muted);
   font-weight: 700;
+  background: var(--surface-2);
+  white-space: nowrap;
 }
 tbody tr:last-child td {
   border-bottom: none;
@@ -29,7 +34,12 @@ tbody tr:last-child td {
 td.num {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-sm);
+}
+/* 표를 감싸는 카드 — 헤더 톤·행 hover 배경이 둥근 모서리를 넘지 않도록 클리핑.
+   표를 카드에 넣을 때는 `card card-table` 을 쓴다(U3). */
+.card-table {
+  overflow: hidden;
 }
 .row-click {
   cursor: pointer;
@@ -176,33 +186,47 @@ td.num {
 /* ---------- 광고주 상태 색상 (한 벌로 정의해 목록/상세/셀렉트에서 같은 색을 쓴다) ----------
    신규=주의(미조치) · 확인=진행시작 · 통화완료=접촉성공 · 부재=재시도필요 · 전환=매출성사 · 종료=마감
    ⭐ 브랜드 그린은 '전환'(실제 판매)에만 쓴다 — 성과 지표를 한눈에 구분하기 위함. */
+/* 각 상태는 배경/글자색을 직접 칠하는 동시에 --st-soft/--st-ink 변수도 내보낸다.
+   → 셀렉트(.lead-status-select)처럼 나중 레이어에서 색을 가져다 쓰는 곳이 변수로 참조한다(U3). */
 .st-NEW {
+  --st-soft: var(--rose-soft);
+  --st-ink: var(--rose-ink);
   background: var(--rose-soft);
-  color: var(--rose);
+  color: var(--rose-ink);
   border-color: transparent;
 }
 .st-CONFIRMED {
+  --st-soft: var(--indigo-soft);
+  --st-ink: var(--indigo-ink);
   background: var(--indigo-soft);
-  color: var(--indigo-strong);
+  color: var(--indigo-ink);
   border-color: transparent;
 }
 .st-CALLED {
+  --st-soft: var(--violet-soft);
+  --st-ink: var(--violet-ink);
   background: var(--violet-soft);
-  color: var(--violet);
+  color: var(--violet-ink);
   border-color: transparent;
 }
 .st-NO_ANSWER {
+  --st-soft: var(--amber-soft);
+  --st-ink: var(--amber-ink);
   background: var(--amber-soft);
-  color: var(--amber);
+  color: var(--amber-ink);
   border-color: transparent;
 }
 .st-CONVERTED {
+  --st-soft: var(--green-soft);
+  --st-ink: var(--green-ink);
   background: var(--green-soft);
-  color: var(--green-strong);
+  color: var(--green-ink);
   border-color: transparent;
   font-weight: 700;
 }
 .st-CLOSED {
+  --st-soft: var(--surface-2);
+  --st-ink: var(--muted);
   background: var(--surface-2);
   color: var(--muted);
   border-color: transparent;
