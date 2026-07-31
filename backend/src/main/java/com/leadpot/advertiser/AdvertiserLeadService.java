@@ -214,6 +214,37 @@ public class AdvertiserLeadService {
         return new AdvertiserLeadPage(items, filtered.size(), pageIndex, pageSize);
     }
 
+    /**
+     * 실시간 폴링(A6): {@code since} 이후 접수된 새 리드 수를 알려준다.
+     * 프론트는 반환된 {@code serverTime} 을 다음 요청의 {@code since} 로 써서 시계 오차를 피한다.
+     * {@code since} 가 없으면(최초 호출) 기준선만 잡고 0 을 돌려준다. 조회만 하므로 서버 부하가 작다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> updates(Long advertiserId, Long formId, String since) {
+        requireGrant(advertiserId, formId);
+        Instant now = Instant.now();
+        long newCount = 0;
+        Instant sinceAt = parseInstant(since);
+        if (sinceAt != null) {
+            newCount = leadRepository.countByFormIdAndDeletedAtIsNullAndCreatedAtAfter(formId, sinceAt);
+        }
+        Map<String, Object> out = new HashMap<>();
+        out.put("newCount", newCount);
+        out.put("serverTime", now.toString());
+        return out;
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(s.trim());
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     /** 리드 상세. 최초 열람이면 {@code advertiser_seen_at} 을 남긴다(마케터 목록의 '확인' 표시 근거). */
     @Transactional
     public AdvertiserLeadResponse lead(Long advertiserId, Long leadId, String ip) {

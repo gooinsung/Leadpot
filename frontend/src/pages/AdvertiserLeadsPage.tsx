@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ADVERTISER_LEAD_STATUSES,
   ApiError,
   downloadAdvertiserLeads,
   getAdvertiserDashboard,
+  getAdvertiserLeadUpdates,
   listAdvertiserForms,
   listAdvertiserLeads,
   updateAdvertiserLeadStatus,
@@ -61,6 +62,10 @@ export function AdvertiserLeadsPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  // 실시간 폴링(A6): 유휴 상태(1페이지·필터 없음·상세 닫힘)면 자동 갱신, 아니면 새로고침 배너.
+  const [newCount, setNewCount] = useState(0);
+  const sinceRef = useRef<string | null>(null);
+  const lastServerRef = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -117,7 +122,7 @@ export function AdvertiserLeadsPage() {
     setPage(1);
   }, [formId, statusFilter, q, dateFrom, dateTo, pageSize]);
 
-  async function refreshCounts() {
+  const refreshCounts = useCallback(async () => {
     try {
       const [f, d] = await Promise.all([listAdvertiserForms(), getAdvertiserDashboard()]);
       setForms(f);
@@ -125,11 +130,71 @@ export function AdvertiserLeadsPage() {
     } catch {
       // 카운트 갱신 실패는 화면을 막지 않는다
     }
-  }
+  }, []);
 
   function applyUpdated(updated: AdvertiserLead) {
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
     refreshCounts();
+  }
+
+  // 인터벌 콜백이 최신 상태·함수를 stale 없이 읽도록 ref 로 보관.
+  const pollCtx = useRef({ page, hasOpen: openId != null, filtered: false });
+  const reloadRef = useRef<() => Promise<void>>(async () => {});
+  reloadRef.current = async () => {
+    await load();
+    await refreshCounts();
+  };
+
+  // 30초 폴링. formId 가 바뀌면 기준선(since)을 다시 잡는다.
+  useEffect(() => {
+    if (formId == null) return;
+    sinceRef.current = null;
+    lastServerRef.current = null;
+    setNewCount(0);
+    let alive = true;
+
+    async function poll() {
+      if (formId == null) return;
+      try {
+        const res = await getAdvertiserLeadUpdates(formId, sinceRef.current ?? undefined);
+        if (!alive) return;
+        lastServerRef.current = res.serverTime;
+        if (sinceRef.current == null) {
+          sinceRef.current = res.serverTime; // 최초 호출 = 기준선만
+          return;
+        }
+        if (res.newCount <= 0) return;
+        const ctx = pollCtx.current;
+        if (ctx.page === 1 && !ctx.filtered && !ctx.hasOpen) {
+          // 유휴 상태 → 조용히 자동 갱신하고 기준선 전진
+          await reloadRef.current();
+          if (!alive) return;
+          sinceRef.current = res.serverTime;
+          setNewCount(0);
+        } else {
+          // 사용자가 보고 있는 화면을 흔들지 않도록 배너로만 알림(기준선 유지 → 누적 카운트)
+          setNewCount(res.newCount);
+        }
+      } catch {
+        // 폴링 실패는 조용히 무시(다음 주기에 재시도)
+      }
+    }
+
+    poll();
+    const id = window.setInterval(poll, 30000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+    // formId 가 바뀔 때만 기준선을 다시 잡는다. load/refreshCounts 는 reloadRef 로 최신을 참조.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formId]);
+
+  // '새로고침' 배너 클릭 → 지금 목록을 다시 불러오고 기준선을 최신으로 전진.
+  async function onRefreshNew() {
+    await reloadRef.current();
+    sinceRef.current = lastServerRef.current ?? sinceRef.current;
+    setNewCount(0);
   }
 
   async function onStatusChange(lead: AdvertiserLead, next: string) {
@@ -148,6 +213,8 @@ export function AdvertiserLeadsPage() {
   const shown = unseenOnly ? leads.filter((l) => !l.advertiserSeenAt) : leads;
   const pages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const hasFilter = !!(q || statusFilter || dateFrom || dateTo || unseenOnly);
+  // 폴링 콜백이 최신 화면 상태를 읽도록 매 렌더마다 갱신.
+  pollCtx.current = { page, hasOpen: openId != null, filtered: hasFilter };
 
   // 현재 화면 필터를 그대로 반영해 내보낸다. 실패(권한·일일상한)는 알림으로 보여준다.
   async function onExport(format: "xlsx" | "csv") {
@@ -174,6 +241,14 @@ export function AdvertiserLeadsPage() {
     <div className="app-shell">
       <AdvertiserTopBar />
       <main className="wrap dashboard client-wrap">
+        {newCount > 0 && (
+          <button type="button" className="unseen-banner" onClick={onRefreshNew}>
+            <span className="unseen-dot" />
+            새 리드 <strong>{newCount}건</strong>이 접수되었습니다
+            <span className="unseen-go">새로고침 →</span>
+          </button>
+        )}
+
         {dash && dash.unseenLeads > 0 && (
           <button type="button" className="unseen-banner" onClick={() => setUnseenOnly(true)}>
             <span className="unseen-dot" />

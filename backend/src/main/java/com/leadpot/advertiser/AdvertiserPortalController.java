@@ -124,6 +124,16 @@ public class AdvertiserPortalController {
     }
 
     /**
+     * 실시간 폴링(A6): since 이후 새 리드 수. 프론트가 30초마다 호출해 자동 갱신·알림에 쓴다.
+     * 응답의 serverTime 을 다음 요청 since 로 넘긴다(시계 오차 방지).
+     */
+    @GetMapping("/leads/updates")
+    public Map<String, Object> updates(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestParam(required = false) String since) {
+        return leadService.updates(userId(jwt), formId, since);
+    }
+
+    /**
      * 배정받은 리드 내보내기(A4). 화면 필터(status·q·from·to)를 그대로 반영한다.
      * 화이트리스트 컬럼(접수일시·상태·답변)만, 파일 하단 워터마크, EXPORT 감사 로그, 일일 횟수 상한.
      * format=xlsx|csv(기본 xlsx).

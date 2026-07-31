@@ -24,6 +24,9 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 중복 방지: 기간 내 활성 리드(항목 값 대조용). 휴지통 리드는 중복으로 보지 않음.
     List<Lead> findByFormIdAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(Long formId, java.time.Instant after);
 
+    // 실시간 폴링(A6): 특정 시각 이후 접수된 활성 리드 수(광고주 새 리드 감지용).
+    long countByFormIdAndDeletedAtIsNullAndCreatedAtAfter(Long formId, java.time.Instant after);
+
     // 중복 방지: 기간 내 동일 IP 활성 제출 존재 여부
     boolean existsByFormIdAndSubmitterIpAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(Long formId, String ip, java.time.Instant after);
 

@@ -1091,6 +1091,16 @@ export function addAdvertiserNote(id: number, body: string): Promise<AdvertiserN
   return request<AdvertiserNote>(`/api/advertiser/leads/${id}/notes`, { method: "POST", body: { body } });
 }
 
+/** 실시간 폴링(A6): since 이후 새 리드 수. serverTime 을 다음 since 로 넘긴다(시계 오차 방지). */
+export interface AdvertiserLeadUpdates {
+  newCount: number;
+  serverTime: string;
+}
+export function getAdvertiserLeadUpdates(formId: number, since?: string): Promise<AdvertiserLeadUpdates> {
+  const qs = since ? `&since=${encodeURIComponent(since)}` : "";
+  return request<AdvertiserLeadUpdates>(`/api/advertiser/leads/updates?formId=${formId}${qs}`);
+}
+
 // ---------- 광고주 알림 연동 (A5) ----------
 // integration_settings 는 계정당 1행이라 마케터용 타입(IntegrationSettings/IntegrationTestResult)을 그대로 재사용한다.
 /** 내 텔레그램 알림 설정 조회. */
