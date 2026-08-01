@@ -54,3 +54,6 @@ application-local.properties
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# oh-my-claudecode 플러그인 작업 상태(로컬 도구 산출물 — 저장소에 넣지 않는다)
+.omc/
