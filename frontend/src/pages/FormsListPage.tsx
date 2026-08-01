@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteForm, listForms, type FormSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
 
 export function FormsListPage() {
@@ -29,8 +30,13 @@ export function FormsListPage() {
 
   async function onDelete(id: number, name: string) {
     if (!window.confirm(`'${name}' 리드폼을 삭제할까요?`)) return;
-    await deleteForm(id);
-    load();
+    try {
+      await deleteForm(id);
+      toast.success(`'${name}' 리드폼을 삭제했습니다.`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "삭제에 실패했습니다.");
+    }
   }
 
   return (

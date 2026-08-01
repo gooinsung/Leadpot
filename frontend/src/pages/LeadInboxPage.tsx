@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ApiError,
   bulkTrashLeads,
@@ -77,6 +78,15 @@ export function LeadInboxPage() {
   }, [view, statusFilter, formFilter, q]);
 
   const counts = data?.counts;
+
+  /** 빈 화면에서 한 번에 필터를 걷어낸다(어떤 조건 때문에 비었는지 찾아 헤매지 않게). */
+  function resetFilters() {
+    setView("all");
+    setStatusFilter("");
+    setFormFilter(null);
+    setQ("");
+    setPage(1);
+  }
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
   function submitSearch(e: React.FormEvent) {
@@ -228,7 +238,27 @@ export function LeadInboxPage() {
           {loading && !data ? (
             <p className="inbox-empty">불러오는 중…</p>
           ) : (data?.items.length ?? 0) === 0 ? (
-            <p className="inbox-empty">해당하는 리드가 없습니다.</p>
+            /* 리드가 아예 없는 것과 필터에 걸려 안 보이는 것은 해야 할 일이 다르다 — 구분해서 안내한다. */
+            <div className="card card-pad empty-state">
+              {(counts?.all ?? 0) === 0 ? (
+                <>
+                  <p>아직 접수된 리드가 없습니다.</p>
+                  <p className="dash-sub" style={{ marginTop: -6 }}>
+                    리드폼을 만들어 공개하면 접수된 리드가 여기에 모입니다.
+                  </p>
+                  <Link className="btn btn-primary" to="/forms">
+                    리드폼 보러 가기
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p>조건에 맞는 리드가 없습니다.</p>
+                  <button className="btn btn-ghost" onClick={resetFilters}>
+                    필터 초기화
+                  </button>
+                </>
+              )}
+            </div>
           ) : (
             <>
               <div className="inbox-rows" role="list">
