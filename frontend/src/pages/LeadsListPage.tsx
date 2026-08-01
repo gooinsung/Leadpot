@@ -21,6 +21,7 @@ import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
 import { leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
+import { toast } from "../lib/toast";
 
 // ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
 function kstDate(iso: string): string {
@@ -78,8 +79,9 @@ export function LeadsListPage() {
       const ids = filtered.map((l) => l.id);
       await downloadLeads(formId, { format: exportFormat, columns: ordered, ids, formName: form?.name || "leads" });
       setExportOpen(false);
+      toast.success(`${ids.length}건을 내려받았습니다.`);
     } catch {
-      alert("내보내기에 실패했습니다. 다시 시도해주세요.");
+      toast.error("내보내기에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setExporting(false);
     }
@@ -223,12 +225,14 @@ export function LeadsListPage() {
       const r = await importLeads(formId, file);
       let msg = `${r.created}건 등록됨` + (r.failed ? ` · ${r.failed}건 실패` : "");
       if (r.errors.length) {
-        msg += "\n\n" + r.errors.slice(0, 10).join("\n") + (r.errors.length > 10 ? `\n…외 ${r.errors.length - 10}건` : "");
+        // 토스트는 좁으니 앞의 3건만 보여준다(전체 목록이 필요하면 행별로 다시 확인).
+        msg += "\n" + r.errors.slice(0, 3).join("\n") + (r.errors.length > 3 ? `\n…외 ${r.errors.length - 3}건` : "");
       }
-      window.alert(msg);
+      if (r.failed) toast.error(msg);
+      else toast.success(msg);
       load();
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "가져오기에 실패했습니다.");
+      toast.error(err instanceof ApiError ? err.message : "가져오기에 실패했습니다.");
     }
   }
 

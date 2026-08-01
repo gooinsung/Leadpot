@@ -20,6 +20,7 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
+import { toast } from "../lib/toast";
 
 function defaultConsentItems(): ConsentItem[] {
   return [
@@ -309,6 +310,7 @@ export function FormEditPage() {
     try {
       if (isNew) await createForm(formData);
       else await updateForm(Number(id), formData);
+      toast.success(isNew ? "리드폼을 만들었습니다." : "리드폼을 저장했습니다.");
       navigate("/forms");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");

@@ -28,6 +28,7 @@ import { ClientLoginPage } from "./pages/ClientLoginPage";
 import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
 import { ProtectedRoute, RoleHomeRedirect } from "./components/ProtectedRoute";
+import { Toaster } from "./components/Toaster";
 import { currentSubdomain } from "./lib/site";
 // 전역 스타일은 main.tsx 의 index.css 진입점에서 모두 로드된다(styles/README.md 참고).
 
@@ -36,15 +37,19 @@ function App() {
   const subdomain = currentSubdomain();
   if (subdomain) {
     return (
-      <Routes>
-        <Route path="/:identifier" element={<PublicSitePage subdomain={subdomain} />} />
-        {/* 루트(식별자 없음) 및 기타 경로 → 404 (사용자 확정) */}
-        <Route path="*" element={<SiteNotFound />} />
-      </Routes>
+      <>
+        <Routes>
+          <Route path="/:identifier" element={<PublicSitePage subdomain={subdomain} />} />
+          {/* 루트(식별자 없음) 및 기타 경로 → 404 (사용자 확정) */}
+          <Route path="*" element={<SiteNotFound />} />
+        </Routes>
+        <Toaster />
+      </>
     );
   }
 
   return (
+    <>
     <Routes>
       {/* 루트는 역할에 따라 분기(마케터→대시보드 / 광고주→/client) */}
       <Route path="/" element={<RoleHomeRedirect />} />
@@ -245,6 +250,8 @@ function App() {
       <Route path="/invite/:token" element={<InviteAcceptPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    <Toaster />
+    </>
   );
 }
 

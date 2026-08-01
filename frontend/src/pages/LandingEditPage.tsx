@@ -21,6 +21,7 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { useAuth } from "../lib/authContext";
+import { toast } from "../lib/toast";
 
 function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "IMAGE") return { type, url: "", alt: "" };
@@ -144,6 +145,7 @@ export function LandingEditPage() {
       if (isNew) await createLanding(payload);
       else await updateLanding(Number(id), payload);
       setDirty(false);
+      toast.success(isNew ? "랜딩을 만들었습니다." : "랜딩을 저장했습니다.");
       navigate("/landings");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");
