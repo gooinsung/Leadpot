@@ -25,6 +25,7 @@ import { useNavigate } from "react-router-dom";
 import { Pagination, usePaging } from "../components/Pagination";
 import { GrantEditor } from "../components/GrantEditor";
 import { BrandSettingsCard } from "../components/BrandSettingsCard";
+import { RowMenu } from "../components/RowMenu";
 
 const fmt = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR") : "-");
 
@@ -340,19 +341,10 @@ export function AdvertisersPage() {
                       </td>
                       <td className="num">{fmt(a.lastLoginAt)}</td>
                       <td>{a.active ? <span className="pill g">활성</span> : <span className="pill w">정지</span>}</td>
-                      <td>
+                      {/* 자주 쓰는 둘만 밖에 두고 나머지는 '⋯' 로 접는다(U4). */}
+                      <td className="row-actions">
                         <button className="btn btn-primary btn-sm" onClick={() => setGrantTarget(a)}>
                           리드폼 권한
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(a)}>
-                          정보
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => openLogs(a)}
-                          title="열람·상태변경·메모·내보내기 등 활동 이력"
-                        >
-                          활동 이력
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"
@@ -361,26 +353,28 @@ export function AdvertisersPage() {
                         >
                           리포트
                         </button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => navigate(`/advertisers/${a.id}/preview`)}
-                          title="광고주가 보는 화면을 읽기 전용으로 미리보기"
-                        >
-                          미리보기
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => onIssueReset(a)}
-                          title="광고주가 비밀번호를 잊었을 때 재설정 링크를 발급합니다"
-                        >
-                          비번 재설정
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => onToggleActive(a)}>
-                          {a.active ? "정지" : "활성화"}
-                        </button>
-                        <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(a)}>
-                          삭제
-                        </button>
+                        <RowMenu
+                          items={[
+                            { label: "정보 수정", onClick: () => openEdit(a) },
+                            {
+                              label: "활동 이력",
+                              onClick: () => openLogs(a),
+                              title: "열람·상태변경·메모·내보내기 등 활동 이력",
+                            },
+                            {
+                              label: "광고주 화면 미리보기",
+                              onClick: () => navigate(`/advertisers/${a.id}/preview`),
+                              title: "광고주가 보는 화면을 읽기 전용으로 미리보기",
+                            },
+                            {
+                              label: "비밀번호 재설정 링크",
+                              onClick: () => onIssueReset(a),
+                              title: "광고주가 비밀번호를 잊었을 때 재설정 링크를 발급합니다",
+                            },
+                            { label: a.active ? "계정 정지" : "계정 활성화", onClick: () => onToggleActive(a), danger: !!a.active },
+                            { label: "계정 삭제", onClick: () => onDelete(a), danger: true },
+                          ]}
+                        />
                       </td>
                     </tr>
                   ))}
