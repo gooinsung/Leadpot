@@ -13,7 +13,7 @@ import {
 import { TopBar } from "../components/TopBar";
 import { Pagination } from "../components/Pagination";
 import { LeadSidePanel } from "../components/LeadSidePanel";
-import { leadStatusLabel as statusLabel, maskPhone, pickName, pickPhone } from "../lib/leadDisplay";
+import { leadStatusLabel as statusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
 
 const PAGE_SIZE = 25;
 
@@ -24,7 +24,7 @@ const PAGE_SIZE = 25;
  */
 export function LeadInboxPage() {
   // 필터 (rail)
-  const [view, setView] = useState<"unseen" | "today" | "all">("unseen"); // 기본=미확인
+  const [view, setView] = useState<"unseen" | "today" | "all">("all"); // 기본=전체(사용자 결정)
   const [formFilter, setFormFilter] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [q, setQ] = useState("");
@@ -264,6 +264,16 @@ export function LeadInboxPage() {
           ) : (
             <>
               <div className="inbox-rows" role="list">
+                {/* 열 제목 — 폼별 목록과 같은 방식으로 스캔을 돕는다(열 폭은 .inbox-row 와 공유) */}
+                <div className="inbox-head" aria-hidden="true">
+                  <span />
+                  <span>이름</span>
+                  <span>연락처</span>
+                  <span>답변 요약</span>
+                  <span>출처</span>
+                  <span>상태</span>
+                  <span>접수일시</span>
+                </div>
                 {data!.items.map((it) => (
                   <InboxRow
                     key={it.id}
@@ -289,10 +299,12 @@ export function LeadInboxPage() {
           )}
         </main>
 
-        {/* ── PANE 3 · 사이드 패널(상세) ── */}
+        {/* 상세는 목록 위로 겹쳐 나왔다 들어가는 서랍(사용자 결정) —
+            칸을 미리 비워두지 않으므로 목록이 항상 화면 폭을 다 쓴다. */}
         {openId != null && (
           <LeadSidePanel
             leadId={openId}
+            variant="drawer"
             formName={data?.items.find((i) => i.id === openId)?.formName}
             onClose={() => setOpenId(null)}
             onChanged={onStatusChanged}
@@ -344,6 +356,8 @@ function InboxRow({
         {pickName(item.answers)}
       </span>
       <span className="ir-phone">{phone ? maskPhone(phone) : ""}</span>
+      {/* 이름·연락처를 뺀 나머지 답변 한 줄 요약 — 폼별 목록과 같은 규칙(lib/leadDisplay) */}
+      <span className="ir-summary">{summarizeAnswers(item.answers, [pickName(item.answers), phone])}</span>
       <span className="ir-src" title={item.formName}>{item.formName}</span>
       <span className={`pill ld-pill ld-${item.status}`}>{statusLabel(item.status)}</span>
       <span className="ir-time">{new Date(item.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}</span>

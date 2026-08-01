@@ -153,7 +153,33 @@
   padding: var(--row-py) var(--row-px); border: none; border-bottom: 1px solid var(--border);
   background: transparent; cursor: pointer; text-align: left; font: inherit; width: 100%;
 }
-.inbox-row { grid-template-columns: 32px minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px; }
+/* 체크 · 이름 · 연락처 · 답변 요약 · 출처 · 상태 · 접수일시
+   상세를 서랍으로 띄우므로 목록이 화면 폭을 다 쓴다 → 남는 폭을 답변 요약이 가져간다. */
+.inbox-row,
+.inbox-head { grid-template-columns: 32px minmax(110px, 1.1fr) minmax(105px, 0.8fr) minmax(0, 2fr) minmax(0, 0.9fr) 92px 128px; }
+/* 열 제목 줄 — 폼별 목록(.flead-head)과 같은 톤 */
+.inbox-head {
+  display: grid;
+  gap: var(--row-gap);
+  align-items: center;
+  padding: 9px var(--row-px);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+/* 답변 요약 — 넘치면 말줄임(행 높이를 흔들지 않는다) */
+.ir-summary {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .inbox-row:last-child,
 .flead-row:last-child { border-bottom: none; }
 .inbox-row:hover,
@@ -185,8 +211,10 @@
 .inbox-pager { margin-top: 4px; }
 @media (max-width: 720px) {
   .inbox-row { grid-template-columns: 28px 1fr auto; row-gap: 6px; }
+  .inbox-head { display: none; } /* 좁은 화면은 행이 접히므로 열 제목이 맞지 않는다 */
   .ir-name { grid-column: 2; }
   .ir-phone, .ir-src { grid-column: 2; }
+  .ir-summary { grid-column: 2 / -1; }
   .ir-time { grid-column: 3; grid-row: 1; }
 }
 
@@ -249,10 +277,13 @@
    행의 최소 열 폭·간격도 낮춰 가로 스크롤이 생기지 않게 한다.
    (안 줄이면 LNB 224 + rail 236 + 행 최소폭 524 + 패널 400 = 1384px 가 필요해
     1265px 화면에서 119px 넘쳤다. 지금은 224+184+목록+400 으로 딱 맞는다.) */
+/* LNB + rail 이 앞에 있으므로 좁아지면 열 폭을 줄여 가로 스크롤을 막는다.
+   (상세는 서랍이라 칸을 차지하지 않는다) */
 @media (max-width: 1400px) {
   .inbox-rail { width: 184px; }
   .inbox-list { padding: 20px 16px; }
-  .inbox-row { grid-template-columns: 28px minmax(84px, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 78px 108px; gap: 10px; }
+  .inbox-row,
+  .inbox-head { grid-template-columns: 28px minmax(84px, 1fr) minmax(96px, 0.75fr) minmax(0, 1.8fr) minmax(0, 0.8fr) 78px 108px; gap: 10px; }
 }
 
 /* ── PANE 3 · 사이드 패널 ── */
