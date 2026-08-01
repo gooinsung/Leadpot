@@ -206,6 +206,11 @@ export interface FormBlock {
   sortOrder: number;
   blockType: BlockType;
   fieldType?: string | null;
+  /**
+   * 항목명이 바뀌어도 변하지 않는 변수키(`f1`, `f2`, …). 메시지 템플릿이 이 키로 값을 찾는다.
+   * 서버가 발급하므로 편집 화면은 **받은 값을 그대로 돌려보내기만** 하면 된다. 비우면 새 키가 발급된다.
+   */
+  varKey?: string | null;
   label?: string | null;
   required?: boolean;
   uniqueCheck?: boolean;

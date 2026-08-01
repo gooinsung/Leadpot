@@ -45,6 +45,13 @@ public class FormBlock {
     @Column(name = "field_type", length = 30)
     private String fieldType;
 
+    /**
+     * 메시지 템플릿이 참조하는 불변 변수키(`f1`, `f2`, …). 답변을 만드는 블록(FIELD·CHOICE)에만 있고
+     * 콘텐츠 블록은 null. 부여는 {@link Form#replaceBlocks}가 담당하며 한 번 정해지면 바뀌지 않는다.
+     */
+    @Column(name = "var_key", length = 20)
+    private String varKey;
+
     @Column
     private String label;
 
@@ -110,6 +117,28 @@ public class FormBlock {
 
     public void setFieldType(String fieldType) {
         this.fieldType = fieldType;
+    }
+
+    public String getVarKey() {
+        return varKey;
+    }
+
+    public void setVarKey(String varKey) {
+        this.varKey = varKey;
+    }
+
+    /** 답변을 만드는 블록인가 — 변수키 부여 대상. */
+    public boolean producesAnswer() {
+        return blockType == BlockType.FIELD || blockType == BlockType.CHOICE;
+    }
+
+    /** 리드 답변(answers)에 저장되는 항목명. CHOICE 는 질문 문구가 항목명 역할을 한다. */
+    public String answerLabel() {
+        if (blockType == BlockType.CHOICE) {
+            Object q = content == null ? null : content.get("question");
+            return q == null ? "" : q.toString();
+        }
+        return label == null ? "" : label;
     }
 
     public String getLabel() {

@@ -62,6 +62,11 @@ interface StepData {
   placeholder: string;
   required: boolean;
   options: { label: string; desc: string }[];
+  /**
+   * 서버가 발급한 불변 변수키. 스텝형은 저장할 때 CHOICE 블록을 이 상태에서 새로 조립하므로,
+   * 여기에 들고 있지 않으면 저장마다 키가 새로 발급되어 메시지 템플릿이 깨진다.
+   */
+  varKey?: string | null;
 }
 
 function newBlock(blockType: BlockType): FormBlock {
@@ -163,6 +168,7 @@ export function FormEditPage() {
           const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
           setSteps(
             choiceBlocks.map((b) => ({
+              varKey: b.varKey ?? null,
               question: (b.content?.question as string) || "",
               description: (b.content?.description as string) || "",
               answerType: (b.content?.answerType as string) || (b.content?.selectType as string) || "single",
@@ -271,6 +277,7 @@ export function FormEditPage() {
             sortOrder: i,
             stepNo: i,
             blockType: "CHOICE" as BlockType,
+            varKey: s.varKey ?? null, // 기존 단계의 변수키 유지 — 새 단계는 서버가 발급한다
             content: {
               question: s.question,
               description: s.description,

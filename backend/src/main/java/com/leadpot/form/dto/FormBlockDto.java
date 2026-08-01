@@ -14,6 +14,8 @@ public record FormBlockDto(
         Integer sortOrder,
         @NotNull BlockType blockType,
         String fieldType,
+        /** 불변 변수키. 응답으로 내려준 값을 그대로 돌려보내면 유지되고, 비우면 새로 발급된다. */
+        String varKey,
         String label,
         Boolean required,
         Boolean uniqueCheck,
@@ -28,6 +30,7 @@ public record FormBlockDto(
                 b.getSortOrder(),
                 b.getBlockType(),
                 b.getFieldType(),
+                b.getVarKey(),
                 b.getLabel(),
                 b.isRequired(),
                 b.isUniqueCheck(),
@@ -43,6 +46,7 @@ public record FormBlockDto(
         b.setSortOrder(sortOrder == null ? 0 : sortOrder);
         b.setBlockType(blockType);
         b.setFieldType(fieldType);
+        b.setVarKey(varKey); // 유지/발급 판단은 Form.replaceBlocks 가 한다
         b.setLabel(label);
         b.setRequired(Boolean.TRUE.equals(required));
         b.setUniqueCheck(Boolean.TRUE.equals(uniqueCheck));
