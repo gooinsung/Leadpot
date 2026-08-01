@@ -1,5 +1,6 @@
 package com.leadpot.lead;
 
+import com.leadpot.common.ClientIp;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -37,12 +38,11 @@ public class PublicLeadController {
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", id, "ok", true));
     }
 
-    /** 프록시(Cloudflare/Nginx) 뒤를 대비해 X-Forwarded-For 우선. */
+    /**
+     * 공용 헬퍼로 통일. 직접 구현하던 X-Forwarded-For 첫 값 방식은 방문자가 위조할 수 있어
+     * IP 차단·중복 제출 방지가 뚫렸다({@link ClientIp} 주석 참고).
+     */
     private String clientIp(HttpServletRequest http) {
-        String xff = http.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
-        }
-        return http.getRemoteAddr();
+        return ClientIp.of(http);
     }
 }
