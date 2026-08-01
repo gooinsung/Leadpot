@@ -156,7 +156,11 @@
   flex-direction: row;
   align-items: stretch;
 }
-.app-shell > main {
+/* 내비를 뺀 모든 본문 영역이 남는 폭을 채운다.
+   ⚠️ 예전엔 `> main` 만 지정했는데, 인박스는 셸이 <div class="inbox-shell"> 이라
+   규칙에서 빠져 내용 폭만큼만 차지했다 — 리드가 많을 땐 티가 안 나다가
+   목록이 비면 칸이 쭈그러들어 드러났다. 태그를 가리지 않도록 일반화한다. */
+.app-shell > *:not(.app-nav) {
   min-width: 0;
   flex: 1;
 }

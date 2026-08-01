@@ -172,10 +172,11 @@ export function LeadInboxPage() {
             />
           </form>
 
+          {/* 순서: 전체 → 오늘 → 미확인 (사용자 결정) */}
           <div className="rail-group">보기</div>
-          <RailItem label="미확인" on={view === "unseen"} count={counts?.unseen} onClick={() => setView("unseen")} />
-          <RailItem label="오늘" on={view === "today"} count={counts?.today} onClick={() => setView("today")} />
           <RailItem label="전체" on={view === "all"} count={counts?.all} onClick={() => setView("all")} />
+          <RailItem label="오늘" on={view === "today"} count={counts?.today} onClick={() => setView("today")} />
+          <RailItem label="미확인" on={view === "unseen"} count={counts?.unseen} onClick={() => setView("unseen")} />
 
           {/* 기간 — '오늘' 보기와 겹치지 않게, 날짜를 고르면 보기를 '전체'로 넘긴다 */}
           <div className="rail-group">기간</div>
