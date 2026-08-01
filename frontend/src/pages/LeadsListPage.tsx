@@ -346,7 +346,8 @@ export function LeadsListPage() {
         )}
 
         {/* 검색·필터 */}
-        <div className="card card-pad" style={{ marginBottom: 20, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        {/* 스티키 필터바(U7 Cockpit) — 길게 스크롤해도 조건이 늘 손에 닿게 */}
+        <div className="card card-pad filter-bar" style={{ marginBottom: 20, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input
             className="input"
             style={{ maxWidth: 280 }}

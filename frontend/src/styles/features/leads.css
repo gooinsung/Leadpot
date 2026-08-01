@@ -216,7 +216,8 @@
   background: var(--surface-2); color: var(--muted);
 }
 .fl-flag.dup { background: var(--rose-soft); color: var(--rose-ink); }
-.fl-flag.seen { background: var(--green-soft); color: var(--green-ink); }
+/* 👁 광고주 확인 — 성과가 아니라 플래그다. 그린은 성과(완료·전환)에만(U7). */
+.fl-flag.seen { background: var(--surface-2); color: var(--muted); }
 /* 태그 칩 — 요약 줄 끝에 붙는다(클릭하면 그 태그로 필터) */
 .fl-tags { display: inline-flex; gap: 5px; margin-left: 8px; vertical-align: middle; }
 .fl-tag {

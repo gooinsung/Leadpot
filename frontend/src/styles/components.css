@@ -52,6 +52,19 @@ td.num {
   cursor: pointer;
 }
 
+/* 스티키 필터바(U7 Cockpit) — 리드를 길게 훑는 동안 조건이 늘 손에 닿아야 한다.
+   넓은 화면은 LNB 옆이라 위쪽 바가 없어 top:0, 좁은 화면은 상단 바(56px) 아래에 붙는다. */
+.filter-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+@media (max-width: 900px) {
+  .filter-bar {
+    top: 56px;
+  }
+}
+
 /* ---------- 토스트(U5) ----------
    저장·삭제 성공 피드백이 없던 문제를 메운다. body 포털로 띄운다. */
 .toaster {

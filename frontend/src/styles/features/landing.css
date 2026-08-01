@@ -79,10 +79,12 @@
   margin: 14px 16px;
 }
 
+/* 편집기의 리드폼 자리 표시 — 성과가 아니라 안내다.
+   그린은 성과(완료·전환)에만 남긴다(U7 Cockpit: 색 역할). */
 .landing-form-slot {
-  border: 1.5px dashed var(--green);
-  background: var(--green-soft);
-  color: var(--green-strong);
+  border: 1.5px dashed var(--indigo);
+  background: var(--indigo-soft);
+  color: var(--indigo-ink);
   border-radius: 10px;
   padding: 14px;
   font-size: 13px;

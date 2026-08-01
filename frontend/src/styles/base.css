@@ -228,10 +228,11 @@ code {
   border-color: transparent;
   color: var(--indigo-ink);
 }
+/* 계정 '활성' 같은 정상 상태 — 성과가 아니므로 그린을 쓰지 않는다(U7 Cockpit). */
 .pill.g {
-  background: var(--green-soft);
+  background: var(--indigo-soft);
   border-color: transparent;
-  color: var(--green-ink);
+  color: var(--indigo-ink);
 }
 /* 주의/보류 상태 (정지된 계정, 다른 광고주 사용중 등) */
 .pill.w {
