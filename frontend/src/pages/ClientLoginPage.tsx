@@ -47,18 +47,19 @@ export function ClientLoginPage() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="wrap topbar-in">
-          <div className="topbar-left">
-            <span className="brand">
+      {/* 로그인부터 포털과 같은 상단바를 쓴다(U6) — adv-* 는 광고주 전용 클래스 */}
+      <header className="adv-bar">
+        <div className="adv-bar-in">
+          <div className="adv-bar-top" style={{ paddingBottom: 10 }}>
+            <span className="adv-brand">
               <LeadpotMark />
-              {brandName ?? "Leadpot"}
+              <span className="adv-brand-name">{brandName ?? "Leadpot"}</span>
             </span>
-          </div>
-          <div className="topbar-actions">
-            <button className="theme-btn" type="button" onClick={toggle} aria-label="테마 전환">
-              {THEME_LABEL[theme]}
-            </button>
+            <div className="adv-actions">
+              <button className="adv-icon-btn" type="button" onClick={toggle} aria-label="테마 전환">
+                {THEME_LABEL[theme]}
+              </button>
+            </div>
           </div>
         </div>
       </header>
