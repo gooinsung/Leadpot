@@ -49,6 +49,8 @@ public class NotificationService {
     private final AdvertiserFormGrantRepository grantRepository;
     private final UserRepository userRepository;
     private final NotificationLogWriter logWriter;
+    private final com.leadpot.sms.LeadSmsPlanner smsPlanner;
+    private final com.leadpot.sms.SmsService smsService;
     /** 광고주 알림 메시지의 리드 상세 딥링크에 쓰는 공개 앱 주소(끝 슬래시 없이). */
     private final String publicBaseUrl;
     private final HttpClient http = HttpClient.newBuilder()
@@ -64,11 +66,15 @@ public class NotificationService {
     public NotificationService(IntegrationSettingsRepository settingsRepository,
             AdvertiserFormGrantRepository grantRepository, UserRepository userRepository,
             NotificationLogWriter logWriter,
+            com.leadpot.sms.LeadSmsPlanner smsPlanner,
+            com.leadpot.sms.SmsService smsService,
             @Value("${app.public-base-url:https://app.lead-pot.com}") String publicBaseUrl) {
         this.settingsRepository = settingsRepository;
         this.grantRepository = grantRepository;
         this.userRepository = userRepository;
         this.logWriter = logWriter;
+        this.smsPlanner = smsPlanner;
+        this.smsService = smsService;
         this.publicBaseUrl = trimTrailingSlash(publicBaseUrl);
     }
 
@@ -89,7 +95,9 @@ public class NotificationService {
 
             // 발송 대상 목록화: 마케터 + 이 폼을 부여받은 광고주. 페이로드까지 트랜잭션 내부에서 스냅샷으로 확정한다.
             List<Dispatch> dispatches = planDispatches(form, lead, duplicate);
-            if (dispatches.isEmpty()) {
+            // 문자(마케터·광고주·고객)도 같은 원칙으로 지금 스냅샷을 확정한다 — 커밋 후 스레드는 엔티티를 못 읽는다.
+            List<com.leadpot.sms.SmsService.SmsRequest> smsRequests = smsPlanner.plan(form, lead);
+            if (dispatches.isEmpty() && smsRequests.isEmpty()) {
                 return;
             }
 
@@ -104,6 +112,10 @@ public class NotificationService {
                         log.warn("리드 알림 실패(channel={}, recipient={}): {}", d.channel(), d.recipientUserId(), err);
                     }
                     logWriter.record(leadId, formId, d.recipientUserId(), d.channel(), err);
+                }
+                // 문자는 자체 이력(message_logs)에 남기므로 여기서 따로 기록하지 않는다.
+                for (com.leadpot.sms.SmsService.SmsRequest r : smsRequests) {
+                    smsService.send(r);
                 }
             });
         } catch (RuntimeException e) {
