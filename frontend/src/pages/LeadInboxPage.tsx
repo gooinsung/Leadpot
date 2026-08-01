@@ -29,6 +29,8 @@ export function LeadInboxPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [q, setQ] = useState("");
   const [qInput, setQInput] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<InboxResponse | null>(null);
@@ -53,8 +55,9 @@ export function LeadInboxPage() {
     try {
       const res = await getInbox({
         unseen: view === "unseen",
-        from: view === "today" ? today : undefined,
-        to: view === "today" ? today : undefined,
+        // '오늘' 보기는 오늘 하루로 고정, 그 외에는 사용자가 고른 기간을 쓴다.
+        from: view === "today" ? today : dateFrom || undefined,
+        to: view === "today" ? today : dateTo || undefined,
         status: statusFilter || undefined,
         formId: formFilter ?? undefined,
         q: q.trim() || undefined,
@@ -67,7 +70,7 @@ export function LeadInboxPage() {
     } finally {
       setLoading(false);
     }
-  }, [view, statusFilter, formFilter, q, page, today]);
+  }, [view, statusFilter, formFilter, q, dateFrom, dateTo, page, today]);
 
   useEffect(() => {
     load();
@@ -76,7 +79,7 @@ export function LeadInboxPage() {
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [view, statusFilter, formFilter, q]);
+  }, [view, statusFilter, formFilter, q, dateFrom, dateTo]);
 
   const counts = data?.counts;
 
@@ -87,7 +90,16 @@ export function LeadInboxPage() {
     setFormFilter(null);
     setQ("");
     setQInput(""); // 검색창 표시도 같이 비운다(안 그러면 글자가 남아 걸린 줄 안다)
+    setDateFrom("");
+    setDateTo("");
     setPage(1);
+  }
+
+  /** 날짜를 고르면 '오늘' 보기에서 빠져나온다 — 둘이 겹치면 어느 쪽이 걸린 건지 알 수 없다. */
+  function pickDate(which: "from" | "to", value: string) {
+    if (which === "from") setDateFrom(value);
+    else setDateTo(value);
+    if (view === "today") setView("all");
   }
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
@@ -164,6 +176,28 @@ export function LeadInboxPage() {
           <RailItem label="미확인" on={view === "unseen"} count={counts?.unseen} onClick={() => setView("unseen")} />
           <RailItem label="오늘" on={view === "today"} count={counts?.today} onClick={() => setView("today")} />
           <RailItem label="전체" on={view === "all"} count={counts?.all} onClick={() => setView("all")} />
+
+          {/* 기간 — '오늘' 보기와 겹치지 않게, 날짜를 고르면 보기를 '전체'로 넘긴다 */}
+          <div className="rail-group">기간</div>
+          <div className="rail-dates" title="접수일시(KST) 범위로 검색">
+            <input
+              className="input"
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => pickDate("from", e.target.value)}
+              aria-label="접수 시작일"
+            />
+            <span className="rail-dates-sep">~</span>
+            <input
+              className="input"
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => pickDate("to", e.target.value)}
+              aria-label="접수 종료일"
+            />
+          </div>
 
           <div className="rail-group">상태</div>
           <RailItem label="전체 상태" on={statusFilter === ""} onClick={() => setStatusFilter("")} muted />

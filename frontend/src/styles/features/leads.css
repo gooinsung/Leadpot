@@ -117,6 +117,25 @@
 }
 @media (max-width: 900px) { .inbox-rail { width: 100%; border-right: none; border-bottom: 1px solid var(--border); } }
 .inbox-search { margin-bottom: 14px; font-size: 13px; }
+/* 기간 필터 — rail 이 좁으므로 두 줄로 쌓는다(가로로 넣으면 날짜 입력이 잘린다) */
+.rail-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px;
+}
+.rail-dates .input {
+  width: 100%;
+  height: 30px;
+  padding: 2px 8px;
+  font-size: 12.5px;
+}
+.rail-dates-sep {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+}
 .rail-group {
   font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--muted); margin: 16px 8px 6px;
