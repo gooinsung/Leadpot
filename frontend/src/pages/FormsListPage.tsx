@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteForm, listForms, type FormSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
@@ -55,7 +56,7 @@ export function FormsListPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : error ? (
           <p className="auth-error">{error}</p>
         ) : forms.length === 0 ? (

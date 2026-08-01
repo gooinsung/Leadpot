@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useParams } from "react-router-dom";
 import { getPublicConsentDoc, type ConsentDocument } from "../api/client";
 
@@ -20,7 +21,7 @@ export function ConsentViewPage() {
         {error ? (
           <p className="auth-error">{error}</p>
         ) : !doc ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : (
           <>
             <h1 className="consent-view-title">{doc.title}</h1>

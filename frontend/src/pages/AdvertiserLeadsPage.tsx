@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useSearchParams } from "react-router-dom";
 import {
   ADVERTISER_LEAD_STATUSES,
@@ -392,7 +393,7 @@ export function AdvertiserLeadsPage() {
         {error && <p className="auth-error">{error}</p>}
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : forms.length === 0 ? null : shown.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>{hasFilter ? "조건에 맞는 리드가 없습니다." : "아직 접수된 리드가 없습니다."}</p>

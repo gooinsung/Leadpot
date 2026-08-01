@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteLanding, listLandings, type LandingSummary } from "../api/client";
 import { useAuth } from "../lib/authContext";
@@ -52,7 +53,7 @@ export function LandingsListPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : items.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 만든 랜딩이 없습니다.</p>

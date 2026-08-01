@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import {
   deleteHtmlComponent,
@@ -58,7 +59,7 @@ export function HtmlComponentsListPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : items.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 만든 요소가 없습니다.</p>

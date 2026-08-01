@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteConsentDoc, listConsentDocs, type ConsentDocumentSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
@@ -51,7 +52,7 @@ export function ConsentDocsListPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : docs.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 만든 문서가 없습니다.</p>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, createConsentDoc, getConsentDoc, updateConsentDoc } from "../api/client";
 import { TopBar } from "../components/TopBar";
@@ -45,7 +46,7 @@ export function ConsentDocEditPage() {
     }
   }
 
-  if (loading) return <div className="page-loading">불러오는 중…</div>;
+  if (loading) return <Loading full />;
 
   return (
     <div className="app-shell">

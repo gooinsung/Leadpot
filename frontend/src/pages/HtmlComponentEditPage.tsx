@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { HtmlBlock } from "../components/HtmlBlock";
 import {
@@ -53,7 +54,7 @@ export function HtmlComponentEditPage() {
     }
   }
 
-  if (loading) return <div className="page-loading">불러오는 중…</div>;
+  if (loading) return <Loading full />;
 
   return (
     <div className="app-shell">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import {
   ApiError,
   cancelInvite,
@@ -295,7 +296,7 @@ export function AdvertisersPage() {
         )}
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : items.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 등록된 광고주가 없습니다.</p>
@@ -629,7 +630,7 @@ export function AdvertisersPage() {
             </div>
             <div className="lead-modal-body">
               {reportLoading ? (
-                <p className="dash-sub">불러오는 중…</p>
+                <Loading />
               ) : !report ? (
                 <p className="dash-sub">리포트를 불러오지 못했습니다.</p>
               ) : report.total === 0 ? (
@@ -688,7 +689,7 @@ export function AdvertisersPage() {
             </div>
             <div className="lead-modal-body">
               {logsLoading ? (
-                <p className="dash-sub">불러오는 중…</p>
+                <Loading />
               ) : logs.length === 0 ? (
                 <p className="dash-sub">아직 활동 이력이 없습니다.</p>
               ) : (

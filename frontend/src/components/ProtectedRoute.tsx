@@ -1,4 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
+import { Loading } from "./Loading";
 import type { ReactNode } from "react";
 import { useAuth } from "../lib/authContext";
 import type { Role } from "../api/client";
@@ -32,7 +33,7 @@ export function ProtectedRoute({
   const location = useLocation();
 
   if (loading) {
-    return <div className="page-loading">불러오는 중…</div>;
+    return <Loading full />;
   }
   if (!user) {
     return <Navigate to={loginPathFor(role)} state={{ from: location.pathname }} replace />;
@@ -49,7 +50,7 @@ export function ProtectedRoute({
 export function RoleHomeRedirect() {
   const { user, loading } = useAuth();
   if (loading) {
-    return <div className="page-loading">불러오는 중…</div>;
+    return <Loading full />;
   }
   if (!user) {
     return <Navigate to="/login" replace />;

@@ -10,12 +10,38 @@
   min-height: 100vh;
 }
 
+/* 로딩 표시(U5) — 전체 화면 / 구역 안 두 가지가 같은 모습을 쓴다. components/Loading.tsx */
 .page-loading {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   min-height: 100vh;
   color: var(--muted);
+}
+.loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 18px 0;
+  color: var(--muted);
+  font-size: var(--fs-sm, 13px);
+}
+.spinner {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--border);
+  border-top-color: var(--indigo);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+/* 애니메이션을 줄이는 설정에서는 돌리지 않는다(정지된 링만 보인다). */
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
 }
 
 /* 상단바 우측 액션 */

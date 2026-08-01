@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import {
   ApiError,
   getIntegrations,
@@ -112,7 +113,7 @@ export function IntegrationsPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : (
           <>
             {/* 텔레그램 */}

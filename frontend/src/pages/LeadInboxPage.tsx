@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { Link } from "react-router-dom";
 import {
   ApiError,
@@ -236,7 +237,7 @@ export function LeadInboxPage() {
           )}
 
           {loading && !data ? (
-            <p className="inbox-empty">불러오는 중…</p>
+            <Loading />
           ) : (data?.items.length ?? 0) === 0 ? (
             /* 리드가 아예 없는 것과 필터에 걸려 안 보이는 것은 해야 할 일이 다르다 — 구분해서 안내한다. */
             <div className="card card-pad empty-state">

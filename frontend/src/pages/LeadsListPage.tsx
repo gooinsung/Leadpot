@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   advertiserStatusLabel,
@@ -319,7 +320,7 @@ export function LeadsListPage() {
               </div>
               <div style={{ overflowY: "auto", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
                 {exportCols.length === 0 ? (
-                  <span className="dash-sub" style={{ fontSize: 13 }}>불러오는 중…</span>
+                  <Loading />
                 ) : (
                   exportCols.map((c) => (
                     <label key={c} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 14, cursor: "pointer", minWidth: 0 }}>
@@ -406,7 +407,7 @@ export function LeadsListPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : filtered.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>

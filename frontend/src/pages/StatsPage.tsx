@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Loading } from "../components/Loading";
 import {
   getStats,
   listForms,
@@ -172,7 +173,7 @@ export function StatsPage() {
         </div>
 
         {loading && !stats ? (
-          <p className="dash-sub" style={{ marginTop: 20 }}>불러오는 중…</p>
+          <Loading />
         ) : !stats ? (
           <div className="card card-pad empty-state" style={{ marginTop: 20 }}><p>통계를 불러오지 못했습니다.</p></div>
         ) : (
