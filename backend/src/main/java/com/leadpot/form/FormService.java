@@ -10,15 +10,18 @@ import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormRequest;
 import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
+import com.leadpot.ipblock.SiteIpBlockService;
 
 /** 리드폼 CRUD. 모든 조회/수정은 소유자(ownerId) 기준으로 제한한다(K5). */
 @Service
 public class FormService {
 
     private final FormRepository formRepository;
+    private final SiteIpBlockService siteIpBlockService;
 
-    public FormService(FormRepository formRepository) {
+    public FormService(FormRepository formRepository, SiteIpBlockService siteIpBlockService) {
         this.formRepository = formRepository;
+        this.siteIpBlockService = siteIpBlockService;
     }
 
     @Transactional(readOnly = true)
@@ -36,8 +39,20 @@ public class FormService {
     /** 공개 렌더용 조회 — 소유자 검증 없이 id 로 리드폼 정의를 반환(비로그인 공개 리드폼). */
     @Transactional(readOnly = true)
     public FormResponse getPublic(Long id) {
+        return getPublic(id, null);
+    }
+
+    /**
+     * 공개 렌더 데이터. {@code clientIp} 를 주면 소유자의 전역 접속 차단 규칙을 적용한다
+     * (차단 IP 에는 리드폼의 존재조차 알리지 않도록 404).
+     */
+    @Transactional(readOnly = true)
+    public FormResponse getPublic(Long id, String clientIp) {
         Form form = formRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
+        if (clientIp != null && siteIpBlockService.isBlocked(form.getOwnerId(), clientIp)) {
+            throw new NotFoundException("리드폼을 찾을 수 없습니다.");
+        }
         return FormResponse.from(form);
     }
 

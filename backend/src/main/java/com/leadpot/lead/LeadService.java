@@ -24,6 +24,7 @@ import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
 import com.leadpot.integration.NotificationService;
 import com.leadpot.ipblock.IpBlockService;
+import com.leadpot.ipblock.SiteIpBlockService;
 import com.leadpot.lead.dto.ImportResult;
 import com.leadpot.lead.dto.InboxResponse;
 import com.leadpot.lead.dto.LeadNoteResponse;
@@ -38,15 +39,18 @@ public class LeadService {
     private final LeadNoteRepository leadNoteRepository;
     private final FormService formService;
     private final IpBlockService ipBlockService;
+    private final SiteIpBlockService siteIpBlockService;
     private final NotificationService notificationService;
 
     public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
-            FormService formService, IpBlockService ipBlockService, NotificationService notificationService) {
+            FormService formService, IpBlockService ipBlockService, NotificationService notificationService,
+            SiteIpBlockService siteIpBlockService) {
         this.leadRepository = leadRepository;
         this.leadNoteRepository = leadNoteRepository;
         this.formService = formService;
         this.ipBlockService = ipBlockService;
         this.notificationService = notificationService;
+        this.siteIpBlockService = siteIpBlockService;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -679,6 +683,11 @@ public class LeadService {
     /** IP 차단(K2): 차단된 IP면 제출을 거부하고 시도 로그를 남긴다(별도 트랜잭션). */
     private void checkIpBlocked(Form form, Visitor visitor) {
         String ip = visitor.ip();
+        // 계정 전역 접속 차단이 걸린 IP 는 제출도 막는다 —
+        // 외부 사이트 임베드는 우리 랜딩을 거치지 않으므로 여기서도 확인해야 실제로 차단된다.
+        if (siteIpBlockService.isBlocked(form.getOwnerId(), ip)) {
+            throw new InvalidSubmissionException("제출이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.");
+        }
         String matched = ipBlockService.blockedPattern(form.getId(), ip);
         if (matched != null) {
             // 제출 트랜잭션은 롤백되지만 로그는 REQUIRES_NEW 로 남는다.

@@ -681,6 +681,22 @@ export function clearIpBlockHits(formId: number): Promise<void> {
   return request<void>(`/api/forms/${formId}/ip-blocks/hits`, { method: "DELETE" });
 }
 
+/* ----- 계정 전역 접속 차단 -----
+   위(리드폼별)는 '제출'을 막고, 이쪽은 공개 화면 '접속' 자체를 막는다. */
+
+/** 전역 접속 차단 규칙 목록. */
+export function listSiteIpBlocks(): Promise<IpBlock[]> {
+  return request<IpBlock[]>("/api/site-ip-blocks");
+}
+/** 전역 접속 차단 규칙 추가(단일 IP 또는 CIDR). */
+export function addSiteIpBlock(input: IpBlockInput): Promise<IpBlock> {
+  return request<IpBlock>("/api/site-ip-blocks", { method: "POST", body: input });
+}
+/** 전역 접속 차단 규칙 삭제. */
+export function deleteSiteIpBlock(blockId: number): Promise<void> {
+  return request<void>(`/api/site-ip-blocks/${blockId}`, { method: "DELETE" });
+}
+
 // ---------- 랜딩페이지 ----------
 export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM";
 export interface LandingBlock {
