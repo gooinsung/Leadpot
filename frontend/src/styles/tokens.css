@@ -13,6 +13,8 @@
   --green: #12b886;
   --green-strong: #0e9d73;
   --green-soft: #e2f7ef;
+  /* 로고 전용 그린. 테마별로 바꾸지 않는다 — 로고 색은 배경이 바뀌어도 고정이어야 한다. */
+  --brand-green: #4ecb98;
 
   /* Neutrals — 인디고 쪽으로 살짝 치우친 쿨 슬레이트 */
   --bg: #f5f6fc;

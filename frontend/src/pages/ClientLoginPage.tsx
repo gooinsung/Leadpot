@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { ApiError, getClientBrand } from "../api/client";
-import { LeadpotMark } from "../components/LeadpotMark";
+import { LeadpotWordmark } from "../components/LeadpotWordmark";
 import { useTheme, type Theme } from "../lib/useTheme";
 
 const THEME_LABEL: Record<Theme, string> = { system: "🖥️", light: "☀️", dark: "🌙" };
@@ -52,7 +52,7 @@ export function ClientLoginPage() {
         <div className="adv-bar-in">
           <div className="adv-bar-top" style={{ paddingBottom: 10 }}>
             <span className="adv-brand">
-              <LeadpotMark />
+              <LeadpotWordmark />
               <span className="adv-brand-name">{brandName ?? "Leadpot"}</span>
             </span>
             <div className="adv-actions">

@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import { getAdvertiserMe, type AdvertiserMe } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { useTheme, type Theme } from "../lib/useTheme";
-import { LeadpotMark } from "./LeadpotMark";
+import { LeadpotWordmark } from "./LeadpotWordmark";
 
 const THEME_LABEL: Record<Theme, string> = {
   system: "🖥️",
@@ -48,7 +48,7 @@ export function AdvertiserTopBar() {
             {me?.brandLogoUrl ? (
               <img src={me.brandLogoUrl} alt={brandName ?? "로고"} className="brand-logo" />
             ) : (
-              <LeadpotMark />
+              <LeadpotWordmark />
             )}
             <span className="adv-brand-name">{brandName ?? "Leadpot"}</span>
           </span>

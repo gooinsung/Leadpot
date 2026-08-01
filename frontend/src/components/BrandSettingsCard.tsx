@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { ApiError, getBrand, updateBrand, uploadImage } from "../api/client";
-import { LeadpotMark } from "./LeadpotMark";
+import { LeadpotWordmark } from "./LeadpotWordmark";
 
 /**
  * 화이트라벨 설정 카드(마케터 전용). 여기서 정한 로고·색상이 광고주 화면(`/client`) 상단에 표시된다.
@@ -154,7 +154,7 @@ export function BrandSettingsCard() {
                   {logoUrl ? (
                     <img src={logoUrl} alt="로고 미리보기" className="brand-logo" />
                   ) : (
-                    <LeadpotMark />
+                    <LeadpotWordmark />
                   )}
                   내 브랜드
                 </span>

@@ -100,10 +100,16 @@ code {
   letter-spacing: -0.02em;
   color: var(--text);
 }
-.mark {
-  width: 28px;
-  height: 28px;
-  flex: none;
+/* 워드마크 로고. Pot 은 currentColor 라 어두운 LNB·밝은 배경 어디서든 그대로 쓴다. */
+.wordmark {
+  display: inline-flex;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.wordmark-lead {
+  color: var(--brand-green);
 }
 
 /* ---------- 버튼 ---------- */

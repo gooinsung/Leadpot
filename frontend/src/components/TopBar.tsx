@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { useTheme, type Theme } from "../lib/useTheme";
 import { useDensity } from "../lib/useDensity";
-import { LeadpotMark } from "./LeadpotMark";
+import { LeadpotWordmark } from "./LeadpotWordmark";
 
 const THEME_LABEL: Record<Theme, string> = {
   system: "🖥️ 시스템",
@@ -161,8 +161,7 @@ export function TopBar() {
       {/* 넓은 화면: 좌측 사이드바 */}
       <aside className="lnb" aria-label="주요 메뉴">
         <Link to="/" className="brand lnb-brand" style={{ textDecoration: "none" }}>
-          <LeadpotMark />
-          Leadpot
+          <LeadpotWordmark size={22} />
         </Link>
         {showNav && (
           <nav className="lnb-nav">
@@ -215,8 +214,7 @@ export function TopBar() {
             </button>
           )}
           <Link to="/" className="brand" style={{ textDecoration: "none" }}>
-            <LeadpotMark />
-            Leadpot
+            <LeadpotWordmark />
           </Link>
           <div className="lnb-topbar-right">
             {user ? (
