@@ -86,6 +86,7 @@ export function LeadInboxPage() {
     setStatusFilter("");
     setFormFilter(null);
     setQ("");
+    setQInput(""); // 검색창 표시도 같이 비운다(안 그러면 글자가 남아 걸린 줄 안다)
     setPage(1);
   }
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
