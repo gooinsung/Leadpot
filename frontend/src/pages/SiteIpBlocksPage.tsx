@@ -108,6 +108,12 @@ export function SiteIpBlocksPage() {
 
         {loading ? (
           <Loading />
+        ) : error && blocks.length === 0 ? (
+          // 못 불러온 것과 '없는 것'은 다르다 — 실패했을 땐 없다고 단정하지 않는다.
+          <div className="card card-pad empty-state">
+            <p>목록을 불러오지 못했습니다.</p>
+            <button className="btn btn-ghost" onClick={load}>다시 시도</button>
+          </div>
         ) : blocks.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>차단한 IP가 없습니다.</p>

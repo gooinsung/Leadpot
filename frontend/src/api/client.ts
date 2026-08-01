@@ -48,6 +48,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 서버가 메시지를 주지 않았을 때 쓸 문구.
+ * 예전엔 `${status} ${statusText}` 를 그대로 썼는데, HTTP/2 에는 reason phrase 가 없어
+ * 화면에 "404" 같은 숫자만 노출됐다. 사용자가 읽을 수 있는 말로 바꾼다.
+ */
+function fallbackMessage(status: number): string {
+  if (status === 401) return "로그인이 필요합니다. 다시 로그인해주세요.";
+  if (status === 403) return "권한이 없습니다.";
+  if (status === 404) return "요청한 정보를 찾을 수 없습니다.";
+  if (status === 409) return "이미 처리되었거나 조건이 맞지 않습니다.";
+  if (status === 413) return "파일이 너무 큽니다.";
+  if (status === 429) return "요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.";
+  if (status >= 500) return "서버에 문제가 생겼습니다. 잠시 후 다시 시도해주세요.";
+  return "요청을 처리하지 못했습니다.";
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let body: Partial<ApiErrorBody> | null = null;
   try {
@@ -55,7 +71,7 @@ async function parseError(res: Response): Promise<ApiError> {
   } catch {
     // 본문 없음(시큐리티 레벨 401 등)
   }
-  return new ApiError(res.status, body, `${res.status} ${res.statusText}`);
+  return new ApiError(res.status, body, fallbackMessage(res.status));
 }
 
 // ---------- 저수준 요청 (인증/자동 재발급 포함) ----------
