@@ -13,6 +13,7 @@ import { HtmlComponentEditPage } from "./pages/HtmlComponentEditPage";
 import { LeadsListPage } from "./pages/LeadsListPage";
 import { IpBlocksPage } from "./pages/IpBlocksPage";
 import { SiteIpBlocksPage } from "./pages/SiteIpBlocksPage";
+import { SmsPage } from "./pages/SmsPage";
 import { PublicFormPage } from "./pages/PublicFormPage";
 import { LandingsListPage } from "./pages/LandingsListPage";
 import { LandingEditPage } from "./pages/LandingEditPage";
@@ -197,6 +198,14 @@ function App() {
         element={
           <ProtectedRoute>
             <SiteIpBlocksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sms"
+        element={
+          <ProtectedRoute>
+            <SmsPage />
           </ProtectedRoute>
         }
       />

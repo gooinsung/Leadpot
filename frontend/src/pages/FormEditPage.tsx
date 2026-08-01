@@ -78,6 +78,14 @@ function newBlock(blockType: BlockType): FormBlock {
   return base;
 }
 
+/** 변수 목록·선택박스에 보여줄 항목 이름. CHOICE 는 질문 문구가 항목명 역할을 한다. */
+function blockLabel(b: FormBlock): string {
+  if (b.blockType === "CHOICE") {
+    return ((b.content?.question as string) || "").trim() || "(질문 없음)";
+  }
+  return (b.label || "").trim() || "(이름 없음)";
+}
+
 function defaultContactFields(): FormBlock[] {
   return [
     { sortOrder: 0, blockType: "FIELD", fieldType: "text", label: "이름", required: true, placeholder: "홍길동" },
@@ -130,6 +138,13 @@ export function FormEditPage() {
   const [ipDedupDays, setIpDedupDays] = useState(0);
   const [notifyEnabled, setNotifyEnabled] = useState(true);
   const [sheetsEnabled, setSheetsEnabled] = useState(false);
+  // 문자 발송 — 건당 비용이 들기 때문에 셋 다 기본 off 다.
+  const [smsMarketerEnabled, setSmsMarketerEnabled] = useState(false);
+  const [smsAdvertiserEnabled, setSmsAdvertiserEnabled] = useState(false);
+  const [smsLeadEnabled, setSmsLeadEnabled] = useState(false);
+  const [smsLeadBody, setSmsLeadBody] = useState("");
+  const [smsLeadPhoneVarKey, setSmsLeadPhoneVarKey] = useState("");
+  const [smsSenderPhone, setSmsSenderPhone] = useState("");
   const [sheetsWebhookUrl, setSheetsWebhookUrl] = useState("");
   const [sheetsSecret, setSheetsSecret] = useState("");
   const [sheetTest, setSheetTest] = useState<{ ok: boolean; text: string } | null>(null);
@@ -160,6 +175,12 @@ export function FormEditPage() {
         setIpDedupDays(Number(f.settingsConfig?.ipDedupDays) || 0);
         setNotifyEnabled(f.settingsConfig?.notifyEnabled !== false);
         setSheetsEnabled(f.settingsConfig?.sheetsEnabled === true);
+        setSmsMarketerEnabled(f.settingsConfig?.smsMarketerEnabled === true);
+        setSmsAdvertiserEnabled(f.settingsConfig?.smsAdvertiserEnabled === true);
+        setSmsLeadEnabled(f.settingsConfig?.smsLeadEnabled === true);
+        setSmsLeadBody((f.settingsConfig?.smsLeadBody as string) || "");
+        setSmsLeadPhoneVarKey((f.settingsConfig?.smsLeadPhoneVarKey as string) || "");
+        setSmsSenderPhone((f.settingsConfig?.smsSenderPhone as string) || "");
         setSheetsWebhookUrl((f.settingsConfig?.sheetsWebhookUrl as string) || "");
         setSheetsSecret((f.settingsConfig?.sheetsSecret as string) || "");
         setTracking(f.trackingConfig ?? null);
@@ -291,6 +312,13 @@ export function FormEditPage() {
           ...contactFields.map((f, j) => ({ ...f, stepNo: steps.length, sortOrder: steps.length + j })),
         ];
 
+  // 문자 템플릿에 넣을 수 있는 변수 목록 — 서버가 변수키를 발급한(= 한 번 저장된) 답변 항목만 나온다.
+  const answerBlocks = builtBlocks.filter(
+    (b) => (b.blockType === "FIELD" || b.blockType === "CHOICE") && !!b.varKey,
+  );
+  // 국내 문자 과금 기준(EUC-KR): 한글 2byte. 90byte 를 넘으면 LMS 로 전환되어 단가가 오른다.
+  const smsBytes = [...smsLeadBody].reduce((n, ch) => n + (ch.charCodeAt(0) < 0x80 ? 1 : 2), 0);
+
   const formData: FormInput = {
     name,
     formType,
@@ -305,6 +333,12 @@ export function FormEditPage() {
       ipDedupDays,
       notifyEnabled,
       sheetsEnabled,
+      smsMarketerEnabled,
+      smsAdvertiserEnabled,
+      smsLeadEnabled,
+      smsLeadBody: smsLeadBody.trim(),
+      smsLeadPhoneVarKey,
+      smsSenderPhone: smsSenderPhone.replace(/[^0-9]/g, ""),
       sheetsWebhookUrl: sheetsWebhookUrl.trim(),
       sheetsSecret: sheetsSecret.trim(),
     },
@@ -613,6 +647,101 @@ export function FormEditPage() {
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 이 리드폼에 접수되면 <b>연동</b> 메뉴에 설정한 <b>계정 텔레그램</b>으로 알림을 보냅니다. (계정 텔레그램이 켜져 있어야 발송)
               </p>
+            </div>
+
+            <div className="card card-pad" style={{ marginTop: 16 }}>
+              <div className="card-h">문자 발송 (이 리드폼)</div>
+              <p className="dash-sub" style={{ marginBottom: 12 }}>
+                건당 비용이 발생하므로 기본은 모두 꺼져 있습니다. 발신번호·잔액·이번 달 사용량은{" "}
+                <Link to="/sms">문자 발송</Link> 메뉴에서 확인하세요.
+              </p>
+
+              <label className="fr-check">
+                <input type="checkbox" checked={smsMarketerEnabled} onChange={(e) => setSmsMarketerEnabled(e.target.checked)} /> 나(마케터)에게 접수 문자 받기
+              </label>
+              <p className="dash-sub" style={{ marginTop: 6 }}>
+                내 계정에 등록된 연락처로 보냅니다. 개인정보는 넣지 않고 <b>접수 사실과 리드폼 이름만</b> 보냅니다.
+              </p>
+
+              <label className="fr-check" style={{ marginTop: 14 }}>
+                <input type="checkbox" checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 이 리드폼의 광고주에게 접수 문자 보내기
+              </label>
+              <p className="dash-sub" style={{ marginTop: 6 }}>
+                이 리드폼을 부여받은 광고주의 계정 연락처로 보냅니다. <b>광고주가 스스로 켤 수 없고 여기서만 켭니다.</b>
+              </p>
+
+              <label className="fr-check" style={{ marginTop: 14 }}>
+                <input type="checkbox" checked={smsLeadEnabled} onChange={(e) => setSmsLeadEnabled(e.target.checked)} /> 고객(접수자)에게 문자 보내기
+              </label>
+              {smsLeadEnabled && (
+                <div style={{ display: "grid", gap: 12, maxWidth: 620, marginTop: 10 }}>
+                  <label className="field">
+                    <span className="field-label">수신 번호로 쓸 항목</span>
+                    <select className="input" value={smsLeadPhoneVarKey} onChange={(e) => setSmsLeadPhoneVarKey(e.target.value)}>
+                      <option value="">자동 (첫 연락처 항목)</option>
+                      {answerBlocks.map((b) => (
+                        <option key={b.varKey as string} value={b.varKey as string}>
+                          {blockLabel(b)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">문자 내용</span>
+                    <textarea
+                      className="input"
+                      rows={5}
+                      value={smsLeadBody}
+                      onChange={(e) => setSmsLeadBody(e.target.value)}
+                      placeholder={"{{f1}} 님, 접수해주셔서 감사합니다.\n빠르게 확인하여 연락드리겠습니다."}
+                    />
+                    <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                      {smsBytes <= 90
+                        ? `${smsBytes}/90 byte · SMS (건당 13원)`
+                        : `${smsBytes} byte · LMS 로 전환 (건당 29원)`}
+                      {" — 한글은 2byte 로 계산됩니다."}
+                    </span>
+                  </label>
+                  {answerBlocks.length > 0 && (
+                    <div>
+                      <span className="field-label" style={{ display: "block", marginBottom: 6 }}>
+                        변수 넣기 (클릭하면 커서 위치 대신 끝에 추가됩니다)
+                      </span>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {answerBlocks.map((b) => (
+                          <button
+                            key={b.varKey as string}
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => setSmsLeadBody((prev) => `${prev}{{${b.varKey}}}`)}
+                          >
+                            {blockLabel(b)}
+                          </button>
+                        ))}
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSmsLeadBody((prev) => `${prev}{{form.name}}`)}>
+                          리드폼 이름
+                        </button>
+                      </div>
+                      <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
+                        항목명을 나중에 바꿔도 문자는 그대로 동작합니다. 단 <b>항목을 삭제하면</b> 그 변수는 빈칸으로 나갑니다.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <label className="field" style={{ maxWidth: 320, marginTop: 16 }}>
+                <span className="field-label">발신번호 (선택)</span>
+                <input
+                  className="input"
+                  value={smsSenderPhone}
+                  onChange={(e) => setSmsSenderPhone(e.target.value)}
+                  placeholder="비우면 기본 발신번호 사용"
+                />
+                <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                  발송 계정에 <b>사전등록된 번호</b>만 쓸 수 있습니다(전기통신사업법). 등록되지 않은 번호를 넣으면 발송이 실패합니다.
+                </span>
+              </label>
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }}>

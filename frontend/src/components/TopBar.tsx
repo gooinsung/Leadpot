@@ -51,6 +51,7 @@ const NAV: NavSection[] = [
     items: [
       { to: "/advertisers", label: "광고주" },
       { to: "/stats", label: "통계" },
+      { to: "/sms", label: "문자 발송", desc: "발송 현황과 이력을 봅니다" },
       { to: "/site-ip-blocks", label: "접속 차단", desc: "특정 IP의 접속을 막습니다" },
       { to: "/integrations", label: "연동", desc: "텔레그램·구글시트를 연결합니다" },
     ],

@@ -1366,4 +1366,60 @@ export function acceptInvite(
   });
 }
 
+// ---------- 문자 발송 ----------
+
+export interface SmsStatus {
+  /** 지금 문자를 보낼 수 있는 상태인가(자격증명·발신번호가 갖춰졌는가). */
+  ready: boolean;
+  /** 내 솔라피 키를 쓰고 있는가. false 면 리드팟 키로 나간다. */
+  ownCredential: boolean;
+  /** 실제로 나갈 발신번호(마스킹됨). */
+  senderPhone: string;
+  /** 이번 달 사용량(리드팟 키 발송분). */
+  used: number;
+  /** 이번 달 한도. 0 이면 무제한. */
+  limit: number;
+  /** 이번 달 실패 건수 — 자동 발송은 조용히 실패하므로 눈에 띄게 보여준다. */
+  failed: number;
+  plan: "FREE" | "PRO";
+}
+
+export interface MessageLogItem {
+  id: number;
+  channel: string; // SMS | LMS
+  recipientType: string; // MARKETER | ADVERTISER | LEAD | TEST
+  recipient: string; // 마스킹된 수신번호
+  body: string | null;
+  status: string; // SENT | FAILED | SKIPPED
+  error: string | null;
+  systemCredential: boolean;
+  createdAt: string | null;
+}
+
+export interface SmsSendResult {
+  ok: boolean;
+  status: string;
+  error: string | null;
+  channel: string;
+  bytes: number;
+}
+
+export function getSmsStatus(): Promise<SmsStatus> {
+  return request<SmsStatus>("/api/sms/status");
+}
+
+export function listSmsLogs(): Promise<MessageLogItem[]> {
+  return request<MessageLogItem[]>("/api/sms/logs");
+}
+
+/** 테스트 발송. 번호를 비우면 내 계정 연락처로 보낸다. */
+export function testSms(input: { to?: string; text?: string }): Promise<SmsSendResult> {
+  return request<SmsSendResult>("/api/sms/test", { method: "POST", body: input });
+}
+
+/** 본문 길이·과금 구분(SMS/LMS) 계산. 저장하지 않는다. */
+export function measureSms(text: string): Promise<SmsSendResult> {
+  return request<SmsSendResult>(`/api/sms/measure?text=${encodeURIComponent(text)}`);
+}
+
 export { BASE_URL };
