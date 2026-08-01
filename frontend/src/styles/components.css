@@ -12,11 +12,18 @@ table {
 th,
 td {
   text-align: left;
-  padding: 13px 16px;
+  /* 행 밀도는 토큰이 정한다(U7) — 계정 메뉴의 촘촘/넉넉 토글이 이 값을 바꾼다. */
+  padding: var(--row-py) var(--row-px);
   font-size: var(--fs-md);
   line-height: 1.45;
   vertical-align: middle;
   border-bottom: 1px solid var(--border);
+}
+/* 숫자·일시·연락처는 자릿수가 맞아야 세로로 훑인다(Cockpit: 성과·밀도). */
+.tnum,
+td.num,
+.k-val {
+  font-variant-numeric: tabular-nums;
 }
 /* 헤더 행은 살짝 톤을 깔아 본문과 분리(스캔하기 쉽게) */
 th {

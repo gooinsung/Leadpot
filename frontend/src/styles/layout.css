@@ -159,6 +159,7 @@
   flex: none;
 }
 
+/* Cockpit(U7): 잉크 패널로 내비와 작업 영역을 뚜렷이 가른다. 새 색은 쓰지 않는다. */
 .lnb {
   position: sticky;
   top: 0;
@@ -167,9 +168,13 @@
   width: 224px;
   height: 100vh;
   padding: 18px 12px 12px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--lnb-bg);
+  border-right: 1px solid var(--lnb-border);
+  color: var(--lnb-text);
   overflow-y: auto;
+}
+.lnb .brand {
+  color: var(--lnb-text-strong);
 }
 /* 내비가 없는 화면(로그인·회원가입 등)에는 사이드바를 두지 않는다. */
 .app-nav[data-has-nav="false"] .lnb {
@@ -207,12 +212,12 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--lnb-group);
   cursor: pointer;
 }
 .lnb-section-toggle:hover {
-  background: var(--surface-2);
-  color: var(--text);
+  background: var(--lnb-hover);
+  color: var(--lnb-text);
 }
 .lnb-section-caret {
   font-size: 10px;
@@ -226,40 +231,53 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 8px 10px;
-  border-radius: 9px;
-  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--lnb-text);
   text-decoration: none;
 }
 .lnb-link:hover {
-  background: var(--surface-2);
+  background: var(--lnb-hover);
   text-decoration: none;
 }
 .lnb-link.on {
-  background: var(--indigo-soft);
+  background: var(--lnb-active-bg);
 }
 .lnb-link-label {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--lnb-text);
 }
-.lnb-link:hover .lnb-link-label {
-  color: var(--text);
-}
+.lnb-link:hover .lnb-link-label,
 .lnb-link.on .lnb-link-label {
-  color: var(--indigo-strong);
+  color: var(--lnb-text-strong);
 }
 .lnb-link-desc {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--lnb-group);
   line-height: 1.35;
 }
 
 .lnb-foot {
   padding-top: 12px;
   margin-top: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--lnb-border);
+}
+/* 잉크 패널 위의 계정 버튼 — 밝은 배경용 기본값을 덮는다. */
+.lnb .account-btn {
+  color: var(--lnb-text);
+}
+.lnb .account-btn:hover,
+.lnb .account-btn.on {
+  background: var(--lnb-hover);
+  border-color: var(--lnb-border);
+}
+.lnb .account-email {
+  color: var(--lnb-group);
+}
+.lnb .account-caret {
+  color: var(--lnb-group);
 }
 .lnb-account {
   position: relative;

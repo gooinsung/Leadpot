@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { useTheme, type Theme } from "../lib/useTheme";
+import { useDensity } from "../lib/useDensity";
 import { LeadpotMark } from "./LeadpotMark";
 
 const THEME_LABEL: Record<Theme, string> = {
@@ -61,6 +62,7 @@ const NAV: NavSection[] = [
  */
 export function TopBar() {
   const { theme, toggle } = useTheme();
+  const { density, toggle: toggleDensity } = useDensity();
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
@@ -140,6 +142,10 @@ export function TopBar() {
           <div className="nav-menu-head">{user.email}</div>
           <button type="button" className="nav-menu-item" role="menuitem" onClick={toggle}>
             {THEME_LABEL[theme]}
+          </button>
+          {/* 목록 밀도(U7 · Cockpit) — 한 화면에 더 많이 볼지, 편하게 볼지 */}
+          <button type="button" className="nav-menu-item" role="menuitem" onClick={toggleDensity}>
+            {density === "compact" ? "↕ 촘촘하게" : "↕ 넉넉하게"}
           </button>
           <button type="button" className="nav-menu-item danger" role="menuitem" onClick={logout}>
             로그아웃

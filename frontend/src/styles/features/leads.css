@@ -148,8 +148,9 @@
 .inbox-row,
 .flead-row {
   display: grid;
-  gap: 14px; align-items: center;
-  padding: 14px 16px; border: none; border-bottom: 1px solid var(--border);
+  /* 행 밀도 토큰(U7) — 표와 같은 리듬으로 촘촘/넉넉이 함께 바뀐다. */
+  gap: var(--row-gap); align-items: center;
+  padding: var(--row-py) var(--row-px); border: none; border-bottom: 1px solid var(--border);
   background: transparent; cursor: pointer; text-align: left; font: inherit; width: 100%;
 }
 .inbox-row { grid-template-columns: 32px minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px; }
