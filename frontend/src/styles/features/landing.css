@@ -97,14 +97,16 @@
 }
 
 /* ---------- 공개 랜딩(/p/:slug) — 모바일 최적화 ---------- */
+/* 공개 랜딩 — Daylight 토큰은 features/public.css 에서 .landing-public 에 정의된다.
+   라이트 고정이라 사용자가 붙인 HTML 블록(흰 배경 전제)이 의도대로 보인다. */
 .landing-public {
   min-height: 100vh;
-  background: var(--bg);
+  background: var(--pub-bg);
 }
 .landing-public-inner {
   max-width: 480px;
   margin: 0 auto;
-  background: var(--surface);
+  background: var(--pub-surface);
   min-height: 100vh;
 }
 .landing-img {
