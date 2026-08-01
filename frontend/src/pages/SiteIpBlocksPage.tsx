@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import {
   addSiteIpBlock,
   ApiError,
+  clearSiteIpBlockHits,
   deleteSiteIpBlock,
+  listSiteIpBlockHits,
   listSiteIpBlocks,
   type IpBlock,
+  type SiteIpBlockHit,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { Loading } from "../components/Loading";
@@ -22,6 +25,8 @@ export function SiteIpBlocksPage() {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [hits, setHits] = useState<SiteIpBlockHit[]>([]);
+  const [hitsLoading, setHitsLoading] = useState(true);
 
   function load() {
     setLoading(true);
@@ -29,6 +34,26 @@ export function SiteIpBlocksPage() {
       .then(setBlocks)
       .catch((e) => setError(e instanceof ApiError ? e.message : "불러오지 못했습니다."))
       .finally(() => setLoading(false));
+    loadHits();
+  }
+
+  function loadHits() {
+    setHitsLoading(true);
+    listSiteIpBlockHits()
+      .then(setHits)
+      .catch(() => setHits([])) // 로그는 부가 정보 — 실패해도 화면 전체를 막지 않는다
+      .finally(() => setHitsLoading(false));
+  }
+
+  async function onClearHits() {
+    if (!window.confirm("차단 시도 기록을 모두 비울까요?")) return;
+    try {
+      await clearSiteIpBlockHits();
+      toast.success("기록을 비웠습니다.");
+      loadHits();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "비우지 못했습니다.");
+    }
   }
 
   useEffect(load, []);
@@ -142,6 +167,54 @@ export function SiteIpBlocksPage() {
                       <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(b)}>
                         해제
                       </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 차단 시도 로그 — 규칙만 있으면 실제로 막히고 있는지 알 수 없다. */}
+        <div className="dash-head" style={{ marginTop: 32, marginBottom: 12 }}>
+          <div>
+            <h2 className="dash-title" style={{ fontSize: 18 }}>차단된 접속 시도 ({hits.length})</h2>
+            <p className="dash-sub">차단 규칙에 걸린 접속·제출 시도입니다. 최근 500건까지 보관합니다.</p>
+          </div>
+          {hits.length > 0 && (
+            <div className="edit-actions">
+              <button className="btn btn-ghost btn-sm" onClick={onClearHits}>기록 비우기</button>
+            </div>
+          )}
+        </div>
+
+        {hitsLoading ? (
+          <Loading />
+        ) : hits.length === 0 ? (
+          <div className="card card-pad empty-state">
+            <p>아직 차단된 시도가 없습니다.</p>
+          </div>
+        ) : (
+          <div className="card card-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>시각</th>
+                  <th>IP</th>
+                  <th>걸린 규칙</th>
+                  <th>시도한 곳</th>
+                  <th>브라우저(UA)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hits.map((h) => (
+                  <tr key={h.id}>
+                    <td className="num">{new Date(h.createdAt).toLocaleString("ko-KR")}</td>
+                    <td style={{ fontFamily: "var(--mono)" }}>{h.ip}</td>
+                    <td style={{ fontFamily: "var(--mono)" }}>{h.matchedPattern || "—"}</td>
+                    <td>{h.sourceLabel}</td>
+                    <td className="dash-sub" style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={h.userAgent || ""}>
+                      {h.userAgent || "—"}
                     </td>
                   </tr>
                 ))}

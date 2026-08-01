@@ -24,6 +24,7 @@ import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
 import com.leadpot.integration.NotificationService;
 import com.leadpot.ipblock.IpBlockService;
+import com.leadpot.ipblock.SiteIpBlockHit;
 import com.leadpot.ipblock.SiteIpBlockService;
 import com.leadpot.lead.dto.ImportResult;
 import com.leadpot.lead.dto.InboxResponse;
@@ -685,7 +686,11 @@ public class LeadService {
         String ip = visitor.ip();
         // 계정 전역 접속 차단이 걸린 IP 는 제출도 막는다 —
         // 외부 사이트 임베드는 우리 랜딩을 거치지 않으므로 여기서도 확인해야 실제로 차단된다.
-        if (siteIpBlockService.isBlocked(form.getOwnerId(), ip)) {
+        String siteMatched = siteIpBlockService.blockedPattern(form.getOwnerId(), ip);
+        if (siteMatched != null) {
+            // 제출 트랜잭션은 롤백되지만 로그는 REQUIRES_NEW 로 남는다.
+            siteIpBlockService.recordHit(form.getOwnerId(), ip, siteMatched,
+                    SiteIpBlockHit.Source.SUBMIT, visitor.userAgent());
             throw new InvalidSubmissionException("제출이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.");
         }
         String matched = ipBlockService.blockedPattern(form.getId(), ip);

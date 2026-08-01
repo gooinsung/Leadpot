@@ -23,7 +23,7 @@ public class PublicFormController {
 
     @GetMapping("/{id}")
     public FormResponse get(@PathVariable Long id, HttpServletRequest http) {
-        // 소유자의 전역 접속 차단 적용(차단 IP 면 404).
-        return formService.getPublic(id, ClientIp.of(http));
+        // 소유자의 전역 접속 차단 적용(차단 IP 면 404). UA 는 차단 로그용.
+        return formService.getPublic(id, ClientIp.of(http), http.getHeader("User-Agent"));
     }
 }

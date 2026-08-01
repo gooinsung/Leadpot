@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.leadpot.ipblock.dto.IpBlockRequest;
 import com.leadpot.ipblock.dto.IpBlockResponse;
+import com.leadpot.ipblock.dto.SiteIpBlockHitResponse;
 
 import jakarta.validation.Valid;
 
@@ -47,6 +48,19 @@ public class SiteIpBlockController {
     @DeleteMapping("/{blockId}")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long blockId) {
         service.delete(userId(jwt), blockId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 차단된 접속 시도 로그(랜딩 열람·리드폼 열람·리드 제출). */
+    @GetMapping("/hits")
+    public List<SiteIpBlockHitResponse> hits(@AuthenticationPrincipal Jwt jwt) {
+        return service.hits(userId(jwt));
+    }
+
+    /** 차단 시도 로그 전체 비우기. */
+    @DeleteMapping("/hits")
+    public ResponseEntity<Void> clearHits(@AuthenticationPrincipal Jwt jwt) {
+        service.clearHits(userId(jwt));
         return ResponseEntity.noContent().build();
     }
 

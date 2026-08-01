@@ -95,26 +95,26 @@ class SiteIpBlockTest {
     @DisplayName("차단 IP 는 공개 랜딩에 접속할 수 없다(존재를 드러내지 않는 404)")
     void blocksPublicLanding() {
         // 차단 전에는 열린다
-        assertThat(landingService.getPublicBySite("siteblock-a", "open", "1.2.3.4")).isNotNull();
+        assertThat(landingService.getPublicBySite("siteblock-a", "open", "1.2.3.4", "test-ua")).isNotNull();
 
         service.add(owner.getId(), new IpBlockRequest("1.2.3.4", "경쟁사"));
 
-        assertThatThrownBy(() -> landingService.getPublicBySite("siteblock-a", "open", "1.2.3.4"))
+        assertThatThrownBy(() -> landingService.getPublicBySite("siteblock-a", "open", "1.2.3.4", "test-ua"))
                 .isInstanceOf(NotFoundException.class);
         // 다른 IP 는 그대로 열린다
-        assertThat(landingService.getPublicBySite("siteblock-a", "open", "9.9.9.9")).isNotNull();
+        assertThat(landingService.getPublicBySite("siteblock-a", "open", "9.9.9.9", "test-ua")).isNotNull();
     }
 
     @Test
     @DisplayName("차단 IP 는 공개 리드폼도 열 수 없다")
     void blocksPublicForm() {
-        assertThat(formService.getPublic(form.getId(), "1.2.3.4")).isNotNull();
+        assertThat(formService.getPublic(form.getId(), "1.2.3.4", "test-ua")).isNotNull();
 
         service.add(owner.getId(), new IpBlockRequest("1.2.3.4", null));
 
-        assertThatThrownBy(() -> formService.getPublic(form.getId(), "1.2.3.4"))
+        assertThatThrownBy(() -> formService.getPublic(form.getId(), "1.2.3.4", "test-ua"))
                 .isInstanceOf(NotFoundException.class);
-        assertThat(formService.getPublic(form.getId(), "9.9.9.9")).isNotNull();
+        assertThat(formService.getPublic(form.getId(), "9.9.9.9", "test-ua")).isNotNull();
     }
 
     @Test
@@ -124,6 +124,48 @@ class SiteIpBlockTest {
         assertThatThrownBy(() -> service.delete(other.getId(), id))
                 .isInstanceOf(NotFoundException.class);
         assertThat(service.list(owner.getId())).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("차단되면 시도 로그가 남는다 — 어떤 규칙에 어디서 걸렸는지")
+    void recordsHit() {
+        service.add(owner.getId(), new IpBlockRequest("1.2.3.0/24", "경쟁사 대역"));
+
+        assertThatThrownBy(() -> landingService.getPublicBySite("siteblock-a", "open", "1.2.3.9", "bot/1.0"))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> formService.getPublic(form.getId(), "1.2.3.9", "bot/1.0"))
+                .isInstanceOf(NotFoundException.class);
+
+        var hits = service.hits(owner.getId());
+        assertThat(hits).hasSize(2);
+        assertThat(hits).allSatisfy(h -> {
+            assertThat(h.ip()).isEqualTo("1.2.3.9");
+            assertThat(h.matchedPattern()).isEqualTo("1.2.3.0/24"); // 걸린 규칙이 무엇인지
+            assertThat(h.userAgent()).isEqualTo("bot/1.0");
+        });
+        assertThat(hits).extracting(r -> r.source()).containsExactlyInAnyOrder("LANDING", "FORM");
+    }
+
+    @Test
+    @DisplayName("차단되지 않으면 로그도 남지 않는다")
+    void noHitWhenAllowed() {
+        service.add(owner.getId(), new IpBlockRequest("1.2.3.4", null));
+        assertThat(landingService.getPublicBySite("siteblock-a", "open", "9.9.9.9", "ua")).isNotNull();
+        assertThat(service.hits(owner.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("로그는 계정별로 분리되고 비울 수 있다")
+    void hitsIsolatedAndClearable() {
+        service.add(owner.getId(), new IpBlockRequest("1.2.3.4", null));
+        assertThatThrownBy(() -> formService.getPublic(form.getId(), "1.2.3.4", "ua"))
+                .isInstanceOf(NotFoundException.class);
+
+        assertThat(service.hits(owner.getId())).hasSize(1);
+        assertThat(service.hits(other.getId())).isEmpty(); // 남의 로그는 안 보인다
+
+        service.clearHits(owner.getId());
+        assertThat(service.hits(owner.getId())).isEmpty();
     }
 
     private User marketer(String email, String sub) {

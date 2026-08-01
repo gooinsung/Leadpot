@@ -20,6 +20,7 @@ import com.leadpot.landing.dto.LandingRequest;
 import com.leadpot.landing.dto.LandingResponse;
 import com.leadpot.landing.dto.LandingSummary;
 import com.leadpot.landing.dto.PublicLandingResponse;
+import com.leadpot.ipblock.SiteIpBlockHit;
 import com.leadpot.ipblock.SiteIpBlockService;
 import com.leadpot.lead.Lead;
 import com.leadpot.lead.LeadRepository;
@@ -146,11 +147,14 @@ public class LandingService {
      * 공개 접근은 published 만 허용(비공개는 존재를 드러내지 않도록 404).
      */
     @Transactional(readOnly = true)
-    public PublicLandingResponse getPublicBySite(String subdomain, String identifier, String clientIp) {
+    public PublicLandingResponse getPublicBySite(String subdomain, String identifier, String clientIp,
+            String userAgent) {
         User owner = userRepository.findBySubdomain(subdomain == null ? "" : subdomain.toLowerCase())
                 .orElseThrow(() -> new NotFoundException("페이지를 찾을 수 없습니다."));
         // 계정 전역 접속 차단: 차단 IP 에는 페이지의 존재조차 알리지 않는다(비공개 랜딩과 같은 404).
-        if (siteIpBlockService.isBlocked(owner.getId(), clientIp)) {
+        String matched = siteIpBlockService.blockedPattern(owner.getId(), clientIp);
+        if (matched != null) {
+            siteIpBlockService.recordHit(owner.getId(), clientIp, matched, SiteIpBlockHit.Source.LANDING, userAgent);
             throw new NotFoundException("페이지를 찾을 수 없습니다.");
         }
         LandingPage landing = resolveLanding(owner.getId(), identifier)

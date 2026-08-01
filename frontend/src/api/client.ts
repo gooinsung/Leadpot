@@ -713,6 +713,26 @@ export function deleteSiteIpBlock(blockId: number): Promise<void> {
   return request<void>(`/api/site-ip-blocks/${blockId}`, { method: "DELETE" });
 }
 
+export interface SiteIpBlockHit {
+  id: number;
+  ip: string;
+  matchedPattern: string | null;
+  /** LANDING | FORM | SUBMIT */
+  source: string;
+  /** 한국어 라벨(랜딩 열람·리드폼 열람·리드 제출) */
+  sourceLabel: string;
+  userAgent: string | null;
+  createdAt: string;
+}
+/** 차단된 접속 시도 로그. */
+export function listSiteIpBlockHits(): Promise<SiteIpBlockHit[]> {
+  return request<SiteIpBlockHit[]>("/api/site-ip-blocks/hits");
+}
+/** 차단 시도 로그 비우기. */
+export function clearSiteIpBlockHits(): Promise<void> {
+  return request<void>("/api/site-ip-blocks/hits", { method: "DELETE" });
+}
+
 // ---------- 랜딩페이지 ----------
 export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM";
 export interface LandingBlock {

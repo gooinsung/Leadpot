@@ -27,7 +27,8 @@ public class PublicSiteController {
     @GetMapping("/{subdomain}/{identifier}")
     public PublicLandingResponse resolve(@PathVariable String subdomain, @PathVariable String identifier,
             HttpServletRequest http) {
-        // 접속 차단 판정에 클라이언트 IP 가 필요하다(프록시 뒤라 X-Forwarded-For 우선).
-        return landingService.getPublicBySite(subdomain, identifier, ClientIp.of(http));
+        // 접속 차단 판정에 클라이언트 IP 가, 차단 로그에 UA 가 필요하다.
+        return landingService.getPublicBySite(subdomain, identifier, ClientIp.of(http),
+                http.getHeader("User-Agent"));
     }
 }
