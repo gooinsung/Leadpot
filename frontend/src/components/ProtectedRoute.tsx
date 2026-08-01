@@ -2,7 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { Loading } from "./Loading";
 import type { ReactNode } from "react";
 import { useAuth } from "../lib/authContext";
-import type { Role } from "../api/client";
+import { getTokens, type Role } from "../api/client";
 
 /** 역할별 기본 진입 화면. */
 export function homePathFor(role: Role | undefined): string {
@@ -34,6 +34,18 @@ export function ProtectedRoute({
 
   if (loading) {
     return <Loading full />;
+  }
+  // 토큰은 있는데 세션 복원에 실패한 경우 = 서버에 닿지 못한 것(재배포 중 등).
+  // 로그인 화면으로 내쫓지 않고 다시 시도할 기회를 준다 — 로그아웃된 게 아니다.
+  if (!user && getTokens()) {
+    return (
+      <div className="page-loading" style={{ flexDirection: "column", gap: 14 }}>
+        <p>서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.</p>
+        <button className="btn btn-primary" onClick={() => window.location.reload()}>
+          다시 시도
+        </button>
+      </div>
+    );
   }
   if (!user) {
     return <Navigate to={loginPathFor(role)} state={{ from: location.pathname }} replace />;
