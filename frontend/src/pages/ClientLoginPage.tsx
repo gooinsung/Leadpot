@@ -2,7 +2,6 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { ApiError, getClientBrand } from "../api/client";
-import { LeadpotWordmark } from "../components/LeadpotWordmark";
 import { useTheme, type Theme } from "../lib/useTheme";
 
 const THEME_LABEL: Record<Theme, string> = { system: "🖥️", light: "☀️", dark: "🌙" };
@@ -51,9 +50,9 @@ export function ClientLoginPage() {
       <header className="adv-bar">
         <div className="adv-bar-in">
           <div className="adv-bar-top" style={{ paddingBottom: 10 }}>
+            {/* 광고주에게는 마케터 브랜드만 보여준다 — 리드팟 로고를 넣지 않는다(화이트라벨). */}
             <span className="adv-brand">
-              <LeadpotWordmark />
-              <span className="adv-brand-name">{brandName ?? "Leadpot"}</span>
+              <span className="adv-brand-name">{brandName ?? "리드 관리"}</span>
             </span>
             <div className="adv-actions">
               <button className="adv-icon-btn" type="button" onClick={toggle} aria-label="테마 전환">

@@ -3,7 +3,6 @@ import { NavLink } from "react-router-dom";
 import { getAdvertiserMe, type AdvertiserMe } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { useTheme, type Theme } from "../lib/useTheme";
-import { LeadpotWordmark } from "./LeadpotWordmark";
 
 const THEME_LABEL: Record<Theme, string> = {
   system: "🖥️",
@@ -44,13 +43,13 @@ export function AdvertiserTopBar() {
     <header className="adv-bar" style={me?.brandColor ? { borderBottomColor: me.brandColor } : undefined}>
       <div className="adv-bar-in">
         <div className="adv-bar-top">
+          {/* 광고주에게는 마케터 브랜드만 보여준다 — 리드팟 로고를 넣지 않는다(화이트라벨).
+              마케터가 로고를 등록하지 않았으면 이름만 나온다. */}
           <span className="adv-brand">
-            {me?.brandLogoUrl ? (
+            {me?.brandLogoUrl && (
               <img src={me.brandLogoUrl} alt={brandName ?? "로고"} className="brand-logo" />
-            ) : (
-              <LeadpotWordmark />
             )}
-            <span className="adv-brand-name">{brandName ?? "Leadpot"}</span>
+            <span className="adv-brand-name">{brandName ?? "리드 관리"}</span>
           </span>
           <div className="adv-actions">
             {me && <span className="adv-who">{me.company || me.name}</span>}
