@@ -41,22 +41,8 @@ public class IntegrationSettings {
     @Column(name = "sheets_secret", length = 200)
     private String sheetsSecret;
 
-    /**
-     * 마케터가 자기 문자 대행사 계정을 쓰겠다고 켠 경우에만 true.
-     * 기본 발송은 리드팟 시스템 키를 쓰므로 이 값이 false 여도 문자는 나간다(docs/MESSAGING-PLAN.md §11).
-     */
-    @Column(name = "sms_enabled", nullable = false)
-    private boolean smsEnabled;
-
-    @Column(name = "sms_api_key", length = 200)
-    private String smsApiKey;
-
-    @Column(name = "sms_api_secret", length = 200)
-    private String smsApiSecret;
-
-    /** 발송 계정에 사전등록된 발신번호. 하이픈 없이 숫자만 저장한다. */
-    @Column(name = "sms_sender_phone", length = 20)
-    private String smsSenderPhone;
+    // 문자 발송은 리드팟 계정 하나로만 한다(V24) — 마케터별 자격증명 컬럼은 제거했다.
+    // 나중에 마케터가 자기 대행사 계정을 연동하게 하려면 여기에 다시 추가한다.
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
@@ -119,38 +105,6 @@ public class IntegrationSettings {
 
     public void setSheetsSecret(String sheetsSecret) {
         this.sheetsSecret = sheetsSecret;
-    }
-
-    public boolean isSmsEnabled() {
-        return smsEnabled;
-    }
-
-    public void setSmsEnabled(boolean smsEnabled) {
-        this.smsEnabled = smsEnabled;
-    }
-
-    public String getSmsApiKey() {
-        return smsApiKey;
-    }
-
-    public void setSmsApiKey(String smsApiKey) {
-        this.smsApiKey = smsApiKey;
-    }
-
-    public String getSmsApiSecret() {
-        return smsApiSecret;
-    }
-
-    public void setSmsApiSecret(String smsApiSecret) {
-        this.smsApiSecret = smsApiSecret;
-    }
-
-    public String getSmsSenderPhone() {
-        return smsSenderPhone;
-    }
-
-    public void setSmsSenderPhone(String smsSenderPhone) {
-        this.smsSenderPhone = smsSenderPhone;
     }
 
     public Instant getUpdatedAt() {

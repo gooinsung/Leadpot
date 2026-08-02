@@ -38,14 +38,13 @@ public class SmsController {
     /**
      * 문자 발송 현황.
      *
-     * @param ready        지금 보낼 수 있는 상태인가
-     * @param ownCredential 마케터 자기 키를 쓰고 있는가(false 면 리드팟 키)
-     * @param senderPhone  실제로 나갈 발신번호
-     * @param used         이번 달 사용량(리드팟 키 발송분)
-     * @param limit        이번 달 한도. 0 이면 무제한
-     * @param failed       이번 달 실패 건수 — 자동 발송은 조용히 실패하므로 눈에 띄게 노출한다
+     * @param ready       지금 보낼 수 있는 상태인가
+     * @param senderPhone 실제로 나갈 발신번호(마스킹)
+     * @param used        이번 달 사용량
+     * @param limit       이번 달 한도. 0 이면 무제한
+     * @param failed      이번 달 실패 건수 — 자동 발송은 조용히 실패하므로 눈에 띄게 노출한다
      */
-    public record SmsStatus(boolean ready, boolean ownCredential, String senderPhone,
+    public record SmsStatus(boolean ready, String senderPhone,
             long used, int limit, long failed, Plan plan) {
     }
 
@@ -57,7 +56,7 @@ public class SmsController {
         SmsCredentials cred = smsService.resolveCredentials(ownerId, null);
         long failed = logRepository.countByOwnerIdAndStatusAndCreatedAtGreaterThanEqual(
                 ownerId, MessageLog.STATUS_FAILED, monthStart());
-        return new SmsStatus(cred.usable(), !cred.system(),
+        return new SmsStatus(cred.usable(),
                 PhoneNumbers.mask(cred.senderPhone()), smsService.usedThisMonth(ownerId),
                 smsService.monthlyLimit(me.getPlan()), failed, me.getPlan());
     }

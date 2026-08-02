@@ -114,8 +114,7 @@ export function SmsPage() {
                   </div>
                 </div>
                 <p className="dash-sub">
-                  발신번호 <b>{status.senderPhone || "미설정"}</b> ·{" "}
-                  {status.ownCredential ? "내 문자 계정으로 발송" : "리드팟 계정으로 발송"} · 요금제 {status.plan}
+                  발신번호 <b>{status.senderPhone || "미설정"}</b> · 요금제 {status.plan}
                   {status.limit > 0 && ` (월 ${status.limit.toLocaleString()}건)`}
                 </p>
                 {status.failed > 0 && (

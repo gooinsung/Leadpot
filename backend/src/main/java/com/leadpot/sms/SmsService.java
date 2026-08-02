@@ -11,15 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.leadpot.auth.Plan;
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
-import com.leadpot.integration.IntegrationSettings;
-import com.leadpot.integration.IntegrationSettingsRepository;
 
 /**
  * 문자 발송 진입점. 자격증명 해결 → 플랜 한도 검사 → 발송 → 이력 기록을 한 자리에서 처리한다.
  *
- * <p>자격증명(docs/MESSAGING-PLAN.md §11): 마케터가 자기 솔라피 키를 등록했으면 그 키로,
- * 아니면 <b>리드팟 시스템 키</b>로 보낸다. 시스템 키로 보낼 때만 플랜 한도를 적용한다
- * (마케터 자기 키는 우리 비용이 아니므로 막을 이유가 없다).
+ * <p>자격증명(docs/MESSAGING-PLAN.md §11): <b>리드팟 솔라피 계정 하나</b>로만 보낸다.
+ * 우리 비용이므로 플랜별 월 한도를 적용한다.
  *
  * <p>발송은 예외를 던지지 않는다 — 리드 접수를 방해하면 안 되기 때문이다. 실패도 이력에 남긴다.
  */
@@ -30,7 +27,6 @@ public class SmsService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final SmsSender sender;
-    private final IntegrationSettingsRepository settingsRepository;
     private final UserRepository userRepository;
     private final MessageLogRepository logRepository;
     private final MessageLogWriter logWriter;
@@ -43,7 +39,6 @@ public class SmsService {
     private final int monthlyPro;
 
     public SmsService(SmsSender sender,
-            IntegrationSettingsRepository settingsRepository,
             UserRepository userRepository,
             MessageLogRepository logRepository,
             MessageLogWriter logWriter,
@@ -53,7 +48,6 @@ public class SmsService {
             @Value("${app.sms.monthly-limit.free:100}") int monthlyFree,
             @Value("${app.sms.monthly-limit.pro:5000}") int monthlyPro) {
         this.sender = sender;
-        this.settingsRepository = settingsRepository;
         this.userRepository = userRepository;
         this.logRepository = logRepository;
         this.logWriter = logWriter;
@@ -116,21 +110,18 @@ public class SmsService {
     // ---------- 자격증명 ----------
 
     /**
-     * 이 마케터가 쓸 자격증명. 마케터 키가 완전히 갖춰졌을 때만 그것을 쓰고, 그 외에는 시스템 키다.
-     * (키만 넣고 발신번호를 안 넣은 어중간한 상태에서 조용히 실패하지 않도록 {@code usable()} 로 판단한다.)
+     * 발송에 쓸 자격증명. 지금은 <b>리드팟 계정 하나뿐</b>이다(2026-08-02 결정, V24).
+     *
+     * <p>발신번호만 리드폼별로 덮어쓸 수 있다. 단 그 번호도 <b>우리 솔라피 계정에 사전등록된 번호</b>여야 한다 —
+     * 마케터 번호를 쓰려면 위임 등록(위임장·위수탁계약서)이 필요하다(docs/MESSAGING-PLAN.md §11).
+     *
+     * <p>나중에 마케터가 자기 대행사 계정을 연동하게 하려면 여기서 마케터 키를 먼저 찾아 쓰고,
+     * 없을 때만 시스템 키로 떨어지게 하면 된다. {@link SmsCredentials#system()} 플래그와
+     * 플랜 한도 분기는 그때를 위해 남겨뒀다.
      */
-    @Transactional(readOnly = true)
     public SmsCredentials resolveCredentials(Long ownerId, String senderPhoneOverride) {
-        IntegrationSettings s = settingsRepository.findById(ownerId).orElse(null);
-        if (s != null && s.isSmsEnabled()) {
-            SmsCredentials own = new SmsCredentials(s.getSmsApiKey(), s.getSmsApiSecret(),
-                    pick(senderPhoneOverride, s.getSmsSenderPhone()), false);
-            if (own.usable()) {
-                return own;
-            }
-        }
-        // 시스템 키의 발신번호는 우리 명의 등록번호다. 마케터 번호를 쓰려면 위임 등록이 필요하다(§11).
-        return new SmsCredentials(systemApiKey, systemApiSecret, systemSenderPhone, true);
+        return new SmsCredentials(systemApiKey, systemApiSecret,
+                pick(senderPhoneOverride, systemSenderPhone), true);
     }
 
     /** 이 마케터가 지금 문자를 보낼 수 있는 상태인가(화면 안내용). */

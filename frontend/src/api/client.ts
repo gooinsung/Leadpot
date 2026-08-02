@@ -1371,11 +1371,9 @@ export function acceptInvite(
 export interface SmsStatus {
   /** 지금 문자를 보낼 수 있는 상태인가(자격증명·발신번호가 갖춰졌는가). */
   ready: boolean;
-  /** 내 솔라피 키를 쓰고 있는가. false 면 리드팟 키로 나간다. */
-  ownCredential: boolean;
   /** 실제로 나갈 발신번호(마스킹됨). */
   senderPhone: string;
-  /** 이번 달 사용량(리드팟 키 발송분). */
+  /** 이번 달 사용량. */
   used: number;
   /** 이번 달 한도. 0 이면 무제한. */
   limit: number;
