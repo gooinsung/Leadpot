@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { ApiError } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { SiteFooter } from "../components/SiteFooter";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -78,6 +79,7 @@ export function LoginPage() {
           </p>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

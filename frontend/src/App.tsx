@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
+import { AboutPage } from "./pages/AboutPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LeadInboxPage } from "./pages/LeadInboxPage";
 import { FormsListPage } from "./pages/FormsListPage";
@@ -239,6 +240,7 @@ function App() {
         }
       />
       {/* 공개 (비로그인) */}
+      <Route path="/about" element={<AboutPage />} />
       <Route path="/consent/:id" element={<ConsentViewPage />} />
       <Route path="/f/:id" element={<PublicFormPage />} />
       <Route path="/p/:slug" element={<PublicLandingPage />} />
