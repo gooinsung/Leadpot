@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
@@ -152,7 +153,7 @@ export function AdvertiserPreviewPage() {
         {error && <p className="auth-error">{error}</p>}
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : leads.length === 0 && forms.length > 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 접수된 리드가 없습니다.</p>

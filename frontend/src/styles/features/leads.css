@@ -96,13 +96,14 @@
 .ld-dot { width: 8px; height: 8px; border-radius: 3px; display: inline-block; background: var(--ld); flex: none; }
 
 /* 3-pane 셸: 상단바(60px) 아래 전체 높이, 풀폭 */
+/* 넓은 화면은 좌측 LNB 옆이라 위쪽 바가 없다. 좁은 화면에만 상단 바(56px)를 뺀다. */
 .inbox-shell {
   display: flex;
   align-items: stretch;
-  min-height: calc(100vh - 60px);
+  min-height: 100vh;
 }
 @media (max-width: 900px) {
-  .inbox-shell { flex-direction: column; }
+  .inbox-shell { flex-direction: column; min-height: calc(100vh - 56px); }
 }
 
 /* ── PANE 1 · 필터 rail ── */
@@ -116,6 +117,25 @@
 }
 @media (max-width: 900px) { .inbox-rail { width: 100%; border-right: none; border-bottom: 1px solid var(--border); } }
 .inbox-search { margin-bottom: 14px; font-size: 13px; }
+/* 기간 필터 — rail 이 좁으므로 두 줄로 쌓는다(가로로 넣으면 날짜 입력이 잘린다) */
+.rail-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px;
+}
+.rail-dates .input {
+  width: 100%;
+  height: 30px;
+  padding: 2px 8px;
+  font-size: 12.5px;
+}
+.rail-dates-sep {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+}
 .rail-group {
   font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--muted); margin: 16px 8px 6px;
@@ -140,6 +160,11 @@
 .inbox-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .inbox-sub { font-size: 13.5px; font-weight: 600; color: var(--muted); }
 .inbox-empty { color: var(--muted); padding: 40px 0; text-align: center; }
+/* 빈 화면은 목록 자리를 그대로 채운다 — 작은 카드만 덩그러니 남으면 어색하다. */
+.inbox-list > .empty-state {
+  min-height: 46vh;
+  justify-content: center;
+}
 /* 행 목록 공통 골격 — 통합 인박스(.inbox-row)와 폼별 목록(.flead-row)이 공유(U3).
    열 구성만 각자 다르고, 테두리·간격·상태(hover/active/selected)는 한 곳에서 관리한다. */
 .inbox-rows,
@@ -147,11 +172,38 @@
 .inbox-row,
 .flead-row {
   display: grid;
-  gap: 14px; align-items: center;
-  padding: 14px 16px; border: none; border-bottom: 1px solid var(--border);
+  /* 행 밀도 토큰(U7) — 표와 같은 리듬으로 촘촘/넉넉이 함께 바뀐다. */
+  gap: var(--row-gap); align-items: center;
+  padding: var(--row-py) var(--row-px); border: none; border-bottom: 1px solid var(--border);
   background: transparent; cursor: pointer; text-align: left; font: inherit; width: 100%;
 }
-.inbox-row { grid-template-columns: 32px minmax(120px, 1.4fr) minmax(0, 1fr) minmax(0, 1.1fr) 92px 128px; }
+/* 체크 · 이름 · 연락처 · 답변 요약 · 출처 · 상태 · 접수일시
+   상세를 서랍으로 띄우므로 목록이 화면 폭을 다 쓴다 → 남는 폭을 답변 요약이 가져간다. */
+.inbox-row,
+.inbox-head { grid-template-columns: 32px minmax(110px, 1.1fr) minmax(105px, 0.8fr) minmax(0, 2fr) minmax(0, 0.9fr) 92px 128px; }
+/* 열 제목 줄 — 폼별 목록(.flead-head)과 같은 톤 */
+.inbox-head {
+  display: grid;
+  gap: var(--row-gap);
+  align-items: center;
+  padding: 9px var(--row-px);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+/* 답변 요약 — 넘치면 말줄임(행 높이를 흔들지 않는다) */
+.ir-summary {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .inbox-row:last-child,
 .flead-row:last-child { border-bottom: none; }
 .inbox-row:hover,
@@ -183,8 +235,10 @@
 .inbox-pager { margin-top: 4px; }
 @media (max-width: 720px) {
   .inbox-row { grid-template-columns: 28px 1fr auto; row-gap: 6px; }
+  .inbox-head { display: none; } /* 좁은 화면은 행이 접히므로 열 제목이 맞지 않는다 */
   .ir-name { grid-column: 2; }
   .ir-phone, .ir-src { grid-column: 2; }
+  .ir-summary { grid-column: 2 / -1; }
   .ir-time { grid-column: 3; grid-row: 1; }
 }
 
@@ -214,7 +268,8 @@
   background: var(--surface-2); color: var(--muted);
 }
 .fl-flag.dup { background: var(--rose-soft); color: var(--rose-ink); }
-.fl-flag.seen { background: var(--green-soft); color: var(--green-ink); }
+/* 👁 광고주 확인 — 성과가 아니라 플래그다. 그린은 성과(완료·전환)에만(U7). */
+.fl-flag.seen { background: var(--surface-2); color: var(--muted); }
 /* 태그 칩 — 요약 줄 끝에 붙는다(클릭하면 그 태그로 필터) */
 .fl-tags { display: inline-flex; gap: 5px; margin-left: 8px; vertical-align: middle; }
 .fl-tag {
@@ -240,6 +295,19 @@
   .fl-time { grid-area: 2 / 2; text-align: right; white-space: nowrap; }
   .fl-summary { grid-area: 3 / 1 / 3 / -1; }
   .fl-actions { grid-area: 4 / 1 / 4 / -1; justify-content: flex-start; margin-top: 4px; }
+}
+
+/* LNB(224px) 가 생기면서 인박스는 4단이 됐다 — 1400px 미만에서는 rail 을 줄이고
+   행의 최소 열 폭·간격도 낮춰 가로 스크롤이 생기지 않게 한다.
+   (안 줄이면 LNB 224 + rail 236 + 행 최소폭 524 + 패널 400 = 1384px 가 필요해
+    1265px 화면에서 119px 넘쳤다. 지금은 224+184+목록+400 으로 딱 맞는다.) */
+/* LNB + rail 이 앞에 있으므로 좁아지면 열 폭을 줄여 가로 스크롤을 막는다.
+   (상세는 서랍이라 칸을 차지하지 않는다) */
+@media (max-width: 1400px) {
+  .inbox-rail { width: 184px; }
+  .inbox-list { padding: 20px 16px; }
+  .inbox-row,
+  .inbox-head { grid-template-columns: 28px minmax(84px, 1fr) minmax(96px, 0.75fr) minmax(0, 1.8fr) minmax(0, 0.8fr) 78px 108px; gap: 10px; }
 }
 
 /* ── PANE 3 · 사이드 패널 ── */

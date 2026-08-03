@@ -8,7 +8,6 @@ import {
   setTokens,
   type PasswordResetInfo,
 } from "../api/client";
-import { LeadpotMark } from "../components/LeadpotMark";
 
 /**
  * 광고주 비밀번호 재설정 (`/client/reset/:token`, 비로그인 공개).
@@ -73,12 +72,13 @@ export function ClientResetPasswordPage() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="wrap topbar-in">
-          <div className="topbar-left">
-            <span className="brand">
-              <LeadpotMark />
-              {brandName ?? "Leadpot"}
+      {/* 포털과 같은 상단바(U6) — adv-* 는 광고주 전용 클래스 */}
+      <header className="adv-bar">
+        <div className="adv-bar-in">
+          <div className="adv-bar-top" style={{ paddingBottom: 10 }}>
+            {/* 광고주에게는 마케터 브랜드만 보여준다 — 리드팟 로고를 넣지 않는다(화이트라벨). */}
+            <span className="adv-brand">
+              <span className="adv-brand-name">{brandName ?? "리드 관리"}</span>
             </span>
           </div>
         </div>

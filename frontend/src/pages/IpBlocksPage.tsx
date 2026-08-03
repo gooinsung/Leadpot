@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
@@ -134,7 +135,7 @@ export function IpBlocksPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : (
           <>
             {/* 차단 목록 */}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useParams } from "react-router-dom";
 import { resolveSite, recordVisit, type PublicLanding } from "../api/client";
 import { parseUtm } from "../lib/utm";
@@ -45,7 +46,7 @@ export function PublicSitePage({ subdomain }: { subdomain: string }) {
   }, [subdomain, identifier]);
 
   if (error) return <SiteNotFound />;
-  if (!landing) return <div className="page-loading">불러오는 중…</div>;
+  if (!landing) return <Loading full />;
   return <LandingView landing={landing} />;
 }
 

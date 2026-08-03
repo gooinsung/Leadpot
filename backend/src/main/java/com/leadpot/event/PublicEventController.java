@@ -1,5 +1,6 @@
 package com.leadpot.event;
 
+import com.leadpot.common.ClientIp;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,11 +35,8 @@ public class PublicEventController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 공용 헬퍼로 통일 — 위조 가능한 X-Forwarded-For 첫 값 방식은 요소 클릭 집계를 조작할 수 있었다. */
     private String clientIp(HttpServletRequest http) {
-        String xff = http.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
-        }
-        return http.getRemoteAddr();
+        return ClientIp.of(http);
     }
 }

@@ -24,6 +24,8 @@ import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
 import com.leadpot.integration.NotificationService;
 import com.leadpot.ipblock.IpBlockService;
+import com.leadpot.ipblock.SiteIpBlockHit;
+import com.leadpot.ipblock.SiteIpBlockService;
 import com.leadpot.lead.dto.ImportResult;
 import com.leadpot.lead.dto.InboxResponse;
 import com.leadpot.lead.dto.LeadNoteResponse;
@@ -38,15 +40,18 @@ public class LeadService {
     private final LeadNoteRepository leadNoteRepository;
     private final FormService formService;
     private final IpBlockService ipBlockService;
+    private final SiteIpBlockService siteIpBlockService;
     private final NotificationService notificationService;
 
     public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
-            FormService formService, IpBlockService ipBlockService, NotificationService notificationService) {
+            FormService formService, IpBlockService ipBlockService, NotificationService notificationService,
+            SiteIpBlockService siteIpBlockService) {
         this.leadRepository = leadRepository;
         this.leadNoteRepository = leadNoteRepository;
         this.formService = formService;
         this.ipBlockService = ipBlockService;
         this.notificationService = notificationService;
+        this.siteIpBlockService = siteIpBlockService;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -63,7 +68,7 @@ public class LeadService {
         Lead lead = new Lead();
         lead.setFormId(form.getId());
         lead.setLandingPageId(req.landingPageId());
-        lead.setAnswers(req.answersOrEmpty());
+        lead.setAnswers(stampVarKeys(form, req.answersOrEmpty()));
         lead.setConsents(req.consentsOrEmpty());
         lead.setUtm(req.utm());
         lead.setGroupTag(req.groupTag());
@@ -82,6 +87,37 @@ public class LeadService {
         // 리드 접수 훅 — 커밋 후 비동기로 텔레그램/구글시트 알림(best-effort). 접수를 방해하지 않는다.
         notificationService.notifyNewLead(form, lead, () -> isLikelyDuplicate(form, req));
         return lead.getId();
+    }
+
+    /**
+     * 리드 답변에 항목의 불변 변수키(`varKey`)를 심는다 — 메시지 템플릿이 항목명 대신 이 키로 값을 찾는다.
+     *
+     * 접수 시점의 항목명은 방금 렌더한 리드폼의 것이라 최신이므로 항목명으로 매칭해도 안전하다
+     * (나중에 항목명이 바뀌어도 이미 심어둔 키로 찾으므로 깨지지 않는다 — 이게 varKey 를 두는 이유).
+     * 클라이언트가 보낸 varKey 는 신뢰하지 않고 서버가 다시 계산해 덮어쓴다.
+     */
+    private static List<Map<String, Object>> stampVarKeys(Form form, List<Map<String, Object>> answers) {
+        // 항목명 → 변수키. 같은 항목명이 여러 개면 나온 순서대로 하나씩 소비한다.
+        Map<String, java.util.Deque<String>> keysByLabel = new LinkedHashMap<>();
+        for (FormBlock b : form.getBlocks()) {
+            if (b.getVarKey() == null || b.answerLabel().isBlank()) {
+                continue;
+            }
+            keysByLabel.computeIfAbsent(b.answerLabel(), k -> new java.util.ArrayDeque<>()).add(b.getVarKey());
+        }
+        List<Map<String, Object>> out = new ArrayList<>(answers.size());
+        for (Map<String, Object> a : answers) {
+            Map<String, Object> copy = new LinkedHashMap<>(a);
+            java.util.Deque<String> keys = keysByLabel.get(str(a.get("label")));
+            String key = (keys == null) ? null : keys.poll();
+            if (key == null) {
+                copy.remove("varKey"); // 리드폼에 없는 항목 — 임의로 보낸 키를 남기지 않는다
+            } else {
+                copy.put("varKey", key);
+            }
+            out.add(copy);
+        }
+        return out;
     }
 
     /**
@@ -528,10 +564,14 @@ public class LeadService {
         List<String> cols = answerColumnLabels(form);
         Map<String, String> typeByLabel = new LinkedHashMap<>();
         Map<String, Boolean> requiredByLabel = new LinkedHashMap<>();
+        Map<String, String> varKeyByLabel = new LinkedHashMap<>();
         for (FormBlockDto b : form.blocks()) {
             String label = columnLabel(b);
             if (label.isBlank()) {
                 continue;
+            }
+            if (b.varKey() != null) {
+                varKeyByLabel.putIfAbsent(label, b.varKey());
             }
             if (b.blockType() == com.leadpot.form.BlockType.FIELD) {
                 typeByLabel.put(label, b.fieldType() == null ? "text" : b.fieldType());
@@ -567,6 +607,9 @@ public class LeadService {
                     a.put("label", c);
                     a.put("fieldType", typeByLabel.getOrDefault(c, "text"));
                     a.put("value", v);
+                    if (varKeyByLabel.get(c) != null) {
+                        a.put("varKey", varKeyByLabel.get(c));
+                    }
                     answers.add(a);
                 }
                 Lead lead = new Lead();
@@ -679,6 +722,15 @@ public class LeadService {
     /** IP 차단(K2): 차단된 IP면 제출을 거부하고 시도 로그를 남긴다(별도 트랜잭션). */
     private void checkIpBlocked(Form form, Visitor visitor) {
         String ip = visitor.ip();
+        // 계정 전역 접속 차단이 걸린 IP 는 제출도 막는다 —
+        // 외부 사이트 임베드는 우리 랜딩을 거치지 않으므로 여기서도 확인해야 실제로 차단된다.
+        String siteMatched = siteIpBlockService.blockedPattern(form.getOwnerId(), ip);
+        if (siteMatched != null) {
+            // 제출 트랜잭션은 롤백되지만 로그는 REQUIRES_NEW 로 남는다.
+            siteIpBlockService.recordHit(form.getOwnerId(), ip, siteMatched,
+                    SiteIpBlockHit.Source.SUBMIT, visitor.userAgent());
+            throw new InvalidSubmissionException("제출이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.");
+        }
         String matched = ipBlockService.blockedPattern(form.getId(), ip);
         if (matched != null) {
             // 제출 트랜잭션은 롤백되지만 로그는 REQUIRES_NEW 로 남는다.

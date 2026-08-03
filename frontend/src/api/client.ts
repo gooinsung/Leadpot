@@ -48,6 +48,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 서버가 메시지를 주지 않았을 때 쓸 문구.
+ * 예전엔 `${status} ${statusText}` 를 그대로 썼는데, HTTP/2 에는 reason phrase 가 없어
+ * 화면에 "404" 같은 숫자만 노출됐다. 사용자가 읽을 수 있는 말로 바꾼다.
+ */
+function fallbackMessage(status: number): string {
+  if (status === 401) return "로그인이 필요합니다. 다시 로그인해주세요.";
+  if (status === 403) return "권한이 없습니다.";
+  if (status === 404) return "요청한 정보를 찾을 수 없습니다.";
+  if (status === 409) return "이미 처리되었거나 조건이 맞지 않습니다.";
+  if (status === 413) return "파일이 너무 큽니다.";
+  if (status === 429) return "요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.";
+  if (status >= 500) return "서버에 문제가 생겼습니다. 잠시 후 다시 시도해주세요.";
+  return "요청을 처리하지 못했습니다.";
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let body: Partial<ApiErrorBody> | null = null;
   try {
@@ -55,7 +71,7 @@ async function parseError(res: Response): Promise<ApiError> {
   } catch {
     // 본문 없음(시큐리티 레벨 401 등)
   }
-  return new ApiError(res.status, body, `${res.status} ${res.statusText}`);
+  return new ApiError(res.status, body, fallbackMessage(res.status));
 }
 
 // ---------- 저수준 요청 (인증/자동 재발급 포함) ----------
@@ -190,6 +206,11 @@ export interface FormBlock {
   sortOrder: number;
   blockType: BlockType;
   fieldType?: string | null;
+  /**
+   * 항목명이 바뀌어도 변하지 않는 변수키(`f1`, `f2`, …). 메시지 템플릿이 이 키로 값을 찾는다.
+   * 서버가 발급하므로 편집 화면은 **받은 값을 그대로 돌려보내기만** 하면 된다. 비우면 새 키가 발급된다.
+   */
+  varKey?: string | null;
   label?: string | null;
   required?: boolean;
   uniqueCheck?: boolean;
@@ -679,6 +700,42 @@ export function listIpBlockHits(formId: number): Promise<IpBlockHit[]> {
 /** 차단 접속 로그 전체 비우기. */
 export function clearIpBlockHits(formId: number): Promise<void> {
   return request<void>(`/api/forms/${formId}/ip-blocks/hits`, { method: "DELETE" });
+}
+
+/* ----- 계정 전역 접속 차단 -----
+   위(리드폼별)는 '제출'을 막고, 이쪽은 공개 화면 '접속' 자체를 막는다. */
+
+/** 전역 접속 차단 규칙 목록. */
+export function listSiteIpBlocks(): Promise<IpBlock[]> {
+  return request<IpBlock[]>("/api/site-ip-blocks");
+}
+/** 전역 접속 차단 규칙 추가(단일 IP 또는 CIDR). */
+export function addSiteIpBlock(input: IpBlockInput): Promise<IpBlock> {
+  return request<IpBlock>("/api/site-ip-blocks", { method: "POST", body: input });
+}
+/** 전역 접속 차단 규칙 삭제. */
+export function deleteSiteIpBlock(blockId: number): Promise<void> {
+  return request<void>(`/api/site-ip-blocks/${blockId}`, { method: "DELETE" });
+}
+
+export interface SiteIpBlockHit {
+  id: number;
+  ip: string;
+  matchedPattern: string | null;
+  /** LANDING | FORM | SUBMIT */
+  source: string;
+  /** 한국어 라벨(랜딩 열람·리드폼 열람·리드 제출) */
+  sourceLabel: string;
+  userAgent: string | null;
+  createdAt: string;
+}
+/** 차단된 접속 시도 로그. */
+export function listSiteIpBlockHits(): Promise<SiteIpBlockHit[]> {
+  return request<SiteIpBlockHit[]>("/api/site-ip-blocks/hits");
+}
+/** 차단 시도 로그 비우기. */
+export function clearSiteIpBlockHits(): Promise<void> {
+  return request<void>("/api/site-ip-blocks/hits", { method: "DELETE" });
 }
 
 // ---------- 랜딩페이지 ----------
@@ -1307,6 +1364,60 @@ export function acceptInvite(
     body: input,
     auth: false,
   });
+}
+
+// ---------- 문자 발송 ----------
+
+export interface SmsStatus {
+  /** 지금 문자를 보낼 수 있는 상태인가(자격증명·발신번호가 갖춰졌는가). */
+  ready: boolean;
+  /** 실제로 나갈 발신번호(마스킹됨). */
+  senderPhone: string;
+  /** 이번 달 사용량. */
+  used: number;
+  /** 이번 달 한도. 0 이면 무제한. */
+  limit: number;
+  /** 이번 달 실패 건수 — 자동 발송은 조용히 실패하므로 눈에 띄게 보여준다. */
+  failed: number;
+  plan: "FREE" | "PRO";
+}
+
+export interface MessageLogItem {
+  id: number;
+  channel: string; // SMS | LMS
+  recipientType: string; // MARKETER | ADVERTISER | LEAD | TEST
+  recipient: string; // 마스킹된 수신번호
+  body: string | null;
+  status: string; // SENT | FAILED | SKIPPED
+  error: string | null;
+  systemCredential: boolean;
+  createdAt: string | null;
+}
+
+export interface SmsSendResult {
+  ok: boolean;
+  status: string;
+  error: string | null;
+  channel: string;
+  bytes: number;
+}
+
+export function getSmsStatus(): Promise<SmsStatus> {
+  return request<SmsStatus>("/api/sms/status");
+}
+
+export function listSmsLogs(): Promise<MessageLogItem[]> {
+  return request<MessageLogItem[]>("/api/sms/logs");
+}
+
+/** 테스트 발송. 번호를 비우면 내 계정 연락처로 보낸다. */
+export function testSms(input: { to?: string; text?: string }): Promise<SmsSendResult> {
+  return request<SmsSendResult>("/api/sms/test", { method: "POST", body: input });
+}
+
+/** 본문 길이·과금 구분(SMS/LMS) 계산. 저장하지 않는다. */
+export function measureSms(text: string): Promise<SmsSendResult> {
+  return request<SmsSendResult>(`/api/sms/measure?text=${encodeURIComponent(text)}`);
 }
 
 export { BASE_URL };

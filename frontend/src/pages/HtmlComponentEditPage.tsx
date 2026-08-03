@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
+import { HtmlBlock } from "../components/HtmlBlock";
 import {
   ApiError,
   createHtmlComponent,
@@ -9,6 +11,7 @@ import {
   type HtmlComponentCategory,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { toast } from "../lib/toast";
 
 export function HtmlComponentEditPage() {
   const { id } = useParams();
@@ -42,6 +45,7 @@ export function HtmlComponentEditPage() {
       const input = { name, category, html };
       if (isNew) await createHtmlComponent(input);
       else await updateHtmlComponent(Number(id), input);
+      toast.success(isNew ? "요소를 만들었습니다." : "요소를 저장했습니다.");
       navigate("/html-components");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");
@@ -50,7 +54,7 @@ export function HtmlComponentEditPage() {
     }
   }
 
-  if (loading) return <div className="page-loading">불러오는 중…</div>;
+  if (loading) return <Loading full />;
 
   return (
     <div className="app-shell">
@@ -101,7 +105,7 @@ export function HtmlComponentEditPage() {
           <div className="preview-panel">
             <div className="card-h">미리보기</div>
             <div className="preview-frame">
-              <div dangerouslySetInnerHTML={{ __html: html }} />
+              <HtmlBlock html={html} debounceMs={600} />
             </div>
           </div>
         </div>

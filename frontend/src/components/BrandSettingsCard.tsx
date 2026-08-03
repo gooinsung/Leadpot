@@ -1,6 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { ApiError, getBrand, updateBrand, uploadImage } from "../api/client";
-import { LeadpotMark } from "./LeadpotMark";
 
 /**
  * 화이트라벨 설정 카드(마케터 전용). 여기서 정한 로고·색상이 광고주 화면(`/client`) 상단에 표시된다.
@@ -75,7 +74,7 @@ export function BrandSettingsCard() {
         <span className="dash-sub" style={{ fontSize: 13 }}>{open ? "접기 ▲" : "펼치기 ▼"}</span>
       </div>
       <p className="dash-sub" style={{ marginTop: 0 }}>
-        광고주 화면 상단에 표시될 <b>내 로고·색상</b>을 설정합니다. 비워두면 기본(리드팟)으로 표시됩니다.
+        광고주 화면 상단에 표시될 <b>내 로고·색상</b>을 설정합니다. 로고를 비워두면 <b>회사명(없으면 이름)만</b> 표시됩니다.
       </p>
 
       {open && !loading && (
@@ -150,12 +149,9 @@ export function BrandSettingsCard() {
                   padding: "10px 14px",
                 }}
               >
+                {/* 실제 광고주 화면과 같아야 한다 — 로고가 없으면 이름만 나온다(리드팟 로고를 넣지 않는다). */}
                 <span className="brand" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {logoUrl ? (
-                    <img src={logoUrl} alt="로고 미리보기" className="brand-logo" />
-                  ) : (
-                    <LeadpotMark />
-                  )}
+                  {logoUrl && <img src={logoUrl} alt="로고 미리보기" className="brand-logo" />}
                   내 브랜드
                 </span>
               </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import {
   ApiError,
   getAdvertiserIntegration,
@@ -86,7 +87,7 @@ export function AdvertiserIntegrationsPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : (
           <>
             <div className="card card-pad" style={{ marginBottom: 20 }}>

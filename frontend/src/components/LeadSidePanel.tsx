@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Loading } from "./Loading";
 import {
   addLeadNote,
   deleteLeadNote,
@@ -150,7 +151,7 @@ export function LeadSidePanel({
       </div>
 
       {loading && !lead ? (
-        <p className="inbox-empty">불러오는 중…</p>
+        <Loading />
       ) : !lead ? (
         <p className="inbox-empty">불러오지 못했습니다.</p>
       ) : (

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+  <!-- 정사각형 로고 — 워드마크를 2줄로 쌓아 카카오 채널 프로필(원형 크롭)·파비콘에 쓴다. -->
+  <rect width="640" height="640" fill="#ffffff"/>
+  <g font-family="Segoe UI, Arial, Helvetica, sans-serif" font-weight="700" font-size="215"
+     letter-spacing="-7" text-anchor="middle">
+    <text x="320" y="298" fill="#4ecb98">Lead</text>
+    <text x="320" y="498" fill="#2a2d52">Pot</text>
+  </g>
+</svg>

@@ -12,11 +12,18 @@ table {
 th,
 td {
   text-align: left;
-  padding: 13px 16px;
+  /* 행 밀도는 토큰이 정한다(U7) — 계정 메뉴의 촘촘/넉넉 토글이 이 값을 바꾼다. */
+  padding: var(--row-py) var(--row-px);
   font-size: var(--fs-md);
   line-height: 1.45;
   vertical-align: middle;
   border-bottom: 1px solid var(--border);
+}
+/* 숫자·일시·연락처는 자릿수가 맞아야 세로로 훑인다(Cockpit: 성과·밀도). */
+.tnum,
+td.num,
+.k-val {
+  font-variant-numeric: tabular-nums;
 }
 /* 헤더 행은 살짝 톤을 깔아 본문과 분리(스캔하기 쉽게) */
 th {
@@ -43,6 +50,156 @@ td.num {
 }
 .row-click {
   cursor: pointer;
+}
+
+/* 스티키 필터바(U7 Cockpit) — 리드를 길게 훑는 동안 조건이 늘 손에 닿아야 한다.
+   넓은 화면은 LNB 옆이라 위쪽 바가 없어 top:0, 좁은 화면은 상단 바(56px) 아래에 붙는다. */
+.filter-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+@media (max-width: 900px) {
+  .filter-bar {
+    top: 56px;
+  }
+}
+
+/* ---------- 토스트(U5) ----------
+   저장·삭제 성공 피드백이 없던 문제를 메운다. body 포털로 띄운다. */
+.toaster {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(380px, calc(100vw - 36px));
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: toastIn 0.16s ease-out;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+.toast-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+}
+.toast-success .toast-icon { background: var(--green); }
+.toast-error .toast-icon { background: var(--rose); }
+.toast-info .toast-icon { background: var(--indigo); }
+.toast-success { border-left: 3px solid var(--green); }
+.toast-error { border-left: 3px solid var(--rose); }
+.toast-info { border-left: 3px solid var(--indigo); }
+.toast-msg {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.toast-x {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+}
+.toast-x:hover { color: var(--text); }
+
+@media (max-width: 640px) {
+  .toaster {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    max-width: none;
+  }
+}
+
+/* 행 액션 묶음 — 버튼이 줄바꿈되지 않고 오른쪽에 모이게 한다. */
+.row-actions {
+  white-space: nowrap;
+}
+.row-actions > * + * {
+  margin-left: 6px;
+}
+
+/* ---------- 행 더보기 메뉴(U4) ----------
+   목록 한 행에 버튼이 늘어서면 훑기 어렵다 → 자주 쓰는 것만 밖에 두고 나머지는 여기로.
+   표 카드(.card-table)가 overflow:hidden 이라 메뉴는 body 포털 + fixed 로 띄운다. */
+.row-menu-btn {
+  min-width: 34px;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+}
+.row-menu-btn.on {
+  background: var(--surface-2);
+}
+.row-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 176px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.row-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.row-menu-item:hover {
+  background: var(--surface-2);
+}
+.row-menu-item.danger {
+  color: var(--rose-ink);
+}
+.row-menu-item.danger:hover {
+  background: var(--rose-soft);
+}
+.row-menu-sep {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border);
 }
 .row-click:hover {
   background: var(--surface-2);

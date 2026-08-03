@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "./Loading";
 import {
   ADVERTISER_LEAD_STATUSES,
   addAdvertiserNote,
@@ -111,7 +112,7 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
 
         <div className="lead-modal-body">
           {loading ? (
-            <p className="dash-sub">불러오는 중…</p>
+            <Loading />
           ) : !lead ? (
             <p className="auth-error">{error || "리드를 찾을 수 없습니다."}</p>
           ) : (

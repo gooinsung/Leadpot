@@ -2,7 +2,6 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { ApiError, getClientBrand } from "../api/client";
-import { LeadpotMark } from "../components/LeadpotMark";
 import { useTheme, type Theme } from "../lib/useTheme";
 
 const THEME_LABEL: Record<Theme, string> = { system: "🖥️", light: "☀️", dark: "🌙" };
@@ -47,18 +46,19 @@ export function ClientLoginPage() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="wrap topbar-in">
-          <div className="topbar-left">
-            <span className="brand">
-              <LeadpotMark />
-              {brandName ?? "Leadpot"}
+      {/* 로그인부터 포털과 같은 상단바를 쓴다(U6) — adv-* 는 광고주 전용 클래스 */}
+      <header className="adv-bar">
+        <div className="adv-bar-in">
+          <div className="adv-bar-top" style={{ paddingBottom: 10 }}>
+            {/* 광고주에게는 마케터 브랜드만 보여준다 — 리드팟 로고를 넣지 않는다(화이트라벨). */}
+            <span className="adv-brand">
+              <span className="adv-brand-name">{brandName ?? "리드 관리"}</span>
             </span>
-          </div>
-          <div className="topbar-actions">
-            <button className="theme-btn" type="button" onClick={toggle} aria-label="테마 전환">
-              {THEME_LABEL[theme]}
-            </button>
+            <div className="adv-actions">
+              <button className="adv-icon-btn" type="button" onClick={toggle} aria-label="테마 전환">
+                {THEME_LABEL[theme]}
+              </button>
+            </div>
           </div>
         </div>
       </header>

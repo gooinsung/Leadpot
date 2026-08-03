@@ -2,8 +2,11 @@ package com.leadpot.form;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -29,6 +32,9 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "forms")
 public class Form {
+
+    /** 허용하는 변수키 형식 — `f` + 1 이상의 정수. */
+    private static final Pattern VAR_KEY = Pattern.compile("f[1-9][0-9]{0,8}");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -80,6 +86,13 @@ public class Form {
     @OrderBy("sortOrder ASC")
     private List<FormBlock> blocks = new ArrayList<>();
 
+    /**
+     * 변수키 발급 카운터. 항목을 지워도 되돌리지 않는다 — 지운 키를 새 항목이 물려받으면
+     * 과거 리드와 템플릿이 엉뚱한 값을 가리키게 된다.
+     */
+    @Column(name = "var_key_seq", nullable = false)
+    private int varKeySeq;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -97,13 +110,42 @@ public class Form {
         this.formType = formType;
     }
 
-    /** 편집 저장 시 블록 전체를 교체한다(orphanRemoval 로 기존 블록 정리). */
+    /**
+     * 편집 저장 시 블록 전체를 교체한다(orphanRemoval 로 기존 블록 정리).
+     * 이때 답변 블록의 변수키를 정리한다 — 넘어온 키는 유지하고 없는 항목에만 새로 발급한다(§변수키 규칙).
+     */
     public void replaceBlocks(List<FormBlock> newBlocks) {
         this.blocks.clear();
+        Set<String> used = new HashSet<>();
         for (FormBlock b : newBlocks) {
             b.setForm(this);
+            b.setVarKey(b.producesAnswer() ? resolveVarKey(b.getVarKey(), used) : null);
             this.blocks.add(b);
         }
+    }
+
+    /**
+     * 변수키 확정. 클라이언트가 보낸 값은 형식(`f숫자`)과 중복만 검사해 그대로 살리고,
+     * 못 믿을 값이면 버리고 새로 발급한다. 살린 키가 카운터보다 크면 카운터를 끌어올려 충돌을 막는다.
+     */
+    private String resolveVarKey(String requested, Set<String> used) {
+        if (requested != null && VAR_KEY.matcher(requested).matches() && used.add(requested)) {
+            int n = Integer.parseInt(requested.substring(1));
+            if (n > varKeySeq) {
+                varKeySeq = n;
+            }
+            return requested;
+        }
+        String fresh;
+        do {
+            fresh = "f" + (++varKeySeq);
+        } while (!used.add(fresh));
+        return fresh;
+    }
+
+    /** 항목명이 바뀌어도 변하지 않는 변수키 목록(정렬 순서). 템플릿 편집기·발송에서 쓴다. */
+    public List<FormBlock> answerBlocks() {
+        return blocks.stream().filter(FormBlock::producesAnswer).toList();
     }
 
     public Long getId() {
@@ -196,6 +238,10 @@ public class Form {
 
     public List<FormBlock> getBlocks() {
         return blocks;
+    }
+
+    public int getVarKeySeq() {
+        return varKeySeq;
     }
 
     public Instant getCreatedAt() {

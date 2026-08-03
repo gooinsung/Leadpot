@@ -100,10 +100,16 @@ code {
   letter-spacing: -0.02em;
   color: var(--text);
 }
-.mark {
-  width: 28px;
-  height: 28px;
-  flex: none;
+/* 워드마크 로고. Pot 은 currentColor 라 어두운 LNB·밝은 배경 어디서든 그대로 쓴다. */
+.wordmark {
+  display: inline-flex;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.wordmark-lead {
+  color: var(--brand-green);
 }
 
 /* ---------- 버튼 ---------- */
@@ -228,10 +234,11 @@ code {
   border-color: transparent;
   color: var(--indigo-ink);
 }
+/* 계정 '활성' 같은 정상 상태 — 성과가 아니므로 그린을 쓰지 않는다(U7 Cockpit). */
 .pill.g {
-  background: var(--green-soft);
+  background: var(--indigo-soft);
   border-color: transparent;
-  color: var(--green-ink);
+  color: var(--indigo-ink);
 }
 /* 주의/보류 상태 (정지된 계정, 다른 광고주 사용중 등) */
 .pill.w {

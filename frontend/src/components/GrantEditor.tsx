@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "./Loading";
 import {
   ApiError,
   listGrants,
@@ -104,7 +105,7 @@ export function GrantEditor({ advertiser, onClose, onSaved }: Props) {
           {error && <p className="auth-error" style={{ marginTop: 12 }}>{error}</p>}
 
           {loading ? (
-            <p className="dash-sub">불러오는 중…</p>
+            <Loading />
           ) : rows.length === 0 ? (
             <p className="dash-sub">만든 리드폼이 없습니다. 먼저 리드폼을 만들어주세요.</p>
           ) : (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   advertiserStatusLabel,
@@ -21,6 +22,7 @@ import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
 import { leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
+import { toast } from "../lib/toast";
 
 // ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
 function kstDate(iso: string): string {
@@ -78,8 +80,9 @@ export function LeadsListPage() {
       const ids = filtered.map((l) => l.id);
       await downloadLeads(formId, { format: exportFormat, columns: ordered, ids, formName: form?.name || "leads" });
       setExportOpen(false);
+      toast.success(`${ids.length}건을 내려받았습니다.`);
     } catch {
-      alert("내보내기에 실패했습니다. 다시 시도해주세요.");
+      toast.error("내보내기에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setExporting(false);
     }
@@ -223,12 +226,14 @@ export function LeadsListPage() {
       const r = await importLeads(formId, file);
       let msg = `${r.created}건 등록됨` + (r.failed ? ` · ${r.failed}건 실패` : "");
       if (r.errors.length) {
-        msg += "\n\n" + r.errors.slice(0, 10).join("\n") + (r.errors.length > 10 ? `\n…외 ${r.errors.length - 10}건` : "");
+        // 토스트는 좁으니 앞의 3건만 보여준다(전체 목록이 필요하면 행별로 다시 확인).
+        msg += "\n" + r.errors.slice(0, 3).join("\n") + (r.errors.length > 3 ? `\n…외 ${r.errors.length - 3}건` : "");
       }
-      window.alert(msg);
+      if (r.failed) toast.error(msg);
+      else toast.success(msg);
       load();
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : "가져오기에 실패했습니다.");
+      toast.error(err instanceof ApiError ? err.message : "가져오기에 실패했습니다.");
     }
   }
 
@@ -315,7 +320,7 @@ export function LeadsListPage() {
               </div>
               <div style={{ overflowY: "auto", border: "1px solid rgba(128,128,128,0.3)", borderRadius: 8, padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
                 {exportCols.length === 0 ? (
-                  <span className="dash-sub" style={{ fontSize: 13 }}>불러오는 중…</span>
+                  <Loading />
                 ) : (
                   exportCols.map((c) => (
                     <label key={c} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 14, cursor: "pointer", minWidth: 0 }}>
@@ -341,7 +346,8 @@ export function LeadsListPage() {
         )}
 
         {/* 검색·필터 */}
-        <div className="card card-pad" style={{ marginBottom: 20, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        {/* 스티키 필터바(U7 Cockpit) — 길게 스크롤해도 조건이 늘 손에 닿게 */}
+        <div className="card card-pad filter-bar" style={{ marginBottom: 20, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input
             className="input"
             style={{ maxWidth: 280 }}
@@ -355,10 +361,11 @@ export function LeadsListPage() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }} title="접수일시(KST) 범위로 검색">
-            <input className="input" type="date" style={{ width: 150 }} value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} aria-label="접수 시작일" />
+          {/* 좁은 화면에서 두 날짜 입력이 줄바꿈되지 않아 문서 폭을 넘겼다 → wrap + 축소 허용 */}
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }} title="접수일시(KST) 범위로 검색">
+            <input className="input" type="date" style={{ width: 150, maxWidth: "100%" }} value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} aria-label="접수 시작일" />
             <span className="dash-sub" style={{ fontSize: 12 }}>~</span>
-            <input className="input" type="date" style={{ width: 150 }} value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} aria-label="접수 종료일" />
+            <input className="input" type="date" style={{ width: 150, maxWidth: "100%" }} value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} aria-label="접수 종료일" />
           </div>
           {allTags.length > 0 && (
             <select className="input" style={{ width: 140 }} value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
@@ -401,7 +408,7 @@ export function LeadsListPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : filtered.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>

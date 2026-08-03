@@ -1,5 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="7" fill="#3a43c0"/>
-  <path d="M8 13h16l-1.5 10.8A2.6 2.6 0 0 1 19.9 26h-7.8a2.6 2.6 0 0 1-2.6-2.2L8 13Z" fill="#ffffff"/>
-  <path d="M16 5c2.4 2.7 3.6 4.7 3.6 6.4a3.6 3.6 0 1 1-7.2 0C12.4 9.7 13.6 7.7 16 5Z" fill="#12b886"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 워드마크 2줄 버전. 흰 배경은 밝은 브라우저 탭에서 사라져 보이므로 네이비 배경 + 흰 Pot
+       (어두운 LNB 에서 로고가 보이는 조합과 같다). -->
+  <rect width="32" height="32" rx="7" fill="#2a2d52"/>
+  <g font-family="Segoe UI, Arial, Helvetica, sans-serif" font-weight="700" font-size="11"
+     letter-spacing="-0.4" text-anchor="middle">
+    <text x="16" y="15" fill="#4ecb98">Lead</text>
+    <text x="16" y="25.5" fill="#ffffff">Pot</text>
+  </g>
 </svg>

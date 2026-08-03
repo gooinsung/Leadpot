@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useSearchParams } from "react-router-dom";
 import {
   ADVERTISER_LEAD_STATUSES,
@@ -213,6 +214,26 @@ export function AdvertiserLeadsPage() {
   const shown = unseenOnly ? leads.filter((l) => !l.advertiserSeenAt) : leads;
   const pages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const hasFilter = !!(q || statusFilter || dateFrom || dateTo || unseenOnly);
+
+  /** 지금 보고 있는 리드폼의 미확인 건수(폼이 하나면 그 폼, 여러 개면 선택한 폼). */
+  const unseenCount = currentForm?.unseenCount ?? 0;
+  const today = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  /**
+   * 할 일 큐 클릭 — 조건을 '더하지' 않고 그 할 일만 남긴다.
+   * 여러 필터가 겹쳐 왜 안 보이는지 헷갈리는 일을 막는다.
+   */
+  function applyTask(task: "unseen" | "today" | "all") {
+    setQ("");
+    setStatusFilter("");
+    setPage(1);
+    setUnseenOnly(task === "unseen");
+    setDateFrom(task === "today" ? today : "");
+    setDateTo(task === "today" ? today : "");
+  }
   // 폴링 콜백이 최신 화면 상태를 읽도록 매 렌더마다 갱신.
   pollCtx.current = { page, hasOpen: openId != null, filtered: hasFilter };
 
@@ -269,19 +290,41 @@ export function AdvertiserLeadsPage() {
                 : "담당 마케터가 권한을 부여한 리드폼의 접수 내역입니다."}
             </p>
           </div>
-          {dash && (
-            <div className="client-kpis">
-              <div>
-                <span className="ck-label">오늘</span>
-                <span className="ck-val">{dash.todayLeads}</span>
-              </div>
-              <div>
-                <span className="ck-label">전체</span>
-                <span className="ck-val">{dash.totalLeads}</span>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* 할 일 큐(U6 Task-First) — 숫자를 보여주기만 하지 않고 누르면 바로 그 목록으로 간다.
+            광고주가 로그인해서 가장 먼저 할 일은 '미확인 처리'다. */}
+        {dash && forms.length > 0 && (
+          <div className="task-queue">
+            <button
+              type="button"
+              className={`task-card${unseenOnly ? " on" : ""}${unseenCount > 0 ? " urgent" : ""}`}
+              onClick={() => applyTask("unseen")}
+            >
+              <span className="task-label">미확인</span>
+              <span className="task-val">{unseenCount}</span>
+              <span className="task-hint">{unseenCount > 0 ? "먼저 확인하세요" : "모두 확인했습니다"}</span>
+            </button>
+            <button
+              type="button"
+              className={`task-card${dateFrom === today && dateTo === today ? " on" : ""}`}
+              onClick={() => applyTask("today")}
+            >
+              <span className="task-label">오늘 접수</span>
+              <span className="task-val">{dash.todayLeads}</span>
+              <span className="task-hint">오늘 들어온 리드</span>
+            </button>
+            <button
+              type="button"
+              className={`task-card${!hasFilter ? " on" : ""}`}
+              onClick={() => applyTask("all")}
+            >
+              <span className="task-label">전체</span>
+              <span className="task-val">{dash.totalLeads}</span>
+              <span className="task-hint">받은 리드 전부</span>
+            </button>
+          </div>
+        )}
 
         {forms.length === 0 && !loading && !error && (
           <div className="card card-pad empty-state">
@@ -311,10 +354,7 @@ export function AdvertiserLeadsPage() {
 
         {/* 검색·필터 (마케터 리드 목록과 동일한 구성) */}
         {forms.length > 0 && (
-          <div
-            className="card card-pad"
-            style={{ marginBottom: 20, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
-          >
+          <div className="card card-pad adv-filters">
             <input
               className="input"
               style={{ maxWidth: 280 }}
@@ -392,7 +432,7 @@ export function AdvertiserLeadsPage() {
         {error && <p className="auth-error">{error}</p>}
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : forms.length === 0 ? null : shown.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>{hasFilter ? "조건에 맞는 리드가 없습니다." : "아직 접수된 리드가 없습니다."}</p>
@@ -415,8 +455,9 @@ export function AdvertiserLeadsPage() {
                         )}
                       </span>
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        {/* 광고주의 첫 행동은 대부분 '전화 걸기' — 모바일에서 탭 타깃을 키운다(U6) */}
                         {phone && (
-                          <a className="btn btn-primary btn-sm" href={`tel:${phone}`}>
+                          <a className="btn btn-primary btn-sm call-btn" href={`tel:${phone}`}>
                             📞 전화
                           </a>
                         )}

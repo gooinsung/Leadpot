@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, createConsentDoc, getConsentDoc, updateConsentDoc } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { toast } from "../lib/toast";
 
 export function ConsentDocEditPage() {
   const { id } = useParams();
@@ -35,6 +37,7 @@ export function ConsentDocEditPage() {
     try {
       if (isNew) await createConsentDoc({ name, title, content });
       else await updateConsentDoc(Number(id), { name, title, content });
+      toast.success(isNew ? "동의 문서를 만들었습니다." : "동의 문서를 저장했습니다.");
       navigate("/consent-docs");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");
@@ -43,7 +46,7 @@ export function ConsentDocEditPage() {
     }
   }
 
-  if (loading) return <div className="page-loading">불러오는 중…</div>;
+  if (loading) return <Loading full />;
 
   return (
     <div className="app-shell">

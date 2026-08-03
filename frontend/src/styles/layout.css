@@ -10,12 +10,38 @@
   min-height: 100vh;
 }
 
+/* 로딩 표시(U5) — 전체 화면 / 구역 안 두 가지가 같은 모습을 쓴다. components/Loading.tsx */
 .page-loading {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   min-height: 100vh;
   color: var(--muted);
+}
+.loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 18px 0;
+  color: var(--muted);
+  font-size: var(--fs-sm, 13px);
+}
+.spinner {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--border);
+  border-top-color: var(--indigo);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+/* 애니메이션을 줄이는 설정에서는 돌리지 않는다(정지된 링만 보인다). */
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
 }
 
 /* 상단바 우측 액션 */
@@ -42,6 +68,7 @@
 }
 .dash-head {
   display: flex;
+  flex-wrap: wrap; /* 좁은 화면에서 제목+액션이 한 줄을 넘으면 접힌다 */
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
@@ -67,15 +94,20 @@
 .kpi {
   padding: 22px 24px;
 }
+/* 성과를 화면의 주인공으로(U7 Cockpit) — 라벨은 조용히, 숫자는 크게. */
 .k-label {
-  font-size: 13px;
+  font-size: 11.5px;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 .k-val {
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 800;
-  margin-top: 6px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-top: 8px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -115,40 +147,249 @@
   }
 }
 
-/* ---------- 상단바 내비 ---------- */
-.topbar-left {
+/* ---------- 앱 내비 · LNB(좌측 사이드바) ----------
+   메뉴가 늘어나도 세로로 확장되고, 섹션 제목으로 위계가 드러난다.
+   좁은 화면(≤900px)에서는 상단 바 + 드로어로 바뀐다. */
+
+/* LNB 가 있을 때만 셸을 가로 배치한다(로그인 등 내비 없는 화면은 세로 그대로). */
+.app-shell:has(> .app-nav[data-has-nav="true"]) {
+  flex-direction: row;
+  align-items: stretch;
+}
+/* 내비를 뺀 모든 본문 영역이 남는 폭을 채운다.
+   ⚠️ 예전엔 `> main` 만 지정했는데, 인박스는 셸이 <div class="inbox-shell"> 이라
+   규칙에서 빠져 내용 폭만큼만 차지했다 — 리드가 많을 땐 티가 안 나다가
+   목록이 비면 칸이 쭈그러들어 드러났다. 태그를 가리지 않도록 일반화한다. */
+.app-shell > *:not(.app-nav) {
+  min-width: 0;
+  flex: 1;
+}
+.app-nav[data-has-nav="true"] {
+  flex: none;
+}
+
+/* Cockpit(U7): 잉크 패널로 내비와 작업 영역을 뚜렷이 가른다. 새 색은 쓰지 않는다. */
+.lnb {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  width: 224px;
+  height: 100vh;
+  padding: 18px 12px 12px;
+  background: var(--lnb-bg);
+  border-right: 1px solid var(--lnb-border);
+  color: var(--lnb-text);
+  overflow-y: auto;
+}
+.lnb .brand {
+  color: var(--lnb-text-strong);
+}
+/* 내비가 없는 화면(로그인·회원가입 등)에는 사이드바를 두지 않는다. */
+.app-nav[data-has-nav="false"] .lnb {
+  display: none;
+}
+.lnb-brand {
+  padding: 0 8px;
+  margin-bottom: 18px;
+}
+.lnb-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+.lnb-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* 섹션 제목 = 접기/펼치기 토글. 지금 보고 있는 페이지가 든 섹션은 항상 열려 있다. */
+.lnb-section-toggle {
   display: flex;
   align-items: center;
-  gap: 22px;
-}
-.topbar-nav {
-  display: flex;
+  justify-content: space-between;
   gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lnb-group);
+  cursor: pointer;
 }
-.nav-link {
+.lnb-section-toggle:hover {
+  background: var(--lnb-hover);
+  color: var(--lnb-text);
+}
+.lnb-section-caret {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+  transform: rotate(-90deg); /* 접힘 = 오른쪽을 가리킨다 */
+}
+.lnb-section-toggle.open .lnb-section-caret {
+  transform: rotate(0deg);
+}
+.lnb-link {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--lnb-text);
+  text-decoration: none;
+}
+.lnb-link:hover {
+  background: var(--lnb-hover);
+  text-decoration: none;
+}
+.lnb-link.on {
+  background: var(--lnb-active-bg);
+}
+.lnb-link-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lnb-text);
+}
+.lnb-link:hover .lnb-link-label,
+.lnb-link.on .lnb-link-label {
+  color: var(--lnb-text-strong);
+}
+.lnb-link-desc {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--lnb-group);
+  line-height: 1.35;
+}
+
+.lnb-foot {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--lnb-border);
+}
+/* 잉크 패널 위의 계정 버튼 — 밝은 배경용 기본값을 덮는다. */
+.lnb .account-btn {
+  color: var(--lnb-text);
+}
+.lnb .account-btn:hover,
+.lnb .account-btn.on {
+  background: var(--lnb-hover);
+  border-color: var(--lnb-border);
+}
+.lnb .account-email {
+  color: var(--lnb-group);
+}
+.lnb .account-caret {
+  color: var(--lnb-group);
+}
+.lnb-account {
+  position: relative;
+}
+
+/* 계정 버튼 — 이메일·테마·로그아웃을 하나로 모았다. */
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.account-btn:hover,
+.account-btn.on {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--indigo);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+.account-email {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-caret {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.nav-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  min-width: 200px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.nav-menu-head {
+  padding: 8px 10px 6px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+.nav-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
   font-size: 14px;
   font-weight: 600;
-  color: var(--muted);
+  text-align: left;
   text-decoration: none;
-  padding: 6px 10px;
-  border-radius: 8px;
+  cursor: pointer;
 }
-.nav-link:hover {
+.nav-menu-item:hover {
   background: var(--surface-2);
   text-decoration: none;
 }
-.nav-link.on {
-  color: var(--indigo-strong);
-  background: var(--indigo-soft);
+.nav-menu-item.danger {
+  color: var(--rose-ink);
 }
-
-
 
 /* ---------- 서비스 푸터(사업자 정보) ----------
    components/SiteFooter.tsx. 우리 서비스 화면(로그인·회원가입)에만 붙인다.
    공개 폼·랜딩에는 넣지 않는다(운영주체 오인 방지 — 컴포넌트 주석 참고).
    카카오 비즈니스 채널 인증에 제출하는 화면이므로 상호↔서비스명 연결 문장을 가장 위에 둔다. */
 .site-footer {
+  /* ⚠️ 위의 `.app-shell > *:not(.app-nav) { flex: 1 }` 이 푸터까지 잡아서
+     세로 셸에서 본문과 남는 높이를 나눠 갖는다(푸터가 화면 절반까지 늘어남).
+     푸터는 내용 높이만 차지해야 하므로 늘어나지 않게 되돌린다. */
+  flex: none;
   margin-top: auto;
   border-top: 1px solid var(--border);
   background: var(--surface-2);
@@ -207,5 +448,101 @@
   }
   .site-footer-addr {
     flex-wrap: wrap;
+  }
+}
+
+/* ---------- 좁은 화면: 상단 바 + 드로어 ---------- */
+.lnb-topbar {
+  display: none;
+}
+.topbar-burger {
+  padding: 6px 10px;
+  font-size: 18px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .app-shell:has(> .app-nav[data-has-nav="true"]) {
+    flex-direction: column;
+  }
+  .lnb {
+    display: none;
+  }
+  .app-nav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .lnb-topbar {
+    display: block;
+  }
+  .lnb-topbar-in {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 56px;
+    padding: 0 14px;
+  }
+  .lnb-topbar-right {
+    margin-left: auto;
+    min-width: 0;
+  }
+  /* 좁은 화면에선 이메일 글자를 접고 아바타만 남긴다. */
+  .lnb-topbar .account-email {
+    display: none;
+  }
+  .lnb-topbar .account-btn {
+    width: auto;
+    border-color: var(--border);
+    border-radius: 999px;
+  }
+  .lnb-topbar .nav-menu {
+    top: calc(100% + 6px);
+    bottom: auto;
+    left: auto;
+    right: 0;
+  }
+
+  .lnb-drawer {
+    padding: 6px 14px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .drawer-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 0;
+  }
+  .drawer-group + .drawer-group {
+    border-top: 1px dashed var(--border);
+  }
+  .drawer-group-title {
+    width: 100%;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .drawer-link {
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .drawer-link.on {
+    color: var(--indigo-strong);
+    background: var(--indigo-soft);
+    border-color: transparent;
   }
 }

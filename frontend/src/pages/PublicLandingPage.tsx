@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useParams } from "react-router-dom";
 import { getLandingPreview, type PublicLanding } from "../api/client";
 import { LandingView } from "../components/LandingView";
@@ -20,7 +21,7 @@ export function PublicLandingPage() {
   }, [slug]);
 
   if (error) return <div className="landing-public"><p className="auth-error" style={{ padding: 40, textAlign: "center" }}>{error}</p></div>;
-  if (!landing) return <div className="page-loading">불러오는 중…</div>;
+  if (!landing) return <Loading full />;
 
   return (
     <>

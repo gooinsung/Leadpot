@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
+import { Link } from "react-router-dom";
 import {
   ApiError,
   bulkTrashLeads,
@@ -11,7 +13,7 @@ import {
 import { TopBar } from "../components/TopBar";
 import { Pagination } from "../components/Pagination";
 import { LeadSidePanel } from "../components/LeadSidePanel";
-import { leadStatusLabel as statusLabel, maskPhone, pickName, pickPhone } from "../lib/leadDisplay";
+import { leadStatusLabel as statusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
 
 const PAGE_SIZE = 25;
 
@@ -22,11 +24,13 @@ const PAGE_SIZE = 25;
  */
 export function LeadInboxPage() {
   // 필터 (rail)
-  const [view, setView] = useState<"unseen" | "today" | "all">("unseen"); // 기본=미확인
+  const [view, setView] = useState<"unseen" | "today" | "all">("all"); // 기본=전체(사용자 결정)
   const [formFilter, setFormFilter] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [q, setQ] = useState("");
   const [qInput, setQInput] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<InboxResponse | null>(null);
@@ -51,8 +55,9 @@ export function LeadInboxPage() {
     try {
       const res = await getInbox({
         unseen: view === "unseen",
-        from: view === "today" ? today : undefined,
-        to: view === "today" ? today : undefined,
+        // '오늘' 보기는 오늘 하루로 고정, 그 외에는 사용자가 고른 기간을 쓴다.
+        from: view === "today" ? today : dateFrom || undefined,
+        to: view === "today" ? today : dateTo || undefined,
         status: statusFilter || undefined,
         formId: formFilter ?? undefined,
         q: q.trim() || undefined,
@@ -65,7 +70,7 @@ export function LeadInboxPage() {
     } finally {
       setLoading(false);
     }
-  }, [view, statusFilter, formFilter, q, page, today]);
+  }, [view, statusFilter, formFilter, q, dateFrom, dateTo, page, today]);
 
   useEffect(() => {
     load();
@@ -74,9 +79,28 @@ export function LeadInboxPage() {
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [view, statusFilter, formFilter, q]);
+  }, [view, statusFilter, formFilter, q, dateFrom, dateTo]);
 
   const counts = data?.counts;
+
+  /** 빈 화면에서 한 번에 필터를 걷어낸다(어떤 조건 때문에 비었는지 찾아 헤매지 않게). */
+  function resetFilters() {
+    setView("all");
+    setStatusFilter("");
+    setFormFilter(null);
+    setQ("");
+    setQInput(""); // 검색창 표시도 같이 비운다(안 그러면 글자가 남아 걸린 줄 안다)
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  }
+
+  /** 날짜를 고르면 '오늘' 보기에서 빠져나온다 — 둘이 겹치면 어느 쪽이 걸린 건지 알 수 없다. */
+  function pickDate(which: "from" | "to", value: string) {
+    if (which === "from") setDateFrom(value);
+    else setDateTo(value);
+    if (view === "today") setView("all");
+  }
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
   function submitSearch(e: React.FormEvent) {
@@ -148,10 +172,33 @@ export function LeadInboxPage() {
             />
           </form>
 
+          {/* 순서: 전체 → 오늘 → 미확인 (사용자 결정) */}
           <div className="rail-group">보기</div>
-          <RailItem label="미확인" on={view === "unseen"} count={counts?.unseen} onClick={() => setView("unseen")} />
-          <RailItem label="오늘" on={view === "today"} count={counts?.today} onClick={() => setView("today")} />
           <RailItem label="전체" on={view === "all"} count={counts?.all} onClick={() => setView("all")} />
+          <RailItem label="오늘" on={view === "today"} count={counts?.today} onClick={() => setView("today")} />
+          <RailItem label="미확인" on={view === "unseen"} count={counts?.unseen} onClick={() => setView("unseen")} />
+
+          {/* 기간 — '오늘' 보기와 겹치지 않게, 날짜를 고르면 보기를 '전체'로 넘긴다 */}
+          <div className="rail-group">기간</div>
+          <div className="rail-dates" title="접수일시(KST) 범위로 검색">
+            <input
+              className="input"
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => pickDate("from", e.target.value)}
+              aria-label="접수 시작일"
+            />
+            <span className="rail-dates-sep">~</span>
+            <input
+              className="input"
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => pickDate("to", e.target.value)}
+              aria-label="접수 종료일"
+            />
+          </div>
 
           <div className="rail-group">상태</div>
           <RailItem label="전체 상태" on={statusFilter === ""} onClick={() => setStatusFilter("")} muted />
@@ -226,12 +273,42 @@ export function LeadInboxPage() {
           )}
 
           {loading && !data ? (
-            <p className="inbox-empty">불러오는 중…</p>
+            <Loading />
           ) : (data?.items.length ?? 0) === 0 ? (
-            <p className="inbox-empty">해당하는 리드가 없습니다.</p>
+            /* 리드가 아예 없는 것과 필터에 걸려 안 보이는 것은 해야 할 일이 다르다 — 구분해서 안내한다. */
+            <div className="card card-pad empty-state">
+              {(counts?.all ?? 0) === 0 ? (
+                <>
+                  <p>아직 접수된 리드가 없습니다.</p>
+                  <p className="dash-sub" style={{ marginTop: -6 }}>
+                    리드폼을 만들어 공개하면 접수된 리드가 여기에 모입니다.
+                  </p>
+                  <Link className="btn btn-primary" to="/forms">
+                    리드폼 보러 가기
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p>조건에 맞는 리드가 없습니다.</p>
+                  <button className="btn btn-ghost" onClick={resetFilters}>
+                    필터 초기화
+                  </button>
+                </>
+              )}
+            </div>
           ) : (
             <>
               <div className="inbox-rows" role="list">
+                {/* 열 제목 — 폼별 목록과 같은 방식으로 스캔을 돕는다(열 폭은 .inbox-row 와 공유) */}
+                <div className="inbox-head" aria-hidden="true">
+                  <span />
+                  <span>이름</span>
+                  <span>연락처</span>
+                  <span>답변 요약</span>
+                  <span>출처</span>
+                  <span>상태</span>
+                  <span>접수일시</span>
+                </div>
                 {data!.items.map((it) => (
                   <InboxRow
                     key={it.id}
@@ -257,10 +334,12 @@ export function LeadInboxPage() {
           )}
         </main>
 
-        {/* ── PANE 3 · 사이드 패널(상세) ── */}
+        {/* 상세는 목록 위로 겹쳐 나왔다 들어가는 서랍(사용자 결정) —
+            칸을 미리 비워두지 않으므로 목록이 항상 화면 폭을 다 쓴다. */}
         {openId != null && (
           <LeadSidePanel
             leadId={openId}
+            variant="drawer"
             formName={data?.items.find((i) => i.id === openId)?.formName}
             onClose={() => setOpenId(null)}
             onChanged={onStatusChanged}
@@ -312,6 +391,8 @@ function InboxRow({
         {pickName(item.answers)}
       </span>
       <span className="ir-phone">{phone ? maskPhone(phone) : ""}</span>
+      {/* 이름·연락처를 뺀 나머지 답변 한 줄 요약 — 폼별 목록과 같은 규칙(lib/leadDisplay) */}
+      <span className="ir-summary">{summarizeAnswers(item.answers, [pickName(item.answers), phone])}</span>
       <span className="ir-src" title={item.formName}>{item.formName}</span>
       <span className={`pill ld-pill ld-${item.status}`}>{statusLabel(item.status)}</span>
       <span className="ir-time">{new Date(item.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}</span>

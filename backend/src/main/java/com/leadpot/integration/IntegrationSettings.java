@@ -41,6 +41,9 @@ public class IntegrationSettings {
     @Column(name = "sheets_secret", length = 200)
     private String sheetsSecret;
 
+    // 문자 발송은 리드팟 계정 하나로만 한다(V24) — 마케터별 자격증명 컬럼은 제거했다.
+    // 나중에 마케터가 자기 대행사 계정을 연동하게 하려면 여기에 다시 추가한다.
+
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import {
   ApiError,
   getAdvertiserReport,
@@ -120,7 +121,7 @@ export function AdvertiserReportPage() {
         {error && <p className="auth-error">{error}</p>}
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : !report ? (
           <div className="card card-pad empty-state">
             <p>열람 권한을 받은 리드폼이 없습니다.</p>

@@ -18,13 +18,13 @@
   padding: 5px 12px;
   font-size: 12px;
 }
+/* 스크롤은 기기 iframe 안에서만 일어난다 — 스테이지까지 스크롤하면 스크롤바가 두 겹으로 보인다. */
 .lp-preview-stage {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
-  max-height: 74vh;
-  overflow-y: auto;
+  overflow: hidden;
 }
 .lp-preview-device {
   background: var(--surface);
@@ -36,6 +36,30 @@
 }
 .lp-preview-stage.mobile .lp-preview-device {
   max-width: 360px;
+}
+
+/* 기기 미리보기 iframe — iframe 이 곧 '기기'다(자기 뷰포트를 가져 미디어쿼리가 실제 폰과 같게 평가된다).
+   패널보다 넓은 기기(PC)는 실제 폭으로 렌더한 뒤 transform 으로 축소한다. */
+.lp-device-wrap {
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+.lp-device-frame {
+  border: none;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transform-origin: top center;
+  flex: none;
+}
+/* iframe 안에서는 iframe 자체가 기기 틀이므로 안쪽 래퍼의 기기 장식·폭 제한을 없앤다. */
+.lp-preview-device.in-frame {
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 .lp-preview-stage.pc {
   overflow-x: hidden;
@@ -55,10 +79,12 @@
   margin: 14px 16px;
 }
 
+/* 편집기의 리드폼 자리 표시 — 성과가 아니라 안내다.
+   그린은 성과(완료·전환)에만 남긴다(U7 Cockpit: 색 역할). */
 .landing-form-slot {
-  border: 1.5px dashed var(--green);
-  background: var(--green-soft);
-  color: var(--green-strong);
+  border: 1.5px dashed var(--indigo);
+  background: var(--indigo-soft);
+  color: var(--indigo-ink);
   border-radius: 10px;
   padding: 14px;
   font-size: 13px;
@@ -71,14 +97,16 @@
 }
 
 /* ---------- 공개 랜딩(/p/:slug) — 모바일 최적화 ---------- */
+/* 공개 랜딩 — Daylight 토큰은 features/public.css 에서 .landing-public 에 정의된다.
+   라이트 고정이라 사용자가 붙인 HTML 블록(흰 배경 전제)이 의도대로 보인다. */
 .landing-public {
   min-height: 100vh;
-  background: var(--bg);
+  background: var(--pub-bg);
 }
 .landing-public-inner {
   max-width: 480px;
   margin: 0 auto;
-  background: var(--surface);
+  background: var(--pub-surface);
   min-height: 100vh;
 }
 .landing-img {

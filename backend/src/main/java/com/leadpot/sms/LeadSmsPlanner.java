@@ -1,0 +1,170 @@
+package com.leadpot.sms;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.leadpot.advertiser.AdvertiserFormGrant;
+import com.leadpot.advertiser.AdvertiserFormGrantRepository;
+import com.leadpot.auth.Role;
+import com.leadpot.auth.User;
+import com.leadpot.auth.UserRepository;
+import com.leadpot.form.Form;
+import com.leadpot.form.FormBlock;
+import com.leadpot.lead.Lead;
+
+/**
+ * 리드 접수 시 나갈 문자 목록을 만든다(전송은 하지 않음).
+ *
+ * <p>대상 3종(docs/MESSAGING-PLAN.md §6):
+ * <ol>
+ *   <li><b>마케터</b> — 리드 발생 알림. 수신은 계정 연락처.</li>
+ *   <li><b>광고주</b> — 리드 접수 알림. <b>마케터가 리드폼별로 켠다</b>(광고주가 스스로 켜는 게 아니다).</li>
+ *   <li><b>고객(리드 본인)</b> — 마케터가 쓴 템플릿. 수신번호는 리드폼의 연락처 항목에서 가져온다.</li>
+ * </ol>
+ *
+ * <p>설정은 리드폼의 {@code settingsConfig}(JSONB)에 둔다 — 기존 텔레그램·구글시트 토글과 같은 자리라
+ * 마이그레이션이 필요 없다.
+ *
+ * <p>순수 조회라 대상 선정 로직을 테스트에서 결정적으로 검증할 수 있다
+ * ({@code NotificationService.planDispatches} 와 같은 설계).
+ */
+@Service
+public class LeadSmsPlanner {
+
+    private static final DateTimeFormatter DT =
+            DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.of("Asia/Seoul"));
+
+    private final AdvertiserFormGrantRepository grantRepository;
+    private final UserRepository userRepository;
+    private final String publicBaseUrl;
+
+    public LeadSmsPlanner(AdvertiserFormGrantRepository grantRepository, UserRepository userRepository,
+            @Value("${app.public-base-url:https://app.lead-pot.com}") String publicBaseUrl) {
+        this.grantRepository = grantRepository;
+        this.userRepository = userRepository;
+        this.publicBaseUrl = trimTrailingSlash(publicBaseUrl);
+    }
+
+    /** 이 리드에 대해 실제로 나갈 문자 목록. 켜져 있지 않으면 빈 목록. */
+    @Transactional(readOnly = true)
+    public List<SmsService.SmsRequest> plan(Form form, Lead lead) {
+        List<SmsService.SmsRequest> out = new ArrayList<>();
+        Map<String, Object> cfg = form.getSettingsConfig();
+        if (cfg == null) {
+            return out;
+        }
+        // 리드폼별 발신번호 지정(선택). 비우면 계정/시스템 기본 발신번호를 쓴다.
+        String senderPhone = str(cfg.get("smsSenderPhone"));
+
+        // ① 마케터 — 리드 발생 알림
+        if (on(cfg.get("smsMarketerEnabled"))) {
+            User marketer = userRepository.findById(form.getOwnerId()).orElse(null);
+            if (marketer != null) {
+                out.add(request(form, lead, marketer.getPhone(),
+                        marketerText(form, lead), MessageLog.TO_MARKETER, senderPhone));
+            }
+        }
+
+        // ② 광고주 — 마케터가 리드폼별로 켠 경우에만. 유효한 권한 + 활성 광고주 계정.
+        if (on(cfg.get("smsAdvertiserEnabled"))) {
+            AdvertiserFormGrant grant = grantRepository.findByFormId(form.getId()).orElse(null);
+            if (grant != null && grant.isEffective(Instant.now())) {
+                User adv = userRepository.findById(grant.getAdvertiserId()).orElse(null);
+                if (adv != null && adv.getRole() == Role.ADVERTISER && adv.isActive()) {
+                    out.add(request(form, lead, adv.getPhone(),
+                            advertiserText(grant, form, lead), MessageLog.TO_ADVERTISER, senderPhone));
+                }
+            }
+        }
+
+        // ③ 고객(리드 본인) — 마케터가 쓴 템플릿. 본문이 비어 있으면 보내지 않는다.
+        if (on(cfg.get("smsLeadEnabled"))) {
+            String body = str(cfg.get("smsLeadBody"));
+            if (!body.isBlank()) {
+                String to = leadPhone(form, lead, str(cfg.get("smsLeadPhoneVarKey")));
+                out.add(request(form, lead, to,
+                        TemplateRenderer.render(body, form, lead).text(), MessageLog.TO_LEAD, senderPhone));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 고객 수신번호. 마케터가 항목을 지정했으면 그 변수키로, 안 했으면 리드폼의 첫 연락처(tel) 항목으로 찾는다.
+     * (지정을 강제하면 기존 리드폼에서 바로 못 쓰므로 자동 추론을 둔다.)
+     */
+    String leadPhone(Form form, Lead lead, String varKey) {
+        if (!varKey.isBlank()) {
+            return TemplateRenderer.answerValue(lead, varKey);
+        }
+        for (FormBlock b : form.getBlocks()) {
+            if ("tel".equals(b.getFieldType())) {
+                String key = b.getVarKey() != null ? b.getVarKey() : b.answerLabel();
+                String value = TemplateRenderer.answerValue(lead, key);
+                if (!value.isBlank()) {
+                    return value;
+                }
+            }
+        }
+        return "";
+    }
+
+    private SmsService.SmsRequest request(Form form, Lead lead, String to, String text,
+            String recipientType, String senderPhone) {
+        return new SmsService.SmsRequest(form.getOwnerId(), to, text, recipientType,
+                form.getId(), lead.getId(), null, null, blankToNull(senderPhone));
+    }
+
+    /**
+     * 마케터·광고주 알림 본문. 개인정보(이름·연락처)를 넣지 않는다 —
+     * 접수 사실만 알리고 값은 리드팟에서 본다(알림톡 §9 와 같은 기준). 본문이 짧아 SMS 단가(13원)로 유지된다.
+     */
+    private String marketerText(Form form, Lead lead) {
+        return "[리드팟] 새 리드 접수\n"
+                + nn(form.getName()) + "\n"
+                + DT.format(lead.getCreatedAt() != null ? lead.getCreatedAt() : Instant.now()) + "\n"
+                + publicBaseUrl + "/leads";
+    }
+
+    private String advertiserText(AdvertiserFormGrant grant, Form form, Lead lead) {
+        String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
+                ? grant.getDisplayName()
+                : nn(form.getName());
+        return "[리드팟] 새 리드 접수\n"
+                + name + "\n"
+                + DT.format(lead.getCreatedAt() != null ? lead.getCreatedAt() : Instant.now()) + "\n"
+                + publicBaseUrl + "/client";
+    }
+
+    private static boolean on(Object v) {
+        return Boolean.TRUE.equals(v);
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s;
+    }
+
+    private static String trimTrailingSlash(String s) {
+        if (s == null || s.isBlank()) {
+            return "";
+        }
+        String t = s.trim();
+        return t.endsWith("/") ? t.substring(0, t.length() - 1) : t;
+    }
+
+    private static String nn(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static String str(Object o) {
+        return o == null ? "" : o.toString();
+    }
+}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteLanding, listLandings, type LandingSummary } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { publicSiteUrl } from "../lib/site";
 import { TopBar } from "../components/TopBar";
+import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
 
 export function LandingsListPage() {
@@ -28,8 +30,13 @@ export function LandingsListPage() {
 
   async function onDelete(id: number, title: string) {
     if (!window.confirm(`'${title}' 랜딩을 삭제할까요?`)) return;
-    await deleteLanding(id);
-    load();
+    try {
+      await deleteLanding(id);
+      toast.success(`'${title}' 랜딩을 삭제했습니다.`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "삭제에 실패했습니다.");
+    }
   }
 
   return (
@@ -46,7 +53,7 @@ export function LandingsListPage() {
         </div>
 
         {loading ? (
-          <p className="dash-sub">불러오는 중…</p>
+          <Loading />
         ) : items.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 만든 랜딩이 없습니다.</p>

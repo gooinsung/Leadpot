@@ -13,6 +13,8 @@
   --green: #12b886;
   --green-strong: #0e9d73;
   --green-soft: #e2f7ef;
+  /* 로고 전용 그린. 테마별로 바꾸지 않는다 — 로고 색은 배경이 바뀌어도 고정이어야 한다. */
+  --brand-green: #4ecb98;
 
   /* Neutrals — 인디고 쪽으로 살짝 치우친 쿨 슬레이트 */
   --bg: #f5f6fc;
@@ -49,6 +51,22 @@
   --fs-lg: 15px;
   --fs-xl: 20px;
 
+  /* ── LNB(좌측 내비) — Cockpit 컨셉(U7): 어두운 잉크 패널로 작업 영역과 분리한다.
+     새 색을 들이지 않고 기존 잉크·인디고 팔레트만 쓴다(색 유지 결정). ── */
+  --lnb-bg: #1b1e3a;
+  --lnb-border: #262a4d;
+  --lnb-text: #c3c8ea;
+  --lnb-text-strong: #ffffff;
+  --lnb-group: #9298c4;
+  --lnb-hover: #24284a;
+  --lnb-active-bg: #2b2f57;
+
+  /* ── 행 밀도(U7 · Cockpit) — 기본은 촘촘하게. 계정 메뉴에서 바꾸면
+     data-density 가 바뀌고 표·행 목록이 한꺼번에 반응한다(lib/useDensity.ts). ── */
+  --row-py: 9px;
+  --row-px: 12px;
+  --row-gap: 10px;
+
   /* System */
   --radius: 14px;
   --radius-sm: 9px;
@@ -60,6 +78,13 @@
   --maxw: 1680px;
 
   color-scheme: light dark;
+}
+
+/* 넉넉하게 — 밀도가 부담스러운 사용자를 위한 대안(기본은 촘촘하게). */
+:root[data-density="cozy"] {
+  --row-py: 13px;
+  --row-px: 16px;
+  --row-gap: 14px;
 }
 
 /* 시스템 다크모드 (사용자가 수동 지정하지 않았을 때) */
@@ -92,6 +117,14 @@
     --violet-ink: #d2a8fb;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
     --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+    /* 다크에선 본문이 이미 어두우므로 LNB 는 한 단계 더 가라앉혀 구분한다. */
+    --lnb-bg: #0a0c18;
+    --lnb-border: #21254040;
+    --lnb-text: #9aa0c0;
+    --lnb-text-strong: #e9ebf7;
+    --lnb-group: #8c92b8;
+    --lnb-hover: #171a2e;
+    --lnb-active-bg: #23264a;
   }
 }
 
@@ -124,6 +157,13 @@
   --violet-ink: #6b21b0;
   --shadow: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 23, 42, 0.14);
   --shadow-lg: 0 24px 60px -24px rgba(29, 35, 120, 0.34);
+  --lnb-bg: #1b1e3a;
+  --lnb-border: #262a4d;
+  --lnb-text: #c3c8ea;
+  --lnb-text-strong: #ffffff;
+  --lnb-group: #9298c4;
+  --lnb-hover: #24284a;
+  --lnb-active-bg: #2b2f57;
 }
 
 /* 수동 다크 지정 (시스템이 라이트여도 우선) */
@@ -154,4 +194,11 @@
   --violet-ink: #d2a8fb;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+  --lnb-bg: #0a0c18;
+  --lnb-border: #21254040;
+  --lnb-text: #9aa0c0;
+  --lnb-text-strong: #e9ebf7;
+  --lnb-group: #8c92b8;
+  --lnb-hover: #171a2e;
+  --lnb-active-bg: #23264a;
 }

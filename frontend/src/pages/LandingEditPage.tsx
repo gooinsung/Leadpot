@@ -1,5 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
+import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
+import { HtmlBlock } from "../components/HtmlBlock";
 import {
   ApiError,
   createLanding,
@@ -19,6 +22,7 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { useAuth } from "../lib/authContext";
+import { toast } from "../lib/toast";
 
 function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "IMAGE") return { type, url: "", alt: "" };
@@ -52,6 +56,8 @@ export function LandingEditPage() {
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
   const [device, setDevice] = useState<"mobile" | "pc">("mobile");
+  // 미리보기 높이는 화면에 맞춘다 — 기기 iframe 이 이 높이를 채우고 스크롤도 그 안에서만 일어난다.
+  const [previewH, setPreviewH] = useState(() => previewHeight());
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +66,12 @@ export function LandingEditPage() {
 
   useEffect(() => {
     listForms().then(setForms).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setPreviewH(previewHeight());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
@@ -134,6 +146,7 @@ export function LandingEditPage() {
       if (isNew) await createLanding(payload);
       else await updateLanding(Number(id), payload);
       setDirty(false);
+      toast.success(isNew ? "랜딩을 만들었습니다." : "랜딩을 저장했습니다.");
       navigate("/landings");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "저장에 실패했습니다.");
@@ -142,7 +155,7 @@ export function LandingEditPage() {
     }
   }
 
-  if (loading) return <div className="page-loading">불러오는 중…</div>;
+  if (loading) return <Loading full />;
 
   return (
     <div className="app-shell">
@@ -261,8 +274,11 @@ export function LandingEditPage() {
                 <button className={device === "pc" ? "on" : ""} onClick={() => setDevice("pc")}>🖥️ PC</button>
               </div>
             </div>
+            {/* iframe 이 곧 '기기' — 자기 뷰포트를 가지므로 미디어쿼리가 실제 폰과 같게 평가된다.
+                예전처럼 박스만 좁히면 @media 가 브라우저 창 폭을 봐서 미리보기만 어긋났다. */}
             <div className={`lp-preview-stage ${device}`}>
-              <div className="lp-preview-device">
+              <DevicePreviewFrame width={device === "mobile" ? 375 : 1280} fitHeight={previewH}>
+              <div className="lp-preview-device in-frame">
                 {blocks.length === 0 && <p className="dash-sub" style={{ padding: 24, textAlign: "center" }}>블록을 추가하면 미리보기가 표시됩니다.</p>}
                 {blocks.map((b, i) => {
                   const ms = blockStyle(b);
@@ -271,7 +287,8 @@ export function LandingEditPage() {
                       ? <img key={i} className="landing-img" src={b.url as string} alt="" style={ms} />
                       : <div key={i} className="fr-img-ph" style={{ margin: 16, ...ms }}>이미지</div>;
                   if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
-                  if (b.type === "HTML") return <div key={i} className="landing-html" style={ms} dangerouslySetInnerHTML={{ __html: (b.html as string) || "" }} />;
+                  // 편집 중엔 타이핑마다 스크립트가 다시 돌지 않게 늦춘다(타이머 누적 방지).
+                  if (b.type === "HTML") return <HtmlBlock key={i} className="landing-html" style={ms} html={(b.html as string) || ""} debounceMs={600} />;
                   if (b.type === "FORM") {
                     const fid = b.formId as number | null;
                     const detail = fid != null ? formDetails[fid] : undefined;
@@ -285,19 +302,25 @@ export function LandingEditPage() {
                     }
                     return (
                       <div key={i} className="landing-form-card" style={ms}>
-                        {detail ? <FormRenderer form={detail} /> : <p className="dash-sub">리드폼 미리보기 불러오는 중…</p>}
+                        {detail ? <FormRenderer form={detail} /> : <Loading label="리드폼 미리보기 불러오는 중…" />}
                       </div>
                     );
                   }
                   return null;
                 })}
               </div>
+              </DevicePreviewFrame>
             </div>
           </div>
         </div>
       </main>
     </div>
   );
+}
+
+/** 미리보기 기기 높이 — 창 높이에 맞춰 스테이지가 화면을 넘지 않게 한다. */
+function previewHeight(): number {
+  return Math.max(420, Math.round(window.innerHeight * 0.72));
 }
 
 function blockLabel(t: LandingBlockType): string {
