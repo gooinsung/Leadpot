@@ -19,6 +19,7 @@
 @import "./styles/layout.css";
 
 @import "./styles/features/auth.css";
+@import "./styles/features/about.css";
 @import "./styles/features/stats.css";
 @import "./styles/features/form-builder.css";
 @import "./styles/features/landing.css";

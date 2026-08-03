@@ -142,3 +142,70 @@
   background: var(--indigo-soft);
 }
 
+
+
+/* ---------- 서비스 푸터(사업자 정보) ----------
+   components/SiteFooter.tsx. 우리 서비스 화면(로그인·회원가입)에만 붙인다.
+   공개 폼·랜딩에는 넣지 않는다(운영주체 오인 방지 — 컴포넌트 주석 참고).
+   카카오 비즈니스 채널 인증에 제출하는 화면이므로 상호↔서비스명 연결 문장을 가장 위에 둔다. */
+.site-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: 28px 0 32px;
+}
+.site-footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.site-footer-lead {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.site-footer-lead strong {
+  font-weight: 700;
+}
+
+/* 사업자 정보 — 넓은 화면에서는 한 줄로 이어 붙이고 가운뎃점으로 구분 */
+.site-footer-biz {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.site-footer-biz li {
+  display: flex;
+  gap: 5px;
+}
+.site-footer-biz li span {
+  color: var(--text);
+}
+.site-footer-copy {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.site-footer-copy a {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* 모바일: 주소가 길어 한 줄에 안 들어가므로 항목을 줄바꿈해 쌓는다 */
+@media (max-width: 640px) {
+  .site-footer {
+    padding: 22px 0 26px;
+  }
+  .site-footer-biz {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .site-footer-addr {
+    flex-wrap: wrap;
+  }
+}
