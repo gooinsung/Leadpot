@@ -1,4 +1,5 @@
 import type { ConsentItem } from "../../api/client";
+import { consentDocUrl } from "../../lib/site";
 
 /** 동의 항목 렌더 — 체크박스 + 제목(필수/선택) + '보기' 링크(외부 URL / 내부 동의문서). */
 export function ConsentView({ config, accent }: { config?: Record<string, unknown> | null; accent?: string }) {
@@ -25,6 +26,7 @@ export function ConsentView({ config, accent }: { config?: Record<string, unknow
 
 function linkHref(it: ConsentItem): string | null {
   if (it.linkType === "external" && it.url) return it.url;
-  if (it.linkType === "document" && it.documentId) return `/consent/${it.documentId}`;
+  // 앱 도메인 절대 URL로 고정한다 — 상대 경로는 서브도메인 사이트·외부 임베드에서 404 (lib/site.ts 주석)
+  if (it.linkType === "document" && it.documentId) return consentDocUrl(it.documentId);
   return null;
 }

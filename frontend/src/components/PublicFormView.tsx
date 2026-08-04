@@ -10,6 +10,7 @@ import {
   type LeadConsent,
 } from "../api/client";
 import { resolveStyle } from "./formRenderers/formStyle";
+import { consentDocUrl } from "../lib/site";
 import { CompletionView } from "./formRenderers/CompletionView";
 import { firePixelLead } from "../lib/pixels";
 
@@ -254,7 +255,8 @@ function ConsentInputs({ items, agreed, setAgreed, accent }: { items: ConsentIte
   if (!items.length) return null;
   function href(it: ConsentItem): string | null {
     if (it.linkType === "external" && it.url) return it.url;
-    if (it.linkType === "document" && it.documentId) return `/consent/${it.documentId}`;
+    // 앱 도메인 절대 URL로 고정한다 — 상대 경로는 서브도메인 사이트·외부 임베드에서 404 (lib/site.ts 주석)
+    if (it.linkType === "document" && it.documentId) return consentDocUrl(it.documentId);
     return null;
   }
   return (

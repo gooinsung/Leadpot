@@ -26,10 +26,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Build (프로덕션 API 주소 주입)
+      - name: Build (프로덕션 API·앱 주소 주입)
         working-directory: frontend
         env:
           VITE_API_BASE_URL: https://api.lead-pot.com
+          # 동의문서 링크를 앱 도메인 절대 URL로 만든다(서브도메인·외부 임베드에서 404 방지, src/lib/site.ts)
+          VITE_APP_BASE_URL: https://app.lead-pot.com
         run: |
           npm ci
           npm run build
