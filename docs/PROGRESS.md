@@ -11,6 +11,13 @@
 - **✅ 서브도메인 관리(D3) 검증 완료 (2026-07-24, gooinsung PC)**: 백엔드 빌드+테스트 통과 / API 스모크 전부 통과 / 브라우저에서 `{sub}.localhost:5173/{id}` 공개 렌더·루트 404 확인. 브랜치 `feature/d3-subdomain`(코드 커밋 ce10518).
   - **DB = Neon(무료 호스팅 Postgres)로 전환** — "모든 환경 공유 DB 한 대". 접속정보는 `backend/application-local.properties`(**gitignore됨·커밋금지**)에 저장, profile `local`로 기동. Flyway V1~V10 Neon에 적용됨(리전 ap-southeast-1).
   - **⚙️ 이 PC 환경 세팅(gooinsung PC = `C:\Users\gooinsung\git\Leadpot`)**: JDK21(`C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`, winget) 설치, `npm install` 완료. Docker/WSL은 미설치(Neon 쓰므로 불필요).
+  - **⚙️ wincube PC 환경 세팅(`C:\Users\wincube\projects\Leadpot`, 2026-08-04 확인)**:
+    JDK21 은 `C:\Users\wincube\.jdks\ms-21.0.11` 에 있으나 **시스템 `JAVA_HOME` 이 JDK 8 을 가리켜** 그냥 실행하면
+    `Gradle requires JVM 17 or later` 로 막힌다 → **명령마다 `JAVA_HOME` 을 넘겨야 한다**:
+    ```bash
+    cd backend && JAVA_HOME="C:\Users\wincube\.jdks\ms-21.0.11" ./gradlew.bat test
+    ```
+    ⚠️ **이 PC 에는 서버 SSH 개인키가 없다**(`~/.ssh` 에 known_hosts 만). VM 접속은 키를 먼저 확보해야 한다.
   - **❗ 로컬 실행 필수 플래그**: 이 PC는 기본 임시폴더 경로가 길어 JDK21 NIO의 AF_UNIX self-pipe가 실패("Unable to establish loopback connection") → **사용자 환경변수 `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:\Temp` 설정으로 해결**(설정 완료). 새 셸부터 자동 적용. (Java NIO 서버 전반에 필요)
   - **▶️ 로컬 실행법(현재)**: `C:\Temp` 존재 + 위 env 적용 상태에서 — 백엔드 `cd backend; $env:SPRING_PROFILES_ACTIVE='local'; .\gradlew.bat bootRun` (→ :8080, Neon 연결) / 프론트 `cd frontend; npm run dev` (→ :5173). 서브도메인 테스트는 `http://{내서브도메인}.localhost:5173/{랜딩번호}`.
   - **✅ D3 `main` 병합 완료**(현재 main에 `auth/Subdomains.java`·`PublicSiteController` 포함). 남은 것: SPEC·FEATURES 문서에 D3 반영 / 배포용 와일드카드 DNS·SSL(사용자 리소스, 나중).
