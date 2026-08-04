@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { ApiError } from "../api/client";
 import { TopBar } from "../components/TopBar";
-import { SiteFooter } from "../components/SiteFooter";
 
 export function SignupPage() {
   const { signup } = useAuth();
@@ -110,7 +109,6 @@ export function SignupPage() {
           </p>
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }
