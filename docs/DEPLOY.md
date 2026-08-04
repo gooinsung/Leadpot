@@ -1,7 +1,10 @@
 # docs/DEPLOY.md — Leadpot 배포 체크리스트
 
-> 아키텍처: **프론트=Cloudflare Pages** / **백엔드=Oracle Cloud VM(Docker)** / **DB=PostgreSQL**.
-> 상세 배경은 [CLAUDE.md](../CLAUDE.md) §3(아키텍처)·§6(배포법) 참고. 이 문서는 실제 배포 시 순서대로 체크한다.
+> ⚠️ **현재 실제로 돌고 있는 구성은 [부록 C](#부록-c-실제-배포-파이프라인-2026-08-04-실측) 다. 거기부터 읽어라.**
+> 본문·부록 A·B 는 **초기 계획**이라 실제와 다른 곳이 있다(프론트=Pages ❌, DB=VM 내 Postgres ❌).
+>
+> 계획 당시 아키텍처: ~~프론트=Cloudflare Pages~~ / **백엔드=Oracle Cloud VM(Docker)** / ~~DB=VM 내 PostgreSQL~~(→ Neon).
+> 상세 배경은 [CLAUDE.md](../CLAUDE.md) §3(아키텍처)·§6(배포법) 참고.
 > 코드/설정은 **환경변수로 시크릿을 주입**하도록 이미 외부화돼 있음(코드·깃에 시크릿 없음).
 
 ---
@@ -131,7 +134,10 @@ APP_UPLOADS_DIR=/app/uploads
 - [ ] Cloudflare DNS: `api.<도메인>` A레코드 → VM 공인 IP, **프록시 ON(주황 구름)**. SSL/TLS 모드 우선 **Flexible**(빠른 시작) → 이후 **Full** 로 강화.
 - [ ] 도메인이 없으면: 임시로 VM 공인 IP:80(http) 로 프론트 env 를 맞춰 테스트도 가능하나, 브라우저 혼합콘텐츠 때문에 프론트(https)에서 http API 호출은 막힘 → **도메인+CF 프록시(https)** 를 권장.
 
-### A-5. 프론트(Cloudflare Pages) + 연결
+### A-5. ~~프론트(Cloudflare Pages) + 연결~~ — **폐기됨. 부록 C 참고**
+
+> Cloudflare Pages 는 쓰지 않는다. 프론트는 GitHub Actions 가 빌드해 **VM 의 Nginx 웹루트**로 rsync 한다.
+> 아래 체크리스트는 초기 계획의 흔적이며 실제 구성과 다르다.
 - [ ] Pages 프로젝트 → GitHub `main` 연결, 루트 `frontend`, 빌드 `npm run build`, 출력 `dist`, env `VITE_API_BASE_URL=https://api.<도메인>`.
 - [ ] 배포되면 Pages 도메인(예: `leadpot.pages.dev`) 확인 → 서버 `.env` 의 `APP_CORS_ALLOWED_ORIGINS` 에 그 주소 넣고 `docker compose -f docker-compose.prod.yml up -d`(재기동).
 - [ ] 스모크(§4): health / 가입·로그인 / 공개폼 제출·새로고침 / 연동 알림.
@@ -171,3 +177,78 @@ free -h   # Swap 2.0Gi 확인
 ### B-4. 처리량 참고
 - 정적 자산=Cloudflare CDN, DB=Neon 이므로 서버는 **가벼운 JSON API 만** 처리 → 실광고 테스트(수천 방문/일) 수준은 무난.
 - 부족해지면 Docker 그대로 **Hetzner(2~4GB, 월 ~€4)** 등으로 이전(코드 무수정, `.env` 만 이동).
+
+---
+
+## 부록 C. 실제 배포 파이프라인 (2026-08-04 실측)
+
+> 본문·부록 A 는 **초기 계획**이다. 실제로 돌고 있는 건 이 부록이다. 계획과 다른 점:
+> **프론트는 Cloudflare Pages 가 아니고**(VM Nginx), **DB 는 VM 안 컨테이너가 아니다**(Neon).
+> Cloudflare 는 DNS·SSL 프록시만 한다.
+
+### C-1. 서버 접속
+
+| 항목 | 값 |
+|---|---|
+| 공인 IP | `129.225.198.2` (Oracle Cloud) |
+| 계정 | `ubuntu` |
+| 저장소 위치 | `~/Leadpot` |
+| 시크릿 | `~/Leadpot/.env` (gitignore · **자동 배포 대상 아님**) |
+| 웹루트(프론트) | `/var/www/leadpot/` |
+
+```bash
+ssh -i <개인키> ubuntu@129.225.198.2
+```
+
+- ⚠️ **공인 IP 유형이 `임시(Ephemeral)` 인지 `예약됨(Reserved)` 인지 확인되지 않았다.** 기본값은 임시다.
+  임시라도 재부팅·중지/시작에는 유지되고 **인스턴스 종료 시에만** 바뀐다. 다만 솔라피 허용 IP 같은
+  **외부에 IP 를 등록하기 전에는 예약 IP 로 전환**해 두는 게 안전하다(전환하면 주소가 바뀌므로
+  Cloudflare A레코드도 함께 갱신해야 한다 — 같은 주소로 전환하는 방법은 없다).
+
+### C-2. 자동 배포 (main push → 경로별 트리거)
+
+| 워크플로 | 경로 | 실측 소요 | 다운타임 |
+|---|---|---|---|
+| `deploy-frontend.yml` | `frontend/**` | 1~2분 | **없음** |
+| `deploy-backend.yml` | `backend/**`·`docker-compose.prod.yml` | **10분 06초(08-02) / 16분 49초(08-04)** | **약 60~80초** |
+
+저장소 시크릿: `VM_SSH_KEY` · `VM_HOST` · `VM_USER`.
+
+**프론트가 무중단인 이유**: 해시 붙은 새 자산을 먼저 올려 옛 자산을 남겨둔 채, 마지막에 `index.html` 만
+교체한다(`--delete` 를 쓰지 않는다). 배포 중에 열려 있던 페이지가 참조하는 옛 자산이 살아 있어 화면이 안 깨진다.
+→ 옛 자산이 누적되지만 해시명이라 무해. 가끔 수동 정리.
+
+**백엔드가 끊기는 이유**: 컨테이너가 하나뿐이라 `up -d --build` 가 옛 컨테이너를 내리고 새 것을 올린다.
+그 사이 Nginx 가 502 를 낸다(2026-08-04 실측 60~80초). **이 순간 공개 폼 제출은 실패한다.**
+
+### C-3. ⚠️ 백엔드 배포가 느린 원인과 개선안
+
+원인은 서버 사양이 아니라 **빌드 위치**다. [`backend/Dockerfile`](../backend/Dockerfile) 이 멀티스테이지로
+**VM 안에서 `./gradlew bootJar` 를 돈다.** 1 OCPU/1GB 인스턴스에서 이게 10분 이상을 먹는다.
+백엔드 파일이 많이 바뀌면 의존성 캐시 레이어까지 무효화돼 더 길어진다(08-04 에 16분 49초).
+
+**개선안 1 — 빌드를 러너로 옮긴다 (비용 0원, 10~17분 → 2~3분)**
+GitHub Actions 러너(4코어/16GB, 공개 저장소 무료)에서 JAR 또는 이미지를 만들고 VM 은 받아서 재기동만 한다.
+지금 워크플로가 이미 SSH 로 붙으므로 바꿀 범위는 "VM 에서 build" → "러너에서 build 후 전송" 정도다.
+**서버를 올려도 이걸 안 하면 여전히 3~4분 걸린다. 이게 먼저다.**
+
+**개선안 2 — 무중단 (서버 업그레이드 후)**
+새 컨테이너를 먼저 띄우고 헬스 통과 후 Nginx 를 전환한다. 컨테이너 둘을 동시에 띄워야 해서
+**1GB 에서는 메모리가 빠듯하다**(현재 `-Xmx512m` 으로 묶여 있다). 서버를 올린 뒤에 할 일.
+
+### C-4. 유료 서버로 옮길 때의 월 비용 (2026-08-04 조사)
+
+한국 방문자가 공개 폼을 여는 서비스라 **API 지연이 그대로 체감된다.** 그래서 지연을 먼저 본다.
+
+| 옵션 | 사양 | 월 비용 | 한국 지연 |
+|---|---|---|---|
+| **Vultr 서울** | 1vCPU / 2GB | **$10** (약 1.4만원) | ~5ms |
+| **Vultr 서울** | 2vCPU / 4GB | **$20** (약 2.8만원) | ~5ms |
+| Linode 도쿄 | 2vCPU / 4GB | $24 | ~35ms |
+| 카페24 VPS(국내) | — | 11,000원~ | 최저 |
+| Oracle 유료(춘천·서울) | 유연 | 무료 한도 초과분만 | ~5ms |
+| ~~Hetzner CX22~~ | 2vCPU / 4GB | €4.5 (약 6,500원) | **~250ms — 탈락** |
+
+- Hetzner 가 3~5배 싸지만 **아시아 리전이 없다.** 가격만 보고 고르면 공개 폼 응답이 느려진다.
+- 이전은 Docker 라 코드 수정 없이 `.env` 만 옮기면 된다(이식성 원칙, CLAUDE.md §2).
+- 출처: [Vultr 요금](https://www.vultr.com/pricing/) · [VPS 가격 비교 2026](https://apicalculators.com/cloud-vps-comparison) · [카페24 가상서버](https://hosting.cafe24.com/?controller=new_product_page&page=virtual)

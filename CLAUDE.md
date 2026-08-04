@@ -52,9 +52,9 @@
 
 | 구성 | 선택 | 배포처(무료 시작) |
 |---|---|---|
-| 프론트엔드 | **React + Vite (TypeScript) SPA** | Cloudflare Pages (GitHub 연동 자동배포) |
+| 프론트엔드 | **React + Vite (TypeScript) SPA** | ~~Cloudflare Pages~~ → **Oracle VM 의 Nginx** (GitHub Actions 가 rsync, §6) |
 | 백엔드 | **Spring Boot (REST API) + Docker** | Oracle Cloud "Always Free" VM |
-| DB | **PostgreSQL** | Oracle VM 내 Docker 컨테이너 |
+| DB | **PostgreSQL** | ~~Oracle VM 내 Docker 컨테이너~~ → **Neon**(외부 호스팅, 무료) |
 | 파일 저장 | 초기: VM 디스크 → 후기: Cloudflare R2 / S3 | — |
 | 인증 | **JWT** (Spring Security + BCrypt) | — |
 | 결제(후기) | PortOne(아임포트) / 토스페이먼츠 | — |
@@ -145,16 +145,21 @@ npm run dev
 
 ## 6. 배포법
 
-### 프론트엔드 → Cloudflare Pages
-- GitHub `main` 브랜치에 push하면 자동 빌드/배포.
-- Pages 프로젝트 설정: **루트 디렉터리** `frontend`, **빌드 명령** `npm run build`, **출력 디렉터리** `dist`.
-- 환경변수 `VITE_API_BASE_URL` = `https://api.도메인` 설정.
+> ⚠️ **아래는 실제 구성이다(2026-08-04 코드로 확인).** 초기 계획(프론트=Cloudflare Pages)과 다르다 —
+> 프론트·백엔드 **둘 다 GitHub Actions 가 Oracle VM 으로 배포**한다. Cloudflare 는 DNS·SSL 프록시만 담당한다.
+> 상세·실측치는 [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C.
 
-### 백엔드 → Oracle Cloud VM
-- VM에서 Docker로 Spring + Postgres 컨테이너 실행.
-- 배포: git pull → `docker-compose up -d --build` (또는 이미지 재기동).
-- Cloudflare에서 `api.도메인` A레코드를 VM 공인 IP로, 프록시 ON → 무료 SSL.
-- 상세 절차는 인프라 세팅 단계에서 별도 가이드로 문서화한다.
+**`main` 에 push 하면 두 워크플로가 경로별로 자동 실행된다. 수동 배포는 필요 없다.**
+
+| 워크플로 | 트리거 경로 | 하는 일 | 소요 | 다운타임 |
+|---|---|---|---|---|
+| [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | 러너에서 `npm run build`(`VITE_API_BASE_URL=https://api.lead-pot.com` 주입) → rsync 로 VM `/var/www/leadpot/` | 1~2분 | **없음** (해시 자산 먼저 올리고 `index.html` 을 마지막에 교체) |
+| [deploy-backend.yml](.github/workflows/deploy-backend.yml) | `backend/**`·`docker-compose.prod.yml` | VM 에 SSH → `git pull` → `docker compose -f docker-compose.prod.yml up -d --build` → `/api/health` 가 `UP` 될 때까지 대기 | **10~17분** | **약 1분** |
+
+- 필요한 저장소 시크릿: `VM_SSH_KEY` · `VM_HOST` · `VM_USER`.
+- ⚠️ **백엔드는 느리고 끊긴다.** `backend/Dockerfile` 이 **VM 안에서 Gradle 빌드**를 돌기 때문(1 OCPU/1GB). 개선안은 DEPLOY.md 부록 C.
+- ⚠️ **시크릿은 자동 배포 대상이 아니다.** VM 의 `~/Leadpot/.env`(gitignore)에만 있어 값이 바뀌면 SSH 로 직접 고치고 재기동해야 한다.
+- DB 는 **Neon**(외부 호스팅 Postgres)이다. VM 안에 Postgres 컨테이너를 띄우지 않는다.
 
 ---
 
