@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { TopBar } from "../components/TopBar";
-import { SiteFooter } from "../components/SiteFooter";
 
 /**
  * 서비스 소개(/about) — 로그인 없이 열리는 공개 페이지.
@@ -9,7 +8,8 @@ import { SiteFooter } from "../components/SiteFooter";
  *  1) 서비스가 무엇인지(제공 서비스 = 판매상품) 외부에 설명한다.
  *  2) **카카오 비즈니스 채널 인증**에 제출하는 "사업자-채널 연관성" 증빙 URL.
  *     카카오는 한 화면에서 ①사업자 정보 ②채널명과 같은 서비스명 ③판매상품이
- *     모두 확인돼야 승인한다. ①은 SiteFooter, ②③은 이 페이지 본문이 담당한다.
+ *     모두 확인돼야 승인한다. ①은 공통 푸터(ServiceLayout 이 붙인다), ②③은 이 페이지 본문이 담당한다.
+ *     특히 "운영 주체" 절이 상호(꾸스)와 서비스명(리드팟)을 잇는 문장을 담고 있다 — 지우지 말 것.
  *
  * 공개 화면이므로 모바일 우선으로 검증한다(CLAUDE.md 모바일 퍼스트).
  * 기재 내용은 실제 구현된 기능만 쓴다 — 없는 기능/실적을 적지 않는다.
@@ -85,7 +85,6 @@ export function AboutPage() {
           </p>
         </section>
       </main>
-      <SiteFooter />
     </div>
   );
 }

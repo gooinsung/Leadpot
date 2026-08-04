@@ -31,6 +31,7 @@ import { ClientLoginPage } from "./pages/ClientLoginPage";
 import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
 import { ProtectedRoute, RoleHomeRedirect } from "./components/ProtectedRoute";
+import { ServiceLayout } from "./components/ServiceLayout";
 import { Toaster } from "./components/Toaster";
 import { currentSubdomain } from "./lib/site";
 // 전역 스타일은 main.tsx 의 index.css 진입점에서 모두 로드된다(styles/README.md 참고).
@@ -54,10 +55,14 @@ function App() {
   return (
     <>
     <Routes>
+      {/* 사업자 정보 푸터가 붙는 우리 서비스 화면. 범위와 제외 이유는 ServiceLayout 주석 참고. */}
+      <Route element={<ServiceLayout />}>
       {/* 루트는 역할에 따라 분기(마케터→대시보드 / 광고주→/client) */}
       <Route path="/" element={<RoleHomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      {/* 서비스 소개 — 비로그인 공개(카카오 채널 인증 제출 URL) */}
+      <Route path="/about" element={<AboutPage />} />
       <Route
         path="/dashboard"
         element={
@@ -226,6 +231,9 @@ function App() {
           </ProtectedRoute>
         }
       />
+      </Route>
+      {/* ↓ 여기부터는 푸터를 붙이지 않는다(ServiceLayout 주석의 제외 목록) */}
+      {/* 광고주 미리보기 — 광고주가 실제로 보는 화면과 같아야 하므로 화이트라벨 유지 */}
       <Route
         path="/advertisers/:id/preview"
         element={
@@ -262,8 +270,7 @@ function App() {
           </ProtectedRoute>
         }
       />
-      {/* 공개 (비로그인) */}
-      <Route path="/about" element={<AboutPage />} />
+      {/* 공개 (비로그인) — 고객의 페이지이므로 우리 사업자 정보를 넣지 않는다 */}
       <Route path="/consent/:id" element={<ConsentViewPage />} />
       <Route path="/f/:id" element={<PublicFormPage />} />
       <Route path="/p/:slug" element={<PublicLandingPage />} />
