@@ -172,6 +172,46 @@ class FormVarKeyTest {
         }
     }
 
+    /**
+     * FormService.update 는 저장된 리드폼의 블록을 <b>clearBlocks() → flush → addBlocks()</b> 로
+     * 나눠 교체한다(옛 행 DELETE 를 새 행 INSERT 보다 먼저 보내야 유니크 인덱스에 안 걸린다).
+     * 이 분리가 변수키 결과를 바꾸지 않아야 한다.
+     */
+    @Nested
+    @DisplayName("2단계 교체(clearBlocks → addBlocks)")
+    class TwoStepReplace {
+
+        @Test
+        void 한번에_교체한_것과_결과가_같다() {
+            Form once = form();
+            once.replaceBlocks(List.of(field("이름", null), field("연락처", null)));
+
+            Form staged = form();
+            staged.clearBlocks();
+            staged.addBlocks(List.of(field("이름", null), field("연락처", null)));
+
+            assertEquals(keys(once), keys(staged));
+        }
+
+        @Test
+        void 유지된_키는_그대로_두고_새_항목에만_발급한다() {
+            Form f = form();
+            f.replaceBlocks(List.of(field("이름", null), field("연락처", null))); // f1, f2
+            f.clearBlocks();
+            f.addBlocks(List.of(field("이름", "f1"), field("연락처", "f2"), field("이메일", null)));
+            assertEquals(List.of("f1", "f2", "f3"), keys(f));
+        }
+
+        @Test
+        void 비우지_않고_덧붙이면_기존_키와_겹치지_않는다() {
+            Form f = form();
+            f.replaceBlocks(List.of(field("이름", "f1")));
+            f.addBlocks(List.of(field("연락처", "f1"))); // 이미 쓰인 키 → 새로 발급
+            assertEquals(2, keys(f).stream().distinct().count());
+            assertEquals("f1", keys(f).get(0));
+        }
+    }
+
     @Nested
     @DisplayName("answerLabel — 리드 답변의 항목명")
     class AnswerLabel {

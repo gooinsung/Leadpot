@@ -47,7 +47,7 @@ public class FormBlock {
 
     /**
      * 메시지 템플릿이 참조하는 불변 변수키(`f1`, `f2`, …). 답변을 만드는 블록(FIELD·CHOICE)에만 있고
-     * 콘텐츠 블록은 null. 부여는 {@link Form#replaceBlocks}가 담당하며 한 번 정해지면 바뀌지 않는다.
+     * 콘텐츠 블록은 null. 부여는 {@link Form#addBlocks}가 담당하며 한 번 정해지면 바뀌지 않는다.
      */
     @Column(name = "var_key", length = 20)
     private String varKey;

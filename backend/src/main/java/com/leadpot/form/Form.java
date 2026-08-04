@@ -111,12 +111,39 @@ public class Form {
     }
 
     /**
-     * 편집 저장 시 블록 전체를 교체한다(orphanRemoval 로 기존 블록 정리).
+     * 블록 전체를 교체한다(orphanRemoval 로 기존 블록 정리).
      * 이때 답변 블록의 변수키를 정리한다 — 넘어온 키는 유지하고 없는 항목에만 새로 발급한다(§변수키 규칙).
+     *
+     * ⚠️ <b>이미 저장된 리드폼에는 쓰지 않는다.</b> {@link #clearBlocks()} → flush → {@link #addBlocks}
+     *    순서로 나눠 호출해야 한다(이유는 {@link #addBlocks} 주석). 여기서는 새로 만드는 리드폼과
+     *    DB 를 타지 않는 단위 테스트만 쓴다.
      */
     public void replaceBlocks(List<FormBlock> newBlocks) {
+        clearBlocks();
+        addBlocks(newBlocks);
+    }
+
+    /** 블록 교체 1단계 — 기존 블록을 떼어낸다(orphanRemoval 이 DELETE 를 만든다). */
+    public void clearBlocks() {
         this.blocks.clear();
+    }
+
+    /**
+     * 블록 교체 2단계 — 새 블록을 붙이고 변수키를 확정한다.
+     *
+     * ⚠️ 이미 저장된 리드폼이라면 1단계와 이 호출 사이에 <b>반드시 flush</b> 해야 한다.
+     *    Hibernate 는 한 트랜잭션에서 INSERT 를 orphan DELETE 보다 <b>먼저</b> 실행하므로,
+     *    flush 없이 부르면 유지된 변수키(f1 …)를 가진 새 행이 아직 살아 있는 옛 행과 부딪혀
+     *    부분 유니크 인덱스 {@code ux_form_blocks_form_var_key} 위반으로 저장이 실패한다.
+     *    (실제로 2026-08-04 리드폼 저장 500 의 원인이었다.)
+     */
+    public void addBlocks(List<FormBlock> newBlocks) {
         Set<String> used = new HashSet<>();
+        for (FormBlock kept : this.blocks) {
+            if (kept.getVarKey() != null) {
+                used.add(kept.getVarKey());
+            }
+        }
         for (FormBlock b : newBlocks) {
             b.setForm(this);
             b.setVarKey(b.producesAnswer() ? resolveVarKey(b.getVarKey(), used) : null);
