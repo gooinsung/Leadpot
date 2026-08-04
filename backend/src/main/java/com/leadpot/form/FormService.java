@@ -72,7 +72,8 @@ public class FormService {
     @Transactional
     public FormResponse create(Long ownerId, FormRequest req) {
         Form form = new Form(ownerId, req.name().trim(), req.formType());
-        apply(form, req);
+        applySettings(form, req);
+        form.replaceBlocks(toBlocks(req)); // 새 리드폼은 지울 기존 행이 없다
         formRepository.save(form);
         return FormResponse.from(form);
     }
@@ -82,7 +83,12 @@ public class FormService {
         Form form = load(ownerId, id);
         form.setName(req.name().trim());
         form.setFormType(req.formType());
-        apply(form, req);
+        applySettings(form, req);
+        // 블록 교체는 2단계로 나눈다 — 기존 행의 DELETE 를 새 행 INSERT 보다 먼저 DB 에 보내야
+        // 유지된 변수키(f1 …)가 아직 살아 있는 옛 행과 부딪히지 않는다(Form.addBlocks 주석 참고).
+        form.clearBlocks();
+        formRepository.flush();
+        form.addBlocks(toBlocks(req));
         return FormResponse.from(form);
     }
 
@@ -97,8 +103,13 @@ public class FormService {
                 .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
     }
 
-    /** 요청의 설정/블록을 리드폼에 반영. */
-    private void apply(Form form, FormRequest req) {
+    /** 요청 DTO → 블록 엔티티 목록(변수키 확정은 Form 이 한다). */
+    private List<FormBlock> toBlocks(FormRequest req) {
+        return req.blocksOrEmpty().stream().map(FormBlockDto::toEntity).toList();
+    }
+
+    /** 요청의 설정을 리드폼에 반영(블록은 별도 — create/update 가 각자 처리한다). */
+    private void applySettings(Form form, FormRequest req) {
         form.setRequirePhoneVerification(Boolean.TRUE.equals(req.requirePhoneVerification()));
         form.setConsentConfig(req.consentConfig());
         form.setSubmitButtonConfig(req.submitButtonConfig());
@@ -107,7 +118,5 @@ public class FormService {
         form.setStyleConfig(req.styleConfig());
         form.setSettingsConfig(req.settingsConfig());
         form.setTrackingConfig(req.trackingConfig());
-        List<FormBlock> blocks = req.blocksOrEmpty().stream().map(FormBlockDto::toEntity).toList();
-        form.replaceBlocks(blocks);
     }
 }
