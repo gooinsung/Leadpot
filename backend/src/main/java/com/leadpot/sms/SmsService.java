@@ -60,19 +60,27 @@ public class SmsService {
 
     /** 발송 요청 한 건. 트랜잭션 밖(비동기 스레드)으로 넘길 수 있는 불변 스냅샷이다. */
     public record SmsRequest(Long ownerId, String to, String text, String recipientType,
-            Long formId, Long leadId, Long ruleId, Long templateId, String senderPhoneOverride) {
+            Long formId, Long leadId, Long ruleId, Long templateId, String senderPhoneOverride,
+            String imageId) {
 
         public static SmsRequest to(Long ownerId, String to, String text, String recipientType) {
-            return new SmsRequest(ownerId, to, text, recipientType, null, null, null, null, null);
+            return new SmsRequest(ownerId, to, text, recipientType, null, null, null, null, null, null);
         }
 
         public SmsRequest forLead(Long formId, Long leadId) {
             return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId,
-                    senderPhoneOverride);
+                    senderPhoneOverride, imageId);
         }
 
         public SmsRequest withSenderPhone(String phone) {
-            return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId, phone);
+            return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId, phone,
+                    imageId);
+        }
+
+        /** 첨부 이미지(대행사 fileId)를 붙인다 — 붙으면 MMS 로 나간다. */
+        public SmsRequest withImage(String imageId) {
+            return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId,
+                    senderPhoneOverride, imageId);
         }
     }
 
@@ -82,7 +90,7 @@ public class SmsService {
      * @return 남긴 이력(상태 확인용)
      */
     public MessageLog send(SmsRequest req) {
-        String channel = SolapiSmsSender.channelOf(req.text());
+        String channel = SolapiSmsSender.channelOf(req.text(), req.imageId());
         SmsCredentials cred = resolveCredentials(req.ownerId(), req.senderPhoneOverride());
 
         if (cred == null || !cred.usable()) {
@@ -98,13 +106,25 @@ public class SmsService {
             }
         }
 
-        SmsSender.SmsResult result = sender.send(cred, req.to(), req.text());
+        SmsSender.SmsResult result = sender.send(cred, req.to(), req.text(), req.imageId());
         MessageLog entry = base(req, result.channel(),
                 result.ok() ? MessageLog.STATUS_SENT : MessageLog.STATUS_FAILED, cred.system());
         entry.setProviderMessageId(result.providerMessageId());
         entry.setError(cut(result.error(), 500));
         logWriter.record(entry);
         return entry;
+    }
+
+    /**
+     * 첨부 이미지를 대행사에 올리고 참조용 id 를 돌려준다. 규격 변환({@link SmsImages})은 호출부에서 끝낸 뒤 넘긴다.
+     * 발송 때마다 올리면 느리고 비용도 낭비라 <b>리드폼 편집 중 한 번</b>만 올린다.
+     */
+    public SmsSender.UploadResult uploadAttachment(Long ownerId, byte[] jpeg, String name) {
+        SmsCredentials cred = resolveCredentials(ownerId, null);
+        if (cred == null || !cred.usable()) {
+            return SmsSender.UploadResult.failed("문자 발송 설정이 없습니다. 발신번호·API 키를 확인해주세요.");
+        }
+        return sender.upload(cred, jpeg, name);
     }
 
     // ---------- 자격증명 ----------

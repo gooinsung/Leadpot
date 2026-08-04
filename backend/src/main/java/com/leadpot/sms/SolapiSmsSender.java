@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -31,6 +32,8 @@ import org.springframework.stereotype.Component;
 public class SolapiSmsSender implements SmsSender {
 
     private static final String SEND_URL = "https://api.solapi.com/messages/v4/send";
+    /** 첨부 이미지 저장소. 올리면 fileId 를 주고, 발송 때 imageId 로 참조한다. */
+    private static final String STORAGE_URL = "https://api.solapi.com/storage/v1/files";
     /** SMS 최대 바이트. 넘으면 LMS 로 과금된다. */
     private static final int SMS_MAX_BYTES = 90;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -45,8 +48,8 @@ public class SolapiSmsSender implements SmsSender {
     }
 
     @Override
-    public SmsResult send(SmsCredentials cred, String to, String text) {
-        String channel = channelOf(text);
+    public SmsResult send(SmsCredentials cred, String to, String text, String imageId) {
+        String channel = channelOf(text, imageId);
         String recipient = PhoneNumbers.normalize(to);
         if (recipient == null) {
             return SmsResult.failed("수신번호 형식이 올바르지 않습니다.", channel);
@@ -56,11 +59,16 @@ public class SolapiSmsSender implements SmsSender {
             return SmsResult.failed("발신번호가 설정되지 않았거나 형식이 올바르지 않습니다.", channel);
         }
         try {
-            String body = "{\"message\":{"
-                    + "\"to\":" + json(recipient)
-                    + ",\"from\":" + json(from)
-                    + ",\"text\":" + json(text)
-                    + "}}";
+            StringBuilder message = new StringBuilder("{\"message\":{")
+                    .append("\"to\":").append(json(recipient))
+                    .append(",\"from\":").append(json(from))
+                    .append(",\"text\":").append(json(text));
+            if (notBlank(imageId)) {
+                // 첨부가 있으면 MMS 다. type 을 명시하지 않으면 대행사가 본문 길이로만 판정해 이미지가 빠진다.
+                message.append(",\"type\":\"MMS\"")
+                        .append(",\"imageId\":").append(json(imageId.trim()));
+            }
+            String body = message.append("}}").toString();
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(SEND_URL))
                     .timeout(Duration.ofSeconds(10))
@@ -79,9 +87,55 @@ public class SolapiSmsSender implements SmsSender {
         }
     }
 
+    /**
+     * 첨부 이미지를 솔라피 저장소에 올린다.
+     *
+     * <pre>
+     * POST https://api.solapi.com/storage/v1/files
+     * Body: {"file": "&lt;base64&gt;", "name": "...", "type": "MMS"}  →  응답의 fileId 를 발송 시 imageId 로 쓴다
+     * </pre>
+     */
+    @Override
+    public UploadResult upload(SmsCredentials cred, byte[] jpeg, String name) {
+        if (jpeg == null || jpeg.length == 0) {
+            return UploadResult.failed("올릴 파일이 비어 있습니다.");
+        }
+        try {
+            String body = "{\"file\":" + json(Base64.getEncoder().encodeToString(jpeg))
+                    + ",\"name\":" + json(name == null || name.isBlank() ? "attachment.jpg" : name)
+                    + ",\"type\":\"MMS\"}";
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(STORAGE_URL))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .header("Authorization", authorization(cred))
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (res.statusCode() / 100 != 2) {
+                return UploadResult.failed("HTTP " + res.statusCode() + " " + cut(res.body(), 300));
+            }
+            String fileId = extract(res.body(), "fileId");
+            return fileId == null
+                    ? UploadResult.failed("업로드 응답에 fileId 가 없습니다: " + cut(res.body(), 200))
+                    : UploadResult.ok(fileId);
+        } catch (Exception e) {
+            return UploadResult.failed(e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
+
     /** 본문 길이로 SMS/LMS 판정(과금 구분·화면 표시용). 대행사도 같은 기준으로 전환한다. */
     public static String channelOf(String text) {
         return byteLength(text) > SMS_MAX_BYTES ? "LMS" : "SMS";
+    }
+
+    /** 첨부가 있으면 길이와 무관하게 MMS(건당 60원)다. */
+    public static String channelOf(String text, String imageId) {
+        return notBlank(imageId) ? "MMS" : channelOf(text);
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     /** EUC-KR 기준 바이트 수(한글 2byte) — 국내 문자 과금 기준이다. */

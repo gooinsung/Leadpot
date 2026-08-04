@@ -8,6 +8,7 @@ import {
   listConsentDocs,
   testFormSheets,
   updateForm,
+  uploadSmsAttachment,
   type BlockType,
   type ConsentDocumentSummary,
   type ConsentItem,
@@ -144,7 +145,15 @@ export function FormEditPage() {
   const [smsLeadEnabled, setSmsLeadEnabled] = useState(false);
   const [smsLeadBody, setSmsLeadBody] = useState("");
   const [smsLeadPhoneVarKey, setSmsLeadPhoneVarKey] = useState("");
-  const [smsSenderPhone, setSmsSenderPhone] = useState("");
+  // 마케터·광고주 수신번호는 리드폼별로 지정한다(계정 연락처 하나로 묶지 않는다).
+  // 비우면 각자의 계정 연락처로 떨어진다.
+  const [smsMarketerPhone, setSmsMarketerPhone] = useState("");
+  const [smsAdvertiserPhone, setSmsAdvertiserPhone] = useState("");
+  // 첨부: 대행사에 올려둔 파일 id 만 저장한다(우리 서버에 원본을 두지 않는다).
+  // 미리보기는 방금 올린 파일에 한해 로컬 URL 로 보여준다 — id 로는 이미지를 되불러올 수 없다.
+  const [smsLeadImageId, setSmsLeadImageId] = useState("");
+  const [smsAttachPreview, setSmsAttachPreview] = useState("");
+  const [smsAttachBusy, setSmsAttachBusy] = useState(false);
   const [sheetsWebhookUrl, setSheetsWebhookUrl] = useState("");
   const [sheetsSecret, setSheetsSecret] = useState("");
   const [sheetTest, setSheetTest] = useState<{ ok: boolean; text: string } | null>(null);
@@ -180,7 +189,9 @@ export function FormEditPage() {
         setSmsLeadEnabled(f.settingsConfig?.smsLeadEnabled === true);
         setSmsLeadBody((f.settingsConfig?.smsLeadBody as string) || "");
         setSmsLeadPhoneVarKey((f.settingsConfig?.smsLeadPhoneVarKey as string) || "");
-        setSmsSenderPhone((f.settingsConfig?.smsSenderPhone as string) || "");
+        setSmsMarketerPhone((f.settingsConfig?.smsMarketerPhone as string) || "");
+        setSmsAdvertiserPhone((f.settingsConfig?.smsAdvertiserPhone as string) || "");
+        setSmsLeadImageId((f.settingsConfig?.smsLeadImageId as string) || "");
         setSheetsWebhookUrl((f.settingsConfig?.sheetsWebhookUrl as string) || "");
         setSheetsSecret((f.settingsConfig?.sheetsSecret as string) || "");
         setTracking(f.trackingConfig ?? null);
@@ -319,6 +330,21 @@ export function FormEditPage() {
   // 국내 문자 과금 기준(EUC-KR): 한글 2byte. 90byte 를 넘으면 LMS 로 전환되어 단가가 오른다.
   const smsBytes = [...smsLeadBody].reduce((n, ch) => n + (ch.charCodeAt(0) < 0x80 ? 1 : 2), 0);
 
+  /** 첨부 업로드 — 규격(JPG·200KB) 변환은 서버가 하므로 원본을 그대로 올린다. */
+  async function onAttach(file: File) {
+    setSmsAttachBusy(true);
+    try {
+      const r = await uploadSmsAttachment(file);
+      setSmsLeadImageId(r.imageId);
+      setSmsAttachPreview(URL.createObjectURL(file));
+      toast.success(`첨부했습니다. (${Math.round(r.bytes / 1024)}KB 로 변환) 저장해야 적용됩니다.`);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "첨부에 실패했습니다.");
+    } finally {
+      setSmsAttachBusy(false);
+    }
+  }
+
   const formData: FormInput = {
     name,
     formType,
@@ -338,7 +364,9 @@ export function FormEditPage() {
       smsLeadEnabled,
       smsLeadBody: smsLeadBody.trim(),
       smsLeadPhoneVarKey,
-      smsSenderPhone: smsSenderPhone.replace(/[^0-9]/g, ""),
+      smsMarketerPhone: smsMarketerPhone.replace(/[^0-9]/g, ""),
+      smsAdvertiserPhone: smsAdvertiserPhone.replace(/[^0-9]/g, ""),
+      smsLeadImageId,
       sheetsWebhookUrl: sheetsWebhookUrl.trim(),
       sheetsSecret: sheetsSecret.trim(),
     },
@@ -660,15 +688,43 @@ export function FormEditPage() {
                 <input type="checkbox" checked={smsMarketerEnabled} onChange={(e) => setSmsMarketerEnabled(e.target.checked)} /> 나(마케터)에게 접수 문자 받기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
-                내 계정에 등록된 연락처로 보냅니다. 개인정보는 넣지 않고 <b>접수 사실과 리드폼 이름만</b> 보냅니다.
+                개인정보는 넣지 않고 <b>접수 사실과 리드폼 이름만</b> 보냅니다.
               </p>
+              {smsMarketerEnabled && (
+                <label className="field" style={{ maxWidth: 320, marginTop: 10 }}>
+                  <span className="field-label">받을 번호</span>
+                  <input
+                    className="input"
+                    value={smsMarketerPhone}
+                    onChange={(e) => setSmsMarketerPhone(e.target.value)}
+                    placeholder="비우면 내 계정 연락처"
+                  />
+                  <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                    리드폼마다 다른 번호로 받을 수 있습니다(담당자별 운영).
+                  </span>
+                </label>
+              )}
 
               <label className="fr-check" style={{ marginTop: 14 }}>
-                <input type="checkbox" checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 이 리드폼의 광고주에게 접수 문자 보내기
+                <input type="checkbox" checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 광고주에게 접수 문자 보내기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
-                이 리드폼을 부여받은 광고주의 계정 연락처로 보냅니다. <b>광고주가 스스로 켤 수 없고 여기서만 켭니다.</b>
+                <b>광고주가 스스로 켤 수 없고 여기서만 켭니다.</b>
               </p>
+              {smsAdvertiserEnabled && (
+                <label className="field" style={{ maxWidth: 320, marginTop: 10 }}>
+                  <span className="field-label">광고주 번호</span>
+                  <input
+                    className="input"
+                    value={smsAdvertiserPhone}
+                    onChange={(e) => setSmsAdvertiserPhone(e.target.value)}
+                    placeholder="비우면 광고주 계정 연락처"
+                  />
+                  <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                    번호를 직접 넣으면 이 리드폼에 광고주가 연결돼 있지 않아도 보냅니다.
+                  </span>
+                </label>
+              )}
 
               <label className="fr-check" style={{ marginTop: 14 }}>
                 <input type="checkbox" checked={smsLeadEnabled} onChange={(e) => setSmsLeadEnabled(e.target.checked)} /> 고객(접수자)에게 문자 보내기
@@ -696,12 +752,57 @@ export function FormEditPage() {
                       placeholder={"{{f1}} 님, 접수해주셔서 감사합니다.\n빠르게 확인하여 연락드리겠습니다."}
                     />
                     <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
-                      {smsBytes <= 90
-                        ? `${smsBytes}/90 byte · SMS (건당 13원)`
-                        : `${smsBytes} byte · LMS 로 전환 (건당 29원)`}
+                      {smsLeadImageId
+                        ? `${smsBytes} byte · 첨부가 있어 MMS 로 전환 (건당 60원)`
+                        : smsBytes <= 90
+                          ? `${smsBytes}/90 byte · SMS (건당 13원)`
+                          : `${smsBytes} byte · LMS 로 전환 (건당 29원)`}
                       {" — 한글은 2byte 로 계산됩니다."}
                     </span>
                   </label>
+
+                  <div className="field">
+                    <span className="field-label">첨부 이미지 (선택)</span>
+                    {smsLeadImageId ? (
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        {smsAttachPreview ? (
+                          <img
+                            src={smsAttachPreview}
+                            alt="첨부 미리보기"
+                            style={{ width: 96, borderRadius: 8, border: "1px solid var(--border)" }}
+                          />
+                        ) : (
+                          <span className="dash-sub">첨부된 이미지가 있습니다.</span>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => {
+                            setSmsLeadImageId("");
+                            setSmsAttachPreview("");
+                          }}
+                        >
+                          첨부 제거
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        className="input"
+                        type="file"
+                        accept="image/*"
+                        disabled={smsAttachBusy}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void onAttach(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    )}
+                    <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                      명함 사진을 그대로 올리면 됩니다 — <b>JPG·200KB 규격은 서버가 맞춥니다.</b>{" "}
+                      첨부하면 <b>MMS(건당 60원)</b> 로 나갑니다. PDF 는 문자에 붙일 수 없습니다.
+                    </span>
+                  </div>
                   {answerBlocks.length > 0 && (
                     <div>
                       <span className="field-label" style={{ display: "block", marginBottom: 6 }}>
@@ -730,18 +831,6 @@ export function FormEditPage() {
                 </div>
               )}
 
-              <label className="field" style={{ maxWidth: 320, marginTop: 16 }}>
-                <span className="field-label">발신번호 (선택)</span>
-                <input
-                  className="input"
-                  value={smsSenderPhone}
-                  onChange={(e) => setSmsSenderPhone(e.target.value)}
-                  placeholder="비우면 기본 발신번호 사용"
-                />
-                <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
-                  발송 계정에 <b>사전등록된 번호</b>만 쓸 수 있습니다(전기통신사업법). 등록되지 않은 번호를 넣으면 발송이 실패합니다.
-                </span>
-              </label>
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }}>

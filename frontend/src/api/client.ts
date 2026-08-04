@@ -1420,4 +1420,29 @@ export function measureSms(text: string): Promise<SmsSendResult> {
   return request<SmsSendResult>(`/api/sms/measure?text=${encodeURIComponent(text)}`);
 }
 
+/** 고객향 문자에 붙일 첨부 이미지 업로드 결과. */
+export interface SmsAttachment {
+  /** 리드폼 설정에 저장할 값(대행사 파일 id) */
+  imageId: string;
+  /** 규격(JPG·200KB)에 맞춘 뒤의 크기 */
+  bytes: number;
+}
+
+/**
+ * 첨부 이미지 업로드. 규격 변환(JPG·200KB 이하)은 서버가 하므로 원본을 그대로 올리면 된다.
+ * 첨부가 붙은 문자는 MMS(건당 60원)로 나간다.
+ */
+export async function uploadSmsAttachment(file: File): Promise<SmsAttachment> {
+  const tokens = getTokens();
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE_URL}/api/sms/attachment`, {
+    method: "POST",
+    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+    body: fd,
+  });
+  if (!res.ok) throw await parseError(res);
+  return (await res.json()) as SmsAttachment;
+}
+
 export { BASE_URL };

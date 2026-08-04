@@ -61,37 +61,48 @@ public class LeadSmsPlanner {
         if (cfg == null) {
             return out;
         }
-        // 리드폼별 발신번호 지정(선택). 비우면 계정/시스템 기본 발신번호를 쓴다.
+        // 리드폼별 발신번호 지정. 화면에서는 아직 제공하지 않아 항상 비어 있고 시스템 발신번호로 나간다.
+        // 구조만 남겨둔다 — 위임 등록이 끝난 마케터에게 자기 번호를 열어줄 자리다(MESSAGING-PLAN §11).
         String senderPhone = str(cfg.get("smsSenderPhone"));
 
-        // ① 마케터 — 리드 발생 알림
+        // ① 마케터 — 리드 발생 알림. 리드폼에 지정한 번호가 우선이고, 비우면 계정 연락처로 떨어진다.
+        // 수신번호가 끝내 비어도 목록에는 넣는다 — 조용히 사라지지 않고 SKIPPED 로 이력에 남아야 한다.
         if (on(cfg.get("smsMarketerEnabled"))) {
-            User marketer = userRepository.findById(form.getOwnerId()).orElse(null);
-            if (marketer != null) {
-                out.add(request(form, lead, marketer.getPhone(),
-                        marketerText(form, lead), MessageLog.TO_MARKETER, senderPhone));
+            String to = str(cfg.get("smsMarketerPhone"));
+            if (to.isBlank()) {
+                User marketer = userRepository.findById(form.getOwnerId()).orElse(null);
+                to = marketer == null ? "" : nn(marketer.getPhone());
             }
+            out.add(request(form, lead, to, marketerText(form, lead), MessageLog.TO_MARKETER, senderPhone));
         }
 
-        // ② 광고주 — 마케터가 리드폼별로 켠 경우에만. 유효한 권한 + 활성 광고주 계정.
+        // ② 광고주 — 마케터가 리드폼별로 켠 경우에만.
+        // 번호를 직접 지정했으면 권한 연결이 없어도 보낸다(마케터가 광고주를 수신자로 지정하는 것뿐이라
+        // 광고주 계정이 꼭 있어야 할 이유가 없다). 비웠을 때만 연결된 광고주 계정 연락처를 찾는다.
         if (on(cfg.get("smsAdvertiserEnabled"))) {
-            AdvertiserFormGrant grant = grantRepository.findByFormId(form.getId()).orElse(null);
-            if (grant != null && grant.isEffective(Instant.now())) {
+            AdvertiserFormGrant grant = grantRepository.findByFormId(form.getId())
+                    .filter(g -> g.isEffective(Instant.now()))
+                    .orElse(null);
+            String to = str(cfg.get("smsAdvertiserPhone"));
+            if (to.isBlank() && grant != null) {
                 User adv = userRepository.findById(grant.getAdvertiserId()).orElse(null);
                 if (adv != null && adv.getRole() == Role.ADVERTISER && adv.isActive()) {
-                    out.add(request(form, lead, adv.getPhone(),
-                            advertiserText(grant, form, lead), MessageLog.TO_ADVERTISER, senderPhone));
+                    to = nn(adv.getPhone());
                 }
             }
+            out.add(request(form, lead, to, advertiserText(grant, form, lead), MessageLog.TO_ADVERTISER, senderPhone));
         }
 
         // ③ 고객(리드 본인) — 마케터가 쓴 템플릿. 본문이 비어 있으면 보내지 않는다.
         if (on(cfg.get("smsLeadEnabled"))) {
             String body = str(cfg.get("smsLeadBody"));
-            if (!body.isBlank()) {
+            String imageId = str(cfg.get("smsLeadImageId"));
+            // 본문이 비어도 첨부만 보내는 건 의미가 있다(명함 한 장). 둘 다 없을 때만 건너뛴다.
+            if (!body.isBlank() || !imageId.isBlank()) {
                 String to = leadPhone(form, lead, str(cfg.get("smsLeadPhoneVarKey")));
                 out.add(request(form, lead, to,
-                        TemplateRenderer.render(body, form, lead).text(), MessageLog.TO_LEAD, senderPhone));
+                        TemplateRenderer.render(body, form, lead).text(), MessageLog.TO_LEAD, senderPhone)
+                        .withImage(blankToNull(imageId)));
             }
         }
         return out;
@@ -120,7 +131,7 @@ public class LeadSmsPlanner {
     private SmsService.SmsRequest request(Form form, Lead lead, String to, String text,
             String recipientType, String senderPhone) {
         return new SmsService.SmsRequest(form.getOwnerId(), to, text, recipientType,
-                form.getId(), lead.getId(), null, null, blankToNull(senderPhone));
+                form.getId(), lead.getId(), null, null, blankToNull(senderPhone), null);
     }
 
     /**
@@ -134,8 +145,9 @@ public class LeadSmsPlanner {
                 + publicBaseUrl + "/leads";
     }
 
+    /** @param grant 없을 수 있다 — 마케터가 광고주 번호를 직접 넣으면 권한 연결 없이도 나간다. */
     private String advertiserText(AdvertiserFormGrant grant, Form form, Lead lead) {
-        String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
+        String name = grant != null && grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
                 ? grant.getDisplayName()
                 : nn(form.getName());
         return "[리드팟] 새 리드 접수\n"

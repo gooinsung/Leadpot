@@ -1,5 +1,6 @@
 package com.leadpot.sms;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
@@ -11,10 +12,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.leadpot.auth.Plan;
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
+import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 
 /** 문자 발송 상태·이력·테스트 발송 API (로그인 필요, 본인 계정 것만). */
@@ -98,6 +101,35 @@ public class SmsController {
         MessageLog entry = smsService.send(SmsService.SmsRequest.to(ownerId, to, text, MessageLog.TO_TEST));
         return new TestSendResult(MessageLog.STATUS_SENT.equals(entry.getStatus()), entry.getStatus(),
                 entry.getError(), entry.getChannel(), SolapiSmsSender.byteLength(text));
+    }
+
+    /**
+     * 첨부 업로드 결과.
+     *
+     * @param imageId 리드폼 설정에 저장할 값(대행사 fileId)
+     * @param bytes   변환 후 크기 — 원본이 얼마나 줄었는지 화면에 보여준다
+     */
+    public record AttachmentResult(String imageId, int bytes) {
+    }
+
+    /**
+     * 고객향 문자에 붙일 이미지 첨부. 규격(JPG·200KB)은 서버가 맞춘다 — 마케터는 명함 사진을 그대로 올리면 된다.
+     * 첨부가 붙은 문자는 <b>MMS(건당 60원)</b>로 나간다.
+     */
+    @PostMapping("/attachment")
+    public AttachmentResult attachment(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidSubmissionException("파일이 비어 있습니다.");
+        }
+        byte[] jpeg = SmsImages.toMmsJpeg(file.getBytes());
+        SmsSender.UploadResult result = smsService.uploadAttachment(userId(jwt), jpeg,
+                file.getOriginalFilename());
+        if (!result.ok()) {
+            // 대행사 사유를 그대로 올려보낸다(잔액·권한 등) — 감춰봐야 조치가 안 된다.
+            throw new InvalidSubmissionException("첨부 업로드에 실패했습니다. " + result.error());
+        }
+        return new AttachmentResult(result.fileId(), jpeg.length);
     }
 
     /** 본문 길이·과금 구분 미리보기(저장 없이). 편집기에서 SMS/LMS 전환을 바로 보여주기 위한 것. */

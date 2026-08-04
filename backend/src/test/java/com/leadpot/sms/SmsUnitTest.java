@@ -228,4 +228,74 @@ class SmsUnitTest {
             assertEquals("", planner.leadPhone(f, lead(answer("f1", "연락처", "")), ""));
         }
     }
+
+    @Nested
+    @DisplayName("SmsImages — MMS 첨부 규격(JPG·200KB) 맞추기")
+    class Attachments {
+
+        /** 압축이 잘 안 되도록 픽셀마다 색을 흩뿌린 이미지(단색이면 무조건 작아져 검증이 안 된다). */
+        private static byte[] noisyPng(int w, int h) throws java.io.IOException {
+            java.awt.image.BufferedImage img =
+                    new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.util.Random rnd = new java.util.Random(42);
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    img.setRGB(x, y, rnd.nextInt(0xFFFFFF));
+                }
+            }
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(img, "png", out);
+            return out.toByteArray();
+        }
+
+        @Test
+        void 큰_PNG_를_200KB_이하_JPG_로_바꾼다() throws Exception {
+            byte[] source = noisyPng(2400, 1800);
+            assertTrue(source.length > SmsImages.MAX_BYTES, "원본이 규격보다 커야 의미 있는 검증이다");
+
+            byte[] jpeg = SmsImages.toMmsJpeg(source);
+
+            assertTrue(jpeg.length <= SmsImages.MAX_BYTES,
+                    "변환 결과가 200KB 를 넘었다: " + jpeg.length);
+            // JPEG 매직 넘버(FF D8) — 실제로 JPG 로 나갔는지 확인한다.
+            assertEquals((byte) 0xFF, jpeg[0]);
+            assertEquals((byte) 0xD8, jpeg[1]);
+        }
+
+        @Test
+        void 이미_작은_이미지는_그대로_통과한다() throws Exception {
+            byte[] jpeg = SmsImages.toMmsJpeg(noisyPng(200, 150));
+            assertTrue(jpeg.length <= SmsImages.MAX_BYTES);
+        }
+
+        @Test
+        void 이미지가_아니면_사유를_알려준다() {
+            SmsImages.UnsupportedImageException e = org.junit.jupiter.api.Assertions.assertThrows(
+                    SmsImages.UnsupportedImageException.class,
+                    () -> SmsImages.toMmsJpeg("%PDF-1.4 not an image".getBytes()));
+            assertTrue(e.getMessage().contains("JPG"), "형식 안내가 사유에 담겨야 한다: " + e.getMessage());
+        }
+
+        @Test
+        void 빈_파일도_예외로_알린다() {
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    SmsImages.UnsupportedImageException.class, () -> SmsImages.toMmsJpeg(new byte[0]));
+        }
+    }
+
+    @Nested
+    @DisplayName("첨부가 붙으면 MMS 로 과금된다")
+    class MmsChannel {
+
+        @Test
+        void 첨부가_있으면_짧아도_MMS() {
+            assertEquals("MMS", SolapiSmsSender.channelOf("짧은 문자", "FILE123"));
+        }
+
+        @Test
+        void 첨부가_없으면_길이로_판정한다() {
+            assertEquals("SMS", SolapiSmsSender.channelOf("짧은 문자", null));
+            assertEquals("LMS", SolapiSmsSender.channelOf("가".repeat(46), "  "));
+        }
+    }
 }
