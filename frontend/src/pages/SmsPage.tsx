@@ -99,7 +99,7 @@ export function SmsPage() {
                     아직 문자를 보낼 수 없습니다. 발신번호가 등록되지 않았습니다.
                   </p>
                 )}
-                <div className="kpis" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 12 }}>
+                <div className="kpis kpis-3" style={{ marginBottom: 12 }}>
                   <div className="kpi">
                     <div className="k-label">이번 달 발송</div>
                     <div className="k-val">{status.used.toLocaleString()}</div>

@@ -138,8 +138,15 @@
   margin-top: 6px;
 }
 
+/* 지표가 3개인 화면(문자 발송 등). 인라인 style 로 칸 수를 박으면 아래 미디어쿼리를
+   이기지 못해 좁은 화면에서 그대로 3칸이 남는다 — 반드시 클래스로 준다. */
+.kpis-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 @media (max-width: 720px) {
-  .kpis {
+  .kpis,
+  .kpis-3 {
     grid-template-columns: repeat(2, 1fr);
   }
   .upcoming-grid {
@@ -163,6 +170,9 @@
 .app-shell > *:not(.app-nav) {
   min-width: 0;
   flex: 1;
+  /* ⚠️ min-width:0 만으로는 부족하다. 좁은 화면(세로 셸)에서 본문 폭이 내용의
+     max-content 로 잡혀 표 하나가 페이지 전체를 가로로 늘렸다. 폭을 셸에 못박는다. */
+  width: 100%;
 }
 .app-nav[data-has-nav="true"] {
   flex: none;

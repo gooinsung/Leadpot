@@ -45,8 +45,12 @@ td.num {
 }
 /* 표를 감싸는 카드 — 헤더 톤·행 hover 배경이 둥근 모서리를 넘지 않도록 클리핑.
    표를 카드에 넣을 때는 `card card-table` 을 쓴다(U3). */
+/* ⚠️ 표는 자기 폭만큼 부모를 밀어낸다 — overflow:hidden 은 넘친 부분을 자를 뿐
+   페이지가 넓어지는 걸 막지 못한다(문자 발송 이력에서 375px 화면이 643px 로 벌어졌다).
+   가로 스크롤 컨테이너로 만들어 표는 카드 안에서만 스크롤되게 한다.
+   (행 메뉴는 body 포털 + position:fixed 라 이 스크롤에 잘리지 않는다) */
 .card-table {
-  overflow: hidden;
+  overflow-x: auto;
 }
 .row-click {
   cursor: pointer;
