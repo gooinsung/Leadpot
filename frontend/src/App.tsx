@@ -79,6 +79,12 @@ function App() {
           </ProtectedRoute>
         }
       />
+      {/* 알림 링크 호환 — 문자·알림톡 본문이 `/leads` 를 가리킨다. 실제 리드 화면은 `/inbox` 다.
+          ⚠️ 카카오 알림톡 템플릿은 승인되면 수정할 수 없으므로(버튼 링크가 `/leads/#{url}`)
+             앱이 그 주소를 받아주는 쪽으로 맞춘다. `/leads/{값}` 꼴도 함께 흡수한다.
+             이 라우트가 없으면 `*` 로 떨어져 대시보드로 튕긴다(2026-08-04 실제 그 상태였다). */}
+      <Route path="/leads" element={<Navigate to="/inbox" replace />} />
+      <Route path="/leads/*" element={<Navigate to="/inbox" replace />} />
       <Route
         path="/forms"
         element={
