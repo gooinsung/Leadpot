@@ -46,10 +46,19 @@ import com.nimbusds.jose.proc.SecurityContext;
  * - 그 외 /api/** 는 유효한 액세스 토큰 필요 (OAuth2 Resource Server + HMAC HS256)
  * - CORS 는 여기서 일괄 관리(app.cors.allowed-origins). 비밀번호는 BCrypt(delegating).
  * <p>
- * <b>역할 기반 경로 인가(광고주 포털)</b>: 광고주 하위계정(ROLE_ADVERTISER)은
- * {@code /api/advertiser/**} 만 접근할 수 있고 나머지 {@code /api/**} 는 전부 차단된다.
- * 화이트리스트 방식이라 <b>새 마케터 API 가 추가돼도 광고주에게 자동으로 닫힌다</b>
- * (반대로 "광고주 금지 목록"을 열거하는 방식은 API 추가마다 구멍이 생긴다).
+ * <b>역할 기반 경로 인가</b>: 역할마다 자기 영역만 열어주는 화이트리스트 방식이다.
+ * <ul>
+ * <li>{@code ROLE_ADVERTISER} → {@code /api/advertiser/**} 만</li>
+ * <li>{@code ROLE_ADMIN} → {@code /api/admin/**} 만</li>
+ * <li>{@code ROLE_USER}(마케터) → 그 밖의 {@code /api/**}</li>
+ * </ul>
+ * 화이트리스트라 <b>새 마케터 API 가 추가돼도 광고주·운영자에게 자동으로 닫힌다</b>
+ * (반대로 "금지 목록"을 열거하는 방식은 API 추가마다 구멍이 생긴다).
+ * <p>
+ * ⚠️ <b>2026-08-05 변경</b>: 전에는 {@code /api/**} 가 {@code ROLE_ADMIN} 도 허용해서
+ * 운영자 계정이 <b>마케터 API 전부</b>(폼·랜딩·리드·통계)에 접근할 수 있었다. 운영자는 자기 리드폼이
+ * 없어 쓸 일이 없고, 남의 고객 개인정보에 닿는 경로를 줄이는 편이 맞아 {@code ROLE_USER} 로 좁혔다.
+ * 운영자가 마케터 기능을 써야 하면 <b>별도의 마케터 계정</b>을 쓴다.
  */
 @Configuration
 @EnableWebSecurity
@@ -88,13 +97,15 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
-                        // 내 정보 조회는 마케터·광고주 공통(로그인만 하면 됨)
+                        // 내 정보 조회는 마케터·광고주·운영자 공통(로그인만 하면 됨)
                         .requestMatchers("/api/auth/me").authenticated()
+                        // 운영자 전용 영역 — 계정·권한 관리
+                        .requestMatchers("/api/admin/**").hasAuthority(ROLE_ADMIN)
                         // 광고주 전용 영역
                         .requestMatchers("/api/advertiser/**").hasAuthority(ROLE_ADVERTISER)
-                        // 그 밖의 모든 API = 마케터(운영자) 전용.
-                        // 광고주는 화이트리스트 밖이므로 폼·랜딩·리드·통계·연동 등 전부 403.
-                        .requestMatchers("/api/**").hasAnyAuthority(ROLE_USER, ROLE_ADMIN)
+                        // 그 밖의 모든 API = 마케터 전용.
+                        // 광고주·운영자는 화이트리스트 밖이므로 폼·랜딩·리드·통계·연동 등 전부 403.
+                        .requestMatchers("/api/**").hasAuthority(ROLE_USER)
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
