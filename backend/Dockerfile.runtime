@@ -1,0 +1,26 @@
+# 배포용 런타임 전용 이미지 — **빌드하지 않는다.** 이미 만들어진 jar 만 담는다.
+#
+# 왜 따로 두는가 (2026-08-05):
+#   기존 backend/Dockerfile 은 컨테이너 안에서 Gradle 빌드를 돌린다. 로컬에서는 편하지만
+#   배포 VM(1 OCPU / 1GB, 가용 메모리 약 220MB)에서 그 빌드를 돌리는 게 문제였다:
+#     - 배포에 10~17분 걸린다(실측 2026-08-02 10:06 / 08-04 16:49)
+#     - 메모리가 빠듯해 빌드가 죽는다. 커넥션 풀 커밋(84aa289) 배포가 실패한 유력 원인이다
+#       (코드는 pull 됐는데 컨테이너는 옛 이미지 그대로였고 dmesg 에 OOM 기록은 없었다)
+#   → jar 은 GitHub Actions 러너에서 만들고(무료·빠름), VM 은 그 jar 을 실행만 한다.
+#
+# ⚠️ 로컬 개발은 여전히 backend/Dockerfile 을 쓴다(docker-compose.yml). 이 파일은
+#    docker-compose.prod.yml 전용이다. 둘을 합치지 말 것 — 로컬은 호스트에 JDK 가 없어도
+#    돌아가야 하고, 배포는 VM 에서 빌드하지 않아야 한다.
+#
+# ⚠️ app.jar 이 빌드 컨텍스트(backend/)에 미리 있어야 한다. 워크플로가 러너에서 만들어
+#    backend/build/libs/app.jar 로 올려둔다. 없으면 이 빌드는 실패한다(조용히 옛 이미지가
+#    남는 것보다 실패가 낫다).
+#
+# jar 은 아키텍처 무관(JVM 바이트코드)이라 이 이미지는 amd64·arm64 어디서나 돈다 —
+# 나중에 ARM 서버로 옮겨도 이 파일은 그대로다.
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY build/libs/app.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]

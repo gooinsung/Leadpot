@@ -1,9 +1,17 @@
 # 운영/테스트 배포용 — 백엔드 컨테이너만 실행(DB 는 Neon 사용).
 # 사용: 같은 폴더에 .env(시크릿, gitignore됨) 를 두고  ->  docker compose -f docker-compose.prod.yml up -d --build
 # 8080 은 127.0.0.1 에만 바인딩(외부 직접 노출 금지) → 앞단 Nginx 가 80/443 으로 프록시.
+#
+# ⚠️ 2026-08-05 부터 이 파일은 **VM 에서 빌드하지 않는다.** jar 은 GitHub Actions 러너가
+#    만들어 backend/build/libs/app.jar 로 올려두고, 여기서는 그 jar 을 담기만 한다
+#    (Dockerfile.runtime 주석 참고). 그래서 `--build` 는 몇 초로 끝난다.
+#    → **jar 이 없으면 빌드가 실패한다.** 수동으로 이 파일을 쓸 때는 러너와 같은 순서로
+#      jar 을 먼저 올려두거나, backend/Dockerfile(빌드 포함)로 되돌려야 한다.
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runtime
     image: leadpot-backend:latest
     container_name: leadpot-backend
     restart: unless-stopped
