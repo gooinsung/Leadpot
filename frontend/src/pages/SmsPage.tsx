@@ -70,7 +70,10 @@ export function SmsPage() {
     }
   }
 
-  const remaining = status && status.limit > 0 ? Math.max(0, status.limit - status.used) : null;
+  // ⚠️ 한도 규약이 V25 에서 바뀌었다 — **0 = 금지, -1 = 무제한**.
+  // 예전 코드는 `limit > 0` 이 아니면 무제한으로 표시해서, 금지(0)를 "무제한"으로 보여줬다.
+  // 남은 건수는 서버가 계산해 준 값(status.remaining)을 쓴다.
+  const unlimited = !!status && status.limit < 0;
 
   return (
     <>
@@ -94,10 +97,18 @@ export function SmsPage() {
             {status && (
               <div className="card card-pad">
                 <div className="card-h">발송 현황</div>
-                {!status.ready && (
+                {/* 권한이 없는 것과 설정이 없는 것은 원인·조치가 다르다 — 구분해서 안내한다.
+                    (권한은 마케터가 고칠 수 없고 운영자에게 문의해야 한다) */}
+                {!status.smsEnabled ? (
                   <p className="auth-error" style={{ marginBottom: 12 }}>
-                    아직 문자를 보낼 수 없습니다. 발신번호가 등록되지 않았습니다.
+                    이 계정은 문자 발송 권한이 없습니다. 필요하시면 운영자에게 문의해주세요.
                   </p>
+                ) : (
+                  !status.ready && (
+                    <p className="auth-error" style={{ marginBottom: 12 }}>
+                      아직 문자를 보낼 수 없습니다. 발신번호가 등록되지 않았습니다.
+                    </p>
+                  )
                 )}
                 <div className="kpis kpis-3" style={{ marginBottom: 12 }}>
                   <div className="kpi">
@@ -106,7 +117,9 @@ export function SmsPage() {
                   </div>
                   <div className="kpi">
                     <div className="k-label">남은 한도</div>
-                    <div className="k-val">{remaining === null ? "무제한" : remaining.toLocaleString()}</div>
+                    <div className="k-val">
+                      {unlimited ? "무제한" : status.remaining.toLocaleString()}
+                    </div>
                   </div>
                   <div className="kpi">
                     <div className="k-label">이번 달 실패</div>
@@ -115,8 +128,23 @@ export function SmsPage() {
                 </div>
                 <p className="dash-sub">
                   발신번호 <b>{status.senderPhone || "미설정"}</b> · 요금제 {status.plan}
-                  {status.limit > 0 && ` (월 ${status.limit.toLocaleString()}건)`}
+                  {unlimited
+                    ? " (월 한도 없음)"
+                    : status.limit > 0
+                      ? ` (월 ${status.limit.toLocaleString()}건)`
+                      : " (월 한도 0건 — 발송 불가)"}
                 </p>
+                {status.smsEnabled && (
+                  <p className="dash-sub" style={{ marginTop: 6 }}>
+                    허용 채널 <b>{status.allowedChannels.length ? status.allowedChannels.join(" · ") : "없음"}</b>
+                    {!status.allowedChannels.includes("LMS") && (
+                      <>
+                        {" "}— ⚠️ 본문이 <b>90byte</b>를 넘으면 LMS 로 나가는데 이 계정은 LMS 권한이 없어
+                        발송이 막힙니다.
+                      </>
+                    )}
+                  </p>
+                )}
                 {status.failed > 0 && (
                   <p className="dash-sub" style={{ marginTop: 6 }}>
                     ⚠️ 실패한 발송이 있습니다. 자동 재시도는 하지 않으니 아래 이력에서 사유를 확인해주세요.

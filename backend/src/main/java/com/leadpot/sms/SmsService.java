@@ -8,17 +8,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.leadpot.auth.Plan;
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
 
 /**
- * 문자 발송 진입점. 자격증명 해결 → 플랜 한도 검사 → 발송 → 이력 기록을 한 자리에서 처리한다.
+ * 문자 발송 진입점. 자격증명 해결 → <b>계정 권한 검사</b> → 발송 → 이력 기록을 한 자리에서 처리한다.
  *
  * <p>자격증명(docs/MESSAGING-PLAN.md §11): <b>리드팟 솔라피 계정 하나</b>로만 보낸다.
- * 우리 비용이므로 플랜별 월 한도를 적용한다.
+ * 우리 비용이므로 계정별로 발송 권한·허용 채널·월 상한을 적용한다({@link SmsPermissions}, V25).
  *
- * <p>발송은 예외를 던지지 않는다 — 리드 접수를 방해하면 안 되기 때문이다. 실패도 이력에 남긴다.
+ * <p><b>⚠️ 여기가 최종 관문이다.</b> 화면에서 숨기는 것만으로는 API 직접 호출로 뚫린다 —
+ * 발송 경로는 전부 {@link #send} 를 지나가므로 검사는 반드시 여기에 있어야 한다.
+ *
+ * <p>발송은 예외를 던지지 않는다 — 리드 접수를 방해하면 안 되기 때문이다. 실패·차단도 이력에 남긴다.
  */
 @Service
 public class SmsService {
@@ -35,8 +37,6 @@ public class SmsService {
     private final String systemApiKey;
     private final String systemApiSecret;
     private final String systemSenderPhone;
-    private final int monthlyFree;
-    private final int monthlyPro;
 
     public SmsService(SmsSender sender,
             UserRepository userRepository,
@@ -44,9 +44,7 @@ public class SmsService {
             MessageLogWriter logWriter,
             @Value("${app.sms.solapi.api-key:}") String systemApiKey,
             @Value("${app.sms.solapi.api-secret:}") String systemApiSecret,
-            @Value("${app.sms.solapi.sender-phone:}") String systemSenderPhone,
-            @Value("${app.sms.monthly-limit.free:100}") int monthlyFree,
-            @Value("${app.sms.monthly-limit.pro:5000}") int monthlyPro) {
+            @Value("${app.sms.solapi.sender-phone:}") String systemSenderPhone) {
         this.sender = sender;
         this.userRepository = userRepository;
         this.logRepository = logRepository;
@@ -54,8 +52,6 @@ public class SmsService {
         this.systemApiKey = systemApiKey;
         this.systemApiSecret = systemApiSecret;
         this.systemSenderPhone = systemSenderPhone;
-        this.monthlyFree = monthlyFree;
-        this.monthlyPro = monthlyPro;
     }
 
     /** 발송 요청 한 건. 트랜잭션 밖(비동기 스레드)으로 넘길 수 있는 불변 스냅샷이다. */
@@ -93,17 +89,25 @@ public class SmsService {
         String channel = SolapiSmsSender.channelOf(req.text(), req.imageId());
         SmsCredentials cred = resolveCredentials(req.ownerId(), req.senderPhoneOverride());
 
+        // 계정 권한(V25)을 가장 먼저 본다.
+        // ⚠️ 순서가 중요하다 — 자격증명 검사를 먼저 하면 권한 없는 계정에
+        // "발신번호·API 키를 확인해주세요"가 남아, 마케터가 고칠 수 없는 걸 고치려 들게 된다.
+        // 권한 판정은 자격증명과 무관하므로 앞에 두는 게 맞다.
+        //
+        // 우리 비용으로 나가는 발송(system 자격증명)에만 적용한다 — 나중에 마케터가 자기 대행사
+        // 계정을 연동하면 그 발송은 본인 비용이라 우리가 막을 이유가 없다.
+        // cred 가 null 이면 보수적으로 시스템 발송(=우리 비용)으로 본다.
+        if (cred == null || cred.system()) {
+            String denied = denyReason(req.ownerId(), channel);
+            if (denied != null) {
+                return skip(req, channel, denied);
+            }
+        }
         if (cred == null || !cred.usable()) {
             return skip(req, channel, "문자 발송 설정이 없습니다. 발신번호·API 키를 확인해주세요.");
         }
         if (PhoneNumbers.normalize(req.to()) == null) {
             return skip(req, channel, "수신번호가 없거나 형식이 올바르지 않습니다.");
-        }
-        if (cred.system()) {
-            String over = quotaError(req.ownerId());
-            if (over != null) {
-                return skip(req, channel, over);
-            }
         }
 
         SmsSender.SmsResult result = sender.send(cred, req.to(), req.text(), req.imageId());
@@ -151,7 +155,7 @@ public class SmsService {
         return cred != null && cred.usable();
     }
 
-    // ---------- 플랜 한도 ----------
+    // ---------- 계정 권한·한도 (V25) ----------
 
     /** 이번 달(서울 기준) 시스템 키 발송 건수. */
     @Transactional(readOnly = true)
@@ -159,23 +163,48 @@ public class SmsService {
         return logRepository.countSystemSentSince(ownerId, monthStart());
     }
 
-    /** 이 플랜의 월 상한. 0 이면 무제한. */
-    public int monthlyLimit(Plan plan) {
-        return plan == Plan.PRO ? monthlyPro : monthlyFree;
+    /**
+     * 발송을 막아야 하는 사유. 보낼 수 있으면 null.
+     *
+     * <p><b>⚠️ 플랜 기반 한도({@code app.sms.monthly-limit.*})는 V25 에서 제거했다.</b>
+     * 그 규약은 {@code limit <= 0} 을 <b>무제한</b>으로 봤는데 새 컬럼은 {@code 0} 이 <b>금지</b>다.
+     * 둘을 함께 두면 권한 없는 계정이 무제한이 되므로 계정 컬럼을 유일한 기준으로 삼는다.
+     */
+    @Transactional(readOnly = true)
+    public String denyReason(Long ownerId, String channel) {
+        User owner = userRepository.findById(ownerId).orElse(null);
+        if (owner == null) {
+            // 계정을 못 찾으면 막는다 — 못 찾았을 때 열리면 안 된다.
+            return "계정을 확인할 수 없어 문자를 보내지 않았습니다.";
+        }
+        // 사용량 조회는 권한·채널이 통과한 뒤에만 필요하다(불필요한 쿼리를 아낀다).
+        if (!SmsPermissions.enabled(owner) || !SmsPermissions.channelAllowed(owner, channel)) {
+            return SmsPermissions.denyReason(owner, channel, 0);
+        }
+        return SmsPermissions.denyReason(owner, channel, usedThisMonth(ownerId));
     }
 
-    /** 한도를 넘었으면 사유 문자열, 여유가 있으면 null. */
-    private String quotaError(Long ownerId) {
+    /** 이 계정의 문자 권한 현황(화면·API 안내용). */
+    @Transactional(readOnly = true)
+    public Permissions permissions(Long ownerId) {
         User owner = userRepository.findById(ownerId).orElse(null);
-        int limit = monthlyLimit(owner == null ? Plan.FREE : owner.getPlan());
-        if (limit <= 0) {
-            return null; // 0 = 무제한
-        }
         long used = usedThisMonth(ownerId);
-        if (used < limit) {
-            return null;
-        }
-        return "이번 달 문자 발송 한도(" + limit + "건)를 모두 사용했습니다. 요금제를 올리면 계속 보낼 수 있습니다.";
+        return new Permissions(
+                SmsPermissions.enabled(owner),
+                SmsPermissions.allowedChannels(owner).stream().toList(),
+                owner == null ? 0 : owner.getSmsMonthlyLimit(),
+                used,
+                SmsPermissions.remaining(owner, used));
+    }
+
+    /**
+     * 문자 권한 현황.
+     *
+     * @param monthlyLimit 월 상한. <b>0 = 금지, -1 = 무제한</b>
+     * @param remaining    남은 건수(무제한이면 {@link Integer#MAX_VALUE})
+     */
+    public record Permissions(boolean enabled, java.util.List<String> allowedChannels,
+            int monthlyLimit, long used, long remaining) {
     }
 
     private static Instant monthStart() {

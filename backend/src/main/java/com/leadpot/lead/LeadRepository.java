@@ -48,4 +48,13 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
             + "and l.deletedAt is null and l.createdAt >= :from and l.createdAt < :to")
     List<Lead> findByOwnerBetween(@Param("ownerId") Long ownerId,
             @Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
+
+    /**
+     * 계정별 활성 리드 수 — 어드민 계정 목록용. 한 방에 집계한다.
+     * <p>계정마다 {@link #countByOwner} 를 부르면 계정 수만큼 왕복이 생기는데,
+     * DB 가 원격(현재 Neon 싱가포르, 쿼리당 170~280ms)이라 20개 계정이면 수 초가 된다.
+     */
+    @Query("select f.ownerId, count(l) from Lead l join Form f on l.formId = f.id "
+            + "where l.deletedAt is null group by f.ownerId")
+    List<Object[]> countActiveGroupedByOwner();
 }

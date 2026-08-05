@@ -1,10 +1,14 @@
 package com.leadpot.form;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.auth.User;
+import com.leadpot.auth.UserRepository;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormRequest;
@@ -12,6 +16,7 @@ import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
 import com.leadpot.ipblock.SiteIpBlockHit;
 import com.leadpot.ipblock.SiteIpBlockService;
+import com.leadpot.sms.SmsPermissions;
 
 /** 리드폼 CRUD. 모든 조회/수정은 소유자(ownerId) 기준으로 제한한다(K5). */
 @Service
@@ -19,10 +24,13 @@ public class FormService {
 
     private final FormRepository formRepository;
     private final SiteIpBlockService siteIpBlockService;
+    private final UserRepository userRepository;
 
-    public FormService(FormRepository formRepository, SiteIpBlockService siteIpBlockService) {
+    public FormService(FormRepository formRepository, SiteIpBlockService siteIpBlockService,
+            UserRepository userRepository) {
         this.formRepository = formRepository;
         this.siteIpBlockService = siteIpBlockService;
+        this.userRepository = userRepository;
     }
 
     @Transactional(readOnly = true)
@@ -116,7 +124,50 @@ public class FormService {
         form.setSuccessConfig(req.successConfig());
         form.setTypeConfig(req.typeConfig());
         form.setStyleConfig(req.styleConfig());
-        form.setSettingsConfig(req.settingsConfig());
+        form.setSettingsConfig(sanitizeSmsSettings(form.getOwnerId(), req.settingsConfig()));
         form.setTrackingConfig(req.trackingConfig());
+    }
+
+    // ---------- 문자 발송 권한 반영 (V25) ----------
+
+    /** 리드폼 설정 중 문자 발송을 켜는 키들. 새 수신자 유형이 생기면 여기에 추가해야 한다. */
+    private static final List<String> SMS_TOGGLES =
+            List.of("smsMarketerEnabled", "smsAdvertiserEnabled", "smsLeadEnabled");
+    /** 첨부가 붙으면 채널이 MMS 로 바뀌므로 MMS 권한이 있어야 저장할 수 있다. */
+    private static final String SMS_ATTACHMENT = "smsLeadImageId";
+
+    /**
+     * 권한 없는 계정이 문자 발송을 켜 두지 못하게 저장 시점에 정리한다.
+     *
+     * <p><b>화면만 숨기면 API 직접 호출로 켤 수 있다</b>(docs/PROGRESS.md 문자 권한 절).
+     * 최종 관문은 {@code SmsService.send} 지만, 여기서도 막아야 "켜 둔 것처럼 보이는데 안 나가는" 상태를 없앤다.
+     *
+     * <p><b>⚠️ 거부(예외)가 아니라 강제 false 다.</b> V25 이후 모든 계정이 기본 off 이므로,
+     * 예외를 던지면 <b>예전에 켜 둔 리드폼을 아예 저장할 수 없게 된다</b>(마케터가 편집 자체를 못 함).
+     * 대신 저장 결과가 응답에 그대로 담기므로 화면에서 꺼진 것을 바로 확인할 수 있다.
+     */
+    private Map<String, Object> sanitizeSmsSettings(Long ownerId, Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return settings;
+        }
+        User owner = ownerId == null ? null : userRepository.findById(ownerId).orElse(null);
+        boolean enabled = SmsPermissions.enabled(owner);
+        boolean mmsAllowed = SmsPermissions.channelAllowed(owner, "MMS");
+        if (enabled && mmsAllowed) {
+            return settings; // 전부 허용된 계정 — 손대지 않는다
+        }
+        // 요청 맵을 그대로 고치지 않고 복사본을 만든다(호출부의 DTO 를 오염시키지 않는다).
+        Map<String, Object> copy = new LinkedHashMap<>(settings);
+        if (!enabled) {
+            for (String key : SMS_TOGGLES) {
+                if (Boolean.TRUE.equals(copy.get(key))) {
+                    copy.put(key, false);
+                }
+            }
+        }
+        if (!mmsAllowed) {
+            copy.remove(SMS_ATTACHMENT);
+        }
+        return copy;
     }
 }

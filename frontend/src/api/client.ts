@@ -1368,18 +1368,30 @@ export function acceptInvite(
 
 // ---------- 문자 발송 ----------
 
+/** 문자 채널. 단가가 크게 갈리므로 계정별로 허용 여부를 나눈다. */
+export type SmsChannel = "SMS" | "LMS" | "MMS";
+
 export interface SmsStatus {
-  /** 지금 문자를 보낼 수 있는 상태인가(자격증명·발신번호가 갖춰졌는가). */
+  /** 지금 문자를 보낼 수 있는 상태인가(자격증명 + 계정 권한). */
   ready: boolean;
   /** 실제로 나갈 발신번호(마스킹됨). */
   senderPhone: string;
   /** 이번 달 사용량. */
   used: number;
-  /** 이번 달 한도. 0 이면 무제한. */
+  /**
+   * 이번 달 한도.
+   * ⚠️ **0 = 금지, -1 = 무제한** (V25). 예전에는 0 이 무제한이었다 — 반대다.
+   */
   limit: number;
   /** 이번 달 실패 건수 — 자동 발송은 조용히 실패하므로 눈에 띄게 보여준다. */
   failed: number;
   plan: "FREE" | "PRO";
+  /** 계정에 문자 발송 권한이 있는가. false 면 화면에서 안내하고 기능을 숨긴다. */
+  smsEnabled: boolean;
+  /** 이 계정이 쓸 수 있는 채널. 여기 없는 채널로 판정되면 발송이 막힌다. */
+  allowedChannels: SmsChannel[];
+  /** 남은 발송 건수. */
+  remaining: number;
 }
 
 export interface MessageLogItem {
@@ -1443,6 +1455,60 @@ export async function uploadSmsAttachment(file: File): Promise<SmsAttachment> {
   });
   if (!res.ok) throw await parseError(res);
   return (await res.json()) as SmsAttachment;
+}
+
+// ---------- 운영자(어드민) ----------
+// ⚠️ 여기 API 는 ROLE_ADMIN 만 통과한다(서버 SecurityConfig). 화면 가드는 편의일 뿐이다.
+
+/** 어드민 계정 목록의 한 줄. 고객 개인정보(리드 내용)는 담지 않는다 — 건수만. */
+export interface AdminUserRow {
+  id: number;
+  email: string;
+  name: string;
+  role: Role;
+  plan: "FREE" | "PRO";
+  active: boolean;
+  subdomain: string | null;
+  createdAt: string | null;
+  formCount: number;
+  leadCount: number;
+  smsEnabled: boolean;
+  smsAllowedChannels: SmsChannel[];
+  /** ⚠️ 0 = 금지, -1 = 무제한. */
+  monthlyLimit: number;
+  smsUsedThisMonth: number;
+}
+
+export interface AdminAuditRow {
+  id: number;
+  adminId: number;
+  adminEmail: string | null;
+  targetId: number | null;
+  targetEmail: string | null;
+  action: string;
+  detail: string | null;
+  createdAt: string | null;
+}
+
+export function listAdminUsers(q?: string): Promise<AdminUserRow[]> {
+  const query = q && q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+  return request<AdminUserRow[]>(`/api/admin/users${query}`);
+}
+
+/**
+ * 문자 발송 권한 변경(부분 수정 — 넘기지 않은 필드는 그대로).
+ * `monthlyLimit` 은 **0 이 금지**이고 무제한은 음수다.
+ */
+export function updateAdminUserSms(
+  id: number,
+  input: { enabled?: boolean; allowedChannels?: SmsChannel[]; monthlyLimit?: number },
+): Promise<AdminUserRow> {
+  return request<AdminUserRow>(`/api/admin/users/${id}/sms`, { method: "PATCH", body: input });
+}
+
+export function listAdminAudit(targetId?: number): Promise<AdminAuditRow[]> {
+  const query = targetId ? `?targetId=${targetId}` : "";
+  return request<AdminAuditRow[]>(`/api/admin/audit${query}`);
 }
 
 export { BASE_URL };

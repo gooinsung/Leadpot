@@ -210,7 +210,10 @@ ssh -i <개인키> ubuntu@129.225.198.2
 | 워크플로 | 경로 | 실측 소요 | 다운타임 |
 |---|---|---|---|
 | `deploy-frontend.yml` | `frontend/**` | 1~2분 | **없음** |
-| `deploy-backend.yml` | `backend/**`·`docker-compose.prod.yml` | **10분 06초(08-02) / 16분 49초(08-04)** | **약 60~80초** |
+| `deploy-backend.yml` | `backend/**`·`docker-compose.prod.yml` | **2~3분** (러너 빌드로 전환 후, 2026-08-05) | **약 60~80초** |
+
+> ⚠️ **2026-08-05 이전 값은 10분 06초(08-02) / 16분 49초(08-04)** 였다. VM 안에서 Gradle 빌드를
+> 돌렸기 때문이다(C-3 개선안 1 적용 완료).
 
 저장소 시크릿: `VM_SSH_KEY` · `VM_HOST` · `VM_USER`.
 
@@ -221,16 +224,32 @@ ssh -i <개인키> ubuntu@129.225.198.2
 **백엔드가 끊기는 이유**: 컨테이너가 하나뿐이라 `up -d --build` 가 옛 컨테이너를 내리고 새 것을 올린다.
 그 사이 Nginx 가 502 를 낸다(2026-08-04 실측 60~80초). **이 순간 공개 폼 제출은 실패한다.**
 
-### C-3. ⚠️ 백엔드 배포가 느린 원인과 개선안
+### C-3. 백엔드 빌드는 러너에서 한다 (✅ 2026-08-05 적용)
 
-원인은 서버 사양이 아니라 **빌드 위치**다. [`backend/Dockerfile`](../backend/Dockerfile) 이 멀티스테이지로
-**VM 안에서 `./gradlew bootJar` 를 돈다.** 1 OCPU/1GB 인스턴스에서 이게 10분 이상을 먹는다.
-백엔드 파일이 많이 바뀌면 의존성 캐시 레이어까지 무효화돼 더 길어진다(08-04 에 16분 49초).
+**전에는** [`backend/Dockerfile`](../backend/Dockerfile) 이 멀티스테이지로 **VM 안에서 `./gradlew bootJar` 를 돌았다.**
+1 OCPU/1GB 인스턴스에서 이게 10분 이상을 먹었고, 백엔드 파일이 많이 바뀌면 의존성 캐시 레이어까지
+무효화돼 더 길어졌다(08-04 에 16분 49초). **가용 메모리 약 220MB 라 빌드가 죽어 배포가 실패하기도 했다**
+(커넥션 풀 커밋 `84aa289` — 코드는 pull 됐는데 컨테이너는 옛 이미지 그대로였다).
 
-**개선안 1 — 빌드를 러너로 옮긴다 (비용 0원, 10~17분 → 2~3분)**
-GitHub Actions 러너(4코어/16GB, 공개 저장소 무료)에서 JAR 또는 이미지를 만들고 VM 은 받아서 재기동만 한다.
-지금 워크플로가 이미 SSH 로 붙으므로 바꿀 범위는 "VM 에서 build" → "러너에서 build 후 전송" 정도다.
-**서버를 올려도 이걸 안 하면 여전히 3~4분 걸린다. 이게 먼저다.**
+**지금 구조**
+1. 러너에서 `chmod +x gradlew` → `./gradlew test bootJar` (테스트도 여기서 돈다 — 깨진 코드를 배포하지 않는다)
+2. jar 이름을 **`app.jar` 로 고정**해 `scp` 로 VM 의 `~/Leadpot/backend/build/libs/app.jar` 에 올린다
+3. VM 에서 `git pull` → `docker compose -f docker-compose.prod.yml up -d --build`
+   → [`backend/Dockerfile.runtime`](../backend/Dockerfile.runtime) 이 jar 을 **COPY 만** 하므로 몇 초로 끝난다
+4. `/api/health` 가 UP 이 될 때까지 최대 3분 대기 + 예열 로그(`[warmup]`) 확인
+
+**⚠️ 주의할 점**
+- **`backend/Dockerfile`(빌드 포함)은 그대로 남겨뒀다** — 로컬 `docker compose up` 이 호스트에 JDK 없이
+  돌아가야 하기 때문이다. 배포는 `Dockerfile.runtime`, 로컬은 `Dockerfile`. **둘을 합치지 말 것.**
+- `docker-compose.prod.yml` 을 **손으로 실행하면 실패한다** — `app.jar` 이 없기 때문이다.
+  수동 배포가 필요하면 jar 을 먼저 올리거나 `Dockerfile`(빌드 포함)로 되돌린다.
+- `gradlew` 는 저장소에 실행권한 없이(`100644`) 커밋돼 있어 러너에서 `chmod +x` 가 **필요하다.**
+- jar 은 아키텍처 무관(JVM 바이트코드)이라 **나중에 ARM 서버로 옮겨도 이 구조는 그대로 쓴다.**
+
+**⚠️ 되돌리기(롤백) 주의 — 마이그레이션은 revert 하면 안 된다**
+코드는 `git revert` + push 로 되돌릴 수 있지만, **이미 적용된 Flyway 마이그레이션 파일을 지우면
+Flyway 검증이 실패해 앱이 아예 기동하지 않는다**("applied migration not resolved locally").
+롤백할 때는 **마이그레이션 파일은 남기고 코드만** 되돌린다.
 
 **개선안 2 — 무중단 (서버 업그레이드 후)**
 새 컨테이너를 먼저 띄우고 헬스 통과 후 Nginx 를 전환한다. 컨테이너 둘을 동시에 띄워야 해서

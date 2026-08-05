@@ -154,10 +154,12 @@ npm run dev
 | 워크플로 | 트리거 경로 | 하는 일 | 소요 | 다운타임 |
 |---|---|---|---|---|
 | [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | 러너에서 `npm run build`(`VITE_API_BASE_URL=https://api.lead-pot.com` 주입) → rsync 로 VM `/var/www/leadpot/` | 1~2분 | **없음** (해시 자산 먼저 올리고 `index.html` 을 마지막에 교체) |
-| [deploy-backend.yml](.github/workflows/deploy-backend.yml) | `backend/**`·`docker-compose.prod.yml` | VM 에 SSH → `git pull` → `docker compose -f docker-compose.prod.yml up -d --build` → `/api/health` 가 `UP` 될 때까지 대기 | **10~17분** | **약 1분** |
+| [deploy-backend.yml](.github/workflows/deploy-backend.yml) | `backend/**`·`docker-compose.prod.yml` | **러너에서 테스트+`bootJar`** → jar 을 VM 으로 `scp` → SSH `git pull` → `docker compose -f docker-compose.prod.yml up -d --build`(jar COPY 만) → `/api/health` 가 `UP` 될 때까지 대기 | **2~3분** | **약 1분** |
 
 - 필요한 저장소 시크릿: `VM_SSH_KEY` · `VM_HOST` · `VM_USER`.
-- ⚠️ **백엔드는 느리고 끊긴다.** `backend/Dockerfile` 이 **VM 안에서 Gradle 빌드**를 돌기 때문(1 OCPU/1GB). 개선안은 DEPLOY.md 부록 C.
+- ⚠️ **백엔드 배포는 약 1분 끊긴다**(컨테이너가 하나뿐이라 내리고 올린다). 무중단은 서버 업그레이드 후 과제.
+- ⚠️ **로컬과 배포의 Dockerfile 이 다르다.** 로컬 `docker compose up` = `backend/Dockerfile`(컨테이너 안에서 빌드) / 배포 = `backend/Dockerfile.runtime`(만들어진 jar 만 COPY). **합치지 말 것** — 상세는 DEPLOY.md 부록 C-3.
+- ⚠️ **`docker-compose.prod.yml` 을 손으로 돌리면 실패한다** — `backend/build/libs/app.jar` 이 먼저 있어야 한다.
 - ⚠️ **시크릿은 자동 배포 대상이 아니다.** VM 의 `~/Leadpot/.env`(gitignore)에만 있어 값이 바뀌면 SSH 로 직접 고치고 재기동해야 한다.
 - DB 는 **Neon**(외부 호스팅 Postgres)이다. VM 안에 Postgres 컨테이너를 띄우지 않는다.
 

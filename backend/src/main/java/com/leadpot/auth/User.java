@@ -79,6 +79,24 @@ public class User {
     @Column(name = "brand_color", length = 20)
     private String brandColor;
 
+    /**
+     * 문자 발송 허용 여부(V25). 문자는 <b>리드팟 계정 하나로 나가고 비용을 우리가 부담</b>하므로
+     * 기본은 꺼져 있고 운영자가 계정별로 열어준다(docs/MESSAGING-PLAN.md §11).
+     */
+    @Column(name = "sms_enabled", nullable = false)
+    private boolean smsEnabled = false;
+
+    /** 허용 채널 CSV({@code SMS,LMS,MMS}). 빈 문자열이면 아무 채널도 못 보낸다. 판정은 {@code sms.SmsPermissions}. */
+    @Column(name = "sms_allowed_channels", nullable = false, length = 40)
+    private String smsAllowedChannels = "";
+
+    /**
+     * 계정별 월 발송 상한. <b>⚠️ 0 = 금지, 양수 = 그 건수, -1 = 무제한.</b>
+     * 예전 플랜 상수는 {@code 0} 을 무제한으로 해석했다 — 규약이 반대라 섞이면 사고가 난다(V25 주석 참고).
+     */
+    @Column(name = "sms_monthly_limit", nullable = false)
+    private int smsMonthlyLimit = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -160,8 +178,39 @@ public class User {
         return role;
     }
 
+    /** 운영자 승격(부트스트랩 전용). 되돌리려면 DB 를 직접 고쳐야 한다. */
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
     public Plan getPlan() {
         return plan;
+    }
+
+    // ---------- 문자 발송 권한 (V25) ----------
+
+    public boolean isSmsEnabled() {
+        return smsEnabled;
+    }
+
+    public void setSmsEnabled(boolean smsEnabled) {
+        this.smsEnabled = smsEnabled;
+    }
+
+    public String getSmsAllowedChannels() {
+        return smsAllowedChannels;
+    }
+
+    public void setSmsAllowedChannels(String smsAllowedChannels) {
+        this.smsAllowedChannels = smsAllowedChannels == null ? "" : smsAllowedChannels;
+    }
+
+    public int getSmsMonthlyLimit() {
+        return smsMonthlyLimit;
+    }
+
+    public void setSmsMonthlyLimit(int smsMonthlyLimit) {
+        this.smsMonthlyLimit = smsMonthlyLimit;
     }
 
     public Long getParentUserId() {
