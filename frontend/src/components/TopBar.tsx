@@ -59,6 +59,17 @@ const NAV: NavSection[] = [
 ];
 
 /**
+ * 운영자(ROLE_ADMIN) 내비. 마케터 메뉴와 <b>겹치지 않는다</b> —
+ * 서버가 {@code /api/**} 를 ROLE_USER 전용으로 좁혀서, 마케터 메뉴를 보여주면 전부 403 인 빈 화면이 된다.
+ */
+const ADMIN_NAV: NavSection[] = [
+  {
+    title: "운영자",
+    items: [{ to: "/admin", label: "계정 관리", desc: "문자 발송 권한을 통제합니다" }],
+  },
+];
+
+/**
  * 앱 공통 내비 — 넓은 화면은 **좌측 사이드바(LNB)**, 좁은 화면(≤900px)은 상단 바 + 드로어.
  * `.app-shell` 이 넓은 화면에서 가로 배치가 되어 이 사이드바와 `main` 이 나란히 놓인다.
  */
@@ -72,9 +83,10 @@ export function TopBar() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(readOpenSections);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // 광고주 하위계정에는 마케터 내비를 보여주지 않는다(서버에서도 접근이 차단되어 있다).
-  const isMarketer = user?.role === "USER" || user?.role === "ADMIN";
-  const showNav = !!user && isMarketer;
+  // 역할별 내비. 광고주는 전용 화면만 쓰므로 내비를 보여주지 않고,
+  // 운영자는 마케터 API 에 접근할 수 없어(SecurityConfig) 어드민 메뉴만 본다.
+  const nav = user?.role === "ADMIN" ? ADMIN_NAV : NAV;
+  const showNav = !!user && (user.role === "USER" || user.role === "ADMIN");
 
   // 경로가 바뀌면 열린 것들을 닫는다.
   useEffect(() => {
@@ -166,7 +178,7 @@ export function TopBar() {
         </Link>
         {showNav && (
           <nav className="lnb-nav">
-            {NAV.map((section, i) => {
+            {nav.map((section, i) => {
               const expanded = isSectionOpen(section);
               return (
                 <div key={section.title ?? i} className="lnb-section">
@@ -229,7 +241,7 @@ export function TopBar() {
         </div>
         {drawerOpen && showNav && (
           <div className="lnb-drawer">
-            {NAV.map((section, i) => (
+            {nav.map((section, i) => (
               <div key={section.title ?? i} className="drawer-group">
                 {section.title && <div className="drawer-group-title">{section.title}</div>}
                 {section.items.map((item) => (

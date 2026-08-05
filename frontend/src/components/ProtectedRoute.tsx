@@ -6,7 +6,10 @@ import { getTokens, type Role } from "../api/client";
 
 /** 역할별 기본 진입 화면. */
 export function homePathFor(role: Role | undefined): string {
-  return role === "ADVERTISER" ? "/client" : "/dashboard";
+  if (role === "ADVERTISER") return "/client";
+  // 운영자는 마케터 화면에 접근할 수 없다(서버가 403) → 어드민 화면이 기본이다.
+  if (role === "ADMIN") return "/admin";
+  return "/dashboard";
 }
 
 /** 역할별 로그인 화면. 광고주는 회원가입 링크가 없는 전용 화면으로 보낸다. */
@@ -50,8 +53,10 @@ export function ProtectedRoute({
   if (!user) {
     return <Navigate to={loginPathFor(role)} state={{ from: location.pathname }} replace />;
   }
-  // 관리자는 마케터 화면을 함께 쓸 수 있다.
-  const allowed = role === "USER" ? user.role === "USER" || user.role === "ADMIN" : user.role === role;
+  // ⚠️ 2026-08-05: 전에는 관리자가 마케터 화면을 함께 쓸 수 있었는데, 서버가 /api/** 를
+  // ROLE_USER 전용으로 좁혔다(SecurityConfig). 화면을 열어두면 전부 403 이 나는 빈 화면이 된다.
+  // 운영자가 마케터 기능을 써야 하면 별도의 마케터 계정을 쓴다.
+  const allowed = user.role === role;
   if (!allowed) {
     return <Navigate to={homePathFor(user.role)} replace />;
   }

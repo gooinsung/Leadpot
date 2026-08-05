@@ -23,6 +23,7 @@ import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdvertiserPreviewPage } from "./pages/AdvertiserPreviewPage";
 import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
 import { AdvertiserIntegrationsPage } from "./pages/AdvertiserIntegrationsPage";
@@ -234,6 +235,17 @@ function App() {
         element={
           <ProtectedRoute>
             <AdvertisersPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 운영자 전용 — 계정·문자 권한 관리. 서버는 /api/admin/** 를 ROLE_ADMIN 으로만 열어둔다.
+          ⚠️ 지금은 경로로 두고, 나중에 admin 서브도메인 + Cloudflare Access 를 씌울 때
+             이 라우트를 그 호스트에 매핑한다(2026-08-05 결정). */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute role="ADMIN">
+            <AdminUsersPage />
           </ProtectedRoute>
         }
       />
