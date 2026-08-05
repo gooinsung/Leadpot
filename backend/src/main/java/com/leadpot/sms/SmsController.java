@@ -41,16 +41,24 @@ public class SmsController {
     /**
      * 문자 발송 현황.
      *
-     * @param ready       지금 보낼 수 있는 상태인가
-     * @param senderPhone 실제로 나갈 발신번호(마스킹)
-     * @param used        이번 달 사용량
-     * @param limit       이번 달 한도. 0 이면 무제한
-     * @param failed      이번 달 실패 건수 — 자동 발송은 조용히 실패하므로 눈에 띄게 노출한다
+     * @param ready           지금 보낼 수 있는 상태인가(자격증명 + <b>계정 권한</b>)
+     * @param senderPhone     실제로 나갈 발신번호(마스킹)
+     * @param used            이번 달 사용량
+     * @param limit           이번 달 한도. <b>0 = 금지, -1 = 무제한</b> (V25 — 예전 규약과 반대다)
+     * @param failed          이번 달 실패 건수 — 자동 발송은 조용히 실패하므로 눈에 띄게 노출한다
+     * @param smsEnabled      계정에 문자 발송 권한이 있는가
+     * @param allowedChannels 이 계정이 쓸 수 있는 채널(SMS·LMS·MMS)
+     * @param remaining       남은 발송 건수
      */
     public record SmsStatus(boolean ready, String senderPhone,
-            long used, int limit, long failed, Plan plan) {
+            long used, int limit, long failed, Plan plan,
+            boolean smsEnabled, List<String> allowedChannels, long remaining) {
     }
 
+    /**
+     * 발송 현황 + 권한. <b>조회는 권한이 없어도 열어둔다</b> — 화면이 "권한이 없습니다"를 안내해야 하므로
+     * 여기서 막으면 이유를 보여줄 수 없다.
+     */
     @GetMapping("/status")
     public SmsStatus status(@AuthenticationPrincipal Jwt jwt) {
         Long ownerId = userId(jwt);
@@ -59,9 +67,11 @@ public class SmsController {
         SmsCredentials cred = smsService.resolveCredentials(ownerId, null);
         long failed = logRepository.countByOwnerIdAndStatusAndCreatedAtGreaterThanEqual(
                 ownerId, MessageLog.STATUS_FAILED, monthStart());
-        return new SmsStatus(cred.usable(),
-                PhoneNumbers.mask(cred.senderPhone()), smsService.usedThisMonth(ownerId),
-                smsService.monthlyLimit(me.getPlan()), failed, me.getPlan());
+        SmsService.Permissions perm = smsService.permissions(ownerId);
+        return new SmsStatus(cred.usable() && perm.enabled(),
+                PhoneNumbers.mask(cred.senderPhone()), perm.used(),
+                perm.monthlyLimit(), failed, me.getPlan(),
+                perm.enabled(), perm.allowedChannels(), perm.remaining());
     }
 
     /** 발송 이력 항목(수신번호는 마스킹된 값이다). */
@@ -89,6 +99,11 @@ public class SmsController {
     public record TestSendResult(boolean ok, String status, String error, String channel, int bytes) {
     }
 
+    /**
+     * 테스트 발송. <b>권한이 없으면 400 으로 즉시 거부</b>한다 —
+     * {@code smsService.send} 도 막지만, 테스트는 사용자가 직접 누른 동작이라
+     * SKIPPED 이력만 남기고 성공처럼 보이게 두면 안 된다.
+     */
     @PostMapping("/test")
     public TestSendResult test(@AuthenticationPrincipal Jwt jwt, @RequestBody TestSendRequest request) {
         Long ownerId = userId(jwt);
@@ -98,6 +113,8 @@ public class SmsController {
         String text = request.text() == null || request.text().isBlank()
                 ? "[리드팟] 문자 발송 연동 테스트입니다."
                 : request.text();
+        // 본문 길이·첨부로 채널이 결정되므로, 실제로 나갈 채널로 검사해야 한다.
+        requireChannel(ownerId, SolapiSmsSender.channelOf(text));
         MessageLog entry = smsService.send(SmsService.SmsRequest.to(ownerId, to, text, MessageLog.TO_TEST));
         return new TestSendResult(MessageLog.STATUS_SENT.equals(entry.getStatus()), entry.getStatus(),
                 entry.getError(), entry.getChannel(), SolapiSmsSender.byteLength(text));
@@ -114,11 +131,15 @@ public class SmsController {
 
     /**
      * 고객향 문자에 붙일 이미지 첨부. 규격(JPG·200KB)은 서버가 맞춘다 — 마케터는 명함 사진을 그대로 올리면 된다.
-     * 첨부가 붙은 문자는 <b>MMS(건당 60원)</b>로 나간다.
+     * 첨부가 붙은 문자는 <b>MMS</b>로 나간다.
+     *
+     * <p><b>⚠️ MMS 권한이 없으면 업로드부터 막는다.</b> 이 호출은 솔라피 저장소에 실제로 파일을 올리므로
+     * 발송 시점에 막는 것으로는 늦다(이미 외부에 올라가 있다).
      */
     @PostMapping("/attachment")
     public AttachmentResult attachment(@AuthenticationPrincipal Jwt jwt,
             @RequestParam("file") MultipartFile file) throws IOException {
+        requireChannel(userId(jwt), "MMS");
         if (file == null || file.isEmpty()) {
             throw new InvalidSubmissionException("파일이 비어 있습니다.");
         }
@@ -137,6 +158,17 @@ public class SmsController {
     public TestSendResult measure(@RequestParam String text) {
         return new TestSendResult(true, "MEASURED", null, SolapiSmsSender.channelOf(text),
                 SolapiSmsSender.byteLength(text));
+    }
+
+    /**
+     * 이 계정이 해당 채널을 보낼 수 있는지 확인하고, 아니면 사유와 함께 400.
+     * 화면만 숨기면 API 직접 호출로 뚫리므로 사용자 개시 동작마다 여기를 통과시킨다.
+     */
+    private void requireChannel(Long ownerId, String channel) {
+        String denied = smsService.denyReason(ownerId, channel);
+        if (denied != null) {
+            throw new InvalidSubmissionException(denied);
+        }
     }
 
     private static java.time.Instant monthStart() {
