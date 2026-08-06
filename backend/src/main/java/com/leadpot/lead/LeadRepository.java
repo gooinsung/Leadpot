@@ -50,6 +50,19 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
             @Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
 
     /**
+     * 자동 승인 대상 — 한 리드폼에서 <b>기준 시각 이후에 접수됐고</b> 유예 기간이 지난 활성 리드.
+     *
+     * <p>{@code since} 조건이 있어야 소급 적용을 막을 수 있다(설정을 켠 시점 이후 접수분만).
+     * 이유는 {@link AutoApproveSettings} 주석 참고. 경계는 양쪽 모두 포함이다.
+     */
+    @Query("select l from Lead l where l.formId = :formId and l.deletedAt is null "
+            + "and l.status in :statuses and l.createdAt >= :since and l.createdAt <= :cutoff")
+    List<Lead> findAutoApproveTargets(@Param("formId") Long formId,
+            @Param("statuses") java.util.Collection<String> statuses,
+            @Param("since") java.time.Instant since,
+            @Param("cutoff") java.time.Instant cutoff);
+
+    /**
      * 계정별 활성 리드 수 — 어드민 계정 목록용. 한 방에 집계한다.
      * <p>계정마다 {@link #countByOwner} 를 부르면 계정 수만큼 왕복이 생기는데,
      * DB 가 원격(현재 Neon 싱가포르, 쿼리당 170~280ms)이라 20개 계정이면 수 초가 된다.

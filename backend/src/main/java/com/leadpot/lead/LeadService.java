@@ -336,8 +336,18 @@ public class LeadService {
 
     // 리드 상태(CRM 진행) — 코드/한글
     public static final Set<String> STATUSES = Set.of("NEW", "IN_PROGRESS", "DONE", "SPAM");
+    /** 완료. 자동 승인({@link LeadAutoApproveRunner})이 넘기는 목표 상태다. */
+    public static final String STATUS_DONE = "DONE";
     private static final Map<String, String> STATUS_KR = Map.of(
             "NEW", "신규", "IN_PROGRESS", "상담중", "DONE", "완료", "SPAM", "불량");
+
+    /**
+     * 상태 코드 → 화면·이력용 한글 표기. 모르는 코드는 그대로 돌려준다.
+     * <p>이력 문구를 만드는 곳이 여러 군데(상태 변경·자동 승인)라 표기를 한곳에서 관리한다.
+     */
+    public static String statusLabel(String status) {
+        return STATUS_KR.getOrDefault(status, status);
+    }
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.of("Asia/Seoul"));
 
