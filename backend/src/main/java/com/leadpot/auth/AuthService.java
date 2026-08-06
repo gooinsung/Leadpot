@@ -1,5 +1,6 @@
 package com.leadpot.auth;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import com.leadpot.common.error.EmailAlreadyUsedException;
 import com.leadpot.common.error.InvalidCredentialsException;
 import com.leadpot.common.error.InvalidRefreshTokenException;
 import com.leadpot.common.error.InvalidSubdomainException;
+import com.leadpot.common.error.SignupClosedException;
 import com.leadpot.common.error.SubdomainTakenException;
 import com.leadpot.common.security.JwtService;
 
@@ -24,17 +26,32 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AdvertiserAuditService advertiserAudit;
+    private final boolean signupEnabled;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
-            AdvertiserAuditService advertiserAudit) {
+            AdvertiserAuditService advertiserAudit,
+            @Value("${app.auth.signup-enabled:false}") boolean signupEnabled) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.advertiserAudit = advertiserAudit;
+        this.signupEnabled = signupEnabled;
     }
 
+    /**
+     * 회원가입. <b>공개 가입이 닫혀 있으면 거부한다</b>({@code app.auth.signup-enabled}, 기본 false).
+     *
+     * <p>화면에서 가입 경로를 지우는 것만으로는 부족하다 — 이 엔드포인트는 공개라
+     * <b>curl 한 줄이면 계정이 만들어진다.</b> 최종 관문은 여기다.
+     *
+     * <p>⚠️ 광고주 초대 수락은 이 검사를 타지 않는다({@link com.leadpot.advertiser.AdvertiserInviteService}).
+     * 마케터가 발급한 초대 링크로만 만들어지므로 막을 이유가 없다.
+     */
     @Transactional
     public TokenResponse signup(SignupRequest req) {
+        if (!signupEnabled) {
+            throw new SignupClosedException("현재 회원가입을 받고 있지 않습니다. 운영자에게 문의해주세요.");
+        }
         String email = normalizeEmail(req.email());
         if (userRepository.existsByEmail(email)) {
             throw new EmailAlreadyUsedException("이미 사용 중인 이메일입니다.");

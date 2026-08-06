@@ -46,11 +46,10 @@ export function AboutPage() {
           <p className="about-lead">
             광고용 랜딩페이지를 만들고, 상담 신청(리드)을 모아, 관리까지 한곳에서 하는 서비스입니다.
           </p>
+          {/* 공개 회원가입 닫힘(2026-08-06) — '무료로 시작하기'(→/signup)를 뺐다.
+              다시 열 때 그 버튼을 되돌린다. */}
           <div className="about-cta">
-            <Link className="btn btn-primary" to="/signup">
-              무료로 시작하기
-            </Link>
-            <Link className="btn btn-ghost" to="/login">
+            <Link className="btn btn-primary" to="/login">
               로그인
             </Link>
           </div>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { ApiError } from "../api/client";
 import { TopBar } from "../components/TopBar";
@@ -73,8 +73,10 @@ export function LoginPage() {
             </button>
           </form>
 
+          {/* 공개 회원가입 닫힘(2026-08-06) — 계정은 운영자가 직접 만든다. 다시 열 때 이 문단을
+              /signup 링크로 되돌리고 App.tsx 의 라우트·서버 설정도 함께 되돌린다. */}
           <p className="auth-switch">
-            아직 계정이 없으신가요? <Link to="/signup">회원가입</Link>
+            계정이 필요하신가요? 운영자에게 문의해주세요.
           </p>
         </div>
       </main>

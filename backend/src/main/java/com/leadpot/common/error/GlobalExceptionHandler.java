@@ -75,6 +75,13 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of(HttpStatus.CONFLICT.value(), "PLAN_LIMIT_EXCEEDED", e.getMessage()));
     }
 
+    /** 공개 회원가입이 닫혀 있음. 인증 실패(401)가 아니라 <b>기능이 닫힌 것</b>이라 403 이다. */
+    @ExceptionHandler(SignupClosedException.class)
+    public ResponseEntity<ApiError> handleSignupClosed(SignupClosedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiError.of(HttpStatus.FORBIDDEN.value(), "SIGNUP_CLOSED", e.getMessage()));
+    }
+
     /** 상태 충돌(이미 부여된 리드폼, 중복 초대 등). */
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiError> handleConflict(ConflictException e) {
