@@ -9,16 +9,20 @@ import com.leadpot.lead.LeadNote;
  * <p>
  * 마케터는 모든 메모를 본다. {@code sharedWithAdvertiser} 가 true 면 광고주에게도 보이는 메모다
  * (광고주가 남긴 메모, 광고주 상태변경 이력). 마케터 내부 메모는 false.
+ * <p>
+ * {@code authorDeleted} 는 작성자 계정이 지워진 메모(광고주 하위계정 삭제)를 뜻한다 — 화면에서
+ * '삭제된 광고주'로 표시한다. 내용은 리드 이력이라 보존한다(V27).
  */
 public record LeadNoteResponse(
         Long id,
         String kind,
         String body,
         boolean sharedWithAdvertiser,
+        boolean authorDeleted,
         Instant createdAt) {
 
     public static LeadNoteResponse from(LeadNote n) {
         return new LeadNoteResponse(n.getId(), n.getKind(), n.getBody(),
-                n.isSharedWithAdvertiser(), n.getCreatedAt());
+                n.isSharedWithAdvertiser(), n.isAuthorDeleted(), n.getCreatedAt());
     }
 }

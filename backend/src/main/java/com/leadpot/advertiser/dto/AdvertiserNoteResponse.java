@@ -13,7 +13,9 @@ public record AdvertiserNoteResponse(
         Instant createdAt) {
 
     public static AdvertiserNoteResponse of(LeadNote note, Long advertiserId) {
+        // ⚠️ 비교 순서 주의: 작성자가 삭제된 메모는 ownerId 가 null 이다(V27).
+        //    note.getOwnerId().equals(...) 로 쓰면 그런 메모가 섞인 리드에서 목록 전체가 500 이 된다.
         return new AdvertiserNoteResponse(note.getId(), note.getKind(), note.getBody(),
-                note.getOwnerId().equals(advertiserId), note.getCreatedAt());
+                advertiserId != null && advertiserId.equals(note.getOwnerId()), note.getCreatedAt());
     }
 }
