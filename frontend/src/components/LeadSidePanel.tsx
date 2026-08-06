@@ -240,6 +240,7 @@ export function LeadSidePanel({
                   <span className="ip-note-meta">
                     {n.kind === "SYSTEM" ? "이력" : "메모"} ·{" "}
                     {new Date(n.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
+                    {n.authorDeleted && " · 삭제된 광고주"}
                     {n.kind === "MEMO" && (
                       <button className="tag-x ip-note-x" onClick={() => removeNote(n.id)} aria-label="메모 삭제">×</button>
                     )}

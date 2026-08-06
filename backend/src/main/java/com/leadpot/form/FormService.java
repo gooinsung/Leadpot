@@ -1,5 +1,6 @@
 package com.leadpot.form;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,7 +125,12 @@ public class FormService {
         form.setSuccessConfig(req.successConfig());
         form.setTypeConfig(req.typeConfig());
         form.setStyleConfig(req.styleConfig());
-        form.setSettingsConfig(sanitizeSmsSettings(form.getOwnerId(), req.settingsConfig()));
+        // 자동 승인 기준 시각(autoApproveSince)은 서버가 찍는다 — 소급 적용 방지.
+        // ⚠️ setSettingsConfig 보다 먼저 계산해야 한다: stamp 가 '저장 전' 설정을 봐야
+        //    계속 켜져 있던 리드폼의 기준 시각을 물려받을 수 있다.
+        Map<String, Object> settings = AutoApproveSettings.stamp(
+                form.getSettingsConfig(), req.settingsConfig(), Instant.now());
+        form.setSettingsConfig(sanitizeSmsSettings(form.getOwnerId(), settings));
         form.setTrackingConfig(req.trackingConfig());
     }
 

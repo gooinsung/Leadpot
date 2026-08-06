@@ -410,6 +410,8 @@ export interface LeadNote {
   body: string;
   /** true = 광고주에게도 보이는 메모(광고주 작성분·광고주 상태변경 이력) */
   sharedWithAdvertiser: boolean;
+  /** true = 작성자 계정이 삭제됨(광고주 하위계정 삭제). 내용은 이력이라 보존된다 */
+  authorDeleted: boolean;
   createdAt: string;
 }
 

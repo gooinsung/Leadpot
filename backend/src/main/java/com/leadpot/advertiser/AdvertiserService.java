@@ -36,6 +36,7 @@ import com.leadpot.common.error.PlanLimitExceededException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
 import com.leadpot.lead.Lead;
+import com.leadpot.lead.LeadNoteRepository;
 import com.leadpot.lead.LeadRepository;
 
 /**
@@ -53,6 +54,7 @@ public class AdvertiserService {
     private final AdvertiserAccessLogRepository logRepository;
     private final AdvertiserInviteRepository inviteRepository;
     private final LeadRepository leadRepository;
+    private final LeadNoteRepository noteRepository;
     private final AdvertiserLeadService leadService;
     private final AdvertiserAuditService audit;
     private final int maxFree;
@@ -64,6 +66,7 @@ public class AdvertiserService {
             AdvertiserAccessLogRepository logRepository,
             AdvertiserInviteRepository inviteRepository,
             LeadRepository leadRepository,
+            LeadNoteRepository noteRepository,
             AdvertiserLeadService leadService,
             AdvertiserAuditService audit,
             @Value("${app.advertiser.max-free}") int maxFree,
@@ -74,6 +77,7 @@ public class AdvertiserService {
         this.logRepository = logRepository;
         this.inviteRepository = inviteRepository;
         this.leadRepository = leadRepository;
+        this.noteRepository = noteRepository;
         this.leadService = leadService;
         this.audit = audit;
         this.maxFree = maxFree;
@@ -262,11 +266,20 @@ public class AdvertiserService {
     /**
      * 광고주 삭제. 권한(grants)은 FK cascade 로 함께 지워지고,
      * <b>감사 로그는 FK 가 없어 그대로 남는다</b>(의도된 동작 — 이력 보존).
+     *
+     * <p><b>⚠️ 리드 메모/이력은 지우지 않고 작성자만 비운다</b>(사용자 결정 2026-08-06).
+     * 광고주가 남긴 상담 메모와 상태변경 이력은 마케터의 리드 이력이라 함께 지우면 정보가 사라진다.
+     * 화면에는 '삭제된 광고주'로 표시된다.
+     *
+     * <p><b>이 한 줄이 없으면 500 이 난다.</b> {@code lead_notes.owner_id} 가 {@code users(id)} 를
+     * 참조하므로, 메모를 한 번이라도 남긴 광고주는 삭제가 FK 위반으로 막힌다(2026-08-06 실제 발생).
+     * DB 쪽도 {@code on delete set null} 로 바꿔 안전망을 뒀지만(V27), 삭제 순서를 코드에 남긴다.
      */
     @Transactional
     public void delete(Long marketerId, Long advertiserId) {
         User a = loadOwned(marketerId, advertiserId);
         grantRepository.deleteByAdvertiserId(a.getId());
+        noteRepository.clearOwner(a.getId());
         userRepository.delete(a);
     }
 

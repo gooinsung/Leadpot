@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
-import { SignupPage } from "./pages/SignupPage";
+// SignupPage 는 회원가입을 닫으면서 라우트에서 뺐다(아래 /signup 주석). 파일은 남아 있다.
 import { AboutPage } from "./pages/AboutPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LeadInboxPage } from "./pages/LeadInboxPage";
@@ -61,7 +61,12 @@ function App() {
       {/* 루트는 역할에 따라 분기(마케터→대시보드 / 광고주→/client) */}
       <Route path="/" element={<RoleHomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
+      {/*
+        공개 회원가입 닫힘 (2026-08-06 사용자 결정 — 운영자가 계정을 직접 관리).
+        pages/SignupPage.tsx 는 지우지 않고 남겨둔다 — 다시 열 때 import 와 이 줄만 되돌리면 된다.
+        ⚠️ 화면만 막는 것으로는 부족하다. 서버도 app.auth.signup-enabled=false 로 거부한다.
+      */}
+      <Route path="/signup" element={<Navigate to="/login" replace />} />
       {/* 서비스 소개 — 비로그인 공개(카카오 채널 인증 제출 URL) */}
       <Route path="/about" element={<AboutPage />} />
       <Route

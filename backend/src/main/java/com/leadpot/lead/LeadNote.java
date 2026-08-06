@@ -34,7 +34,13 @@ public class LeadNote {
     @Column(name = "lead_id", nullable = false)
     private Long leadId;
 
-    @Column(name = "owner_id", nullable = false)
+    /**
+     * 작성자. <b>null 이면 작성자 계정이 삭제된 것</b>(주로 광고주 하위계정 삭제, V27).
+     * 메모 본문은 마케터의 리드 이력이라 보존하고 작성자만 비운다 — 자세한 배경은 V27 마이그레이션 주석.
+     * <p>⚠️ 이 값을 쓰는 쪽은 <b>null 을 먼저 처리해야 한다.</b> {@code note.getOwnerId().equals(x)} 처럼
+     * 쓰면 작성자가 지워진 메모에서 NPE 가 난다 — 비교는 항상 인자 쪽을 앞에 둘 것.
+     */
+    @Column(name = "owner_id")
     private Long ownerId;
 
     @Column(nullable = false, length = 20)
@@ -97,6 +103,11 @@ public class LeadNote {
     /** 광고주에게 보여도 되는 메모인지. */
     public boolean isSharedWithAdvertiser() {
         return VISIBILITY_ALL.equals(visibility);
+    }
+
+    /** 작성자 계정이 삭제됐는지(주로 광고주 하위계정 삭제). 화면에 '삭제된 광고주'로 표시한다. */
+    public boolean isAuthorDeleted() {
+        return ownerId == null;
     }
 
     public Instant getCreatedAt() {

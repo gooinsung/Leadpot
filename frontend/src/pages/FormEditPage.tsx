@@ -137,6 +137,10 @@ export function FormEditPage() {
   const [requirePhone, setRequirePhone] = useState(false);
   const [allowSameIp, setAllowSameIp] = useState(true);
   const [ipDedupDays, setIpDedupDays] = useState(0);
+  // 자동 승인 기간 — 켜면 접수 후 N일이 지난 신규·상담중 리드를 서버가 '완료'로 넘긴다.
+  // 기준 시각(autoApproveSince)은 서버가 찍으므로 여기서 보내지 않는다(소급 적용 방지).
+  const [autoApproveEnabled, setAutoApproveEnabled] = useState(false);
+  const [autoApproveDays, setAutoApproveDays] = useState(7);
   const [notifyEnabled, setNotifyEnabled] = useState(true);
   const [sheetsEnabled, setSheetsEnabled] = useState(false);
   // 문자 발송 — 건당 비용이 들기 때문에 셋 다 기본 off 다.
@@ -182,6 +186,8 @@ export function FormEditPage() {
         setRequirePhone(Boolean(f.requirePhoneVerification));
         setAllowSameIp(f.settingsConfig?.allowSameIp !== false);
         setIpDedupDays(Number(f.settingsConfig?.ipDedupDays) || 0);
+        setAutoApproveEnabled(f.settingsConfig?.autoApproveEnabled === true);
+        setAutoApproveDays(Number(f.settingsConfig?.autoApproveDays) || 7);
         setNotifyEnabled(f.settingsConfig?.notifyEnabled !== false);
         setSheetsEnabled(f.settingsConfig?.sheetsEnabled === true);
         setSmsMarketerEnabled(f.settingsConfig?.smsMarketerEnabled === true);
@@ -357,6 +363,8 @@ export function FormEditPage() {
     settingsConfig: {
       allowSameIp,
       ipDedupDays,
+      autoApproveEnabled,
+      autoApproveDays,
       notifyEnabled,
       sheetsEnabled,
       smsMarketerEnabled,
@@ -669,6 +677,43 @@ export function FormEditPage() {
                   </div>
                 )}
               </div>
+              <div className="dedup-row" style={{ marginTop: 14 }}>
+                <label className="fr-check">
+                  <input
+                    type="checkbox"
+                    checked={autoApproveEnabled}
+                    onChange={(e) => setAutoApproveEnabled(e.target.checked)}
+                  />{" "}
+                  자동 승인 기간 사용
+                </label>
+                {autoApproveEnabled && (
+                  <div className="dedup-days">
+                    <span className="dedup-days-label">접수 후</span>
+                    <input
+                      className="input dedup-days-input"
+                      type="number"
+                      min={1}
+                      max={3650}
+                      value={autoApproveDays}
+                      onChange={(e) => setAutoApproveDays(Number(e.target.value) || 1)}
+                    />
+                    <span className="dedup-days-label">일</span>
+                  </div>
+                )}
+              </div>
+              <p className="dash-sub" style={{ marginTop: 6 }}>
+                {autoApproveEnabled ? (
+                  <>
+                    접수 후 <b>{autoApproveDays}일</b>이 지나도 <b>신규·상담중</b>인 리드를 자동으로 <b>완료</b>로 넘깁니다.
+                    리드 이력에 자동 메모가 남고, <b>불량·이미 완료·휴지통</b> 리드는 건드리지 않습니다.
+                    <br />
+                    <b>지금 쌓여 있는 리드에는 적용되지 않습니다</b> — 저장 이후 접수된 리드부터 대상입니다.
+                    (껐다 다시 켜면 그 시점부터 새로 시작합니다)
+                  </>
+                ) : (
+                  <>켜면 오래 방치된 리드를 지정한 일수 뒤에 자동으로 완료 처리합니다. 끄면 자동 처리를 하지 않습니다.</>
+                )}
+              </p>
               <label className="fr-check" style={{ marginTop: 14 }}>
                 <input type="checkbox" checked={notifyEnabled} onChange={(e) => setNotifyEnabled(e.target.checked)} /> 텔레그램 알림 받기
               </label>
