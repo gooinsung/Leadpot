@@ -25,6 +25,7 @@ import com.leadpot.advertiser.dto.AdvertiserLeadResponse;
 import com.leadpot.advertiser.dto.AdvertiserMeResponse;
 import com.leadpot.advertiser.dto.AdvertiserNoteResponse;
 import com.leadpot.advertiser.dto.AdvertiserReportResponse;
+import com.leadpot.advertiser.dto.NotifyPhoneRequest;
 import com.leadpot.common.ClientIp;
 import com.leadpot.integration.IntegrationService;
 import com.leadpot.integration.dto.IntegrationRequest;
@@ -70,6 +71,18 @@ public class AdvertiserPortalController {
     @GetMapping("/forms")
     public List<AdvertiserFormResponse> forms(@AuthenticationPrincipal Jwt jwt) {
         return leadService.forms(userId(jwt));
+    }
+
+    /**
+     * 이 리드폼의 접수 알림을 받을 <b>내</b> 번호를 등록·변경한다. 빈 값이면 지워지고 발송이 멈춘다(V28).
+     *
+     * <p>마케터는 이 번호를 대신 넣을 수 없다 — 광고주 본인이 넣는 행위가 수신 동의 근거다
+     * (docs/MESSAGING-PLAN.md §9).
+     */
+    @PutMapping("/forms/{formId}/notify-phone")
+    public AdvertiserFormResponse updateNotifyPhone(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long formId, @RequestBody NotifyPhoneRequest request) {
+        return leadService.updateNotifyPhone(userId(jwt), formId, request.phone());
     }
 
     /** 대시보드 요약(미확인 건수·오늘 접수·상태 분포). */

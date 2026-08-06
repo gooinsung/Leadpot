@@ -47,6 +47,19 @@ public class AdvertiserFormGrant {
     @Column(name = "can_export", nullable = false)
     private boolean canExport = true;
 
+    /**
+     * 광고주가 <b>직접 등록한</b> 접수 알림 수신번호(숫자만). 비어 있으면 발송하지 않는다.
+     * <p>
+     * 마케터가 대신 넣을 수 없다 — 광고주 본인이 넣는 행위가 곧 수신 동의 근거다(V28, MESSAGING-PLAN §9).
+     * 채널 중립 이름이다: 지금은 문자, 이후 알림톡으로 옮겨도 그대로 쓴다.
+     */
+    @Column(name = "notify_phone", length = 20)
+    private String notifyPhone;
+
+    /** 번호를 등록·변경한 시각 = 수신 동의 시점. 분쟁·재심사 때 근거로 쓴다. */
+    @Column(name = "notify_phone_at")
+    private Instant notifyPhoneAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -63,6 +76,22 @@ public class AdvertiserFormGrant {
     /** 만료되지 않은 유효한 권한인지. */
     public boolean isEffective(Instant now) {
         return expiresAt == null || expiresAt.isAfter(now);
+    }
+
+    /**
+     * 광고주가 자기 수신번호를 등록·변경·삭제한다. 빈 값이면 지우고 발송을 멈춘다.
+     *
+     * @param phone 정규화된 번호(숫자만) 또는 null/빈 값
+     */
+    public void setNotifyPhone(String phone, Instant at) {
+        boolean blank = phone == null || phone.isBlank();
+        this.notifyPhone = blank ? null : phone;
+        this.notifyPhoneAt = blank ? null : at;
+    }
+
+    /** 이 리드폼으로 광고주 알림을 실제로 보낼 수 있는 상태인지(= 광고주가 번호를 등록했는지). */
+    public boolean hasNotifyPhone() {
+        return notifyPhone != null && !notifyPhone.isBlank();
     }
 
     public void apply(String displayName, Instant expiresAt, boolean canStatus, boolean canMemo, boolean canExport) {
@@ -103,6 +132,14 @@ public class AdvertiserFormGrant {
 
     public boolean isCanExport() {
         return canExport;
+    }
+
+    public String getNotifyPhone() {
+        return notifyPhone;
+    }
+
+    public Instant getNotifyPhoneAt() {
+        return notifyPhoneAt;
     }
 
     public Instant getCreatedAt() {

@@ -4,12 +4,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
   createForm,
+  getAdvertiserNotifyStatus,
   getForm,
   getSmsStatus,
   listConsentDocs,
   testFormSheets,
   updateForm,
   uploadSmsAttachment,
+  type AdvertiserNotifyStatus,
   type BlockType,
   type ConsentDocumentSummary,
   type ConsentItem,
@@ -25,6 +27,40 @@ import { CompletionView } from "../components/formRenderers/CompletionView";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { toast } from "../lib/toast";
+
+/**
+ * 광고주 접수 알림 수신 상태 안내(V28).
+ *
+ * 마케터가 광고주 번호를 대신 넣던 칸을 없앤 자리다. 남의 번호로 보내면 수신 동의 근거가 없고,
+ * 발신 채널이 리드팟 명의 하나라 신고 한 번에 전 고객 알림이 막힌다(docs/MESSAGING-PLAN.md §9).
+ * 광고주가 포털에서 직접 등록해야 발송되므로, 여기서는 "지금 보낼 수 있는 상태인지"만 알려준다.
+ */
+function AdvertiserNotifyNotice({ status }: { status: AdvertiserNotifyStatus | null }) {
+  if (!status) return null;
+
+  if (!status.linked) {
+    return (
+      <p className="dash-sub" style={{ marginTop: 10 }}>
+        ⚠️ 이 리드폼에 <b>연결된 광고주가 없어 발송되지 않습니다.</b> 켜 둔 상태는 유지되니,
+        <Link to="/advertisers"> 광고주 관리</Link>에서 초대해 이 리드폼 권한을 주면 그때부터 동작합니다.
+      </p>
+    );
+  }
+  if (!status.registered) {
+    return (
+      <p className="dash-sub" style={{ marginTop: 10 }}>
+        ⚠️ <b>{status.advertiserName}</b> 님이 아직 받을 번호를 등록하지 않아 <b>발송되지 않습니다.</b>{" "}
+        광고주가 광고주 페이지 &gt; 알림 설정에서 본인 번호를 넣으면 그때부터 발송됩니다.
+      </p>
+    );
+  }
+  return (
+    <p className="dash-sub" style={{ marginTop: 10 }}>
+      ✅ <b>{status.advertiserName}</b> 님이 등록한 번호(<code>{status.phoneMasked}</code>)로 발송됩니다.
+      번호 변경·해제는 광고주 본인만 할 수 있습니다.
+    </p>
+  );
+}
 
 function defaultConsentItems(): ConsentItem[] {
   return [
@@ -155,10 +191,11 @@ export function FormEditPage() {
   const [smsLeadEnabled, setSmsLeadEnabled] = useState(false);
   const [smsLeadBody, setSmsLeadBody] = useState("");
   const [smsLeadPhoneVarKey, setSmsLeadPhoneVarKey] = useState("");
-  // 마케터·광고주 수신번호는 리드폼별로 지정한다(계정 연락처 하나로 묶지 않는다).
-  // 비우면 각자의 계정 연락처로 떨어진다.
+  // 마케터 수신번호는 리드폼별로 지정한다(계정 연락처 하나로 묶지 않는다). 비우면 계정 연락처로 떨어진다.
+  // ⚠️ 광고주 번호는 여기에 없다 — 광고주가 포털에서 본인이 등록한다(V28, MESSAGING-PLAN §9).
+  //    남의 번호를 마케터가 대신 넣으면 수신 동의 근거가 없다. 상태만 아래 notifyStatus 로 보여준다.
   const [smsMarketerPhone, setSmsMarketerPhone] = useState("");
-  const [smsAdvertiserPhone, setSmsAdvertiserPhone] = useState("");
+  const [notifyStatus, setNotifyStatus] = useState<AdvertiserNotifyStatus | null>(null);
   // 첨부: 대행사에 올려둔 파일 id 만 저장한다(우리 서버에 원본을 두지 않는다).
   // 미리보기는 방금 올린 파일에 한해 로컬 URL 로 보여준다 — id 로는 이미지를 되불러올 수 없다.
   const [smsLeadImageId, setSmsLeadImageId] = useState("");
@@ -178,6 +215,13 @@ export function FormEditPage() {
   useEffect(() => {
     getSmsStatus().then(setSmsStatus).catch(() => {});
   }, []);
+
+  // 광고주 접수 알림 수신 상태(V28). 새 리드폼은 아직 광고주를 붙일 수 없으므로 건너뛴다.
+  // 실패해도 화면을 막지 않는다 — 안내가 안 뜰 뿐이다.
+  useEffect(() => {
+    if (isNew) return;
+    getAdvertiserNotifyStatus(Number(id)).then(setNotifyStatus).catch(() => {});
+  }, [id, isNew]);
 
   useEffect(() => {
     if (isNew) return;
@@ -208,7 +252,6 @@ export function FormEditPage() {
         setSmsLeadBody((f.settingsConfig?.smsLeadBody as string) || "");
         setSmsLeadPhoneVarKey((f.settingsConfig?.smsLeadPhoneVarKey as string) || "");
         setSmsMarketerPhone((f.settingsConfig?.smsMarketerPhone as string) || "");
-        setSmsAdvertiserPhone((f.settingsConfig?.smsAdvertiserPhone as string) || "");
         setSmsLeadImageId((f.settingsConfig?.smsLeadImageId as string) || "");
         setSheetsWebhookUrl((f.settingsConfig?.sheetsWebhookUrl as string) || "");
         setSheetsSecret((f.settingsConfig?.sheetsSecret as string) || "");
@@ -390,7 +433,8 @@ export function FormEditPage() {
       smsLeadBody: smsLeadBody.trim(),
       smsLeadPhoneVarKey,
       smsMarketerPhone: smsMarketerPhone.replace(/[^0-9]/g, ""),
-      smsAdvertiserPhone: smsAdvertiserPhone.replace(/[^0-9]/g, ""),
+      // smsAdvertiserPhone 은 더 이상 보내지 않는다 — 광고주가 포털에서 직접 등록한다(V28).
+      // 기존에 저장된 값은 서버가 읽지 않으므로 발송에 쓰이지 않는다.
       smsLeadImageId,
       sheetsWebhookUrl: sheetsWebhookUrl.trim(),
       sheetsSecret: sheetsSecret.trim(),
@@ -778,26 +822,13 @@ export function FormEditPage() {
               )}
 
               <label className="fr-check" style={{ marginTop: 14 }}>
-                <input type="checkbox" disabled={smsBlocked} checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 광고주에게 접수 문자 보내기
+                <input type="checkbox" disabled={smsBlocked} checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 광고주에게 접수 알림 보내기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
-                <b>광고주가 스스로 켤 수 없고 여기서만 켭니다.</b>
+                <b>여기서 켜기만 하고, 받을 번호는 광고주가 직접 등록합니다.</b> 남의 번호를 대신 넣으면
+                수신 동의 근거가 없어 신고 시 발송 채널 전체가 막힙니다.
               </p>
-              {smsAdvertiserEnabled && (
-                <label className="field" style={{ maxWidth: 320, marginTop: 10 }}>
-                  <span className="field-label">광고주 번호</span>
-                  <input
-                    className="input"
-                    disabled={smsBlocked}
-                    value={smsAdvertiserPhone}
-                    onChange={(e) => setSmsAdvertiserPhone(e.target.value)}
-                    placeholder="비우면 광고주 계정 연락처"
-                  />
-                  <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
-                    번호를 직접 넣으면 이 리드폼에 광고주가 연결돼 있지 않아도 보냅니다.
-                  </span>
-                </label>
-              )}
+              {smsAdvertiserEnabled && <AdvertiserNotifyNotice status={notifyStatus} />}
 
               <label className="fr-check" style={{ marginTop: 14 }}>
                 <input type="checkbox" disabled={smsBlocked} checked={smsLeadEnabled} onChange={(e) => setSmsLeadEnabled(e.target.checked)} /> 고객(접수자)에게 문자 보내기

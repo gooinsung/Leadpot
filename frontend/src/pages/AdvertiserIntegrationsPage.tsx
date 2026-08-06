@@ -3,8 +3,11 @@ import { Loading } from "../components/Loading";
 import {
   ApiError,
   getAdvertiserIntegration,
+  listAdvertiserForms,
   testAdvertiserIntegration,
   updateAdvertiserIntegration,
+  updateAdvertiserNotifyPhone,
+  type AdvertiserForm,
   type IntegrationSettings,
   type IntegrationTestResult,
 } from "../api/client";
@@ -15,6 +18,93 @@ const EMPTY: IntegrationSettings = {
   telegramBotToken: "",
   telegramChatId: "",
 };
+
+/**
+ * 리드폼별 접수 알림 수신번호 카드(V28).
+ *
+ * <b>광고주 본인이 자기 번호를 직접 등록한다.</b> 예전에는 마케터가 리드폼 편집에서 광고주 번호를
+ * 대신 넣었는데, 번호 주인은 동의한 적도 끌 수도 없었다. 발신 채널이 리드팟 명의 하나라
+ * 신고 한 번에 전 고객 알림이 막힌다(docs/MESSAGING-PLAN.md §9).
+ * 여기서 번호를 넣는 행위 자체가 수신 동의 근거가 되고, 언제든 비워서 끌 수 있다.
+ */
+function NotifyPhoneCard() {
+  const [forms, setForms] = useState<AdvertiserForm[] | null>(null);
+  const [draft, setDraft] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState<number | null>(null);
+  const [done, setDone] = useState<number | null>(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    listAdvertiserForms()
+      .then((list) => {
+        setForms(list);
+        setDraft(Object.fromEntries(list.map((f) => [f.formId, f.notifyPhone])));
+      })
+      .catch(() => setForms([]));
+  }, []);
+
+  async function save(formId: number) {
+    setBusy(formId);
+    setErr("");
+    setDone(null);
+    try {
+      const updated = await updateAdvertiserNotifyPhone(formId, draft[formId] ?? "");
+      setForms((prev) => (prev ?? []).map((f) => (f.formId === formId ? updated : f)));
+      setDraft((prev) => ({ ...prev, [formId]: updated.notifyPhone }));
+      setDone(formId);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "저장에 실패했습니다.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // 마케터가 접수 알림을 켠 리드폼만 보여준다. 꺼져 있으면 번호를 넣어도 발송되지 않아 혼란만 준다.
+  const targets = (forms ?? []).filter((f) => f.notifyEnabled);
+  if (forms === null || targets.length === 0) return null;
+
+  return (
+    <div className="card card-pad" style={{ marginBottom: 20 }}>
+      <div className="card-h">접수 알림 문자 받기</div>
+      <p className="dash-sub" style={{ marginTop: 0 }}>
+        새 리드가 접수되면 <b>여기 등록한 내 번호</b>로 문자가 옵니다. 개인정보는 넣지 않고{" "}
+        <b>접수 사실과 리드폼 이름만</b> 보냅니다. <b>번호를 비우고 저장하면 즉시 중단</b>됩니다.
+      </p>
+
+      <div style={{ display: "grid", gap: 14, maxWidth: 620, marginTop: 14 }}>
+        {targets.map((f) => (
+          <label className="field" key={f.formId}>
+            <span className="field-label">{f.name}</span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                className="input"
+                style={{ flex: "1 1 200px", fontSize: 16 }}
+                inputMode="tel"
+                value={draft[f.formId] ?? ""}
+                onChange={(e) => setDraft((p) => ({ ...p, [f.formId]: e.target.value }))}
+                placeholder="비우면 알림을 받지 않습니다"
+              />
+              <button
+                className="btn btn-primary"
+                onClick={() => save(f.formId)}
+                disabled={busy === f.formId || (draft[f.formId] ?? "") === f.notifyPhone}
+              >
+                {busy === f.formId ? "저장 중…" : done === f.formId ? "저장됨!" : "저장"}
+              </button>
+            </div>
+            <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+              {f.notifyPhone ? "현재 알림을 받는 중입니다." : "아직 등록 전이라 알림이 오지 않습니다."}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {err && (
+        <p style={{ margin: "12px 0 0", color: "var(--danger, #e5484d)" }}>{err}</p>
+      )}
+    </div>
+  );
+}
 
 /**
  * 광고주 알림 설정 화면 `/client/integrations`.
@@ -85,6 +175,8 @@ export function AdvertiserIntegrationsPage() {
             </p>
           </div>
         </div>
+
+        <NotifyPhoneCard />
 
         {loading ? (
           <Loading />

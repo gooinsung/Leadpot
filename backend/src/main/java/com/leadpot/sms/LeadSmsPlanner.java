@@ -76,18 +76,25 @@ public class LeadSmsPlanner {
             out.add(request(form, lead, to, marketerText(form, lead), MessageLog.TO_MARKETER, senderPhone));
         }
 
-        // ② 광고주 — 마케터가 리드폼별로 켠 경우에만.
-        // 번호를 직접 지정했으면 권한 연결이 없어도 보낸다(마케터가 광고주를 수신자로 지정하는 것뿐이라
-        // 광고주 계정이 꼭 있어야 할 이유가 없다). 비웠을 때만 연결된 광고주 계정 연락처를 찾는다.
+        // ② 광고주 — 마케터가 켰고 + 광고주가 연결됐고 + 광고주가 자기 번호를 등록했을 때만.
+        //
+        // ⚠️ 수신번호는 오직 광고주가 포털에서 직접 등록한 값(grant.notifyPhone)만 쓴다(V28).
+        // 예전에는 마케터가 cfg.smsAdvertiserPhone 에 남의 번호를 대신 넣을 수 있었고 계정 연결이
+        // 없어도 보냈다. 그 번호의 주인은 동의한 적도 끌 수도 없었다 — 발신 채널이 리드팟 명의
+        // 하나라 신고 한 번에 전 고객 알림이 막힌다(MESSAGING-PLAN §9). 마케터 계정 연락처로의
+        // 폴백도 없애야 한다. 광고주 알림이 마케터 번호로 가면 동의 근거가 다시 사라진다.
+        //
+        // 번호가 없으면 목록에서 빼지 않고 빈 수신번호로 넣는다 — 조용히 사라지지 않고
+        // SKIPPED 로 이력에 남아야 마케터가 "왜 안 왔지"를 추적할 수 있다(①과 같은 원칙).
         if (on(cfg.get("smsAdvertiserEnabled"))) {
             AdvertiserFormGrant grant = grantRepository.findByFormId(form.getId())
                     .filter(g -> g.isEffective(Instant.now()))
                     .orElse(null);
-            String to = str(cfg.get("smsAdvertiserPhone"));
-            if (to.isBlank() && grant != null) {
+            String to = "";
+            if (grant != null && grant.hasNotifyPhone()) {
                 User adv = userRepository.findById(grant.getAdvertiserId()).orElse(null);
                 if (adv != null && adv.getRole() == Role.ADVERTISER && adv.isActive()) {
-                    to = nn(adv.getPhone());
+                    to = nn(grant.getNotifyPhone());
                 }
             }
             out.add(request(form, lead, to, advertiserText(grant, form, lead), MessageLog.TO_ADVERTISER, senderPhone));

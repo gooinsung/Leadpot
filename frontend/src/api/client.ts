@@ -1068,6 +1068,20 @@ export function replaceGrants(advertiserId: number, grants: GrantInput[]): Promi
   return request<GrantView[]>(`/api/advertisers/${advertiserId}/grants`, { method: "PUT", body: { grants } });
 }
 
+/** 리드폼 편집 화면에 띄울 광고주 접수 알림 수신 상태. 번호 원본은 내려오지 않는다(마스킹만). */
+export interface AdvertiserNotifyStatus {
+  /** 이 리드폼에 광고주 계정이 연결돼 있는지 */
+  linked: boolean;
+  advertiserName: string | null;
+  /** 광고주가 수신번호를 등록했는지 — true 여야 실제로 발송된다 */
+  registered: boolean;
+  /** 뒤 4자리를 가린 값. 미등록이면 null */
+  phoneMasked: string | null;
+}
+export function getAdvertiserNotifyStatus(formId: number): Promise<AdvertiserNotifyStatus> {
+  return request<AdvertiserNotifyStatus>(`/api/advertisers/notify-status/${formId}`);
+}
+
 export function issueInvite(input: InviteInput): Promise<AdvertiserInvite> {
   return request<AdvertiserInvite>("/api/advertisers/invites", { method: "POST", body: input });
 }
@@ -1192,6 +1206,10 @@ export interface AdvertiserForm {
   canStatus: boolean;
   canMemo: boolean;
   canExport: boolean;
+  /** 마케터가 이 리드폼의 접수 알림을 켰는지. 꺼져 있으면 번호를 넣어도 발송되지 않는다. */
+  notifyEnabled: boolean;
+  /** 내가 등록한 수신번호(숫자만). 비어 있으면 발송되지 않는다. */
+  notifyPhone: string;
 }
 
 /** 광고주에게 내려오는 리드 — IP·UTM·태그·마케터 상태는 서버에서 제외된다. */
@@ -1241,6 +1259,16 @@ export function getAdvertiserMe(): Promise<AdvertiserMe> {
 }
 export function listAdvertiserForms(): Promise<AdvertiserForm[]> {
   return request<AdvertiserForm[]>("/api/advertiser/forms");
+}
+/**
+ * 이 리드폼의 접수 알림을 받을 **내** 번호를 등록·변경한다. 빈 문자열이면 해제되고 발송이 멈춘다.
+ * 마케터는 이 번호를 대신 넣을 수 없다 — 본인이 넣는 행위가 수신 동의 근거다(MESSAGING-PLAN §9).
+ */
+export function updateAdvertiserNotifyPhone(formId: number, phone: string): Promise<AdvertiserForm> {
+  return request<AdvertiserForm>(`/api/advertiser/forms/${formId}/notify-phone`, {
+    method: "PUT",
+    body: { phone },
+  });
 }
 export function getAdvertiserDashboard(): Promise<AdvertiserDashboard> {
   return request<AdvertiserDashboard>("/api/advertiser/dashboard");

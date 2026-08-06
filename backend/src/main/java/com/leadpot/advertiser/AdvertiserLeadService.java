@@ -32,6 +32,7 @@ import com.leadpot.lead.Lead;
 import com.leadpot.lead.LeadNote;
 import com.leadpot.lead.LeadNoteRepository;
 import com.leadpot.lead.LeadRepository;
+import com.leadpot.sms.PhoneNumbers;
 
 /**
  * 광고주가 자기에게 부여된 리드를 조회·처리하는 서비스.
@@ -147,9 +148,58 @@ public class AdvertiserLeadService {
                     ? grant.getDisplayName()
                     : form.getName();
             out.add(new AdvertiserFormResponse(form.getId(), name, leads.size(), unseen,
-                    grant.isCanStatus(), grant.isCanMemo(), grant.isCanExport()));
+                    grant.isCanStatus(), grant.isCanMemo(), grant.isCanExport(),
+                    notifyEnabled(form), nn(grant.getNotifyPhone())));
         }
         return out;
+    }
+
+    /** 마케터가 이 리드폼의 광고주 접수 알림을 켰는지. */
+    private boolean notifyEnabled(Form form) {
+        Map<String, Object> cfg = form.getSettingsConfig();
+        return cfg != null && Boolean.TRUE.equals(cfg.get("smsAdvertiserEnabled"));
+    }
+
+    /**
+     * 광고주가 <b>자기</b> 접수 알림 수신번호를 등록·변경·삭제한다(V28).
+     *
+     * <p>마케터는 이 번호를 넣을 수 없다 — 광고주 본인이 넣는 행위가 수신 동의 근거이기 때문이다
+     * (docs/MESSAGING-PLAN.md §9). 빈 값을 보내면 지워지고 발송이 멈춘다.
+     *
+     * <p>권한(grant)이 있는 리드폼에만 쓸 수 있다. 남의 리드폼 번호를 건드리려 하면 404 다.
+     *
+     * @param phone 사용자가 입력한 원본 번호(하이픈 허용). 형식이 아니면 400.
+     */
+    @Transactional
+    public AdvertiserFormResponse updateNotifyPhone(Long advertiserId, Long formId, String phone) {
+        User advertiser = loadActiveAdvertiser(advertiserId);
+        AdvertiserFormGrant grant = grantRepository.findByFormId(formId)
+                .filter(g -> g.getAdvertiserId().equals(advertiserId))
+                .filter(g -> g.isEffective(Instant.now()))
+                .orElseThrow(() -> new NotFoundException("권한이 없는 리드폼입니다."));
+        Form form = formRepository.findByIdAndOwnerId(formId, advertiser.getParentUserId())
+                .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
+
+        String raw = phone == null ? "" : phone.trim();
+        if (raw.isBlank()) {
+            grant.setNotifyPhone(null, null);
+        } else {
+            String normalized = PhoneNumbers.normalize(raw);
+            if (normalized == null) {
+                throw new InvalidSubmissionException("연락처 형식이 올바르지 않습니다.");
+            }
+            grant.setNotifyPhone(normalized, Instant.now());
+        }
+        grantRepository.save(grant);
+
+        List<Lead> leads = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId);
+        long unseen = leads.stream().filter(l -> l.getAdvertiserSeenAt() == null).count();
+        String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
+                ? grant.getDisplayName()
+                : form.getName();
+        return new AdvertiserFormResponse(formId, name, leads.size(), unseen,
+                grant.isCanStatus(), grant.isCanMemo(), grant.isCanExport(),
+                notifyEnabled(form), nn(grant.getNotifyPhone()));
     }
 
     /** 대시보드 요약: 전체 미확인 건수 + 오늘 접수 + 상태 분포. */

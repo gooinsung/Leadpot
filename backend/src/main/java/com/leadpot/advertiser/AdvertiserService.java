@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.advertiser.dto.AdvertiserLeadPage;
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
+import com.leadpot.advertiser.dto.AdvertiserNotifyStatus;
 import com.leadpot.advertiser.dto.AdvertiserPreviewLead;
 import com.leadpot.advertiser.dto.AdvertiserPreviewResponse;
 import com.leadpot.advertiser.dto.AdvertiserReportResponse;
@@ -38,6 +39,7 @@ import com.leadpot.form.FormRepository;
 import com.leadpot.lead.Lead;
 import com.leadpot.lead.LeadNoteRepository;
 import com.leadpot.lead.LeadRepository;
+import com.leadpot.sms.PhoneNumbers;
 
 /**
  * 마케터가 자기 광고주 하위계정을 관리하는 서비스.
@@ -352,6 +354,32 @@ public class AdvertiserService {
                     takenBy));
         }
         return out;
+    }
+
+    /**
+     * 리드폼 하나의 광고주 접수 알림 수신 상태(V28). 리드폼 편집 화면 안내용.
+     *
+     * <p>마케터가 광고주 번호를 대신 넣던 칸을 없앤 대신, "지금 발송 가능한 상태인지"를 여기서 알려준다.
+     * 번호 원본은 내려주지 않는다 — 마스킹만.
+     *
+     * @throws NotFoundException 내 리드폼이 아니면
+     */
+    @Transactional(readOnly = true)
+    public AdvertiserNotifyStatus notifyStatus(Long marketerId, Long formId) {
+        formRepository.findByIdAndOwnerId(formId, marketerId)
+                .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
+        AdvertiserFormGrant grant = grantRepository.findByFormId(formId)
+                .filter(g -> g.isEffective(Instant.now()))
+                .orElse(null);
+        if (grant == null) {
+            return AdvertiserNotifyStatus.notLinked();
+        }
+        String name = userRepository.findById(grant.getAdvertiserId())
+                .map(u -> u.getCompany() != null && !u.getCompany().isBlank() ? u.getCompany() : u.getName())
+                .orElse("광고주");
+        boolean registered = grant.hasNotifyPhone();
+        return new AdvertiserNotifyStatus(true, name, registered,
+                registered ? PhoneNumbers.mask(grant.getNotifyPhone()) : null);
     }
 
     /**

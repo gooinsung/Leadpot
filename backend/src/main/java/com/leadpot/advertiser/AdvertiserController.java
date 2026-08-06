@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.leadpot.advertiser.dto.AdvertiserLeadPage;
 import com.leadpot.advertiser.dto.AdvertiserLogResponse;
+import com.leadpot.advertiser.dto.AdvertiserNotifyStatus;
 import com.leadpot.advertiser.dto.AdvertiserPreviewLead;
 import com.leadpot.advertiser.dto.AdvertiserPreviewResponse;
 import com.leadpot.advertiser.dto.AdvertiserReportResponse;
@@ -171,6 +172,16 @@ public class AdvertiserController {
     public List<GrantView> replaceGrants(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @Valid @RequestBody GrantUpdateRequest request) {
         return advertiserService.replaceGrants(userId(jwt), id, request);
+    }
+
+    /**
+     * 리드폼 하나의 광고주 접수 알림 수신 상태(V28). 리드폼 편집 화면에서 안내를 띄우는 데 쓴다.
+     * <p>
+     * 광고주 번호는 광고주가 포털에서 직접 등록한다 — 여기서는 등록 여부와 마스킹 값만 내려준다.
+     */
+    @GetMapping("/notify-status/{formId}")
+    public AdvertiserNotifyStatus notifyStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable Long formId) {
+        return advertiserService.notifyStatus(userId(jwt), formId);
     }
 
     // ---------- 초대 ----------
