@@ -5,6 +5,7 @@ import {
   ApiError,
   createForm,
   getForm,
+  getSmsStatus,
   listConsentDocs,
   testFormSheets,
   updateForm,
@@ -15,6 +16,7 @@ import {
   type FormBlock,
   type FormInput,
   type FormType,
+  type SmsStatus,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
@@ -143,6 +145,10 @@ export function FormEditPage() {
   const [autoApproveDays, setAutoApproveDays] = useState(7);
   const [notifyEnabled, setNotifyEnabled] = useState(true);
   const [sheetsEnabled, setSheetsEnabled] = useState(false);
+  // 계정의 문자 발송 권한(V25). 권한이 없으면 이 화면의 문자 설정을 비활성화하고 이유를 안내한다.
+  // ⚠️ null = 아직 조회 전. 이때는 잠그지 않는다 — 권한 있는 계정에 "권한 없음"이 깜빡이면 안 된다.
+  //    어차피 최종 관문은 서버다(FormService.sanitizeSmsSettings + SmsService.send).
+  const [smsStatus, setSmsStatus] = useState<SmsStatus | null>(null);
   // 문자 발송 — 건당 비용이 들기 때문에 셋 다 기본 off 다.
   const [smsMarketerEnabled, setSmsMarketerEnabled] = useState(false);
   const [smsAdvertiserEnabled, setSmsAdvertiserEnabled] = useState(false);
@@ -166,6 +172,12 @@ export function FormEditPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // 문자 권한 조회 — 새 리드폼에서도 필요하므로 폼 로딩과 분리한다.
+  // 실패해도 화면을 막지 않는다(권한 안내가 안 뜰 뿐, 저장·발송은 서버가 판정한다).
+  useEffect(() => {
+    getSmsStatus().then(setSmsStatus).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isNew) return;
@@ -335,6 +347,11 @@ export function FormEditPage() {
   );
   // 국내 문자 과금 기준(EUC-KR): 한글 2byte. 90byte 를 넘으면 LMS 로 전환되어 단가가 오른다.
   const smsBytes = [...smsLeadBody].reduce((n, ch) => n + (ch.charCodeAt(0) < 0x80 ? 1 : 2), 0);
+  /**
+   * 문자 설정을 잠글지. 권한 조회 전(null)에는 잠그지 않는다 — 권한 있는 계정에 "권한 없음"이
+   * 깜빡이는 편이 더 나쁘다. 조회가 실패해도 잠기지 않는다(서버가 최종 관문이라 안전하다).
+   */
+  const smsBlocked = smsStatus !== null && !smsStatus.smsEnabled;
 
   /** 첨부 업로드 — 규격(JPG·200KB) 변환은 서버가 하므로 원본을 그대로 올린다. */
   async function onAttach(file: File) {
@@ -724,13 +741,22 @@ export function FormEditPage() {
 
             <div className="card card-pad" style={{ marginTop: 16 }}>
               <div className="card-h">문자 발송 (이 리드폼)</div>
-              <p className="dash-sub" style={{ marginBottom: 12 }}>
-                건당 비용이 발생하므로 기본은 모두 꺼져 있습니다. 발신번호·잔액·이번 달 사용량은{" "}
-                <Link to="/sms">문자 발송</Link> 메뉴에서 확인하세요.
-              </p>
+              {/* 권한이 없으면 켜봐야 서버가 저장 시점에 다시 꺼버린다(FormService.sanitizeSmsSettings).
+                  그러면 "켰는데 안 나간다"가 되므로, 아예 잠그고 이유를 먼저 보여준다. */}
+              {smsBlocked ? (
+                <p className="auth-error" style={{ marginBottom: 12 }}>
+                  이 계정은 <b>문자 발송 권한이 없습니다.</b> 아래 설정은 <b>운영자가 권한을 열어줘야</b> 사용할 수 있습니다.
+                  필요하시면 운영자에게 문의해주세요.
+                </p>
+              ) : (
+                <p className="dash-sub" style={{ marginBottom: 12 }}>
+                  건당 비용이 발생하므로 기본은 모두 꺼져 있습니다. 발신번호·잔액·이번 달 사용량은{" "}
+                  <Link to="/sms">문자 발송</Link> 메뉴에서 확인하세요.
+                </p>
+              )}
 
               <label className="fr-check">
-                <input type="checkbox" checked={smsMarketerEnabled} onChange={(e) => setSmsMarketerEnabled(e.target.checked)} /> 나(마케터)에게 접수 문자 받기
+                <input type="checkbox" disabled={smsBlocked} checked={smsMarketerEnabled} onChange={(e) => setSmsMarketerEnabled(e.target.checked)} /> 나(마케터)에게 접수 문자 받기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 개인정보는 넣지 않고 <b>접수 사실과 리드폼 이름만</b> 보냅니다.
@@ -740,6 +766,7 @@ export function FormEditPage() {
                   <span className="field-label">받을 번호</span>
                   <input
                     className="input"
+                    disabled={smsBlocked}
                     value={smsMarketerPhone}
                     onChange={(e) => setSmsMarketerPhone(e.target.value)}
                     placeholder="비우면 내 계정 연락처"
@@ -751,7 +778,7 @@ export function FormEditPage() {
               )}
 
               <label className="fr-check" style={{ marginTop: 14 }}>
-                <input type="checkbox" checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 광고주에게 접수 문자 보내기
+                <input type="checkbox" disabled={smsBlocked} checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 광고주에게 접수 문자 보내기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 <b>광고주가 스스로 켤 수 없고 여기서만 켭니다.</b>
@@ -761,6 +788,7 @@ export function FormEditPage() {
                   <span className="field-label">광고주 번호</span>
                   <input
                     className="input"
+                    disabled={smsBlocked}
                     value={smsAdvertiserPhone}
                     onChange={(e) => setSmsAdvertiserPhone(e.target.value)}
                     placeholder="비우면 광고주 계정 연락처"
@@ -772,13 +800,13 @@ export function FormEditPage() {
               )}
 
               <label className="fr-check" style={{ marginTop: 14 }}>
-                <input type="checkbox" checked={smsLeadEnabled} onChange={(e) => setSmsLeadEnabled(e.target.checked)} /> 고객(접수자)에게 문자 보내기
+                <input type="checkbox" disabled={smsBlocked} checked={smsLeadEnabled} onChange={(e) => setSmsLeadEnabled(e.target.checked)} /> 고객(접수자)에게 문자 보내기
               </label>
               {smsLeadEnabled && (
                 <div style={{ display: "grid", gap: 12, maxWidth: 620, marginTop: 10 }}>
                   <label className="field">
                     <span className="field-label">수신 번호로 쓸 항목</span>
-                    <select className="input" value={smsLeadPhoneVarKey} onChange={(e) => setSmsLeadPhoneVarKey(e.target.value)}>
+                    <select className="input" disabled={smsBlocked} value={smsLeadPhoneVarKey} onChange={(e) => setSmsLeadPhoneVarKey(e.target.value)}>
                       <option value="">자동 (첫 연락처 항목)</option>
                       {answerBlocks.map((b) => (
                         <option key={b.varKey as string} value={b.varKey as string}>
@@ -792,6 +820,7 @@ export function FormEditPage() {
                     <textarea
                       className="input"
                       rows={5}
+                      disabled={smsBlocked}
                       value={smsLeadBody}
                       onChange={(e) => setSmsLeadBody(e.target.value)}
                       placeholder={"{{f1}} 님, 접수해주셔서 감사합니다.\n빠르게 확인하여 연락드리겠습니다."}
@@ -822,6 +851,7 @@ export function FormEditPage() {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
+                          disabled={smsBlocked}
                           onClick={() => {
                             setSmsLeadImageId("");
                             setSmsAttachPreview("");
@@ -835,7 +865,7 @@ export function FormEditPage() {
                         className="input"
                         type="file"
                         accept="image/*"
-                        disabled={smsAttachBusy}
+                        disabled={smsAttachBusy || smsBlocked}
                         onChange={(e) => {
                           const f = e.target.files?.[0];
                           if (f) void onAttach(f);
@@ -859,12 +889,13 @@ export function FormEditPage() {
                             key={b.varKey as string}
                             type="button"
                             className="btn btn-ghost btn-sm"
+                            disabled={smsBlocked}
                             onClick={() => setSmsLeadBody((prev) => `${prev}{{${b.varKey}}}`)}
                           >
                             {blockLabel(b)}
                           </button>
                         ))}
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSmsLeadBody((prev) => `${prev}{{form.name}}`)}>
+                        <button type="button" className="btn btn-ghost btn-sm" disabled={smsBlocked} onClick={() => setSmsLeadBody((prev) => `${prev}{{form.name}}`)}>
                           리드폼 이름
                         </button>
                       </div>
