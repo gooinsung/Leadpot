@@ -40,7 +40,11 @@ function NotifyPhoneCard() {
         setForms(list);
         setDraft(Object.fromEntries(list.map((f) => [f.formId, f.notifyPhone])));
       })
-      .catch(() => setForms([]));
+      .catch(() => {
+        // 빈 목록으로 두면 "배정받은 리드폼이 없습니다"라고 거짓 안내를 하게 된다 — 사유를 밝힌다.
+        setForms([]);
+        setErr("리드폼 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+      });
   }, []);
 
   async function save(formId: number) {
@@ -59,9 +63,13 @@ function NotifyPhoneCard() {
     }
   }
 
-  // 마케터가 접수 알림을 켠 리드폼만 보여준다. 꺼져 있으면 번호를 넣어도 발송되지 않아 혼란만 준다.
-  const targets = (forms ?? []).filter((f) => f.notifyEnabled);
-  if (forms === null || targets.length === 0) return null;
+  // 번호를 등록할 수 있는 건 마케터가 접수 알림을 켠 리드폼뿐이다. 다만 켠 폼이 없다고 카드를 통째로
+  // 숨기면 안 된다 — 광고주는 "번호 넣는 곳이 아예 없다"만 보고 이유를 알 수 없다(2026-08-08 사용자 제보).
+  // 마케터는 광고주가 등록하기를 기다리고 광고주는 입력란을 못 찾는 교착이 된다. 그래서 항상 렌더하고
+  // 등록 불가한 리드폼은 사유와 함께 보여준다.
+  if (forms === null) return null;
+  const targets = forms.filter((f) => f.notifyEnabled);
+  const blocked = forms.filter((f) => !f.notifyEnabled);
 
   return (
     <div className="card card-pad" style={{ marginBottom: 20 }}>
@@ -71,6 +79,13 @@ function NotifyPhoneCard() {
         <b>접수 사실과 리드폼 이름만</b> 보냅니다. <b>번호를 비우고 저장하면 즉시 중단</b>됩니다.
       </p>
 
+      {forms.length === 0 && !err && (
+        <p className="dash-sub" style={{ marginBottom: 0 }}>
+          아직 배정받은 리드폼이 없습니다. 담당 마케터가 리드폼을 배정하면 여기에 표시됩니다.
+        </p>
+      )}
+
+      {targets.length > 0 && (
       <div style={{ display: "grid", gap: 14, maxWidth: 620, marginTop: 14 }}>
         {targets.map((f) => (
           <label className="field" key={f.formId}>
@@ -98,6 +113,21 @@ function NotifyPhoneCard() {
           </label>
         ))}
       </div>
+      )}
+
+      {blocked.length > 0 && (
+        <div style={{ marginTop: targets.length > 0 ? 20 : 14 }}>
+          <p className="dash-sub" style={{ margin: 0 }}>
+            아래 리드폼은 <b>담당 마케터가 접수 알림을 아직 켜지 않아</b> 번호를 등록할 수 없습니다.
+            마케터에게 <b>리드폼 편집 → 옵션 → &lsquo;광고주에게 접수 알림 보내기&rsquo;</b>를 켜달라고 요청하세요.
+          </p>
+          <ul className="dash-sub" style={{ margin: "8px 0 0", paddingLeft: 20, lineHeight: 1.8 }}>
+            {blocked.map((f) => (
+              <li key={f.formId}>{f.name}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {err && (
         <p style={{ margin: "12px 0 0", color: "var(--danger, #e5484d)" }}>{err}</p>
