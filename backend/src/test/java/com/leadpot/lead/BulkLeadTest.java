@@ -47,18 +47,19 @@ class BulkLeadTest {
     void setUp() {
         owner = userRepository.save(marketer("bulk-m@test.local", "bulk-m"));
         form = formRepository.save(new Form(owner.getId(), "폼", FormType.BASIC));
-        a = saveLead("NEW");
-        b = saveLead("NEW");
-        c = saveLead("NEW");
+        a = saveLead();
+        b = saveLead();
+        c = saveLead();
     }
 
     @Test
-    @DisplayName("일괄 상태변경: 여러 건을 한 번에")
+    @DisplayName("일괄 상태변경: 여러 건을 한 번에 (통합 축 V29)")
     void bulkStatus() {
-        int n = leadService.bulkUpdateStatus(owner.getId(), List.of(a.getId(), b.getId(), c.getId()), "DONE");
+        int n = leadService.bulkUpdateStatus(owner.getId(), List.of(a.getId(), b.getId(), c.getId()),
+                LeadStatuses.VALID, null);
         assertThat(n).isEqualTo(3);
-        assertThat(leadRepository.findById(a.getId()).orElseThrow().getStatus()).isEqualTo("DONE");
-        assertThat(leadRepository.findById(c.getId()).orElseThrow().getStatus()).isEqualTo("DONE");
+        assertThat(leadRepository.findById(a.getId()).orElseThrow().getStatus()).isEqualTo(LeadStatuses.VALID);
+        assertThat(leadRepository.findById(c.getId()).orElseThrow().getStatus()).isEqualTo(LeadStatuses.VALID);
     }
 
     @Test
@@ -68,13 +69,14 @@ class BulkLeadTest {
         Form otherForm = formRepository.save(new Form(other.getId(), "남의폼", FormType.BASIC));
         Lead foreign = new Lead();
         foreign.setFormId(otherForm.getId());
-        foreign.setStatus("NEW");
         foreign.setAnswers(List.of(Map.of("label", "이름", "value", "침입자")));
         foreign = leadRepository.save(foreign);
 
-        int n = leadService.bulkUpdateStatus(owner.getId(), List.of(a.getId(), foreign.getId()), "SPAM");
+        int n = leadService.bulkUpdateStatus(owner.getId(), List.of(a.getId(), foreign.getId()),
+                LeadStatuses.INVALID, null);
         assertThat(n).isEqualTo(1); // 내 것 1건만
-        assertThat(leadRepository.findById(foreign.getId()).orElseThrow().getStatus()).isEqualTo("NEW"); // 남의 것 그대로
+        assertThat(leadRepository.findById(foreign.getId()).orElseThrow().getStatus())
+                .isEqualTo(LeadStatuses.NEW); // 남의 것 그대로
     }
 
     @Test
@@ -92,10 +94,9 @@ class BulkLeadTest {
         return u;
     }
 
-    private Lead saveLead(String status) {
-        Lead l = new Lead();
+    private Lead saveLead() {
+        Lead l = new Lead(); // 상태는 엔티티 기본값(NEW)
         l.setFormId(form.getId());
-        l.setStatus(status);
         l.setAnswers(List.of(Map.of("label", "이름", "value", "홍길동")));
         return leadRepository.save(l);
     }

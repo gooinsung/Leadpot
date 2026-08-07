@@ -28,6 +28,7 @@ import { AdvertiserPreviewPage } from "./pages/AdvertiserPreviewPage";
 import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
 import { AdvertiserIntegrationsPage } from "./pages/AdvertiserIntegrationsPage";
 import { AdvertiserReportPage } from "./pages/AdvertiserReportPage";
+import { AdvertiserGuidePage } from "./pages/AdvertiserGuidePage";
 import { ClientLoginPage } from "./pages/ClientLoginPage";
 import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
@@ -290,6 +291,15 @@ function App() {
         element={
           <ProtectedRoute role="ADVERTISER">
             <AdvertiserReportPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 광고주 사용 안내(2026-08-08) — 포털 기능 설명 정적 페이지 */}
+      <Route
+        path="/client/guide"
+        element={
+          <ProtectedRoute role="ADVERTISER">
+            <AdvertiserGuidePage />
           </ProtectedRoute>
         }
       />

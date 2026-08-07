@@ -243,6 +243,60 @@
   color: #fff;
 }
 
+/* 넓은 화면: 마케터 LNB 처럼 좌측 사이드바로 전환(2026-08-08 사용자 요청).
+   DOM 은 그대로 두고 배치만 바꾼다 — 좁은 화면은 위의 상단바+알약 탭이 그대로다. */
+@media (min-width: 901px) {
+  .app-shell:has(> .adv-bar) {
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
+  }
+  .adv-bar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 220px;
+    flex: none;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    /* 화이트라벨 포인트 컬러는 상단 얇은 선으로 유지(borderBottomColor 인라인이 여기 걸린다) */
+    border-top: 3px solid var(--indigo);
+  }
+  .adv-bar-in {
+    max-width: none;
+    height: 100%;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .adv-bar-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .adv-actions {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+  .adv-nav {
+    flex-direction: column;
+    overflow: visible;
+    padding: 12px 0;
+  }
+  .adv-nav-link {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  /* 사이드바가 폭을 차지하므로 본문 컨테이너가 남은 폭을 쓴다 */
+  .app-shell:has(> .adv-bar) > main {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 /* ============================================================
    할 일 큐 (U6 Task-First)
    숫자를 보여주기만 하던 KPI 를, 누르면 그 목록으로 가는 '할 일'로 바꿨다.

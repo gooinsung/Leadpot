@@ -24,6 +24,7 @@ import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
+import { AdvertiserBillingCard } from "../components/AdvertiserBillingCard";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { useAuth } from "../lib/authContext";
@@ -965,6 +966,9 @@ export function FormEditPage() {
               )}
 
             </div>
+
+            {/* 광고주 정산(V31) — 단가·충전·목표. 새 리드폼은 아직 광고주를 붙일 수 없어 저장 후 보인다. */}
+            {!isNew && <AdvertiserBillingCard formId={Number(id)} />}
 
             <div className="card card-pad" style={{ marginTop: 16 }}>
               <div className="card-h">구글시트 연동 (이 리드폼)</div>

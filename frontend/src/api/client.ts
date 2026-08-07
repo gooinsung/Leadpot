@@ -398,8 +398,10 @@ export interface Lead {
   utm: Record<string, unknown> | null;
   tags: string[] | null;
   createdAt: string;
-  /** 광고주 관점 상태(광고주가 붙은 폼일 때만 의미 있음). null = 변경 없음 */
-  advertiserStatus: string | null;
+  /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 통합 상태 축(V29). */
+  statusKey: string;
+  /** status=CUSTOM 일 때의 정의 id. */
+  customStatusId: number | null;
   /** 광고주가 처음 열어본 시각. null = 아직 안 봄 → 목록에 '광고주 확인' 미표시 */
   advertiserSeenAt: string | null;
 }
@@ -408,10 +410,12 @@ export interface LeadNote {
   id: number;
   kind: "MEMO" | "SYSTEM";
   body: string;
-  /** true = 광고주에게도 보이는 메모(광고주 작성분·광고주 상태변경 이력) */
+  /** true = 광고주에게도 보이는 메모(광고주메모). false = 마케터메모. */
   sharedWithAdvertiser: boolean;
   /** true = 작성자 계정이 삭제됨(광고주 하위계정 삭제). 내용은 이력이라 보존된다 */
   authorDeleted: boolean;
+  /** 작성자 역할 표기(마케터/광고주). null = 작성자 삭제·미상. */
+  authorRole: "MARKETER" | "ADVERTISER" | null;
   createdAt: string;
 }
 
@@ -455,6 +459,8 @@ export interface InboxItem {
   formName: string;
   answers: LeadAnswer[];
   status: string;
+  /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
+  statusKey: string;
   tags: string[] | null;
   createdAt: string;
 }
@@ -463,7 +469,10 @@ export interface InboxCounts {
   unseen: number;
   today: number;
   byForm: { formId: number; formName: string; count: number }[];
+  /** 키 = statusKey */
   byStatus: Record<string, number>;
+  /** statusKey → 라벨(커스텀 상태 이름 포함) */
+  statusNames: Record<string, string>;
 }
 export interface InboxResponse {
   items: InboxItem[];
@@ -482,9 +491,16 @@ export interface InboxFilter {
   page?: number;
   size?: number;
 }
-/** 일괄 상태변경(U2). 내 것이 아닌 id 는 서버가 건너뛴다. { updated } 반환. */
-export function bulkUpdateLeadStatus(ids: number[], status: string): Promise<{ updated: number }> {
-  return request<{ updated: number }>("/api/leads/bulk/status", { method: "PATCH", body: { ids, status } });
+/** 일괄 상태변경(U2). 내 것이 아니거나 AS 대기인 id 는 서버가 건너뛴다. { updated } 반환. */
+export function bulkUpdateLeadStatus(
+  ids: number[],
+  status: string,
+  customStatusId?: number | null,
+): Promise<{ updated: number }> {
+  return request<{ updated: number }>("/api/leads/bulk/status", {
+    method: "PATCH",
+    body: { ids, status, customStatusId: customStatusId ?? null },
+  });
 }
 /** 일괄 휴지통 이동(U2). { trashed } 반환. */
 export function bulkTrashLeads(ids: number[]): Promise<{ trashed: number }> {
@@ -559,21 +575,116 @@ export async function importLeads(formId: number, file: File): Promise<ImportRes
   return (await res.json()) as ImportResult;
 }
 
-/** 대시보드 전체 리드 수. */
-export function leadsCount(): Promise<{ total: number }> {
-  return request<{ total: number }>("/api/leads/count");
+/** 대시보드 리드 수(total=전체, todayNew=오늘 접수 — '신규 리드' 카드). */
+export function leadsCount(): Promise<{ total: number; todayNew: number }> {
+  return request<{ total: number; todayNew: number }>("/api/leads/count");
 }
 
-export const LEAD_STATUSES = [
-  { value: "NEW", label: "신규" },
-  { value: "IN_PROGRESS", label: "상담중" },
-  { value: "DONE", label: "완료" },
-  { value: "SPAM", label: "불량" },
-];
+// ---------- 통합 진행상태(V29) ----------
+// 마케터·광고주가 같은 축을 쓴다: 신규/유효/AS요청/무효 + 광고주 커스텀 상태.
+// 유효(VALID)로 넘기는 순간 과금(단가 차감)이 확정된다. 무효 전환·해제는 마케터만.
 
-/** 리드 상태 변경. */
-export function updateLeadStatus(id: number, status: string): Promise<void> {
-  return request<void>(`/api/leads/${id}/status`, { method: "PATCH", body: { status } });
+/** 상태 선택지 하나. key 는 필터·카운트 키(고정=코드, 커스텀=C{id}). */
+export interface LeadStatusOption {
+  key: string;
+  status: string;
+  customStatusId: number | null;
+  label: string;
+  custom: boolean;
+  archived: boolean;
+}
+
+/** 고정 상태 라벨(선택지 로딩 전 표시·색상용). */
+export const FIXED_LEAD_STATUSES: Record<string, string> = {
+  NEW: "신규",
+  VALID: "유효",
+  AS_REQUESTED: "AS요청",
+  INVALID: "무효",
+};
+
+/** 이 폼에서 쓸 수 있는 상태 선택지(고정 4 + 연결된 광고주의 커스텀). */
+export function getLeadStatusOptions(formId: number): Promise<LeadStatusOption[]> {
+  return request<LeadStatusOption[]>(`/api/leads/status-options?formId=${formId}`);
+}
+
+/** 리드 상태 변경(마케터). status=CUSTOM 이면 customStatusId 필수. AS요청은 AS 플로우 전용. */
+export function updateLeadStatus(id: number, status: string, customStatusId?: number | null): Promise<void> {
+  return request<void>(`/api/leads/${id}/status`, {
+    method: "PATCH",
+    body: { status, customStatusId: customStatusId ?? null },
+  });
+}
+
+// ---------- AS 요청(V30) ----------
+export interface AsRequest {
+  id: number;
+  status: "OPEN" | "ACCEPTED" | "REJECTED";
+  reason: string;
+  evidenceUrls: string[];
+  resolutionNote: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+/** 이 리드의 AS 이력(최신순, 마케터). */
+export function listAsRequests(leadId: number): Promise<AsRequest[]> {
+  return request<AsRequest[]>(`/api/leads/${leadId}/as-requests`);
+}
+
+/** AS 해소(마케터). 인정 → 리드 무효(차감 환급) / 거부 → 유효 확정. */
+export function resolveAsRequest(leadId: number, accept: boolean, note?: string): Promise<AsRequest> {
+  return request<AsRequest>(`/api/leads/${leadId}/as-resolve`, {
+    method: "POST",
+    body: { accept, note: note ?? "" },
+  });
+}
+
+// ---------- 광고주 정산(V31, 마케터) ----------
+export interface LedgerRow {
+  id: number;
+  entryType: "CHARGE" | "DEBIT" | "REFUND" | "ADJUST";
+  amount: number;
+  leadId: number | null;
+  memo: string | null;
+  createdAt: string;
+}
+export interface BillingView {
+  linked: boolean;
+  advertiserName: string | null;
+  notifyPhoneMasked: string | null;
+  unitPrice: number;
+  dailyGoal: number;
+  totalGoal: number;
+  balanceAlertEnabled: boolean;
+  balanceAlertThreshold: number;
+  balanceAlertPhone: string | null;
+  balance: number;
+  earnedThisMonth: number;
+  todayLeads: number;
+  validLeads: number;
+  ledger: LedgerRow[];
+}
+export interface BillingSettingsInput {
+  unitPrice: number;
+  dailyGoal: number;
+  totalGoal: number;
+  balanceAlertEnabled: boolean;
+  balanceAlertThreshold: number;
+  balanceAlertPhone: string;
+}
+
+export function getFormBilling(formId: number): Promise<BillingView> {
+  return request<BillingView>(`/api/forms/${formId}/billing`);
+}
+export function updateFormBilling(formId: number, input: BillingSettingsInput): Promise<BillingView> {
+  return request<BillingView>(`/api/forms/${formId}/billing`, { method: "PUT", body: input });
+}
+/** 충전 기록. 잔액이 임계값 위로 회복되면 잔액 알림 억제가 풀린다. */
+export function chargeFormBilling(formId: number, amount: number, memo: string): Promise<BillingView> {
+  return request<BillingView>(`/api/forms/${formId}/billing/charge`, {
+    method: "POST",
+    body: { amount, memo },
+  });
 }
 
 /** 리드 단건 상세(본인 리드폼만). */
@@ -591,9 +702,11 @@ export function listLeadNotes(id: number): Promise<LeadNote[]> {
   return request<LeadNote[]>(`/api/leads/${id}/notes`);
 }
 
-/** 사용자 메모 추가. */
-export function addLeadNote(id: number, body: string): Promise<LeadNote> {
-  return request<LeadNote>(`/api/leads/${id}/notes`, { method: "POST", body: { body } });
+/**
+ * 사용자 메모 추가. shared=true → 광고주메모(광고주와 공유), false → 마케터메모(마케터만).
+ */
+export function addLeadNote(id: number, body: string, shared = false): Promise<LeadNote> {
+  return request<LeadNote>(`/api/leads/${id}/notes`, { method: "POST", body: { body, shared } });
 }
 
 /** 메모 삭제(사용자 메모만). */
@@ -1169,22 +1282,8 @@ export function getClientBrand(): ClientBrand | null {
 }
 
 // ---------- 광고주 포털 (ROLE_ADVERTISER 전용) ----------
-/**
- * 광고주 처리 상태 — 백엔드 AdvertiserLeadStatus 와 일치(고정 6개, 진행 순서대로).
- * CONVERTED(전환)는 실제 판매가 성사된 리드 — 광고 성과의 최종 지표라 '통화완료'와 구분한다.
- */
-export const ADVERTISER_LEAD_STATUSES = [
-  { value: "NEW", label: "신규" },
-  { value: "CONFIRMED", label: "확인" },
-  { value: "CALLED", label: "통화완료" },
-  { value: "NO_ANSWER", label: "부재" },
-  { value: "CONVERTED", label: "전환" },
-  { value: "CLOSED", label: "종료" },
-] as const;
-
-export function advertiserStatusLabel(v: string | null): string {
-  return ADVERTISER_LEAD_STATUSES.find((s) => s.value === v)?.label ?? "신규";
-}
+// 진행상태는 V29 부터 마케터와 공유하는 단일 축이다(신규/유효/AS요청/무효 + 커스텀).
+// 광고주는 무효를 지정할 수 없고(마케터 전용), AS요청은 AS 접수로만 만들어진다.
 
 export interface AdvertiserMe {
   id: number;
@@ -1212,13 +1311,16 @@ export interface AdvertiserForm {
   notifyPhone: string;
 }
 
-/** 광고주에게 내려오는 리드 — IP·UTM·태그·마케터 상태는 서버에서 제외된다. */
+/** 광고주에게 내려오는 리드 — IP·UTM·태그는 서버에서 제외된다. 상태는 공유 축(V29). */
 export interface AdvertiserLead {
   id: number;
   answers: LeadAnswer[];
   createdAt: string;
-  advertiserStatus: string;
-  advertiserStatusLabel: string;
+  status: string;
+  /** 필터·표시 키(고정=코드, 커스텀=C{id}) */
+  statusKey: string;
+  customStatusId: number | null;
+  statusLabel: string;
   advertiserSeenAt: string | null;
 }
 
@@ -1234,6 +1336,8 @@ export interface AdvertiserNote {
   kind: "MEMO" | "SYSTEM";
   body: string;
   mine: boolean;
+  /** 작성자 역할 표기(마케터/광고주). null = 작성자 삭제·미상. */
+  authorRole: "MARKETER" | "ADVERTISER" | null;
   createdAt: string;
 }
 
@@ -1287,14 +1391,77 @@ export function listAdvertiserLeads(filter: AdvertiserLeadFilter): Promise<Adver
 export function getAdvertiserLead(id: number): Promise<AdvertiserLead> {
   return request<AdvertiserLead>(`/api/advertiser/leads/${id}`);
 }
-export function updateAdvertiserLeadStatus(id: number, status: string): Promise<AdvertiserLead> {
-  return request<AdvertiserLead>(`/api/advertiser/leads/${id}/status`, { method: "PATCH", body: { status } });
+/** 상태 변경(광고주). 무효·AS요청은 보낼 수 없다(서버가 거부). status=CUSTOM 이면 customStatusId 필수. */
+export function updateAdvertiserLeadStatus(
+  id: number,
+  status: string,
+  customStatusId?: number | null,
+): Promise<AdvertiserLead> {
+  return request<AdvertiserLead>(`/api/advertiser/leads/${id}/status`, {
+    method: "PATCH",
+    body: { status, customStatusId: customStatusId ?? null },
+  });
 }
 export function listAdvertiserNotes(id: number): Promise<AdvertiserNote[]> {
   return request<AdvertiserNote[]>(`/api/advertiser/leads/${id}/notes`);
 }
 export function addAdvertiserNote(id: number, body: string): Promise<AdvertiserNote> {
   return request<AdvertiserNote>(`/api/advertiser/leads/${id}/notes`, { method: "POST", body: { body } });
+}
+
+// ---------- 광고주 상태 선택지 + 커스텀 상태 관리(V29) ----------
+
+/** 상태 선택지(고정 4 + 내 커스텀). 무효(INVALID)는 표시용 — 선택 불가로 그릴 것. */
+export function getAdvertiserStatusOptions(): Promise<LeadStatusOption[]> {
+  return request<LeadStatusOption[]>("/api/advertiser/lead-statuses");
+}
+/** 내 커스텀 상태 전부(보관 포함, 관리 화면용). */
+export function listAdvertiserCustomStatuses(): Promise<LeadStatusOption[]> {
+  return request<LeadStatusOption[]>("/api/advertiser/statuses");
+}
+export function createAdvertiserCustomStatus(name: string): Promise<LeadStatusOption> {
+  return request<LeadStatusOption>("/api/advertiser/statuses", { method: "POST", body: { name } });
+}
+export function updateAdvertiserCustomStatus(
+  id: number,
+  input: { name?: string; archived?: boolean },
+): Promise<LeadStatusOption> {
+  return request<LeadStatusOption>(`/api/advertiser/statuses/${id}`, { method: "PATCH", body: input });
+}
+/** 삭제는 쓰는 리드가 없을 때만 된다(아니면 400 — 보관 안내). */
+export function deleteAdvertiserCustomStatus(id: number): Promise<void> {
+  return request<void>(`/api/advertiser/statuses/${id}`, { method: "DELETE" });
+}
+
+// ---------- 광고주 AS 요청(V30) ----------
+
+/** AS 접수 — 사유 필수, 증빙은 uploadAdvertiserEvidence 로 올린 URL(최대 5장). */
+export function requestAdvertiserAs(
+  leadId: number,
+  reason: string,
+  evidenceUrls: string[],
+): Promise<AsRequest> {
+  return request<AsRequest>(`/api/advertiser/leads/${leadId}/as-request`, {
+    method: "POST",
+    body: { reason, evidenceUrls },
+  });
+}
+/** 이 리드의 AS 이력(최신순, 광고주). */
+export function listAdvertiserAsRequests(leadId: number): Promise<AsRequest[]> {
+  return request<AsRequest[]>(`/api/advertiser/leads/${leadId}/as-requests`);
+}
+/** AS 증빙 이미지 업로드(jpg/png/gif/webp, 5MB 이하). 반환된 url 을 requestAdvertiserAs 에 넣는다. */
+export async function uploadAdvertiserEvidence(file: File): Promise<{ url: string }> {
+  const tokens = getTokens();
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE_URL}/api/advertiser/uploads`, {
+    method: "POST",
+    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+    body: fd,
+  });
+  if (!res.ok) throw await parseError(res);
+  return (await res.json()) as { url: string };
 }
 
 /** 실시간 폴링(A6): since 이후 새 리드 수. serverTime 을 다음 since 로 넘긴다(시계 오차 방지). */

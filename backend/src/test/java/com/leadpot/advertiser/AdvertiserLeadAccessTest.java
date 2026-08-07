@@ -183,17 +183,19 @@ class AdvertiserLeadAccessTest {
     // ---------- 필드 화이트리스트 ----------
 
     @Test
-    @DisplayName("⭐ 광고주 응답에 IP·UTM·기기·태그·마케터상태 필드가 존재하지 않는다(DTO 화이트리스트)")
+    @DisplayName("⭐ 광고주 응답에 IP·UTM·기기·태그 필드가 존재하지 않는다(DTO 화이트리스트)")
     void responseDtoExposesOnlyWhitelistedFields() {
         List<String> exposed = java.util.Arrays.stream(AdvertiserLeadResponse.class.getRecordComponents())
                 .map(java.lang.reflect.RecordComponent::getName)
                 .toList();
 
+        // status 는 V29 부터 마케터와 공유하는 단일 축이라 노출이 맞다(옛 '마케터 분류' 아님).
         assertThat(exposed).containsExactlyInAnyOrder(
-                "id", "answers", "createdAt", "advertiserStatus", "advertiserStatusLabel", "advertiserSeenAt");
+                "id", "answers", "createdAt", "status", "statusKey", "customStatusId",
+                "statusLabel", "advertiserSeenAt");
         assertThat(exposed).doesNotContain(
                 "submitterIp", "userAgent", "device", "os", "browser", "language",
-                "referer", "utm", "tags", "status", "landingPageId", "deletedAt", "consents", "formId");
+                "referer", "utm", "tags", "landingPageId", "deletedAt", "consents", "formId");
     }
 
     // ---------- 열람 기록 ----------
@@ -211,25 +213,43 @@ class AdvertiserLeadAccessTest {
         assertThat(second.advertiserSeenAt()).isEqualTo(recorded);
     }
 
-    // ---------- 상태 ----------
+    // ---------- 상태 (통합 축 V29) ----------
 
     @Test
-    @DisplayName("광고주 상태 변경은 마케터 status 를 덮어쓰지 않는다")
-    void advertiserStatusIsSeparateFromMarketerStatus() {
-        grantedLead.setStatus("SPAM"); // 마케터가 불량으로 분류
-        leadRepository.flush();
-
-        leadService.updateStatus(advertiser.getId(), grantedLead.getId(), AdvertiserLeadStatus.CALLED, null);
+    @DisplayName("광고주가 유효로 넘기면 공유 축이라 마케터도 같은 상태를 본다")
+    void advertiserValidIsSharedAxis() {
+        leadService.updateStatus(advertiser.getId(), grantedLead.getId(),
+                com.leadpot.lead.LeadStatuses.VALID, null, null);
 
         Lead reloaded = leadRepository.findById(grantedLead.getId()).orElseThrow();
-        assertThat(reloaded.getStatus()).isEqualTo("SPAM");
-        assertThat(reloaded.getAdvertiserStatus()).isEqualTo(AdvertiserLeadStatus.CALLED);
+        assertThat(reloaded.getStatus()).isEqualTo(com.leadpot.lead.LeadStatuses.VALID);
+        assertThat(reloaded.getStatusChangedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("광고주는 무효를 지정할 수 없다(마케터 전용)")
+    void advertiserCannotSetInvalid() {
+        assertThatThrownBy(() -> leadService.updateStatus(advertiser.getId(), grantedLead.getId(),
+                com.leadpot.lead.LeadStatuses.INVALID, null, null))
+                .isInstanceOf(InvalidSubmissionException.class);
+    }
+
+    @Test
+    @DisplayName("무효 리드는 광고주가 상태를 바꿀 수 없다(해제도 마케터 전용)")
+    void invalidLeadIsLockedForAdvertiser() {
+        grantedLead.changeStatus(com.leadpot.lead.LeadStatuses.INVALID, null, Instant.now());
+        leadRepository.flush();
+
+        assertThatThrownBy(() -> leadService.updateStatus(advertiser.getId(), grantedLead.getId(),
+                com.leadpot.lead.LeadStatuses.NEW, null, null))
+                .isInstanceOf(InvalidSubmissionException.class);
     }
 
     @Test
     @DisplayName("정의되지 않은 상태 값은 거부된다")
     void invalidStatusRejected() {
-        assertThatThrownBy(() -> leadService.updateStatus(advertiser.getId(), grantedLead.getId(), "SPAM", null))
+        assertThatThrownBy(() -> leadService.updateStatus(advertiser.getId(), grantedLead.getId(),
+                "SPAM", null, null))
                 .isInstanceOf(InvalidSubmissionException.class);
     }
 
@@ -241,7 +261,7 @@ class AdvertiserLeadAccessTest {
                         new GrantUpdateRequest.Item(grantedForm.getId(), null, null, false, true, true))));
 
         assertThatThrownBy(() -> leadService.updateStatus(advertiser.getId(), grantedLead.getId(),
-                AdvertiserLeadStatus.CALLED, null))
+                com.leadpot.lead.LeadStatuses.VALID, null, null))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -276,13 +296,14 @@ class AdvertiserLeadAccessTest {
     @Test
     @DisplayName("광고주 상태변경 이력은 양쪽이 함께 본다(ALL)")
     void statusHistoryIsShared() {
-        leadService.updateStatus(advertiser.getId(), grantedLead.getId(), AdvertiserLeadStatus.CONFIRMED, null);
+        leadService.updateStatus(advertiser.getId(), grantedLead.getId(),
+                com.leadpot.lead.LeadStatuses.VALID, null, null);
 
         LeadNote history = noteRepository.findByLeadIdOrderByCreatedAtAsc(grantedLead.getId()).stream()
                 .filter(n -> LeadNote.KIND_SYSTEM.equals(n.getKind()))
                 .findFirst().orElseThrow();
         assertThat(history.isSharedWithAdvertiser()).isTrue();
-        assertThat(history.getBody()).contains("신규").contains("확인");
+        assertThat(history.getBody()).contains("신규").contains("유효");
     }
 
     // ---------- 목록 / 폼 ----------
