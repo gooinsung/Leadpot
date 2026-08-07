@@ -59,6 +59,7 @@ public class AdvertiserService {
     private final LeadNoteRepository noteRepository;
     private final AdvertiserLeadService leadService;
     private final AdvertiserAuditService audit;
+    private final com.leadpot.lead.CustomLeadStatusRepository customStatusRepository;
     private final int maxFree;
     private final int maxPro;
 
@@ -71,6 +72,7 @@ public class AdvertiserService {
             LeadNoteRepository noteRepository,
             AdvertiserLeadService leadService,
             AdvertiserAuditService audit,
+            com.leadpot.lead.CustomLeadStatusRepository customStatusRepository,
             @Value("${app.advertiser.max-free}") int maxFree,
             @Value("${app.advertiser.max-pro}") int maxPro) {
         this.userRepository = userRepository;
@@ -82,6 +84,7 @@ public class AdvertiserService {
         this.noteRepository = noteRepository;
         this.leadService = leadService;
         this.audit = audit;
+        this.customStatusRepository = customStatusRepository;
         this.maxFree = maxFree;
         this.maxPro = maxPro;
     }
@@ -173,7 +176,12 @@ public class AdvertiserService {
             }
         }
         String name = adv.getCompany() != null && !adv.getCompany().isBlank() ? adv.getCompany() : adv.getName();
-        return AdvertiserReportResponse.from(leads, null, name, from, to);
+        Map<Long, String> customNames = new HashMap<>();
+        for (com.leadpot.lead.CustomLeadStatus s
+                : customStatusRepository.findByAdvertiserIdOrderBySortOrderAscIdAsc(advertiserId)) {
+            customNames.put(s.getId(), s.getName());
+        }
+        return AdvertiserReportResponse.from(leads, null, name, from, to, customNames);
     }
 
     // ---------- 광고주 화면 미리보기(A7, impersonate·읽기 전용) ----------

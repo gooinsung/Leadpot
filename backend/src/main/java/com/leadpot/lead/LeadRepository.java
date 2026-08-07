@@ -30,6 +30,12 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 실시간 폴링(A6): 특정 시각 이후 접수된 활성 리드 수(광고주 새 리드 감지용).
     long countByFormIdAndDeletedAtIsNullAndCreatedAtAfter(Long formId, java.time.Instant after);
 
+    // 커스텀 상태 삭제 가능 판정(V29) — 휴지통 리드도 복원될 수 있으므로 함께 센다.
+    boolean existsByCustomStatusId(Long customStatusId);
+
+    // 과금 화면(V31): 유효 리드 수(누적 확정 물량 표시용).
+    long countByFormIdAndDeletedAtIsNullAndStatus(Long formId, String status);
+
     // 중복 방지: 기간 내 동일 IP 활성 제출 존재 여부
     boolean existsByFormIdAndSubmitterIpAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(Long formId, String ip, java.time.Instant after);
 
@@ -37,6 +43,11 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     @Query("select count(l) from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
             + "and l.deletedAt is null")
     long countByOwner(@Param("ownerId") Long ownerId);
+
+    // 대시보드 '신규 리드'(오늘 접수) — 특정 시각 이후 접수된 본인 소유 활성 리드 수
+    @Query("select count(l) from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
+            + "and l.deletedAt is null and l.createdAt >= :since")
+    long countByOwnerSince(@Param("ownerId") Long ownerId, @Param("since") java.time.Instant since);
 
     // 본인 소유 리드폼들의 전체 활성 리드 (통계 집계용)
     @Query("select l from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "

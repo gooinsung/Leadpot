@@ -36,10 +36,15 @@ public class LeadController {
 
     private final LeadService leadService;
     private final LeadExcelService excelService;
+    private final LeadStatusOptionsService statusOptionsService;
+    private final com.leadpot.form.FormService formService;
 
-    public LeadController(LeadService leadService, LeadExcelService excelService) {
+    public LeadController(LeadService leadService, LeadExcelService excelService,
+            LeadStatusOptionsService statusOptionsService, com.leadpot.form.FormService formService) {
         this.leadService = leadService;
         this.excelService = excelService;
+        this.statusOptionsService = statusOptionsService;
+        this.formService = formService;
     }
 
     @GetMapping
@@ -50,9 +55,11 @@ public class LeadController {
         return leadService.list(userId(jwt), formId, status, q, trashed);
     }
 
+    /** 대시보드 카운트. todayNew = 오늘(KST) 접수된 리드 수('신규 리드' 카드). */
     @GetMapping("/count")
     public Map<String, Long> count(@AuthenticationPrincipal Jwt jwt) {
-        return Map.of("total", leadService.countByOwner(userId(jwt)));
+        return Map.of("total", leadService.countByOwner(userId(jwt)),
+                "todayNew", leadService.countTodayByOwner(userId(jwt)));
     }
 
     /**
@@ -84,11 +91,17 @@ public class LeadController {
         return leadService.listNotes(userId(jwt), id);
     }
 
-    /** 사용자 메모 추가. body: {"body": "..."} */
+    /**
+     * 사용자 메모 추가. body: {"body":"...", "shared":true|false}.
+     * shared=true → 광고주메모(광고주와 공유), false(기본) → 마케터메모(마케터만).
+     */
     @PostMapping("/{id}/notes")
     public LeadNoteResponse addNote(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
-        return leadService.addNote(userId(jwt), id, body.get("body"));
+            @RequestBody Map<String, Object> body) {
+        boolean shared = Boolean.TRUE.equals(body.get("shared"))
+                || "true".equalsIgnoreCase(String.valueOf(body.get("shared")));
+        return leadService.addNote(userId(jwt), id,
+                body.get("body") == null ? null : body.get("body").toString(), shared);
     }
 
     /** 메모 삭제(사용자 메모만). */
@@ -106,18 +119,63 @@ public class LeadController {
         return leadService.updateTags(userId(jwt), id, body.get("tags"));
     }
 
-    /** 리드 상태 변경 (신규/상담중/완료/불량). */
+    /**
+     * 리드 상태 변경 — 통합 축 V29 (신규/유효/무효/커스텀 · AS요청은 AS 플로우 전용).
+     * body: {"status":"VALID"} 또는 {"status":"CUSTOM","customStatusId":3}
+     */
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
-        leadService.updateStatus(userId(jwt), id, body.get("status"));
+            @RequestBody Map<String, Object> body) {
+        leadService.updateStatus(userId(jwt), id,
+                body.get("status") == null ? null : body.get("status").toString(),
+                asLong(body.get("customStatusId")));
         return ResponseEntity.noContent().build();
+    }
+
+    /** 이 리드의 AS 이력(최신순) — 사유·증빙·처리 결과. */
+    @GetMapping("/{id}/as-requests")
+    public java.util.List<com.leadpot.lead.dto.LeadAsRequestResponse> asHistory(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return leadService.asHistory(userId(jwt), id);
+    }
+
+    /**
+     * AS 해소(마케터). body: {"accept":true|false, "note":"..."}.
+     * 인정 → 리드 무효(차감분 환급) / 거부 → 리드 유효 확정.
+     */
+    @PostMapping("/{id}/as-resolve")
+    public com.leadpot.lead.dto.LeadAsRequestResponse resolveAs(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        boolean accept = Boolean.TRUE.equals(body.get("accept"))
+                || "true".equalsIgnoreCase(String.valueOf(body.get("accept")));
+        return leadService.resolveAs(userId(jwt), id, accept,
+                body.get("note") == null ? null : body.get("note").toString());
+    }
+
+    /** 상태 선택지(고정 4 + 이 폼 광고주의 커스텀). 사이드패널·필터가 쓴다. */
+    @GetMapping("/status-options")
+    public java.util.List<LeadStatusOptionsService.StatusOption> statusOptions(
+            @AuthenticationPrincipal Jwt jwt, @RequestParam Long formId) {
+        formService.get(userId(jwt), formId); // 소유권 확인(아니면 404)
+        return statusOptionsService.optionsForForm(formId);
+    }
+
+    private static Long asLong(Object v) {
+        if (v == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(v.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** 일괄 상태변경(U2). body: {"ids":[...], "status":"..."}. 처리 건수 반환. */
     @PatchMapping("/bulk/status")
     public Map<String, Integer> bulkStatus(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
-        return Map.of("updated", leadService.bulkUpdateStatus(userId(jwt), req.ids(), req.status()));
+        return Map.of("updated",
+                leadService.bulkUpdateStatus(userId(jwt), req.ids(), req.status(), req.customStatusId()));
     }
 
     /** 일괄 휴지통 이동(U2). body: {"ids":[...]}. 처리 건수 반환. */

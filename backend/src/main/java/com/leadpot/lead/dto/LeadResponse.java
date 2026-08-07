@@ -23,8 +23,9 @@ public record LeadResponse(
         Map<String, Object> utm,
         List<String> tags,
         Instant createdAt,
-        /** 광고주 관점 상태(광고주가 부여된 폼일 때만 의미 있음). null = 아직 변경 없음. */
-        String advertiserStatus,
+        /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 통합 축 V29. */
+        String statusKey,
+        Long customStatusId,
         /** 광고주가 이 리드를 처음 열어본 시각. null 이면 아직 안 봤다는 뜻(목록의 '광고주 확인' 표시). */
         Instant advertiserSeenAt) {
 
@@ -45,7 +46,8 @@ public record LeadResponse(
                 l.getUtm(),
                 l.getTags(),
                 l.getCreatedAt(),
-                l.getAdvertiserStatus(),
+                l.statusKey(),
+                l.getCustomStatusId(),
                 l.getAdvertiserSeenAt());
     }
 }

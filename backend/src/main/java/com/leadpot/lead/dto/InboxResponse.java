@@ -24,6 +24,8 @@ public record InboxResponse(
             String formName,
             List<Map<String, Object>> answers,
             String status,
+            /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
+            String statusKey,
             List<String> tags,
             Instant createdAt) {
     }
@@ -34,7 +36,10 @@ public record InboxResponse(
             long unseen,
             long today,
             List<FormCount> byForm,
-            Map<String, Long> byStatus) {
+            /** 키 = statusKey(고정 코드 또는 C{id}). */
+            Map<String, Long> byStatus,
+            /** statusKey → 화면 라벨(커스텀 상태 이름 포함). rail·목록이 이 맵으로 그린다. */
+            Map<String, String> statusNames) {
     }
 
     public record FormCount(Long formId, String formName, long count) {

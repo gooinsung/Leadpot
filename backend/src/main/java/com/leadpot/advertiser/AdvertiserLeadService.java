@@ -63,6 +63,9 @@ public class AdvertiserLeadService {
     private final LeadNoteRepository noteRepository;
     private final AdvertiserAuditService audit;
     private final AdvertiserAccessLogRepository accessLogRepository;
+    private final com.leadpot.lead.LeadStatusService leadStatusService;
+    private final com.leadpot.lead.CustomLeadStatusRepository customStatusRepository;
+    private final com.leadpot.lead.LeadAsRequestService asRequestService;
     /** 광고주 리드 내보내기 일일 횟수 상한(유출 방어). 0 이하면 무제한. */
     private final int exportDailyMax;
 
@@ -73,6 +76,9 @@ public class AdvertiserLeadService {
             LeadNoteRepository noteRepository,
             AdvertiserAuditService audit,
             AdvertiserAccessLogRepository accessLogRepository,
+            com.leadpot.lead.LeadStatusService leadStatusService,
+            com.leadpot.lead.CustomLeadStatusRepository customStatusRepository,
+            com.leadpot.lead.LeadAsRequestService asRequestService,
             @Value("${app.advertiser.export-daily-max:20}") int exportDailyMax) {
         this.userRepository = userRepository;
         this.formRepository = formRepository;
@@ -81,6 +87,9 @@ public class AdvertiserLeadService {
         this.noteRepository = noteRepository;
         this.audit = audit;
         this.accessLogRepository = accessLogRepository;
+        this.leadStatusService = leadStatusService;
+        this.customStatusRepository = customStatusRepository;
+        this.asRequestService = asRequestService;
         this.exportDailyMax = exportDailyMax;
     }
 
@@ -212,8 +221,9 @@ public class AdvertiserLeadService {
         long unseen = 0;
         long today = 0;
         long total = 0;
+        // 키 = statusKey(고정 코드 | C{id}) — 통합 축(V29). 고정 4개는 빈 상태도 보이게 0 으로 깐다.
         Map<String, Long> byStatus = new HashMap<>();
-        for (String s : AdvertiserLeadStatus.VALUES) {
+        for (String s : com.leadpot.lead.LeadStatuses.FIXED_LABELS.keySet()) {
             byStatus.put(s, 0L);
         }
         for (AdvertiserFormGrant grant : grantRepository.findByAdvertiserId(advertiserId)) {
@@ -229,8 +239,7 @@ public class AdvertiserLeadService {
                 if (lead.getCreatedAt() != null && !lead.getCreatedAt().isBefore(todayStart)) {
                     today++;
                 }
-                String s = lead.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : lead.getAdvertiserStatus();
-                byStatus.merge(s, 1L, Long::sum);
+                byStatus.merge(lead.statusKey(), 1L, Long::sum);
             }
         }
         Map<String, Object> out = new HashMap<>();
@@ -260,7 +269,7 @@ public class AdvertiserLeadService {
         int end = Math.min(start + pageSize, filtered.size());
 
         List<AdvertiserLeadResponse> items = filtered.subList(start, end).stream()
-                .map(AdvertiserLeadResponse::from)
+                .map(this::toResponse)
                 .toList();
         return new AdvertiserLeadPage(items, filtered.size(), pageIndex, pageSize);
     }
@@ -307,7 +316,17 @@ public class AdvertiserLeadService {
         String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
                 ? grant.getDisplayName()
                 : formRepository.findById(formId).map(Form::getName).orElse("리드폼");
-        return AdvertiserReportResponse.from(leads, formId, name, from, to);
+        return AdvertiserReportResponse.from(leads, formId, name, from, to, customNames(advertiserId));
+    }
+
+    /** 이 광고주의 커스텀 상태 id → 이름(보관 포함 — 리포트는 과거 리드도 그린다). */
+    private Map<Long, String> customNames(Long advertiserId) {
+        Map<Long, String> out = new HashMap<>();
+        for (com.leadpot.lead.CustomLeadStatus s
+                : customStatusRepository.findByAdvertiserIdOrderBySortOrderAscIdAsc(advertiserId)) {
+            out.put(s.getId(), s.getName());
+        }
+        return out;
     }
 
     /** 리드 상세. 최초 열람이면 {@code advertiser_seen_at} 을 남긴다(마케터 목록의 '확인' 표시 근거). */
@@ -320,7 +339,7 @@ public class AdvertiserLeadService {
                     AdvertiserAccessLog.ACTION_VIEW_LEAD, ip)
                     .target(lead.getFormId(), lead.getId(), "최초 열람"));
         }
-        return AdvertiserLeadResponse.from(lead);
+        return toResponse(lead);
     }
 
     /**
@@ -330,34 +349,72 @@ public class AdvertiserLeadService {
      */
     @Transactional(readOnly = true)
     public AdvertiserLeadResponse leadReadOnly(Long advertiserId, Long leadId) {
-        return AdvertiserLeadResponse.from(requireOwnedLead(advertiserId, leadId));
+        return toResponse(requireOwnedLead(advertiserId, leadId));
     }
 
-    /** 광고주 상태 변경. 마케터의 status 는 건드리지 않는다. */
-    @Transactional
-    public AdvertiserLeadResponse updateStatus(Long advertiserId, Long leadId, String status, String ip) {
-        if (!AdvertiserLeadStatus.isValid(status)) {
-            throw new InvalidSubmissionException("상태 값이 올바르지 않습니다.");
+    /** 응답 변환 — 커스텀 상태면 정의 이름을 함께 실어준다. */
+    private AdvertiserLeadResponse toResponse(Lead lead) {
+        return AdvertiserLeadResponse.from(lead, customNameOf(lead));
+    }
+
+    /** 리드의 커스텀 상태 이름(없으면 null). */
+    private String customNameOf(Lead lead) {
+        if (lead.getCustomStatusId() == null) {
+            return null;
         }
+        return customStatusRepository.findById(lead.getCustomStatusId())
+                .map(com.leadpot.lead.CustomLeadStatus::getName).orElse(null);
+    }
+
+    /**
+     * 광고주 상태 변경 — 통합 축(V29). 규칙(무효·AS요청 불가, 무효 리드 잠금)·이력·과금은
+     * {@link com.leadpot.lead.LeadStatusService} 가 처리한다. 유효로 넘기면 그대로 과금 확정이다.
+     */
+    @Transactional
+    public AdvertiserLeadResponse updateStatus(Long advertiserId, Long leadId, String status,
+            Long customStatusId, String ip) {
         Lead lead = requireOwnedLead(advertiserId, leadId);
         AdvertiserFormGrant grant = requireGrant(advertiserId, lead.getFormId());
         if (!grant.isCanStatus()) {
             throw new NotFoundException("상태를 변경할 권한이 없습니다.");
         }
-        String before = lead.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : lead.getAdvertiserStatus();
-        if (!status.equals(before)) {
-            lead.changeAdvertiserStatus(status, Instant.now());
-            // 상태 변경 이력은 양쪽(마케터·광고주)이 함께 봐야 하므로 visibility=ALL
-            noteRepository.save(new LeadNote(leadId, advertiserId, LeadNote.KIND_SYSTEM,
-                    "광고주 상태 변경: " + AdvertiserLeadStatus.label(before) + " → "
-                            + AdvertiserLeadStatus.label(status),
-                    LeadNote.VISIBILITY_ALL));
+        String before = lead.statusKey();
+        leadStatusService.changeByAdvertiser(advertiserId, lead, status, customStatusId);
+        if (!before.equals(lead.statusKey())) {
             audit.record(new AdvertiserAccessLog(advertiserId, emailOf(advertiserId),
                     AdvertiserAccessLog.ACTION_STATUS, ip)
-                    .target(lead.getFormId(), leadId, before + " → " + status));
+                    .target(lead.getFormId(), leadId, before + " → " + lead.statusKey()));
         }
         lead.markAdvertiserSeen(Instant.now());
-        return AdvertiserLeadResponse.from(lead);
+        return toResponse(lead);
+    }
+
+    // ---------- AS 요청(V30) ----------
+
+    /**
+     * AS 접수(광고주). 상태 변경 권한(canStatus)이 있어야 한다 — 상태 축을 움직이는 행위라서다.
+     * 접수되면 리드가 AS_REQUESTED 로 잠기고 마케터에게 알림이 간다.
+     */
+    @Transactional
+    public com.leadpot.lead.dto.LeadAsRequestResponse requestAs(Long advertiserId, Long leadId,
+            String reason, java.util.List<String> evidenceUrls, String ip) {
+        Lead lead = requireOwnedLead(advertiserId, leadId);
+        AdvertiserFormGrant grant = requireGrant(advertiserId, lead.getFormId());
+        if (!grant.isCanStatus()) {
+            throw new NotFoundException("AS 요청 권한이 없습니다.");
+        }
+        com.leadpot.lead.dto.LeadAsRequestResponse res =
+                asRequestService.request(advertiserId, lead, reason, evidenceUrls);
+        audit.record(new AdvertiserAccessLog(advertiserId, emailOf(advertiserId),
+                AdvertiserAccessLog.ACTION_STATUS, ip).target(lead.getFormId(), leadId, "AS 요청"));
+        return res;
+    }
+
+    /** 이 리드의 AS 이력(광고주 화면). */
+    @Transactional(readOnly = true)
+    public java.util.List<com.leadpot.lead.dto.LeadAsRequestResponse> asHistory(Long advertiserId, Long leadId) {
+        requireOwnedLead(advertiserId, leadId);
+        return asRequestService.history(leadId);
     }
 
     // ---------- 메모 ----------
@@ -366,10 +423,30 @@ public class AdvertiserLeadService {
     @Transactional(readOnly = true)
     public List<AdvertiserNoteResponse> notes(Long advertiserId, Long leadId) {
         requireOwnedLead(advertiserId, leadId);
-        return noteRepository.findByLeadIdOrderByCreatedAtAsc(leadId).stream()
+        List<LeadNote> shared = noteRepository.findByLeadIdOrderByCreatedAtAsc(leadId).stream()
                 .filter(LeadNote::isSharedWithAdvertiser)
-                .map(n -> AdvertiserNoteResponse.of(n, advertiserId))
                 .toList();
+        Map<Long, String> roles = authorRoles(shared);
+        return shared.stream()
+                .map(n -> AdvertiserNoteResponse.of(n, advertiserId,
+                        n.getOwnerId() == null ? null : roles.get(n.getOwnerId())))
+                .toList();
+    }
+
+    /** 작성자 id → 역할(MARKETER/ADVERTISER) 일괄 조회 — 메모마다 왕복하지 않는다(DB 가 원격). */
+    private Map<Long, String> authorRoles(List<LeadNote> notes) {
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (LeadNote n : notes) {
+            if (n.getOwnerId() != null) {
+                ids.add(n.getOwnerId());
+            }
+        }
+        Map<Long, String> out = new HashMap<>();
+        if (!ids.isEmpty()) {
+            userRepository.findAllById(ids).forEach(u ->
+                    out.put(u.getId(), u.getRole() == Role.ADVERTISER ? "ADVERTISER" : "MARKETER"));
+        }
+        return out;
     }
 
     @Transactional
@@ -388,7 +465,7 @@ public class AdvertiserLeadService {
                 LeadNote.VISIBILITY_ALL));
         audit.record(new AdvertiserAccessLog(advertiserId, emailOf(advertiserId),
                 AdvertiserAccessLog.ACTION_MEMO, ip).target(lead.getFormId(), leadId, null));
-        return AdvertiserNoteResponse.of(note, advertiserId);
+        return AdvertiserNoteResponse.of(note, advertiserId, "ADVERTISER");
     }
 
     // ---------- 내부 ----------
@@ -475,8 +552,7 @@ public class AdvertiserLeadService {
             }
             List<String> row = new ArrayList<>(header.size());
             row.add(l.getCreatedAt() != null ? DT.format(l.getCreatedAt()) : "");
-            String st = l.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : l.getAdvertiserStatus();
-            row.add(AdvertiserLeadStatus.label(st));
+            row.add(com.leadpot.lead.LeadStatuses.label(l.getStatus(), customNameOf(l)));
             for (String c : answerCols) {
                 row.add(ans.getOrDefault(c, ""));
             }
@@ -493,8 +569,8 @@ public class AdvertiserLeadService {
         Instant toAt = endOfDay(to);
         String needle = q == null ? null : q.trim().toLowerCase();
         for (Lead lead : all) {
-            String s = lead.getAdvertiserStatus() == null ? AdvertiserLeadStatus.NEW : lead.getAdvertiserStatus();
-            if (status != null && !status.isBlank() && !status.equals(s)) {
+            // 필터 키: 고정 상태는 코드, 커스텀은 C{id} (통합 축 V29)
+            if (status != null && !status.isBlank() && !status.equals(lead.statusKey())) {
                 continue;
             }
             if (fromAt != null && lead.getCreatedAt() != null && lead.getCreatedAt().isBefore(fromAt)) {
