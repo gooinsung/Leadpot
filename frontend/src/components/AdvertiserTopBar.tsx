@@ -78,7 +78,12 @@ export function AdvertiserTopBar() {
               to={n.to}
               end={n.end}
               className={({ isActive }) => (isActive ? "adv-nav-link on" : "adv-nav-link")}
-              style={({ isActive }) => (isActive && me?.brandColor ? { background: me.brandColor, borderColor: me.brandColor } : undefined)}
+              // 브랜드색 지정 시엔 채움 + 흰 글자(soft 기본값 위에 인라인으로 덮는다 — 리디자인 §9)
+              style={({ isActive }) =>
+                isActive && me?.brandColor
+                  ? { background: me.brandColor, borderColor: me.brandColor, color: "#fff" }
+                  : undefined
+              }
             >
               {n.label}
             </NavLink>

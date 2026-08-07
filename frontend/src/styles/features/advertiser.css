@@ -237,10 +237,12 @@
   background: var(--surface-2);
   text-decoration: none;
 }
+/* 리디자인 §9: 활성 탭 = 인디고 soft + 인디고 글자(채움 → soft).
+   화이트라벨 브랜드색이 지정된 경우는 컴포넌트가 인라인(채움+흰 글자)으로 덮는다. */
 .adv-nav-link.on {
-  background: var(--indigo);
-  border-color: var(--indigo);
-  color: #fff;
+  background: var(--indigo-soft);
+  border-color: transparent;
+  color: var(--indigo-ink);
 }
 
 /* 넓은 화면: 마케터 LNB 처럼 좌측 사이드바로 전환(2026-08-08 사용자 요청).
@@ -492,6 +494,18 @@
 .call-btn {
   text-decoration: none;
   white-space: nowrap;
+}
+/* 리디자인 §9: 목록의 전화 버튼 = 그린 soft pill + 번호 표시(광고주의 첫 행동) */
+.call-btn-soft {
+  background: var(--green-soft);
+  color: var(--green-ink);
+  border: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.call-btn-soft:hover {
+  background: color-mix(in srgb, var(--green-soft) 75%, var(--green));
+  color: var(--green-ink);
 }
 .call-btn:hover {
   text-decoration: none;

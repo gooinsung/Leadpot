@@ -16,6 +16,7 @@
 .auth-card {
   width: 100%;
   max-width: 720px;
+  border-radius: 22px; /* 리디자인 §10 */
 }
 .auth-card.card-pad {
   padding: 60px 72px 56px;
@@ -36,7 +37,7 @@
   margin-top: 14px;
   font-size: 17px;
   padding: 15px 18px;
-  border-radius: 12px;
+  border-radius: var(--radius-pill); /* 리디자인 §10 — 풀폭 인디고 pill */
 }
 /* 인증 화면 한정: 입력/라벨/필드를 크게 (다른 화면 영향 없음) */
 .auth-card .eyebrow {
@@ -50,8 +51,8 @@
 }
 .auth-card .input {
   font-size: 16px;
-  padding: 15px 16px;
-  border-radius: 12px;
+  padding: 15px 20px;
+  border-radius: var(--radius-pill); /* 리디자인 §10 — 입력도 pill */
 }
 .auth-error {
   color: var(--rose);
