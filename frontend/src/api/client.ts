@@ -1472,7 +1472,7 @@ export interface SmsAttachment {
 
 /**
  * 첨부 이미지 업로드. 규격 변환(JPG·200KB 이하)은 서버가 하므로 원본을 그대로 올리면 된다.
- * 첨부가 붙은 문자는 MMS(건당 60원)로 나간다.
+ * 첨부가 붙은 문자는 MMS(건당 110원)로 나간다.
  */
 export async function uploadSmsAttachment(file: File): Promise<SmsAttachment> {
   const tokens = getTokens();

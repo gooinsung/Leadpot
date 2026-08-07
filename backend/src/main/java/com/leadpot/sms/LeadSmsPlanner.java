@@ -143,7 +143,7 @@ public class LeadSmsPlanner {
 
     /**
      * 마케터·광고주 알림 본문. 개인정보(이름·연락처)를 넣지 않는다 —
-     * 접수 사실만 알리고 값은 리드팟에서 본다(알림톡 §9 와 같은 기준). 본문이 짧아 SMS 단가(13원)로 유지된다.
+     * 접수 사실만 알리고 값은 리드팟에서 본다(알림톡 §9 와 같은 기준). 본문이 짧아 SMS 단가(18원)로 유지된다.
      */
     private String marketerText(Form form, Lead lead) {
         return "[리드팟] 새 리드 접수\n"
