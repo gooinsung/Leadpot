@@ -16,7 +16,7 @@ import {
   type LeadNote,
   type LeadStatusOption,
 } from "../api/client";
-import { leadStatusClass } from "../lib/leadDisplay";
+import { leadStatusClass, pickName, pickPhone } from "../lib/leadDisplay";
 
 interface Props {
   /** 표시할 리드 id. 바뀌면 패널 내용이 교체된다. */
@@ -24,7 +24,7 @@ interface Props {
   /** 헤더에 보여줄 리드폼 이름(없으면 생략). */
   formName?: string;
   /**
-   * pane   = 통합 인박스의 3-pane 중 오른쪽 칸(레이아웃 흐름 안)
+   * pane   = 통합 인박스 스플릿 뷰의 오른쪽 상세(상시 표시, 2단 그리드 — 가이드 §4)
    * drawer = 일반 페이지 우측에 겹치는 서랍(목록 맥락 유지, 딤 배경 없음)
    */
   variant?: "pane" | "drawer";
@@ -36,8 +36,9 @@ interface Props {
 }
 
 /**
- * 리드 상세 사이드 패널 (U2) — 통합 인박스와 폼별 리드 목록이 함께 쓴다.
- * 모달이 아니라 패널이라 목록 맥락이 유지된다. 읽기 + 상태변경 + 태그 + 메모/이력.
+ * 리드 상세 패널 (U2 → 리디자인 §4) — 통합 인박스(스플릿 pane)와 폼별 목록(서랍)이 함께 쓴다.
+ * pane 은 히어로 헤더(폼명·#id / 이름 / 연락처·접수일시 / [폼에서 열기][유효로 확정]) +
+ * 2단 그리드(답변·방문자 | 상태·태그·메모)로 배치가 다르고, 내용(섹션)은 두 변형이 공유한다.
  */
 export function LeadSidePanel({
   leadId,
@@ -89,7 +90,7 @@ export function LeadSidePanel({
     reload();
   }, [reload]);
 
-  // ESC 로 닫기
+  // ESC 로 닫기 (pane 은 상시 표시라 서랍에서만 의미가 있지만 무해)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -176,9 +177,253 @@ export function LeadSidePanel({
   }
 
   const tags = lead?.tags ?? [];
+  const split = variant === "pane";
+  const validOpt = options.find((o) => o.status === "VALID");
+  const canConfirmValid =
+    !!lead && !!validOpt && lead.statusKey !== "VALID" && lead.statusKey !== "AS_REQUESTED";
 
+  /* ---------- 섹션 (두 변형이 공유) ---------- */
+
+  const answersSection = lead && (
+    <div className="card card-pad ip-answers">
+      <div className="ip-section-label" style={{ marginTop: 0 }}>답변</div>
+      {lead.answers.map((a, i) => (
+        <div key={`${a.label}-${i}`} className="ip-answer">
+          <span className="ip-k">{a.label}</span>
+          <span className="ip-v">{a.value || "-"}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  const visitorSection = lead && (
+    <div className="card card-pad ip-answers">
+      <div className="ip-section-label" style={{ marginTop: 0 }}>방문자</div>
+      <div className="ip-answer">
+        <span className="ip-k">기기</span>
+        <span className="ip-v">{[lead.device, lead.os, lead.browser].filter(Boolean).join(" · ") || "-"}</span>
+      </div>
+      <div className="ip-answer">
+        <span className="ip-k">IP · 언어</span>
+        <span className="ip-v">{`${lead.submitterIp ?? "-"} · ${lead.language ?? "-"}`}</span>
+      </div>
+      {lead.referer && (
+        <div className="ip-answer"><span className="ip-k">유입</span><span className="ip-v">{lead.referer}</span></div>
+      )}
+      {lead.utm && Object.keys(lead.utm).length > 0 && (
+        <div className="ip-answer">
+          <span className="ip-k">UTM</span>
+          <span className="ip-v">{Object.entries(lead.utm).map(([k, v]) => `${k}=${v}`).join(" · ")}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  const statusTagsSection = lead && (
+    <div className={split ? "card card-pad" : ""}>
+      {/* 상태 — 통합 축(V29). 유효로 넘기면 과금(단가 차감)이 확정된다. */}
+      <div className="ip-section-label" style={split ? { marginTop: 0 } : undefined}>상태</div>
+      {lead.statusKey === "AS_REQUESTED" ? (
+        <p className="dash-sub" style={{ margin: "0 0 6px" }}>
+          AS 처리 대기 중입니다. 아래 <b>AS 요청</b>에서 인정/거부로 처리하세요.
+        </p>
+      ) : (
+        <div className="ip-status-picker">
+          {options.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              className={`chip ld-chip ld-${leadStatusClass(s.key)}${lead.statusKey === s.key ? " on" : ""}`}
+              disabled={busy || s.status === "AS_REQUESTED"}
+              title={s.status === "VALID" ? "유효로 확정하면 광고주 잔액에서 단가가 차감됩니다(정산 설정 시)" : undefined}
+              onClick={() => changeStatus(s)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {split && (
+        <p className="dash-sub" style={{ fontSize: 12, margin: "10px 0 0" }}>
+          유효로 확정하면 광고주 잔액에서 단가가 차감됩니다.
+        </p>
+      )}
+
+      {/* 태그 */}
+      <div className="ip-section-label">태그</div>
+      <div className="ip-tags">
+        {tags.map((t) => (
+          <span key={t} className="badge ip-tag">
+            {t}
+            <button className="tag-x" onClick={() => saveTags(tags.filter((x) => x !== t))} disabled={busy} aria-label={`${t} 태그 제거`}>
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          className="input ip-tag-input"
+          value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addTag();
+            }
+          }}
+          placeholder="태그 입력 후 Enter"
+          maxLength={40}
+        />
+      </div>
+    </div>
+  );
+
+  const asSection = asHistory.length > 0 && (
+    <div className={split ? "card card-pad" : ""}>
+      <div className="ip-section-label" style={split ? { marginTop: 0 } : undefined}>AS 요청</div>
+      <div className={split ? "ip-answers" : "card card-pad ip-answers"}>
+        {asHistory.map((r) => (
+          <div key={r.id} style={{ display: "grid", gap: 4, paddingBottom: 8 }}>
+            <span className="ip-note-meta">
+              {r.status === "OPEN" ? "⏳ 처리 대기" : r.status === "ACCEPTED" ? "✅ 인정(무효 처리)" : "❌ 거부(유효 확정)"}
+              {" · "}
+              {new Date(r.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
+            </span>
+            <div>사유: {r.reason}</div>
+            {r.evidenceUrls.length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {r.evidenceUrls.map((u) => (
+                  <a key={u} href={u} target="_blank" rel="noreferrer">
+                    <img src={u} alt="증빙" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 6 }} />
+                  </a>
+                ))}
+              </div>
+            )}
+            {r.resolutionNote && <div className="dash-sub">처리 코멘트: {r.resolutionNote}</div>}
+            {r.status === "OPEN" && (
+              <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+                <input
+                  className="input"
+                  value={asNote}
+                  onChange={(e) => setAsNote(e.target.value)}
+                  placeholder="처리 코멘트 (선택)"
+                  maxLength={500}
+                />
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => resolveAs(true)}>
+                    AS 인정 → 무효(환급)
+                  </button>
+                  <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => resolveAs(false)}>
+                    거부 → 유효 확정
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const notesSection = lead && (
+    <div className={split ? "card card-pad" : ""}>
+      <div className="ip-section-label" style={split ? { marginTop: 0 } : undefined}>메모 · 이력</div>
+      {notes.length > 0 && (
+        <ul className="ip-notes">
+          {notes.map((n) => (
+            <li key={n.id} className={`ip-note${n.kind === "SYSTEM" ? " sys" : ""}`}>
+              <span className="ip-note-meta">
+                {n.kind === "SYSTEM" ? "이력" : n.sharedWithAdvertiser ? "광고주메모" : "마케터메모"}
+                {/* 작성자 역할 표기(2026-08-08 확정): 마케터/광고주 */}
+                {n.authorRole === "ADVERTISER" && " · 광고주"}
+                {n.authorRole === "MARKETER" && n.kind === "MEMO" && " · 마케터"}
+                {" · "}
+                {new Date(n.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
+                {n.authorDeleted && " · 삭제된 광고주"}
+                {n.kind === "MEMO" && (
+                  <button className="tag-x ip-note-x" onClick={() => removeNote(n.id)} aria-label="메모 삭제">×</button>
+                )}
+              </span>
+              <div>{n.body}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <textarea
+        className="input"
+        rows={2}
+        value={memo}
+        onChange={(e) => setMemo(e.target.value)}
+        placeholder={memoShared ? "광고주메모 추가… (광고주에게도 보입니다)" : "마케터메모 추가… (나만 봅니다)"}
+      />
+      <div className="ip-actions">
+        <label className="dash-sub" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+          <input type="checkbox" checked={memoShared} onChange={(e) => setMemoShared(e.target.checked)} />
+          광고주와 공유
+        </label>
+        <button className="btn btn-primary btn-sm" onClick={submitMemo} disabled={busy || !memo.trim()}>메모 저장</button>
+      </div>
+    </div>
+  );
+
+  const errorLine = error && (
+    <p style={{ margin: "4px 0 0", color: "var(--danger, #e5484d)", fontSize: 13 }}>{error}</p>
+  );
+
+  /* ---------- pane(스플릿) 배치 ---------- */
+  if (split) {
+    return (
+      <aside className="inbox-panel ip-split" aria-label="리드 상세">
+        {loading && !lead ? (
+          <Loading />
+        ) : !lead ? (
+          <p className="inbox-empty">불러오지 못했습니다.</p>
+        ) : (
+          <>
+            <div className="ip-hero">
+              <div className="ip-hero-main">
+                <div className="ip-hero-cap">{formName ? `${formName} · ` : ""}#{leadId}</div>
+                <h2 className="ip-hero-name">{pickName(lead.answers)}</h2>
+                <div className="ip-hero-sub tnum">
+                  {pickPhone(lead.answers) ?? "연락처 없음"} · {new Date(lead.createdAt).toLocaleString("ko-KR")} 접수
+                </div>
+              </div>
+              <div className="ip-hero-actions">
+                {showFormLink && (
+                  <a className="btn btn-ghost btn-sm" href={`/forms/${lead.formId}/leads`}>폼에서 열기</a>
+                )}
+                {canConfirmValid && (
+                  <button
+                    className="btn btn-green btn-sm"
+                    disabled={busy}
+                    title="유효로 확정하면 광고주 잔액에서 단가가 차감됩니다(정산 설정 시)"
+                    onClick={() => validOpt && changeStatus(validOpt)}
+                  >
+                    유효로 확정
+                  </button>
+                )}
+              </div>
+            </div>
+            {errorLine}
+            <div className="ip-grid">
+              <div className="ip-col">
+                {answersSection}
+                {visitorSection}
+              </div>
+              <div className="ip-col">
+                {statusTagsSection}
+                {asSection}
+                {notesSection}
+              </div>
+            </div>
+          </>
+        )}
+      </aside>
+    );
+  }
+
+  /* ---------- drawer(서랍) 배치 — 기존 1열 흐름 ---------- */
   return (
-    <aside className={variant === "drawer" ? "inbox-panel lead-drawer" : "inbox-panel"} aria-label="리드 상세">
+    <aside className="inbox-panel lead-drawer" aria-label="리드 상세">
       <div className="ip-head">
         <div className="ip-head-title">
           <span className="ip-title">리드 상세 · #{leadId}</span>
@@ -196,180 +441,18 @@ export function LeadSidePanel({
         <p className="inbox-empty">불러오지 못했습니다.</p>
       ) : (
         <div className="ip-body">
-          {/* 답변 */}
-          <div className="ip-section-label">답변</div>
-          <div className="card card-pad ip-answers">
-            {lead.answers.map((a, i) => (
-              <div key={`${a.label}-${i}`} className="ip-answer">
-                <span className="ip-k">{a.label}</span>
-                <span className="ip-v">{a.value || "-"}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* 상태 — 통합 축(V29). 유효로 넘기면 과금(단가 차감)이 확정된다. */}
-          <div className="ip-section-label">상태</div>
-          {lead.statusKey === "AS_REQUESTED" ? (
-            <p className="dash-sub" style={{ margin: "0 0 6px" }}>
-              AS 처리 대기 중입니다. 아래 <b>AS 요청</b>에서 인정/거부로 처리하세요.
-            </p>
-          ) : (
-            <div className="ip-status-picker">
-              {options.map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  className={`chip ld-chip ld-${leadStatusClass(s.key)}${lead.statusKey === s.key ? " on" : ""}`}
-                  disabled={busy || s.status === "AS_REQUESTED"}
-                  title={s.status === "VALID" ? "유효로 확정하면 광고주 잔액에서 단가가 차감됩니다(정산 설정 시)" : undefined}
-                  onClick={() => changeStatus(s)}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* AS 요청(V30) — 광고주 이의. 대기 중이면 인정/거부 버튼을 노출한다. */}
-          {asHistory.length > 0 && (
-            <>
-              <div className="ip-section-label">AS 요청</div>
-              <div className="card card-pad ip-answers">
-                {asHistory.map((r) => (
-                  <div key={r.id} style={{ display: "grid", gap: 4, paddingBottom: 8 }}>
-                    <span className="ip-note-meta">
-                      {r.status === "OPEN" ? "⏳ 처리 대기" : r.status === "ACCEPTED" ? "✅ 인정(무효 처리)" : "❌ 거부(유효 확정)"}
-                      {" · "}
-                      {new Date(r.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
-                    </span>
-                    <div>사유: {r.reason}</div>
-                    {r.evidenceUrls.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {r.evidenceUrls.map((u) => (
-                          <a key={u} href={u} target="_blank" rel="noreferrer">
-                            <img src={u} alt="증빙" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 6 }} />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                    {r.resolutionNote && <div className="dash-sub">처리 코멘트: {r.resolutionNote}</div>}
-                    {r.status === "OPEN" && (
-                      <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
-                        <input
-                          className="input"
-                          value={asNote}
-                          onChange={(e) => setAsNote(e.target.value)}
-                          placeholder="처리 코멘트 (선택)"
-                          maxLength={500}
-                        />
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => resolveAs(true)}>
-                            AS 인정 → 무효(환급)
-                          </button>
-                          <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => resolveAs(false)}>
-                            거부 → 유효 확정
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {error && <p style={{ margin: "4px 0 0", color: "var(--danger, #e5484d)", fontSize: 13 }}>{error}</p>}
-
-          {/* 태그 */}
-          <div className="ip-section-label">태그</div>
-          <div className="ip-tags">
-            {tags.map((t) => (
-              <span key={t} className="badge ip-tag">
-                {t}
-                <button className="tag-x" onClick={() => saveTags(tags.filter((x) => x !== t))} disabled={busy} aria-label={`${t} 태그 제거`}>
-                  ×
-                </button>
-              </span>
-            ))}
-            <input
-              className="input ip-tag-input"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addTag();
-                }
-              }}
-              placeholder="태그 입력 후 Enter"
-              maxLength={40}
-            />
-          </div>
-
-          {/* 방문자 정보 */}
-          <div className="ip-section-label">방문자</div>
-          <div className="card card-pad ip-answers">
-            <div className="ip-answer">
-              <span className="ip-k">기기</span>
-              <span className="ip-v">{[lead.device, lead.os, lead.browser].filter(Boolean).join(" · ") || "-"}</span>
-            </div>
-            <div className="ip-answer">
-              <span className="ip-k">IP · 언어</span>
-              <span className="ip-v">{`${lead.submitterIp ?? "-"} · ${lead.language ?? "-"}`}</span>
-            </div>
-            {lead.referer && (
-              <div className="ip-answer"><span className="ip-k">유입</span><span className="ip-v">{lead.referer}</span></div>
-            )}
-            {lead.utm && Object.keys(lead.utm).length > 0 && (
-              <div className="ip-answer">
-                <span className="ip-k">UTM</span>
-                <span className="ip-v">{Object.entries(lead.utm).map(([k, v]) => `${k}=${v}`).join(" · ")}</span>
-              </div>
-            )}
-          </div>
-
-          {/* 메모 / 이력 */}
-          <div className="ip-section-label">메모 · 이력</div>
-          {notes.length > 0 && (
-            <ul className="ip-notes">
-              {notes.map((n) => (
-                <li key={n.id} className={`ip-note${n.kind === "SYSTEM" ? " sys" : ""}`}>
-                  <span className="ip-note-meta">
-                    {n.kind === "SYSTEM" ? "이력" : n.sharedWithAdvertiser ? "광고주메모" : "마케터메모"}
-                    {/* 작성자 역할 표기(2026-08-08 확정): 마케터/광고주 */}
-                    {n.authorRole === "ADVERTISER" && " · 광고주"}
-                    {n.authorRole === "MARKETER" && n.kind === "MEMO" && " · 마케터"}
-                    {" · "}
-                    {new Date(n.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
-                    {n.authorDeleted && " · 삭제된 광고주"}
-                    {n.kind === "MEMO" && (
-                      <button className="tag-x ip-note-x" onClick={() => removeNote(n.id)} aria-label="메모 삭제">×</button>
-                    )}
-                  </span>
-                  <div>{n.body}</div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <textarea
-            className="input"
-            rows={2}
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder={memoShared ? "광고주메모 추가… (광고주에게도 보입니다)" : "마케터메모 추가… (나만 봅니다)"}
-          />
-          <label className="dash-sub" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginTop: 4 }}>
-            <input type="checkbox" checked={memoShared} onChange={(e) => setMemoShared(e.target.checked)} />
-            광고주와 공유(광고주메모)
-          </label>
-          <div className="ip-actions">
-            {showFormLink ? (
+          {answersSection}
+          {statusTagsSection}
+          {asSection}
+          {errorLine}
+          {visitorSection}
+          {notesSection}
+          {showFormLink && (
+            <div className="ip-actions">
               <a className="btn btn-ghost btn-sm" href={`/forms/${lead.formId}/leads`}>폼에서 열기 →</a>
-            ) : (
               <span />
-            )}
-            <button className="btn btn-primary btn-sm" onClick={submitMemo} disabled={busy || !memo.trim()}>메모 저장</button>
-          </div>
+            </div>
+          )}
         </div>
       )}
     </aside>

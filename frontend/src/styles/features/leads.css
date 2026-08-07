@@ -97,81 +97,136 @@
 .ld-pill { background: var(--ld-soft); color: var(--ld-ink); border-color: transparent; font-weight: 700; }
 .ld-dot { width: 8px; height: 8px; border-radius: 3px; display: inline-block; background: var(--ld); flex: none; }
 
-/* 3-pane 셸: 상단바(60px) 아래 전체 높이, 풀폭 */
-/* 넓은 화면은 좌측 LNB 옆이라 위쪽 바가 없다. 좁은 화면에만 상단 바(56px)를 뺀다. */
+/* 스플릿 뷰 셸(리디자인 §4): 목록 칼럼(430px) + 상세 pane(상시 표시).
+   넓은 화면은 좌측 LNB 옆이라 위쪽 바가 없다. 좁은 화면에만 상단 바(56px)를 뺀다. */
 .inbox-shell {
   display: flex;
   align-items: stretch;
-  min-height: 100vh;
+  height: 100vh; /* 목록·상세가 각자 스크롤되도록 셸 높이를 고정한다 */
 }
 @media (max-width: 900px) {
-  .inbox-shell { flex-direction: column; min-height: calc(100vh - 56px); }
+  .inbox-shell { flex-direction: column; height: auto; min-height: calc(100vh - 56px); }
 }
 
-/* ── PANE 1 · 필터 rail ── */
-.inbox-rail {
-  width: 236px;
+/* ── 목록 칼럼 ── */
+.il-col {
+  width: 430px;
   flex: none;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--border);
-  padding: 16px 12px;
-  overflow-y: auto;
-  background: var(--surface);
+  min-height: 0;
 }
-@media (max-width: 900px) { .inbox-rail { width: 100%; border-right: none; border-bottom: 1px solid var(--border); } }
-.inbox-search { margin-bottom: 14px; font-size: 13px; }
-/* 기간 필터 — rail 이 좁으므로 두 줄로 쌓는다(가로로 넣으면 날짜 입력이 잘린다) */
-.rail-dates {
+@media (max-width: 1400px) { .il-col { width: 380px; } }
+@media (max-width: 900px) { .il-col { width: 100%; border-right: none; } }
+.il-head { padding: 22px 20px 0; }
+.il-title { margin: 0 0 14px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.il-search { font-size: 13.5px; }
+.il-selects { display: flex; gap: 6px; margin-top: 10px; }
+.il-selects .input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 7px 12px;
+}
+/* 세그먼트(전체/오늘/미확인) — 활성 = surface 배경 + 인디고 글자 + 얕은 그림자(가이드 §2) */
+.il-seg {
+  display: inline-flex;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+  margin: 12px 0 14px;
+}
+.il-seg button {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 6px 15px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.il-seg button:hover { color: var(--text); }
+.il-seg button.on {
+  font-weight: 700;
+  background: var(--surface);
+  color: var(--indigo-strong);
+  box-shadow: 0 1px 2px rgba(20, 23, 42, 0.08);
+}
+/* 일괄 작업 줄 — 체크된 게 있을 때만 나타난다 */
+.il-bulk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 0 12px;
+}
+.il-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 8px;
+  min-height: 0;
 }
-.rail-dates .input {
-  width: 100%;
-  height: 30px;
-  padding: 2px 8px;
+.il-empty { color: var(--muted); text-align: center; padding: 40px 16px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+/* 리드 카드(2줄) — 선택 행은 인디고 soft + inset 링(시안) */
+.il-row {
+  padding: 11px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  background: transparent;
+}
+.il-row:hover { background: var(--surface-2); }
+.il-row.on { background: var(--indigo-soft); box-shadow: inset 0 0 0 1.5px var(--indigo); }
+.il-row.checked { background: color-mix(in srgb, var(--indigo-soft) 70%, var(--surface)); }
+.il-row-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.il-name { font-size: 14.5px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.il-row.unread .il-name { font-weight: 800; }
+.il-st { flex: none; font-size: 11px; padding: 2px 9px; }
+.il-time { margin-left: auto; flex: none; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.il-row-sub { display: flex; gap: 8px; margin-top: 3px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+.il-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 체크박스는 hover/선택 시에만 드러난다(가이드 §4) — 자리는 항상 차지해 행이 흔들리지 않는다 */
+.il-check { display: flex; align-items: center; flex: none; width: 16px; opacity: 0; transition: opacity 0.12s ease; }
+.il-row:hover .il-check,
+.il-row.checked .il-check { opacity: 1; }
+.il-check input { width: 15px; height: 15px; cursor: pointer; accent-color: var(--indigo); }
+/* 하단 페이징 */
+.il-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 12.5px;
-}
-.rail-dates-sep {
-  font-size: 11px;
   color: var(--muted);
-  text-align: center;
-  line-height: 1;
 }
-.rail-group {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--muted); margin: 16px 8px 6px;
-}
-.rail-group:first-of-type { margin-top: 4px; }
-.rail-item {
-  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--muted);
-  padding: 8px 10px; border-radius: 9px; border: none; background: transparent;
-  cursor: pointer; text-align: left; margin-bottom: 1px;
-}
-.rail-item:hover { background: var(--surface-2); }
-.rail-item.on { background: var(--indigo-soft); color: var(--indigo-strong); }
-.rail-item.muted { color: var(--muted); }
-.rail-item-label { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rail-count { font-size: 11.5px; font-weight: 700; color: var(--muted); background: var(--surface-2); border-radius: 999px; padding: 1px 8px; flex: none; font-variant-numeric: tabular-nums; }
-.rail-item.on .rail-count { background: var(--indigo); color: #fff; }
+.il-foot-btns { display: flex; gap: 6px; }
 
-/* ── PANE 2 · 목록 ── */
-.inbox-list { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px; }
-.inbox-list-head { margin-bottom: 14px; }
-.inbox-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.inbox-sub { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+/* ── 상세 pane ── */
+.inbox-detail { flex: 1; min-width: 0; overflow-y: auto; }
+.ip-split { padding: 26px 30px; background: transparent; }
+.ip-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ip-hero-cap { font-size: 12px; font-weight: 700; color: var(--indigo-strong); }
+.ip-hero-name { margin: 6px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.ip-hero-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
+.ip-hero-actions { display: flex; gap: 8px; flex: none; }
+.ip-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; margin-top: 18px; align-items: start; }
+@media (max-width: 1200px) { .ip-grid { grid-template-columns: 1fr; } }
+.ip-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
 .inbox-empty { color: var(--muted); padding: 40px 0; text-align: center; }
-/* 빈 화면은 목록 자리를 그대로 채운다 — 작은 카드만 덩그러니 남으면 어색하다. */
-.inbox-list > .empty-state {
-  min-height: 46vh;
-  justify-content: center;
-}
-/* 행 목록 공통 골격 — 통합 인박스(.inbox-row)와 폼별 목록(.flead-row)이 공유(U3).
-   열 구성만 각자 다르고, 테두리·간격·상태(hover/active/selected)는 한 곳에서 관리한다. */
-.inbox-rows,
+/* 행 목록 골격 — 폼별 목록(.flead-row)이 쓴다(U3). 인박스는 스플릿 뷰 카드(.il-row)로 이동(리디자인 §4). */
 .flead-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-.inbox-row,
 .flead-row {
   display: grid;
   /* 행 밀도 토큰(U7) — 표와 같은 리듬으로 촘촘/넉넉이 함께 바뀐다. */
@@ -179,70 +234,13 @@
   padding: var(--row-py) var(--row-px); border: none; border-bottom: 1px solid var(--border);
   background: transparent; cursor: pointer; text-align: left; font: inherit; width: 100%;
 }
-/* 체크 · 이름 · 연락처 · 답변 요약 · 출처 · 상태 · 접수일시
-   상세를 서랍으로 띄우므로 목록이 화면 폭을 다 쓴다 → 남는 폭을 답변 요약이 가져간다. */
-.inbox-row,
-.inbox-head { grid-template-columns: 32px minmax(110px, 1.1fr) minmax(105px, 0.8fr) minmax(0, 2fr) minmax(0, 0.9fr) 92px 128px; }
-/* 열 제목 줄 — 폼별 목록(.flead-head)과 같은 톤 */
-.inbox-head {
-  display: grid;
-  gap: var(--row-gap);
-  align-items: center;
-  padding: 9px var(--row-px);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-}
-/* 답변 요약 — 넘치면 말줄임(행 높이를 흔들지 않는다) */
-.ir-summary {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.inbox-row:last-child,
 .flead-row:last-child { border-bottom: none; }
-.inbox-row:hover,
 .flead-row:hover { background: var(--surface-2); }
-.inbox-row.active,
 .flead-row.active { background: var(--indigo-soft); }
-.inbox-row.selected { background: color-mix(in srgb, var(--indigo-soft) 70%, var(--surface)); }
-.ir-check { display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.ir-check input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--indigo); }
-
-/* 일괄 작업 툴바 */
-.inbox-bulk {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 10px 14px; margin-bottom: 10px;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-}
-.bulk-check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
-.bulk-check input { width: 16px; height: 16px; accent-color: var(--indigo); }
-.bulk-hint { font-size: 12.5px; color: var(--muted); }
-.bulk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* 일괄 작업 공용 요소(스플릿 목록의 .il-bulk 이 사용) */
 .bulk-count { font-size: 13px; font-weight: 700; color: var(--indigo-strong); }
 .bulk-select { width: auto; font-size: 13px; padding: 6px 10px; }
-.ir-name { font-size: 14.5px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; min-width: 0; }
-.inbox-row.unread .ir-name { font-weight: 800; }
 .ir-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--indigo); flex: none; }
-.ir-phone { font-size: 13.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.ir-src { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 7px; padding: 2px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; justify-self: start; max-width: 100%; }
-.ir-time { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
-.inbox-pager { margin-top: 4px; }
-@media (max-width: 720px) {
-  .inbox-row { grid-template-columns: 28px 1fr auto; row-gap: 6px; }
-  .inbox-head { display: none; } /* 좁은 화면은 행이 접히므로 열 제목이 맞지 않는다 */
-  .ir-name { grid-column: 2; }
-  .ir-phone, .ir-src { grid-column: 2; }
-  .ir-summary { grid-column: 2 / -1; }
-  .ir-time { grid-column: 3; grid-row: 1; }
-}
 
 /* ============================================================
    폼별 리드 목록 행 (U3) — LeadsListPage
@@ -299,25 +297,15 @@
   .fl-actions { grid-area: 4 / 1 / 4 / -1; justify-content: flex-start; margin-top: 4px; }
 }
 
-/* LNB(224px) 가 생기면서 인박스는 4단이 됐다 — 1400px 미만에서는 rail 을 줄이고
-   행의 최소 열 폭·간격도 낮춰 가로 스크롤이 생기지 않게 한다.
-   (안 줄이면 LNB 224 + rail 236 + 행 최소폭 524 + 패널 400 = 1384px 가 필요해
-    1265px 화면에서 119px 넘쳤다. 지금은 224+184+목록+400 으로 딱 맞는다.) */
-/* LNB + rail 이 앞에 있으므로 좁아지면 열 폭을 줄여 가로 스크롤을 막는다.
-   (상세는 서랍이라 칸을 차지하지 않는다) */
-@media (max-width: 1400px) {
-  .inbox-rail { width: 184px; }
-  .inbox-list { padding: 20px 16px; }
-  .inbox-row,
-  .inbox-head { grid-template-columns: 28px minmax(84px, 1fr) minmax(96px, 0.75fr) minmax(0, 1.8fr) minmax(0, 0.8fr) 78px 108px; gap: 10px; }
-}
-
-/* ── PANE 3 · 사이드 패널 ── */
+/* ── 상세 패널 공통(스플릿 pane · 서랍 drawer) ──
+   폭은 변형이 정한다: pane 은 .inbox-detail(flex:1) 이 채우고, 서랍은 .lead-drawer(420px). */
 .inbox-panel {
-  width: 400px; flex: none; border-left: 1px solid var(--border);
-  background: var(--surface); overflow-y: auto; display: flex; flex-direction: column;
+  background: var(--surface);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
-@media (max-width: 900px) { .inbox-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); } }
+@media (max-width: 900px) { .inbox-panel { width: 100%; border-left: none; } }
 .ip-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
 .ip-head-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ip-title { font-weight: 800; font-size: 15px; }
