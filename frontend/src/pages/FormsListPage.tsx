@@ -84,7 +84,10 @@ export function FormsListPage() {
                   <tr key={f.id} className="row-click" onClick={() => navigate(`/forms/${f.id}/edit`)}>
                     <td>{f.name}</td>
                     <td>
-                      <span className="pill i">{f.formType === "BASIC" ? "기본형" : "스텝형"}</span>
+                      {/* 리디자인 §6: 기본형=인디고 soft · 스텝형=그린 soft */}
+                      <span className={f.formType === "BASIC" ? "pill i" : "pill gr"}>
+                        {f.formType === "BASIC" ? "기본형" : "스텝형"}
+                      </span>
                     </td>
                     <td className="num">{f.blockCount}</td>
                     <td className="num">{new Date(f.updatedAt).toLocaleString("ko-KR")}</td>

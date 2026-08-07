@@ -247,6 +247,12 @@ code {
   border-color: transparent;
   color: var(--amber-ink);
 }
+/* 유형 분류 그린 soft(스텝형 등) — 리디자인 §6. 성과가 아닌 '분류'라 soft 만 쓴다. */
+.pill.gr {
+  background: var(--green-soft);
+  border-color: transparent;
+  color: var(--green-ink);
+}
 
 /* ---------- 입력 리드폼 ---------- */
 .field {
