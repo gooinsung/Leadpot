@@ -149,6 +149,11 @@ npm run dev
 > 프론트·백엔드 **둘 다 GitHub Actions 가 Oracle VM 으로 배포**한다. Cloudflare 는 DNS·SSL 프록시만 담당한다.
 > 상세·실측치는 [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C.
 
+> 🚚 **이 구성은 이전(移轉)이 예정돼 있다 (2026-08-07 확정, 아직 착수 전).**
+> 백엔드 → **Railway(싱가포르)** · 프론트 → **Cloudflare Pages** · Oracle VM 종료. DB(Neon 싱가포르)는 그대로.
+> 목적: **웜 응답 541ms → 200ms**(응답시간의 74%가 Neon 왕복) · **배포 다운타임 약 2분 → 0** · **시크릿을 웹 UI 로**(현재 SSH 키가 없어 변경 불가).
+> **착수 전 [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) 를 읽을 것.** 이전이 끝나면 이 §6 과 §2·§3 을 전면 갱신한다.
+
 **`main` 에 push 하면 두 워크플로가 경로별로 자동 실행된다. 수동 배포는 필요 없다.**
 
 | 워크플로 | 트리거 경로 | 하는 일 | 소요 | 다운타임 |
