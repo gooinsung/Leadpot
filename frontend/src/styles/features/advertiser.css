@@ -244,18 +244,26 @@
 }
 
 /* 넓은 화면: 마케터 LNB 처럼 좌측 사이드바로 전환(2026-08-08 사용자 요청).
-   DOM 은 그대로 두고 배치만 바꾼다 — 좁은 화면은 위의 상단바+알약 탭이 그대로다. */
+   DOM 은 그대로 두고 배치만 바꾼다 — 좁은 화면은 위의 상단바+알약 탭이 그대로다.
+
+   ⚠️ 두 가지 함정을 겪고 고친 형태다(첫 배포에서 사이드바가 안 잡혔다):
+   ① .app-shell 기본이 flex-direction: column(layout.css) — row 를 명시해야 옆으로 붙는다.
+   ② layout.css 의 `.app-shell > *:not(.app-nav)` 가 flex:1·width:100% 를 먹인다(특이도 0,2,0).
+      같은 특이도(.app-shell > .adv-bar)로 쓰고 features/*.css 가 layout.css 뒤에 로드되는
+      순서로 이긴다 — .adv-bar 단독 셀렉터로는 진다. */
 @media (min-width: 901px) {
   .app-shell:has(> .adv-bar) {
     display: flex;
+    flex-direction: row;
     align-items: stretch;
     min-height: 100vh;
   }
-  .adv-bar {
+  .app-shell > .adv-bar {
     position: sticky;
     top: 0;
     height: 100vh;
     width: 220px;
+    min-width: 220px;
     flex: none;
     border-bottom: none;
     border-right: 1px solid var(--border);
@@ -480,18 +488,24 @@
 .client-modal {
   max-width: 560px;
 }
+/* 전화 링크 공통 — 목록 카드에서는 다른 버튼과 같은 크기(작게). */
 .call-btn {
+  text-decoration: none;
+  white-space: nowrap;
+}
+.call-btn:hover {
+  text-decoration: none;
+}
+/* 상세 모달에서만 대표 동선으로 크게 — 예전엔 이 블록이 전역이라 목록 카드의
+   전화 버튼까지 거대해져 접수시간 옆이 휑하게 비었다(2026-08-08 사용자 제보). */
+.lead-modal .call-btn {
   display: block;
   width: 100%;
   text-align: center;
-  text-decoration: none;
   font-size: 17px;
   padding: 15px 18px;
   border-radius: 12px;
   margin-bottom: 18px;
-}
-.call-btn:hover {
-  text-decoration: none;
 }
 .status-picker {
   display: flex;

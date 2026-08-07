@@ -36,6 +36,27 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 과금 화면(V31): 유효 리드 수(누적 확정 물량 표시용).
     long countByFormIdAndDeletedAtIsNullAndStatus(Long formId, String status);
 
+    // 과금 화면(V31): 승인 대기(유효도 무효도 아닌) 리드 수.
+    long countByFormIdAndDeletedAtIsNullAndStatusNotIn(Long formId, java.util.Collection<String> statuses);
+
+    // 정산 총괄: 폼별 오늘 접수 수 일괄 집계. [formId, count]
+    @Query("select l.formId, count(l) from Lead l where l.formId in :formIds "
+            + "and l.deletedAt is null and l.createdAt >= :since group by l.formId")
+    List<Object[]> countSinceGrouped(@Param("formIds") java.util.List<Long> formIds,
+            @Param("since") java.time.Instant since);
+
+    // 정산 총괄: 폼별 특정 상태 리드 수 일괄 집계. [formId, count]
+    @Query("select l.formId, count(l) from Lead l where l.formId in :formIds "
+            + "and l.deletedAt is null and l.status = :status group by l.formId")
+    List<Object[]> countStatusGrouped(@Param("formIds") java.util.List<Long> formIds,
+            @Param("status") String status);
+
+    // 정산 총괄: 폼별 승인 대기(유효·무효 제외) 리드 수 일괄 집계. [formId, count]
+    @Query("select l.formId, count(l) from Lead l where l.formId in :formIds "
+            + "and l.deletedAt is null and l.status not in :excluded group by l.formId")
+    List<Object[]> countStatusNotInGrouped(@Param("formIds") java.util.List<Long> formIds,
+            @Param("excluded") java.util.Collection<String> excluded);
+
     // 중복 방지: 기간 내 동일 IP 활성 제출 존재 여부
     boolean existsByFormIdAndSubmitterIpAndCreatedAtGreaterThanEqualAndDeletedAtIsNull(Long formId, String ip, java.time.Instant after);
 

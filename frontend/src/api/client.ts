@@ -661,6 +661,8 @@ export interface BillingView {
   balance: number;
   earnedThisMonth: number;
   todayLeads: number;
+  /** 승인 대기 — 유효도 무효도 아닌 리드(신규·커스텀·AS요청). */
+  pendingLeads: number;
   validLeads: number;
   ledger: LedgerRow[];
 }
@@ -685,6 +687,26 @@ export function chargeFormBilling(formId: number, amount: number, memo: string):
     method: "POST",
     body: { amount, memo },
   });
+}
+
+/** 정산 총괄 한 줄 — 과금 계약이 걸린 리드폼 하나. */
+export interface BillingOverviewRow {
+  formId: number;
+  formName: string;
+  advertiserName: string;
+  unitPrice: number;
+  dailyGoal: number;
+  totalGoal: number;
+  balanceAlertEnabled: boolean;
+  balance: number;
+  earnedThisMonth: number;
+  todayLeads: number;
+  pendingLeads: number;
+  validLeads: number;
+}
+/** 정산 총괄(마케터 '정산' 메뉴) — 계약 걸린 리드폼 전부의 잔액·수익·목표 진행. */
+export function getBillingOverview(): Promise<BillingOverviewRow[]> {
+  return request<BillingOverviewRow[]>("/api/billing/overview");
 }
 
 /** 리드 단건 상세(본인 리드폼만). */

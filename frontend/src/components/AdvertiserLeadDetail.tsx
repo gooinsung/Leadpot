@@ -204,35 +204,48 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
               </div>
 
               <div className="card-h" style={{ marginTop: 20 }}>진행 상태</div>
-              {lead.statusKey === "AS_REQUESTED" ? (
-                <p className="dash-sub">
-                  현재 상태: <strong>AS요청</strong> — 담당자가 확인 중입니다. 처리 결과를 기다려주세요.
+              {/* 상태 칩은 항상 전부 보여준다(2026-08-08 사용자 요청) — 무효도 목록에 있되
+                  선택만 비활성(마케터 전용)이고, 무효·AS대기 리드도 현재 상태가 칩으로 표시된다. */}
+              <div className="status-picker">
+                {options.map((s) => {
+                  const on = lead.statusKey === s.key;
+                  // 비활성: 무효(마케터 전용) · AS요청(AS 접수로만) · 잠긴 리드(무효/AS대기) · 권한 없음
+                  const disabled =
+                    busy || locked || !canStatus || s.status === "INVALID" || s.status === "AS_REQUESTED";
+                  return (
+                    <button
+                      key={s.key}
+                      disabled={disabled}
+                      style={disabled && !on ? { opacity: 0.45, cursor: "not-allowed" } : undefined}
+                      className={`chip ld-chip ld-${leadStatusClass(s.key)}${on ? " on" : ""}`}
+                      title={
+                        s.status === "INVALID"
+                          ? "무효 처리·해제는 담당 마케터만 할 수 있습니다 (AS 요청을 이용하세요)"
+                          : s.status === "AS_REQUESTED"
+                            ? "AS요청은 아래 'AS 요청하기'로만 접수됩니다"
+                            : s.status === "VALID"
+                              ? "유효로 확정하면 계약 정산에 반영됩니다"
+                              : undefined
+                      }
+                      onClick={() => onStatus(s)}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {lead.statusKey === "AS_REQUESTED" && (
+                <p className="dash-sub" style={{ marginTop: 6 }}>
+                  <strong>AS요청</strong> 처리 대기 중 — 담당자가 확인하면 결과가 AS 이력에 남습니다.
                 </p>
-              ) : lead.statusKey === "INVALID" ? (
-                <p className="dash-sub">
-                  현재 상태: <strong>무효</strong> — 무효 처리·해제는 담당 마케터만 할 수 있습니다.
+              )}
+              {lead.statusKey === "INVALID" && (
+                <p className="dash-sub" style={{ marginTop: 6 }}>
+                  <strong>무효</strong> 처리된 리드입니다 — 해제는 담당 마케터만 할 수 있습니다.
                 </p>
-              ) : canStatus ? (
-                <div className="status-picker">
-                  {options
-                    // 무효는 마케터 전용, AS요청은 아래 'AS 요청' 버튼으로만 — 선택지에서 뺀다
-                    .filter((s) => s.status !== "INVALID" && s.status !== "AS_REQUESTED")
-                    .map((s) => (
-                      <button
-                        key={s.key}
-                        disabled={busy}
-                        className={`chip ld-chip ld-${leadStatusClass(s.key)}${lead.statusKey === s.key ? " on" : ""}`}
-                        title={s.status === "VALID" ? "유효로 확정하면 계약 정산에 반영됩니다" : undefined}
-                        onClick={() => onStatus(s)}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                </div>
-              ) : (
-                <p className="dash-sub">
-                  현재 상태: <strong>{lead.statusLabel}</strong> (변경 권한이 없습니다)
-                </p>
+              )}
+              {!canStatus && (
+                <p className="dash-sub" style={{ marginTop: 6 }}>상태 변경 권한이 없습니다.</p>
               )}
               <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
                 나만의 상태(상담중·부재중 등)는 <b>설정 → 진행상태 관리</b>에서 만들 수 있습니다.
