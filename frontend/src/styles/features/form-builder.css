@@ -31,10 +31,13 @@
 }
 .block-editor {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 14px; /* 리디자인 §7 — 항목 블록 행 */
   padding: 14px;
   margin-bottom: 12px;
   background: var(--bg);
+}
+.block-editor:hover {
+  border-color: var(--indigo);
 }
 .block-editor-head {
   display: flex;
@@ -57,6 +60,26 @@
   margin-top: 8px;
   padding-top: 14px;
   border-top: 1px dashed var(--border);
+}
+/* 리디자인 §7: "+ 입력 항목" 등 추가 버튼은 점선 pill — hover 에 실선+soft 배경 */
+.add-block-row .btn {
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 7px 15px;
+}
+.add-block-row .btn:hover {
+  border-style: solid;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.add-block-row .btn:first-child {
+  border-color: color-mix(in srgb, var(--indigo) 40%, var(--border));
+  color: var(--indigo-strong);
+}
+.add-block-row .btn:first-child:hover {
+  background: var(--indigo-soft);
 }
 .preview-panel {
   position: sticky;

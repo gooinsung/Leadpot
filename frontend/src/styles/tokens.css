@@ -67,9 +67,10 @@
   --row-px: 12px;
   --row-gap: 10px;
 
-  /* System */
-  --radius: 14px;
-  --radius-sm: 9px;
+  /* System — 리디자인(2026-08-08, docs/design/적용 가이드.md §1): 라운드 확대 + pill 공통 토큰 */
+  --radius: 18px;       /* 카드 */
+  --radius-sm: 12px;    /* 작은 요소 (메뉴·메모 박스·textarea) */
+  --radius-pill: 999px; /* 버튼·입력·칩·세그먼트 공통 */
   --shadow: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 23, 42, 0.14);
   --shadow-lg: 0 24px 60px -24px rgba(29, 35, 120, 0.34);
   --sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,

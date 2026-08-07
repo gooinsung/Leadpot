@@ -6,6 +6,7 @@ import {
   downloadAdvertiserLeads,
   getAdvertiserDashboard,
   getAdvertiserLeadUpdates,
+  getAdvertiserMe,
   getAdvertiserStatusOptions,
   listAdvertiserForms,
   listAdvertiserLeads,
@@ -13,6 +14,7 @@ import {
   type AdvertiserDashboard,
   type AdvertiserForm,
   type AdvertiserLead,
+  type AdvertiserMe,
   type LeadStatusOption,
 } from "../api/client";
 import { AdvertiserTopBar } from "../components/AdvertiserTopBar";
@@ -47,8 +49,11 @@ export function AdvertiserLeadsPage() {
   const [dash, setDash] = useState<AdvertiserDashboard | null>(null);
   // 통합 상태 축(V29): 고정 4 + 내 커스텀. 무효는 마케터 전용이라 변경 셀렉트에서 뺀다.
   const [statusOptions, setStatusOptions] = useState<LeadStatusOption[]>([]);
+  // 인사 헤더("OO님, 새 리드 N건이 기다려요")용 내 정보 — 리디자인 §9
+  const [me, setMe] = useState<AdvertiserMe | null>(null);
   useEffect(() => {
     getAdvertiserStatusOptions().then(setStatusOptions).catch(() => setStatusOptions([]));
+    getAdvertiserMe().then(setMe).catch(() => {});
   }, []);
 
   const [leads, setLeads] = useState<AdvertiserLead[]>([]);
@@ -290,10 +295,15 @@ export function AdvertiserLeadsPage() {
         <div className="dash-head">
           <div>
             <p className="eyebrow">접수 내역</p>
-            <h1 className="dash-title">{currentForm?.name ?? "리드"}</h1>
+            {/* 리디자인 §9: 할 일 문구로 인사 — 미확인이 없으면 차분하게 */}
+            <h1 className="dash-title">
+              {(dash?.unseenLeads ?? 0) > 0
+                ? `${me ? `${me.company || me.name} 님, ` : ""}새 리드 ${dash!.unseenLeads}건이 기다려요`
+                : `${me ? `${me.company || me.name} 님, ` : ""}접수된 리드를 확인하세요`}
+            </h1>
             <p className="dash-sub">
               {currentForm
-                ? `총 ${currentForm.leadCount.toLocaleString()}건${
+                ? `${currentForm.name} · 총 ${currentForm.leadCount.toLocaleString()}건${
                     currentForm.unseenCount > 0 ? ` · 미확인 ${currentForm.unseenCount}건` : ""
                   }`
                 : "담당 마케터가 권한을 부여한 리드폼의 접수 내역입니다."}
@@ -464,10 +474,10 @@ export function AdvertiserLeadsPage() {
                         )}
                       </span>
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                        {/* 광고주의 첫 행동은 대부분 '전화 걸기' — 모바일에서 탭 타깃을 키운다(U6) */}
+                        {/* 광고주의 첫 행동은 대부분 '전화 걸기' — 그린 soft pill + 번호 표시(리디자인 §9) */}
                         {phone && (
-                          <a className="btn btn-primary btn-sm call-btn" href={`tel:${phone}`}>
-                            📞 전화
+                          <a className="btn btn-sm call-btn call-btn-soft" href={`tel:${phone}`}>
+                            📞 {phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3")}
                           </a>
                         )}
                         <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(lead.id)}>

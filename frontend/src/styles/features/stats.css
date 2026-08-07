@@ -90,19 +90,20 @@
   position: absolute;
   bottom: 0;
   min-height: 2px;
-  border-radius: 3px 3px 0 0;
+  border-radius: 6px 6px 3px 3px; /* 리디자인 §8 */
   transition: height 0.2s;
 }
-/* 방문(연한 배경 막대, 전폭) + 리드(진한 막대, 가운데 좁게) 오버레이 */
+/* 방문(연인디고, 전폭) + 리드(그린, 가운데 좁게) 오버레이 — 리디자인 §8:
+   트래픽은 --indigo-soft 보다 진한 연인디고(#c3c8ea급, mix 로 토큰화), 리드는 그린(성과색). */
 .day-bar-v {
   left: 0;
   right: 0;
-  background: var(--indigo-soft);
+  background: color-mix(in srgb, var(--indigo) 30%, var(--surface));
 }
 .day-bar-l {
   left: 22%;
   right: 22%;
-  background: var(--indigo-strong);
+  background: var(--green);
 }
 .chart-legend {
   font-size: 11px;
@@ -122,10 +123,10 @@
   margin-left: 8px;
 }
 .chart-legend .lg-v {
-  background: var(--indigo-soft);
+  background: color-mix(in srgb, var(--indigo) 30%, var(--surface));
 }
 .chart-legend .lg-l {
-  background: var(--indigo-strong);
+  background: var(--green);
 }
 
 /* 필터바 */

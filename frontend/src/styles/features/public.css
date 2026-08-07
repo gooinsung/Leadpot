@@ -166,11 +166,14 @@
 
 /* 공개 리드폼: 모바일 최적화(99% 모바일). 입력창 16px로 iOS 자동확대 방지, 큰 탭 타깃.
    Daylight: 탭 타깃을 더 키우고 모서리를 둥글게, 액센트는 페리윙클. */
+/* 리디자인 §11: 모바일에서 pill 은 과함 — 14px 라운드로 고정(베이스 pill 을 덮는다).
+   버튼·강조색은 리드폼별 styleConfig 를 그대로 따른다(색 변경 없음). */
 :is(.public-form-card, .landing-public) .input {
   font-size: 16px;
   padding: 15px 14px;
-  border-radius: 12px;
+  border-radius: 14px;
   border-color: var(--pub-border);
+  background: var(--pub-surface-2, var(--surface-2));
 }
 :is(.public-form-card, .landing-public) .input:focus {
   border-color: var(--pub-accent);
@@ -179,7 +182,7 @@
 :is(.public-form-card, .landing-public) .btn {
   min-height: 54px;
   font-size: 16.5px;
-  border-radius: 12px;
+  border-radius: 16px; /* 리디자인 §11 — 제출 버튼 */
 }
 :is(.public-form-card, .landing-public) .fr-check {
   font-size: 14px;

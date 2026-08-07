@@ -10,7 +10,6 @@ import {
   type InboxResponse,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
-import { Pagination } from "../components/Pagination";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import {
   leadStatusClass,
@@ -21,6 +20,8 @@ import {
   summarizeAnswers,
 } from "../lib/leadDisplay";
 
+const PAGE_SIZE = 25;
+
 /** "C{id}" 상태 키 → 일괄 변경 요청 값. 통합 축(V29). */
 function keyToStatusBody(key: string): { status: string; customStatusId: number | null } {
   return key.startsWith("C")
@@ -28,38 +29,53 @@ function keyToStatusBody(key: string): { status: string; customStatusId: number 
     : { status: key, customStatusId: null };
 }
 
-const PAGE_SIZE = 25;
+/** 좁은 화면(≤900px) 여부 — 스플릿 상세를 서랍으로 바꿀지 판정. */
+function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 900px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 900px)");
+    const on = (e: MediaQueryListEvent) => setNarrow(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
 
 /**
- * 통합 리드 인박스(U1) — 내 모든 리드폼의 리드를 한 곳에서.
- * 3-pane: 왼쪽 필터 rail · 가운데 목록 · 오른쪽 사이드 패널(상세). 넓은 프레임.
- * 폼별 뷰(/forms/:id/leads)는 그대로 유지되고, 이 페이지는 새 진입점으로 추가된다.
+ * 통합 리드 인박스(U1) — 리디자인(가이드 §4)으로 3-pane rail 을 **스플릿 뷰**로 교체:
+ * 목록 칼럼(430px: 검색·셀렉트 3개·세그먼트·카드 리스트·페이징) + 상세 pane(항상 표시).
+ * 첫 진입 시 첫 리드를 자동 선택해 오른쪽이 비지 않는다. ≤900px 은 목록만 보이고
+ * 행을 탭하면 상세가 서랍(전체 화면)으로 뜬다 — 기존 drawer 로직 재사용.
  */
 export function LeadInboxPage() {
-  // 필터 (rail)
-  const [view, setView] = useState<"unseen" | "today" | "all">("all"); // 기본=전체(사용자 결정)
-  const [formFilter, setFormFilter] = useState<number | null>(null);
+  // 세그먼트(전체/오늘/미확인) + 셀렉트 3개(상태/폼/기간)
+  const [view, setView] = useState<"all" | "today" | "unseen">("all");
   const [statusFilter, setStatusFilter] = useState("");
+  const [formFilter, setFormFilter] = useState<number | null>(null);
+  const [range, setRange] = useState<"all" | "7d" | "30d">("all");
   const [q, setQ] = useState("");
   const [qInput, setQInput] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<InboxResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 사이드 패널
+  // 상세 선택. 데스크톱은 openId 가 없어도 첫 리드를 보여준다(자동 선택).
   const [openId, setOpenId] = useState<number | null>(null);
+  const isNarrow = useIsNarrow();
   // 일괄 선택
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const today = (() => {
+  const kstDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const today = kstDate(new Date());
+  const daysAgo = (n: number) => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
+    d.setDate(d.getDate() - n);
+    return kstDate(d);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,9 +84,9 @@ export function LeadInboxPage() {
     try {
       const res = await getInbox({
         unseen: view === "unseen",
-        // '오늘' 보기는 오늘 하루로 고정, 그 외에는 사용자가 고른 기간을 쓴다.
-        from: view === "today" ? today : dateFrom || undefined,
-        to: view === "today" ? today : dateTo || undefined,
+        // '오늘' 세그먼트는 오늘 하루로 고정, 그 외에는 기간 셀렉트를 쓴다.
+        from: view === "today" ? today : range === "7d" ? daysAgo(6) : range === "30d" ? daysAgo(29) : undefined,
+        to: view === "today" ? today : range === "all" ? undefined : today,
         status: statusFilter || undefined,
         formId: formFilter ?? undefined,
         q: q.trim() || undefined,
@@ -83,7 +99,8 @@ export function LeadInboxPage() {
     } finally {
       setLoading(false);
     }
-  }, [view, statusFilter, formFilter, q, dateFrom, dateTo, page, today]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, statusFilter, formFilter, range, q, page]);
 
   useEffect(() => {
     load();
@@ -92,44 +109,38 @@ export function LeadInboxPage() {
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [view, statusFilter, formFilter, q, dateFrom, dateTo]);
+  }, [view, statusFilter, formFilter, range, q]);
 
   const counts = data?.counts;
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  /** 빈 화면에서 한 번에 필터를 걷어낸다(어떤 조건 때문에 비었는지 찾아 헤매지 않게). */
+  // 데스크톱: 선택이 없거나 목록 밖이면 첫 리드 자동 선택(오른쪽이 비지 않게).
+  const selectedId = !isNarrow
+    ? (openId != null && items.some((i) => i.id === openId) ? openId : items[0]?.id ?? null)
+    : openId;
+
   function resetFilters() {
     setView("all");
     setStatusFilter("");
     setFormFilter(null);
+    setRange("all");
     setQ("");
-    setQInput(""); // 검색창 표시도 같이 비운다(안 그러면 글자가 남아 걸린 줄 안다)
-    setDateFrom("");
-    setDateTo("");
+    setQInput("");
     setPage(1);
   }
-
-  /** 날짜를 고르면 '오늘' 보기에서 빠져나온다 — 둘이 겹치면 어느 쪽이 걸린 건지 알 수 없다. */
-  function pickDate(which: "from" | "to", value: string) {
-    if (which === "from") setDateFrom(value);
-    else setDateTo(value);
-    if (view === "today") setView("all");
-  }
-  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
     setQ(qInput);
   }
 
-  // 상태 변경 후 목록·패널 갱신
   async function onStatusChanged() {
     await load();
   }
 
   // ---- 일괄 선택 ----
-  const pageIds = data?.items.map((i) => i.id) ?? [];
-  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
-
   function toggleSelect(id: number) {
     setSelected((prev) => {
       const n = new Set(prev);
@@ -138,9 +149,6 @@ export function LeadInboxPage() {
       return n;
     });
   }
-  function toggleSelectAll() {
-    setSelected((prev) => (pageIds.length > 0 && pageIds.every((id) => prev.has(id)) ? new Set() : new Set(pageIds)));
-  }
   async function onBulkStatus(statusKey: string) {
     if (selected.size === 0 || bulkBusy) return;
     setBulkBusy(true);
@@ -148,7 +156,7 @@ export function LeadInboxPage() {
     try {
       const { status, customStatusId } = keyToStatusBody(statusKey);
       await bulkUpdateLeadStatus([...selected], status, customStatusId);
-      await load(); // 선택 초기화 포함
+      await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "일괄 상태변경에 실패했습니다.");
     } finally {
@@ -170,231 +178,207 @@ export function LeadInboxPage() {
     }
   }
 
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, total);
+
   return (
     <div className="app-shell">
       <TopBar />
       <div className="inbox-shell">
-        {/* ── PANE 1 · 필터 rail ── */}
-        <aside className="inbox-rail">
-          <form onSubmit={submitSearch}>
-            <input
-              className="input inbox-search"
-              value={qInput}
-              onChange={(e) => setQInput(e.target.value)}
-              placeholder="🔍 리드 검색 (이름·연락처 등)"
-              onBlur={() => setQ(qInput)}
-            />
-          </form>
-
-          {/* 순서: 전체 → 오늘 → 미확인 (사용자 결정) */}
-          <div className="rail-group">보기</div>
-          <RailItem label="전체" on={view === "all"} count={counts?.all} onClick={() => setView("all")} />
-          <RailItem label="오늘" on={view === "today"} count={counts?.today} onClick={() => setView("today")} />
-          <RailItem label="미확인" on={view === "unseen"} count={counts?.unseen} onClick={() => setView("unseen")} />
-
-          {/* 기간 — '오늘' 보기와 겹치지 않게, 날짜를 고르면 보기를 '전체'로 넘긴다 */}
-          <div className="rail-group">기간</div>
-          <div className="rail-dates" title="접수일시(KST) 범위로 검색">
-            <input
-              className="input"
-              type="date"
-              value={dateFrom}
-              max={dateTo || undefined}
-              onChange={(e) => pickDate("from", e.target.value)}
-              aria-label="접수 시작일"
-            />
-            <span className="rail-dates-sep">~</span>
-            <input
-              className="input"
-              type="date"
-              value={dateTo}
-              min={dateFrom || undefined}
-              onChange={(e) => pickDate("to", e.target.value)}
-              aria-label="접수 종료일"
-            />
-          </div>
-
-          <div className="rail-group">상태</div>
-          <RailItem label="전체 상태" on={statusFilter === ""} onClick={() => setStatusFilter("")} muted />
-          {/* 통합 축(V29): 고정 4개 + 등장한 커스텀 상태. 서버가 키→라벨 맵을 함께 내려준다. */}
-          {Object.entries(counts?.statusNames ?? {}).map(([key, label]) => (
-            <RailItem
-              key={key}
-              label={label}
-              on={statusFilter === key}
-              count={counts?.byStatus?.[key]}
-              onClick={() => setStatusFilter(key)}
-              dotClass={`ld-dot ld-${leadStatusClass(key)}`}
-            />
-          ))}
-
-          <div className="rail-group">출처 (리드폼)</div>
-          <RailItem label="모든 폼" on={formFilter === null} onClick={() => setFormFilter(null)} muted />
-          {(counts?.byForm ?? []).map((f) => (
-            <RailItem
-              key={f.formId}
-              label={f.formName}
-              on={formFilter === f.formId}
-              count={f.count}
-              onClick={() => setFormFilter(f.formId)}
-            />
-          ))}
-        </aside>
-
-        {/* ── PANE 2 · 목록 ── */}
-        <main className="inbox-list">
-          <div className="inbox-list-head">
-            <h1 className="inbox-title">
-              통합 인박스
-              <span className="inbox-sub">
-                {view === "unseen" ? "미확인" : view === "today" ? "오늘" : "전체"}
-                {statusFilter && ` · ${statusLabel(statusFilter, counts?.statusNames)}`}
-                {formFilter !== null && counts?.byForm && ` · ${counts.byForm.find((f) => f.formId === formFilter)?.formName ?? ""}`}
-                {` · ${data?.total?.toLocaleString() ?? 0}건`}
-              </span>
-            </h1>
-          </div>
-
-          {error && <p className="auth-error">{error}</p>}
-
-          {/* 일괄 작업 툴바 */}
-          {(data?.items.length ?? 0) > 0 && (
-            <div className="inbox-bulk">
-              <label className="bulk-check">
-                <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
-                전체 선택
-              </label>
-              {selected.size > 0 ? (
-                <div className="bulk-actions">
-                  <span className="bulk-count">{selected.size}건 선택</span>
-                  <select
-                    className="input bulk-select"
-                    value=""
-                    disabled={bulkBusy}
-                    onChange={(e) => e.target.value && onBulkStatus(e.target.value)}
-                  >
-                    <option value="">상태 변경…</option>
-                    {/* AS요청은 광고주 접수 전용이라 일괄 변경 대상에서 뺀다 */}
-                    {Object.entries(counts?.statusNames ?? {})
-                      .filter(([key]) => key !== "AS_REQUESTED")
-                      .map(([key, label]) => (
-                        <option key={key} value={key}>{label}(으)로</option>
-                      ))}
-                  </select>
-                  <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
-                  <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={() => setSelected(new Set())}>선택 해제</button>
-                </div>
-              ) : (
-                <span className="bulk-hint">체크해서 여러 건을 한 번에 상태변경·정리하세요</span>
-              )}
-            </div>
-          )}
-
-          {loading && !data ? (
-            <Loading />
-          ) : (data?.items.length ?? 0) === 0 ? (
-            /* 리드가 아예 없는 것과 필터에 걸려 안 보이는 것은 해야 할 일이 다르다 — 구분해서 안내한다. */
-            <div className="card card-pad empty-state">
-              {(counts?.all ?? 0) === 0 ? (
-                <>
-                  <p>아직 접수된 리드가 없습니다.</p>
-                  <p className="dash-sub" style={{ marginTop: -6 }}>
-                    리드폼을 만들어 공개하면 접수된 리드가 여기에 모입니다.
-                  </p>
-                  <Link className="btn btn-primary" to="/forms">
-                    리드폼 보러 가기
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <p>조건에 맞는 리드가 없습니다.</p>
-                  <button className="btn btn-ghost" onClick={resetFilters}>
-                    필터 초기화
-                  </button>
-                </>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="inbox-rows" role="list">
-                {/* 열 제목 — 폼별 목록과 같은 방식으로 스캔을 돕는다(열 폭은 .inbox-row 와 공유) */}
-                <div className="inbox-head" aria-hidden="true">
-                  <span />
-                  <span>이름</span>
-                  <span>연락처</span>
-                  <span>답변 요약</span>
-                  <span>출처</span>
-                  <span>상태</span>
-                  <span>접수일시</span>
-                </div>
-                {data!.items.map((it) => (
-                  <InboxRow
-                    key={it.id}
-                    item={it}
-                    statusNames={counts?.statusNames}
-                    active={openId === it.id}
-                    selected={selected.has(it.id)}
-                    onOpen={() => setOpenId(it.id)}
-                    onToggle={() => toggleSelect(it.id)}
-                  />
+        {/* ── 목록 칼럼 (430px) ── */}
+        <div className="il-col">
+          <div className="il-head">
+            <h1 className="il-title">리드</h1>
+            <form onSubmit={submitSearch}>
+              <input
+                className="input il-search"
+                value={qInput}
+                onChange={(e) => setQInput(e.target.value)}
+                placeholder="이름·연락처·답변 검색"
+                aria-label="리드 검색"
+              />
+            </form>
+            <div className="il-selects">
+              <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="상태 필터">
+                <option value="">모든 상태</option>
+                {Object.entries(counts?.statusNames ?? {}).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}{counts?.byStatus?.[key] != null ? ` ${counts.byStatus[key]}` : ""}
+                  </option>
                 ))}
+              </select>
+              <select
+                className="input"
+                value={formFilter ?? ""}
+                onChange={(e) => setFormFilter(e.target.value ? Number(e.target.value) : null)}
+                aria-label="리드폼 필터"
+              >
+                <option value="">모든 폼</option>
+                {(counts?.byForm ?? []).map((f) => (
+                  <option key={f.formId} value={f.formId}>
+                    {f.formName} {f.count}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                value={range}
+                onChange={(e) => setRange(e.target.value as typeof range)}
+                aria-label="기간 필터"
+              >
+                <option value="all">전체 기간</option>
+                <option value="7d">최근 7일</option>
+                <option value="30d">최근 30일</option>
+              </select>
+            </div>
+            <div className="il-seg" role="tablist" aria-label="보기">
+              {(
+                [
+                  ["all", "전체", counts?.all],
+                  ["today", "오늘", counts?.today],
+                  ["unseen", "미확인", counts?.unseen],
+                ] as const
+              ).map(([key, label, n]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === key}
+                  className={view === key ? "on" : ""}
+                  onClick={() => setView(key)}
+                >
+                  {label}{n != null ? ` ${n.toLocaleString()}` : ""}
+                </button>
+              ))}
+            </div>
+            {/* 일괄 작업 — 카드에 hover 하면 체크박스가 드러난다(가이드 §4) */}
+            {selected.size > 0 && (
+              <div className="il-bulk">
+                <span className="bulk-count">{selected.size}건 선택</span>
+                <select
+                  className="input bulk-select"
+                  value=""
+                  disabled={bulkBusy}
+                  onChange={(e) => e.target.value && onBulkStatus(e.target.value)}
+                  aria-label="일괄 상태 변경"
+                >
+                  <option value="">상태 변경…</option>
+                  {Object.entries(counts?.statusNames ?? {})
+                    .filter(([key]) => key !== "AS_REQUESTED")
+                    .map(([key, label]) => (
+                      <option key={key} value={key}>{label}(으)로</option>
+                    ))}
+                </select>
+                <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
+                <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={() => setSelected(new Set())}>해제</button>
               </div>
-              <div className="inbox-pager">
-                <Pagination
-                  total={data!.total}
-                  page={page}
-                  pages={pages}
-                  pageSize={PAGE_SIZE}
-                  onPage={setPage}
-                  onPageSize={() => {}}
-                />
-              </div>
-            </>
-          )}
-        </main>
+            )}
+          </div>
 
-        {/* 상세는 목록 위로 겹쳐 나왔다 들어가는 서랍(사용자 결정) —
-            칸을 미리 비워두지 않으므로 목록이 항상 화면 폭을 다 쓴다. */}
-        {openId != null && (
-          <LeadSidePanel
-            leadId={openId}
-            variant="drawer"
-            formName={data?.items.find((i) => i.id === openId)?.formName}
-            onClose={() => setOpenId(null)}
-            onChanged={onStatusChanged}
-            showFormLink
-          />
+          {error && <p className="auth-error" style={{ margin: "10px 20px" }}>{error}</p>}
+
+          <div className="il-list" role="list">
+            {loading && !data ? (
+              <Loading />
+            ) : items.length === 0 ? (
+              <div className="il-empty">
+                {(counts?.all ?? 0) === 0 ? (
+                  <>
+                    <p>아직 접수된 리드가 없습니다.</p>
+                    <Link className="btn btn-primary btn-sm" to="/forms">리드폼 보러 가기</Link>
+                  </>
+                ) : (
+                  <>
+                    <p>조건에 맞는 리드가 없습니다.</p>
+                    <button className="btn btn-ghost btn-sm" onClick={resetFilters}>필터 초기화</button>
+                  </>
+                )}
+              </div>
+            ) : (
+              items.map((it) => (
+                <InboxCard
+                  key={it.id}
+                  item={it}
+                  statusNames={counts?.statusNames}
+                  active={selectedId === it.id}
+                  checked={selected.has(it.id)}
+                  onOpen={() => setOpenId(it.id)}
+                  onToggle={() => toggleSelect(it.id)}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="il-foot">
+            <span className="tnum">{rangeStart}–{rangeEnd} / {total.toLocaleString()}</span>
+            <div className="il-foot-btns">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                aria-label="이전 페이지"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={page >= pages}
+                onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                aria-label="다음 페이지"
+              >
+                →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 상세 pane (데스크톱 상시 표시) ── */}
+        {!isNarrow && (
+          <div className="inbox-detail">
+            {selectedId != null ? (
+              <LeadSidePanel
+                key={selectedId}
+                leadId={selectedId}
+                variant="pane"
+                formName={items.find((i) => i.id === selectedId)?.formName}
+                onClose={() => setOpenId(null)}
+                onChanged={onStatusChanged}
+                showFormLink
+              />
+            ) : (
+              <div className="il-empty" style={{ paddingTop: 80 }}>
+                <p>왼쪽에서 리드를 선택하면 여기에 상세가 표시됩니다.</p>
+              </div>
+            )}
+          </div>
         )}
       </div>
+
+      {/* ≤900px: 행 탭 → 상세 서랍(전체 화면) */}
+      {isNarrow && openId != null && (
+        <LeadSidePanel
+          leadId={openId}
+          variant="drawer"
+          formName={items.find((i) => i.id === openId)?.formName}
+          onClose={() => setOpenId(null)}
+          onChanged={onStatusChanged}
+          showFormLink
+        />
+      )}
     </div>
   );
 }
 
-/* ---------- rail item ---------- */
-function RailItem({
-  label, on, count, onClick, muted, dotClass,
-}: {
-  label: string; on: boolean; count?: number; onClick: () => void; muted?: boolean; dotClass?: string;
-}) {
-  return (
-    <button type="button" className={`rail-item${on ? " on" : ""}${muted ? " muted" : ""}`} onClick={onClick}>
-      <span className="rail-item-label">
-        {dotClass && <span className={dotClass} />}
-        {label}
-      </span>
-      {count != null && <span className="rail-count">{count.toLocaleString()}</span>}
-    </button>
-  );
-}
-
-/* ---------- list row ---------- */
-function InboxRow({
-  item, statusNames, active, selected, onOpen, onToggle,
+/* ---------- 목록 카드 (2줄: 이름+상태+시각 / 연락처+요약) ---------- */
+function InboxCard({
+  item, statusNames, active, checked, onOpen, onToggle,
 }: {
   item: InboxItem;
   statusNames?: Record<string, string>;
   active: boolean;
-  selected: boolean;
+  checked: boolean;
   onOpen: () => void;
   onToggle: () => void;
 }) {
@@ -403,26 +387,26 @@ function InboxRow({
   return (
     <div
       role="listitem"
-      className={`inbox-row${active ? " active" : ""}${unread ? " unread" : ""}${selected ? " selected" : ""}`}
+      className={`il-row${active ? " on" : ""}${unread ? " unread" : ""}${checked ? " checked" : ""}`}
       onClick={onOpen}
     >
-      {/* 체크박스: 행 열기와 분리(클릭 전파 차단) */}
-      <label className="ir-check" onClick={(e) => e.stopPropagation()}>
-        <input type="checkbox" checked={selected} onChange={onToggle} aria-label="리드 선택" />
-      </label>
-      <span className="ir-name">
+      <div className="il-row-top">
+        <label className="il-check" onClick={(e) => e.stopPropagation()}>
+          <input type="checkbox" checked={checked} onChange={onToggle} aria-label="리드 선택" />
+        </label>
         {unread && <span className="ir-dot" />}
-        {pickName(item.answers)}
-      </span>
-      <span className="ir-phone">{phone ? maskPhone(phone) : ""}</span>
-      {/* 이름·연락처를 뺀 나머지 답변 한 줄 요약 — 폼별 목록과 같은 규칙(lib/leadDisplay) */}
-      <span className="ir-summary">{summarizeAnswers(item.answers, [pickName(item.answers), phone])}</span>
-      <span className="ir-src" title={item.formName}>{item.formName}</span>
-      <span className={`pill ld-pill ld-${leadStatusClass(item.statusKey)}`}>
-        {statusLabel(item.statusKey, statusNames)}
-      </span>
-      <span className="ir-time">{new Date(item.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}</span>
+        <span className="il-name">{pickName(item.answers)}</span>
+        <span className={`il-st pill ld-pill ld-${leadStatusClass(item.statusKey)}`}>
+          {statusLabel(item.statusKey, statusNames)}
+        </span>
+        <span className="il-time">
+          {new Date(item.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
+        </span>
+      </div>
+      <div className="il-row-sub">
+        <span className="tnum" style={{ flex: "none" }}>{phone ? maskPhone(phone) : "—"}</span>
+        <span className="il-summary">{summarizeAnswers(item.answers, [pickName(item.answers), phone])}</span>
+      </div>
     </div>
   );
 }
-

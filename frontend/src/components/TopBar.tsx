@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
+import { getInbox } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { useTheme, type Theme } from "../lib/useTheme";
 import { useDensity } from "../lib/useDensity";
@@ -88,6 +89,15 @@ export function TopBar() {
   // 운영자는 마케터 API 에 접근할 수 없어(SecurityConfig) 어드민 메뉴만 본다.
   const nav = user?.role === "ADMIN" ? ADMIN_NAV : NAV;
   const showNav = !!user && (user.role === "USER" || user.role === "ADMIN");
+
+  // '리드' 항목의 미확인 카운트 뱃지(리디자인 §3). 마운트에 한 번만 — 실패해도 조용히 넘어간다.
+  const [unseen, setUnseen] = useState(0);
+  useEffect(() => {
+    if (!user || user.role !== "USER") return;
+    getInbox({ size: 1 })
+      .then((r) => setUnseen(r.counts.unseen))
+      .catch(() => {});
+  }, [user]);
 
   // 경로가 바뀌면 열린 것들을 닫는다.
   useEffect(() => {
@@ -201,7 +211,12 @@ export function TopBar() {
                         to={item.to}
                         className={({ isActive }) => (isActive ? "lnb-link on" : "lnb-link")}
                       >
-                        <span className="lnb-link-label">{item.label}</span>
+                        <span className="lnb-link-label">
+                          {item.label}
+                          {item.to === "/inbox" && unseen > 0 && (
+                            <span className="lnb-count" title="미확인 리드">{unseen > 99 ? "99+" : unseen}</span>
+                          )}
+                        </span>
                         {item.desc && <span className="lnb-link-desc">{item.desc}</span>}
                       </NavLink>
                     ))}
