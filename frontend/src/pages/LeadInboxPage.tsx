@@ -6,14 +6,27 @@ import {
   bulkTrashLeads,
   bulkUpdateLeadStatus,
   getInbox,
-  LEAD_STATUSES,
   type InboxItem,
   type InboxResponse,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { Pagination } from "../components/Pagination";
 import { LeadSidePanel } from "../components/LeadSidePanel";
-import { leadStatusLabel as statusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
+import {
+  leadStatusClass,
+  leadStatusLabel as statusLabel,
+  maskPhone,
+  pickName,
+  pickPhone,
+  summarizeAnswers,
+} from "../lib/leadDisplay";
+
+/** "C{id}" 상태 키 → 일괄 변경 요청 값. 통합 축(V29). */
+function keyToStatusBody(key: string): { status: string; customStatusId: number | null } {
+  return key.startsWith("C")
+    ? { status: "CUSTOM", customStatusId: Number(key.slice(1)) }
+    : { status: key, customStatusId: null };
+}
 
 const PAGE_SIZE = 25;
 
@@ -128,12 +141,13 @@ export function LeadInboxPage() {
   function toggleSelectAll() {
     setSelected((prev) => (pageIds.length > 0 && pageIds.every((id) => prev.has(id)) ? new Set() : new Set(pageIds)));
   }
-  async function onBulkStatus(status: string) {
+  async function onBulkStatus(statusKey: string) {
     if (selected.size === 0 || bulkBusy) return;
     setBulkBusy(true);
     setError("");
     try {
-      await bulkUpdateLeadStatus([...selected], status);
+      const { status, customStatusId } = keyToStatusBody(statusKey);
+      await bulkUpdateLeadStatus([...selected], status, customStatusId);
       await load(); // 선택 초기화 포함
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "일괄 상태변경에 실패했습니다.");
@@ -202,14 +216,15 @@ export function LeadInboxPage() {
 
           <div className="rail-group">상태</div>
           <RailItem label="전체 상태" on={statusFilter === ""} onClick={() => setStatusFilter("")} muted />
-          {LEAD_STATUSES.map((s) => (
+          {/* 통합 축(V29): 고정 4개 + 등장한 커스텀 상태. 서버가 키→라벨 맵을 함께 내려준다. */}
+          {Object.entries(counts?.statusNames ?? {}).map(([key, label]) => (
             <RailItem
-              key={s.value}
-              label={s.label}
-              on={statusFilter === s.value}
-              count={counts?.byStatus?.[s.value]}
-              onClick={() => setStatusFilter(s.value)}
-              dotClass={`ld-dot ld-${s.value}`}
+              key={key}
+              label={label}
+              on={statusFilter === key}
+              count={counts?.byStatus?.[key]}
+              onClick={() => setStatusFilter(key)}
+              dotClass={`ld-dot ld-${leadStatusClass(key)}`}
             />
           ))}
 
@@ -233,7 +248,7 @@ export function LeadInboxPage() {
               통합 인박스
               <span className="inbox-sub">
                 {view === "unseen" ? "미확인" : view === "today" ? "오늘" : "전체"}
-                {statusFilter && ` · ${statusLabel(statusFilter)}`}
+                {statusFilter && ` · ${statusLabel(statusFilter, counts?.statusNames)}`}
                 {formFilter !== null && counts?.byForm && ` · ${counts.byForm.find((f) => f.formId === formFilter)?.formName ?? ""}`}
                 {` · ${data?.total?.toLocaleString() ?? 0}건`}
               </span>
@@ -259,9 +274,12 @@ export function LeadInboxPage() {
                     onChange={(e) => e.target.value && onBulkStatus(e.target.value)}
                   >
                     <option value="">상태 변경…</option>
-                    {LEAD_STATUSES.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}(으)로</option>
-                    ))}
+                    {/* AS요청은 광고주 접수 전용이라 일괄 변경 대상에서 뺀다 */}
+                    {Object.entries(counts?.statusNames ?? {})
+                      .filter(([key]) => key !== "AS_REQUESTED")
+                      .map(([key, label]) => (
+                        <option key={key} value={key}>{label}(으)로</option>
+                      ))}
                   </select>
                   <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
                   <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={() => setSelected(new Set())}>선택 해제</button>
@@ -313,6 +331,7 @@ export function LeadInboxPage() {
                   <InboxRow
                     key={it.id}
                     item={it}
+                    statusNames={counts?.statusNames}
                     active={openId === it.id}
                     selected={selected.has(it.id)}
                     onOpen={() => setOpenId(it.id)}
@@ -370,9 +389,14 @@ function RailItem({
 
 /* ---------- list row ---------- */
 function InboxRow({
-  item, active, selected, onOpen, onToggle,
+  item, statusNames, active, selected, onOpen, onToggle,
 }: {
-  item: InboxItem; active: boolean; selected: boolean; onOpen: () => void; onToggle: () => void;
+  item: InboxItem;
+  statusNames?: Record<string, string>;
+  active: boolean;
+  selected: boolean;
+  onOpen: () => void;
+  onToggle: () => void;
 }) {
   const phone = pickPhone(item.answers);
   const unread = item.status === "NEW";
@@ -394,7 +418,9 @@ function InboxRow({
       {/* 이름·연락처를 뺀 나머지 답변 한 줄 요약 — 폼별 목록과 같은 규칙(lib/leadDisplay) */}
       <span className="ir-summary">{summarizeAnswers(item.answers, [pickName(item.answers), phone])}</span>
       <span className="ir-src" title={item.formName}>{item.formName}</span>
-      <span className={`pill ld-pill ld-${item.status}`}>{statusLabel(item.status)}</span>
+      <span className={`pill ld-pill ld-${leadStatusClass(item.statusKey)}`}>
+        {statusLabel(item.statusKey, statusNames)}
+      </span>
       <span className="ir-time">{new Date(item.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}</span>
     </div>
   );

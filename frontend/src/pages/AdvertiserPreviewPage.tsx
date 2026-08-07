@@ -14,9 +14,9 @@ import {
 import { TopBar } from "../components/TopBar";
 import { Pagination } from "../components/Pagination";
 
-/** 상태 색상 클래스(광고주 화면과 동일한 .st-* 사용). */
-function statusClass(status: string) {
-  return `st-${status}`;
+/** 상태 색상 클래스 — 통합 축(V29)의 .ld-* 한 벌(광고주 화면과 동일). */
+function statusClass(statusKey: string) {
+  return `ld-pill ld-${statusKey.startsWith("C") ? "CUSTOM" : statusKey}`;
 }
 
 /**
@@ -185,7 +185,7 @@ export function AdvertiserPreviewPage() {
                         ))}
                       </td>
                       <td>
-                        <span className={`pill ${statusClass(l.advertiserStatus)}`}>{l.advertiserStatusLabel}</span>
+                        <span className={`pill ${statusClass(l.statusKey)}`}>{l.statusLabel}</span>
                       </td>
                       <td>{l.advertiserSeenAt ? "확인" : <span className="dash-sub">미확인</span>}</td>
                       <td>
@@ -218,8 +218,8 @@ export function AdvertiserPreviewPage() {
               <div>
                 <p className="eyebrow" style={{ margin: 0 }}>리드 상세 · 읽기 전용</p>
                 <h2 style={{ margin: "4px 0 0" }}>
-                  <span className={`pill ${statusClass(detail.lead.advertiserStatus)}`}>
-                    {detail.lead.advertiserStatusLabel}
+                  <span className={`pill ${statusClass(detail.lead.statusKey)}`}>
+                    {detail.lead.statusLabel}
                   </span>
                 </h2>
               </div>

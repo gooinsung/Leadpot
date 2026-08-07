@@ -1,13 +1,25 @@
-import { LEAD_STATUSES, type LeadAnswer } from "../api/client";
+import { FIXED_LEAD_STATUSES, type LeadAnswer } from "../api/client";
 
 /**
  * 리드 목록 표시용 공통 헬퍼 (U3).
  * 폼별 목록(LeadsListPage)과 통합 인박스(LeadInboxPage)가 같은 규칙으로 요약을 만든다.
  */
 
-/** 마케터 상태 코드 → 한글 라벨. */
-export function leadStatusLabel(status: string): string {
-  return LEAD_STATUSES.find((s) => s.value === status)?.label ?? status;
+/**
+ * 상태 키 → 라벨(통합 축 V29). 커스텀 상태(C{id})는 서버가 내려준 이름 맵(names)으로 푼다 —
+ * 맵이 없거나 정의가 지워졌으면 "사용자 상태"로 표시한다.
+ */
+export function leadStatusLabel(statusKey: string, names?: Record<string, string>): string {
+  return (
+    names?.[statusKey] ??
+    FIXED_LEAD_STATUSES[statusKey] ??
+    (statusKey.startsWith("C") ? "사용자 상태" : statusKey)
+  );
+}
+
+/** 상태 키 → 색상 클래스용 코드. 커스텀(C{id})은 전부 CUSTOM 색을 쓴다. */
+export function leadStatusClass(statusKey: string): string {
+  return statusKey.startsWith("C") ? "CUSTOM" : statusKey;
 }
 
 const NAME_RE = /이름|성함|name/i;

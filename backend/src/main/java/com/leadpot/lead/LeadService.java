@@ -42,16 +42,29 @@ public class LeadService {
     private final IpBlockService ipBlockService;
     private final SiteIpBlockService siteIpBlockService;
     private final NotificationService notificationService;
+    private final LeadStatusService leadStatusService;
+    private final CustomLeadStatusRepository customStatusRepository;
+    private final LeadAsRequestService asRequestService;
+    private final com.leadpot.advertiser.AdvertiserBillingService billingService;
+    private final com.leadpot.auth.UserRepository userRepository;
 
     public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
             FormService formService, IpBlockService ipBlockService, NotificationService notificationService,
-            SiteIpBlockService siteIpBlockService) {
+            SiteIpBlockService siteIpBlockService, LeadStatusService leadStatusService,
+            CustomLeadStatusRepository customStatusRepository, LeadAsRequestService asRequestService,
+            com.leadpot.advertiser.AdvertiserBillingService billingService,
+            com.leadpot.auth.UserRepository userRepository) {
         this.leadRepository = leadRepository;
         this.leadNoteRepository = leadNoteRepository;
         this.formService = formService;
         this.ipBlockService = ipBlockService;
         this.notificationService = notificationService;
         this.siteIpBlockService = siteIpBlockService;
+        this.leadStatusService = leadStatusService;
+        this.customStatusRepository = customStatusRepository;
+        this.asRequestService = asRequestService;
+        this.billingService = billingService;
+        this.userRepository = userRepository;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -72,7 +85,7 @@ public class LeadService {
         lead.setConsents(req.consentsOrEmpty());
         lead.setUtm(req.utm());
         lead.setGroupTag(req.groupTag());
-        lead.setStatus("NEW");
+        // 상태는 엔티티 기본값(NEW). 변경은 LeadStatusService 단일 관문으로만 한다(V29).
         lead.setPhoneVerified(false); // 본인인증 연동 전까지 false
         lead.setSubmitterIp(cut(visitor.ip(), 64));
         lead.setUserAgent(cut(visitor.userAgent(), 1024));
@@ -86,6 +99,8 @@ public class LeadService {
 
         // 리드 접수 훅 — 커밋 후 비동기로 텔레그램/구글시트 알림(best-effort). 접수를 방해하지 않는다.
         notificationService.notifyNewLead(form, lead, () -> isLikelyDuplicate(form, req));
+        // 일 목표 수량(V31) — 오늘 접수가 목표에 닿는 순간 마케터에게 문자(커밋 후 발송, 하루 1회).
+        billingService.checkDailyGoal(form, lead);
         return lead.getId();
     }
 
@@ -170,7 +185,8 @@ public class LeadService {
         String st = status == null ? "" : status.trim();
         String needle = q == null ? "" : q.trim().toLowerCase();
         return base.stream()
-                .filter(l -> st.isEmpty() || st.equals(l.getStatus()))
+                // 필터 키: 고정 상태는 코드, 커스텀은 C{id} (LeadStatuses.key)
+                .filter(l -> st.isEmpty() || st.equals(l.statusKey()))
                 .filter(l -> needle.isEmpty() || matchesQuery(l, needle))
                 .map(LeadResponse::from).toList();
     }
@@ -178,7 +194,6 @@ public class LeadService {
     // ---------- 통합 인박스 (U1) ----------
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-    private static final String STATUS_NEW = "NEW";
     private static final int INBOX_DEFAULT_SIZE = 25;
     private static final int INBOX_MAX_SIZE = 100;
 
@@ -197,30 +212,45 @@ public class LeadService {
         int pageSize = size == null || size <= 0 ? INBOX_DEFAULT_SIZE : Math.min(size, INBOX_MAX_SIZE);
         if (nameById.isEmpty()) {
             return new InboxResponse(List.of(), 0, 0, pageSize,
-                    new InboxResponse.Counts(0, 0, 0, List.of(), Map.of()));
+                    new InboxResponse.Counts(0, 0, 0, List.of(), Map.of(), Map.of()));
         }
         List<Long> formIds = new ArrayList<>(nameById.keySet());
 
         // 2) 전체 활성 리드(최신순)
         List<Lead> all = leadRepository.findByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(formIds);
 
-        // 3) 카운트 — 전체 기준(rail 숫자용)
+        // 3) 카운트 — 전체 기준(rail 숫자용). 키는 statusKey(고정 코드 | C{id}).
         Instant todayStart = LocalDate.now(KST).atStartOfDay(KST).toInstant();
         long unseenCount = 0;
         long todayCount = 0;
         Map<Long, Long> perForm = new LinkedHashMap<>();
         formIds.forEach(id -> perForm.put(id, 0L));
+        // 고정 4개는 항상 순서대로 보이게 0 으로 깔아둔다(빈 상태도 rail 에 나온다).
         Map<String, Long> byStatus = new LinkedHashMap<>();
+        Map<String, String> statusNames = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : LeadStatuses.FIXED_LABELS.entrySet()) {
+            byStatus.put(e.getKey(), 0L);
+            statusNames.put(e.getKey(), e.getValue());
+        }
         for (Lead l : all) {
-            String s = l.getStatus() == null ? STATUS_NEW : l.getStatus();
-            byStatus.merge(s, 1L, Long::sum);
-            if (STATUS_NEW.equals(s)) {
+            String key = l.statusKey();
+            byStatus.merge(key, 1L, Long::sum);
+            if (LeadStatuses.NEW.equals(l.getStatus())) {
                 unseenCount++;
             }
             if (l.getCreatedAt() != null && !l.getCreatedAt().isBefore(todayStart)) {
                 todayCount++;
             }
             perForm.merge(l.getFormId(), 1L, Long::sum);
+        }
+        // 커스텀 상태 이름 붙이기 — 등장한 C{id} 키만 조회한다(광고주별 정의가 흩어져 있어도 id 로 정확).
+        for (String key : byStatus.keySet()) {
+            if (key.startsWith("C") && !statusNames.containsKey(key)) {
+                Long defId = parseCustomKey(key);
+                String name = defId == null ? null
+                        : customStatusRepository.findById(defId).map(CustomLeadStatus::getName).orElse(null);
+                statusNames.put(key, name == null ? "사용자 상태" : name);
+            }
         }
         List<InboxResponse.FormCount> byForm = new ArrayList<>();
         for (Long id : formIds) {
@@ -234,14 +264,13 @@ public class LeadService {
         String needle = q == null ? "" : q.trim().toLowerCase();
         List<Lead> filtered = new ArrayList<>();
         for (Lead l : all) {
-            String s = l.getStatus() == null ? STATUS_NEW : l.getStatus();
             if (formId != null && !formId.equals(l.getFormId())) {
                 continue;
             }
-            if (unseen && !STATUS_NEW.equals(s)) {
+            if (unseen && !LeadStatuses.NEW.equals(l.getStatus())) {
                 continue;
             }
-            if (!st.isEmpty() && !st.equals(s)) {
+            if (!st.isEmpty() && !st.equals(l.statusKey())) {
                 continue;
             }
             if (fromAt != null && l.getCreatedAt() != null && l.getCreatedAt().isBefore(fromAt)) {
@@ -262,11 +291,20 @@ public class LeadService {
         int end = Math.min(start + pageSize, filtered.size());
         List<InboxResponse.Item> items = filtered.subList(start, end).stream()
                 .map(l -> new InboxResponse.Item(l.getId(), l.getFormId(), nameById.get(l.getFormId()),
-                        l.getAnswers(), l.getStatus(), l.getTags(), l.getCreatedAt()))
+                        l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getCreatedAt()))
                 .toList();
 
         return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
-                new InboxResponse.Counts(all.size(), unseenCount, todayCount, byForm, byStatus));
+                new InboxResponse.Counts(all.size(), unseenCount, todayCount, byForm, byStatus, statusNames));
+    }
+
+    /** "C{id}" → id. 형식이 아니면 null. */
+    private static Long parseCustomKey(String key) {
+        try {
+            return Long.valueOf(key.substring(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static Instant startOfDay(String date) {
@@ -328,53 +366,41 @@ public class LeadService {
         return leadRepository.countByOwner(ownerId);
     }
 
+    /** 오늘(KST) 접수된 리드 수 — 대시보드 '신규 리드' 카드(2026-08-08 사용자 요청). */
+    @Transactional(readOnly = true)
+    public long countTodayByOwner(Long ownerId) {
+        return leadRepository.countByOwnerSince(ownerId,
+                LocalDate.now(KST).atStartOfDay(KST).toInstant());
+    }
+
     @Transactional(readOnly = true)
     public long countByForm(Long ownerId, Long formId) {
         formService.get(ownerId, formId);
         return leadRepository.countByFormId(formId);
     }
 
-    // 리드 상태(CRM 진행) — 코드/한글
-    public static final Set<String> STATUSES = Set.of("NEW", "IN_PROGRESS", "DONE", "SPAM");
-    /** 완료. 자동 승인({@link LeadAutoApproveRunner})이 넘기는 목표 상태다. */
-    public static final String STATUS_DONE = "DONE";
-    private static final Map<String, String> STATUS_KR = Map.of(
-            "NEW", "신규", "IN_PROGRESS", "상담중", "DONE", "완료", "SPAM", "불량");
-
-    /**
-     * 상태 코드 → 화면·이력용 한글 표기. 모르는 코드는 그대로 돌려준다.
-     * <p>이력 문구를 만드는 곳이 여러 군데(상태 변경·자동 승인)라 표기를 한곳에서 관리한다.
-     */
-    public static String statusLabel(String status) {
-        return STATUS_KR.getOrDefault(status, status);
-    }
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.of("Asia/Seoul"));
 
-    /** 리드 상태 변경 (본인 리드폼의 리드만 K5). 변경 이력을 자동 메모(SYSTEM)로 남긴다. */
+    /**
+     * 리드 상태 변경 (본인 리드폼의 리드만 K5). 통합 축(V29) — 권한 규칙·이력·과금은
+     * {@link LeadStatusService} 가 처리한다. status=CUSTOM 이면 customStatusId 필수.
+     */
     @Transactional
-    public void updateStatus(Long ownerId, Long leadId, String status) {
-        if (!STATUSES.contains(status)) {
-            throw new InvalidSubmissionException("상태 값이 올바르지 않습니다.");
-        }
+    public void updateStatus(Long ownerId, Long leadId, String status, Long customStatusId) {
         Lead lead = leadRepository.findById(leadId)
                 .orElseThrow(() -> new NotFoundException("리드를 찾을 수 없습니다."));
         formService.get(ownerId, lead.getFormId()); // 소유권 확인(아니면 404)
-        String before = lead.getStatus();
-        if (!status.equals(before)) {
-            lead.setStatus(status);
-            leadNoteRepository.save(new LeadNote(leadId, ownerId, LeadNote.KIND_SYSTEM,
-                    "상태 변경: " + STATUS_KR.getOrDefault(before, before) + " → " + STATUS_KR.getOrDefault(status, status)));
-        }
+        leadStatusService.changeByMarketer(ownerId, lead, status, customStatusId);
     }
 
     /**
      * 일괄 상태변경(U2). 내 것이 아닌 id 는 건너뛴다(부분 성공). 실제 변경 건수를 돌려준다.
-     * 각 건은 {@link #updateStatus} 를 재사용해 상태 변경 이력(SYSTEM 메모)도 남긴다.
+     * AS 처리 대기 등으로 바꿀 수 없는 리드도 건너뛴다 — 일괄 처리에서 한 건 때문에 전체가 막히면 안 된다.
      */
     @Transactional
-    public int bulkUpdateStatus(Long ownerId, List<Long> ids, String status) {
-        if (!STATUSES.contains(status)) {
+    public int bulkUpdateStatus(Long ownerId, List<Long> ids, String status, Long customStatusId) {
+        if (!LeadStatuses.MARKETER_SETTABLE.contains(status)) {
             throw new InvalidSubmissionException("상태 값이 올바르지 않습니다.");
         }
         if (ids == null || ids.isEmpty()) {
@@ -383,10 +409,10 @@ public class LeadService {
         int n = 0;
         for (Long id : ids) {
             try {
-                updateStatus(ownerId, id, status); // 소유권 확인 + 이력 기록 재사용(자기호출이라 별도 tx 아님)
+                updateStatus(ownerId, id, status, customStatusId);
                 n++;
-            } catch (NotFoundException ignored) {
-                // 내 리드가 아니면 조용히 건너뛴다(부분 성공).
+            } catch (NotFoundException | InvalidSubmissionException ignored) {
+                // 내 리드가 아니거나(404) 규칙상 못 바꾸는 리드(AS 대기)는 조용히 건너뛴다(부분 성공).
             }
         }
         return n;
@@ -410,6 +436,23 @@ public class LeadService {
         return n;
     }
 
+    // ---------- AS 요청(V30, 마케터) ----------
+
+    /** 이 리드의 AS 이력(본인 리드폼만). */
+    @Transactional(readOnly = true)
+    public List<com.leadpot.lead.dto.LeadAsRequestResponse> asHistory(Long ownerId, Long leadId) {
+        requireOwnedLead(ownerId, leadId);
+        return asRequestService.history(leadId);
+    }
+
+    /** AS 해소(본인 리드폼만). 인정 → 무효(환급) / 거부 → 유효 확정. */
+    @Transactional
+    public com.leadpot.lead.dto.LeadAsRequestResponse resolveAs(Long ownerId, Long leadId,
+            boolean accept, String note) {
+        Lead lead = requireOwnedLead(ownerId, leadId);
+        return asRequestService.resolve(ownerId, lead, accept, note);
+    }
+
     // ---------- 리드 상세 / 메모(이력) / 태그 (본인 리드폼만 K5) ----------
 
     /** 리드 단건 상세(본인 리드폼만). */
@@ -418,24 +461,47 @@ public class LeadService {
         return LeadResponse.from(requireOwnedLead(ownerId, leadId));
     }
 
-    /** 리드 메모/이력 목록(오래된 순). */
+    /** 리드 메모/이력 목록(오래된 순). 작성자 역할(마케터/광고주)을 함께 내려 화면이 표기한다. */
     @Transactional(readOnly = true)
     public List<LeadNoteResponse> listNotes(Long ownerId, Long leadId) {
         requireOwnedLead(ownerId, leadId);
-        return leadNoteRepository.findByLeadIdOrderByCreatedAtAsc(leadId)
-                .stream().map(LeadNoteResponse::from).toList();
+        List<LeadNote> notes = leadNoteRepository.findByLeadIdOrderByCreatedAtAsc(leadId);
+        Map<Long, String> roles = authorRoles(notes);
+        return notes.stream()
+                .map(n -> LeadNoteResponse.from(n, n.getOwnerId() == null ? null : roles.get(n.getOwnerId())))
+                .toList();
     }
 
-    /** 사용자 메모 추가. */
+    /** 작성자 id → 역할 일괄 조회(메모마다 왕복하지 않는다 — DB 가 원격). */
+    private Map<Long, String> authorRoles(List<LeadNote> notes) {
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (LeadNote n : notes) {
+            if (n.getOwnerId() != null) {
+                ids.add(n.getOwnerId());
+            }
+        }
+        Map<Long, String> out = new LinkedHashMap<>();
+        if (!ids.isEmpty()) {
+            userRepository.findAllById(ids).forEach(u -> out.put(u.getId(),
+                    u.getRole() == com.leadpot.auth.Role.ADVERTISER ? "ADVERTISER" : "MARKETER"));
+        }
+        return out;
+    }
+
+    /**
+     * 사용자 메모 추가. {@code shared}=true 면 <b>광고주메모</b>(광고주와 공유·양쪽 작성 가능),
+     * false 면 <b>마케터메모</b>(마케터만 열람) — 2026-08-08 사용자 확정 구분.
+     */
     @Transactional
-    public LeadNoteResponse addNote(Long ownerId, Long leadId, String body) {
+    public LeadNoteResponse addNote(Long ownerId, Long leadId, String body, boolean shared) {
         requireOwnedLead(ownerId, leadId);
         String text = body == null ? "" : body.trim();
         if (text.isEmpty()) {
             throw new InvalidSubmissionException("메모 내용을 입력해주세요.");
         }
-        LeadNote note = leadNoteRepository.save(new LeadNote(leadId, ownerId, LeadNote.KIND_MEMO, text));
-        return LeadNoteResponse.from(note);
+        LeadNote note = leadNoteRepository.save(new LeadNote(leadId, ownerId, LeadNote.KIND_MEMO, text,
+                shared ? LeadNote.VISIBILITY_ALL : LeadNote.VISIBILITY_MARKETER_ONLY));
+        return LeadNoteResponse.from(note, "MARKETER");
     }
 
     /** 메모 삭제(사용자 메모만 삭제 가능, 자동 이력(SYSTEM)은 보존). */
@@ -507,7 +573,7 @@ public class LeadService {
             if (idSet != null && !idSet.contains(l.getId())) {
                 continue; // 선택된 리드만
             }
-            Map<String, String> vals = leadValues(l, answerCols);
+            Map<String, String> vals = leadValues(l, answerCols, customNameOf(l));
             List<String> cells = new java.util.ArrayList<>(cols.size());
             for (String col : cols) {
                 cells.add(vals.getOrDefault(col, ""));
@@ -517,8 +583,17 @@ public class LeadService {
         return matrix;
     }
 
+    /** 리드의 커스텀 상태 이름(없으면 null). CSV 상태 컬럼용. */
+    private String customNameOf(Lead l) {
+        if (!LeadStatuses.CUSTOM.equals(l.getStatus()) || l.getCustomStatusId() == null) {
+            return null;
+        }
+        return customStatusRepository.findById(l.getCustomStatusId())
+                .map(CustomLeadStatus::getName).orElse(null);
+    }
+
     /** 한 리드의 전체 컬럼값 맵(컬럼명 → 값). */
-    private static Map<String, String> leadValues(Lead l, List<String> answerCols) {
+    private static Map<String, String> leadValues(Lead l, List<String> answerCols, String customName) {
         Map<String, String> ans = new LinkedHashMap<>();
         if (l.getAnswers() != null) {
             for (Map<String, Object> a : l.getAnswers()) {
@@ -527,7 +602,7 @@ public class LeadService {
         }
         Map<String, String> m = new LinkedHashMap<>();
         m.put("접수일시", l.getCreatedAt() != null ? DT.format(l.getCreatedAt()) : "");
-        m.put("상태", STATUS_KR.getOrDefault(l.getStatus(), l.getStatus()));
+        m.put("상태", LeadStatuses.label(l.getStatus(), customName));
         for (String col : answerCols) {
             m.put(col, ans.getOrDefault(col, ""));
         }
@@ -625,7 +700,7 @@ public class LeadService {
                 Lead lead = new Lead();
                 lead.setFormId(formId);
                 lead.setAnswers(answers);
-                lead.setStatus("NEW");
+                // 상태는 엔티티 기본값(NEW)
                 lead.setPhoneVerified(false);
                 lead.setGroupTag("import");
                 leadRepository.save(lead);

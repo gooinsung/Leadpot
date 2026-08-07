@@ -2,28 +2,30 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useSearchParams } from "react-router-dom";
 import {
-  ADVERTISER_LEAD_STATUSES,
   ApiError,
   downloadAdvertiserLeads,
   getAdvertiserDashboard,
   getAdvertiserLeadUpdates,
+  getAdvertiserStatusOptions,
   listAdvertiserForms,
   listAdvertiserLeads,
   updateAdvertiserLeadStatus,
   type AdvertiserDashboard,
   type AdvertiserForm,
   type AdvertiserLead,
+  type LeadStatusOption,
 } from "../api/client";
 import { AdvertiserTopBar } from "../components/AdvertiserTopBar";
 import { AdvertiserLeadDetail } from "../components/AdvertiserLeadDetail";
 import { Pagination } from "../components/Pagination";
+import { leadStatusClass } from "../lib/leadDisplay";
 
 /** 서버가 한 번에 내려주는 최대 건수(백엔드 MAX_PAGE_SIZE 와 일치). '전체' 선택 시 이 값을 쓴다. */
 const SERVER_MAX = 100;
 
-/** 상태별 색상 클래스(App.css 의 .st-* 한 벌을 목록·상세가 공유). */
-function statusClass(status: string) {
-  return `st-${status}`;
+/** 상태별 색상 클래스 — 마케터와 같은 .ld-* 한 벌(통합 축 V29). */
+function statusClass(statusKey: string) {
+  return `ld-${leadStatusClass(statusKey)}`;
 }
 
 /** 답변에서 연락처처럼 보이는 값을 찾아 전화 링크용 숫자만 남긴다. */
@@ -43,6 +45,11 @@ export function AdvertiserLeadsPage() {
   const [forms, setForms] = useState<AdvertiserForm[]>([]);
   const [formId, setFormId] = useState<number | null>(null);
   const [dash, setDash] = useState<AdvertiserDashboard | null>(null);
+  // 통합 상태 축(V29): 고정 4 + 내 커스텀. 무효는 마케터 전용이라 변경 셀렉트에서 뺀다.
+  const [statusOptions, setStatusOptions] = useState<LeadStatusOption[]>([]);
+  useEffect(() => {
+    getAdvertiserStatusOptions().then(setStatusOptions).catch(() => setStatusOptions([]));
+  }, []);
 
   const [leads, setLeads] = useState<AdvertiserLead[]>([]);
   const [total, setTotal] = useState(0);
@@ -198,11 +205,13 @@ export function AdvertiserLeadsPage() {
     setNewCount(0);
   }
 
-  async function onStatusChange(lead: AdvertiserLead, next: string) {
-    if (next === lead.advertiserStatus) return;
+  async function onStatusChange(lead: AdvertiserLead, nextKey: string) {
+    if (nextKey === lead.statusKey) return;
+    const opt = statusOptions.find((o) => o.key === nextKey);
+    if (!opt) return;
     setBusyId(lead.id);
     try {
-      applyUpdated(await updateAdvertiserLeadStatus(lead.id, next));
+      applyUpdated(await updateAdvertiserLeadStatus(lead.id, opt.status, opt.customStatusId));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "상태 변경에 실패했습니다.");
     } finally {
@@ -369,8 +378,8 @@ export function AdvertiserLeadsPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">상태 전체</option>
-              {ADVERTISER_LEAD_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>
+              {statusOptions.map((s) => (
+                <option key={s.key} value={s.key}>
                   {s.label}
                 </option>
               ))}
@@ -464,21 +473,24 @@ export function AdvertiserLeadsPage() {
                         <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(lead.id)}>
                           상세
                         </button>
-                        {currentForm?.canStatus ? (
+                        {currentForm?.canStatus && lead.statusKey !== "AS_REQUESTED" && lead.statusKey !== "INVALID" ? (
                           <select
-                            className={`lead-status-select ${statusClass(lead.advertiserStatus)}`}
-                            value={lead.advertiserStatus}
+                            className={`lead-status-select ${statusClass(lead.statusKey)}`}
+                            value={lead.statusKey}
                             disabled={busyId === lead.id}
                             onChange={(e) => onStatusChange(lead, e.target.value)}
                           >
-                            {ADVERTISER_LEAD_STATUSES.map((s) => (
-                              <option key={s.value} value={s.value}>
-                                {s.label}
-                              </option>
-                            ))}
+                            {/* 무효는 마케터 전용, AS요청은 상세의 'AS 요청'으로만 */}
+                            {statusOptions
+                              .filter((s) => s.status !== "INVALID" && s.status !== "AS_REQUESTED")
+                              .map((s) => (
+                                <option key={s.key} value={s.key}>
+                                  {s.label}
+                                </option>
+                              ))}
                           </select>
                         ) : (
-                          <span className={`pill ${statusClass(lead.advertiserStatus)}`}>{lead.advertiserStatusLabel}</span>
+                          <span className={`pill ld-pill ${statusClass(lead.statusKey)}`}>{lead.statusLabel}</span>
                         )}
                       </div>
                     </div>

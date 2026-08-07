@@ -19,10 +19,12 @@ public record LeadNoteResponse(
         String body,
         boolean sharedWithAdvertiser,
         boolean authorDeleted,
+        /** 작성자 역할 표기용(MARKETER/ADVERTISER, null=작성자 삭제·미상). 2026-08-08 사용자 확정. */
+        String authorRole,
         Instant createdAt) {
 
-    public static LeadNoteResponse from(LeadNote n) {
+    public static LeadNoteResponse from(LeadNote n, String authorRole) {
         return new LeadNoteResponse(n.getId(), n.getKind(), n.getBody(),
-                n.isSharedWithAdvertiser(), n.isAuthorDeleted(), n.getCreatedAt());
+                n.isSharedWithAdvertiser(), n.isAuthorDeleted(), authorRole, n.getCreatedAt());
     }
 }

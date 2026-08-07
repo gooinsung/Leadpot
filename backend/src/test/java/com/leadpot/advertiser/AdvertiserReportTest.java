@@ -63,10 +63,10 @@ class AdvertiserReportTest {
     @Test
     @DisplayName("접수→열람/상태 평균과 미확인율을 정확히 집계한다")
     void aggregatesResponseTimes() {
-        // A: 접수 120초 후 열람, 300초 후 상태변경
+        // A: 접수 120초 후 열람, 300초 후 상태변경(유효)
         Lead a = saveLead();
         a.markAdvertiserSeen(a.getCreatedAt().plusSeconds(120));
-        a.changeAdvertiserStatus("CALLED", a.getCreatedAt().plusSeconds(300));
+        a.changeStatus(com.leadpot.lead.LeadStatuses.VALID, null, a.getCreatedAt().plusSeconds(300));
         leadRepository.save(a);
         // B: 열람/상태 없음(미확인)
         saveLead();
@@ -79,15 +79,15 @@ class AdvertiserReportTest {
         assertThat(r.unseenRate()).isEqualTo(0.5);
         assertThat(r.avgSecondsToSeen()).isEqualTo(120L);
         assertThat(r.avgSecondsToStatus()).isEqualTo(300L);
-        // 상태 분포: CALLED 1, NEW 1(미확인은 NEW 로 집계)
+        // 상태 분포: 유효 1, 신규 1(미변경은 NEW)
         Map<String, Integer> byCode = r.statusCounts().stream()
                 .collect(java.util.stream.Collectors.toMap(
                         AdvertiserReportResponse.StatusCount::status,
                         AdvertiserReportResponse.StatusCount::count));
-        assertThat(byCode.get("CALLED")).isEqualTo(1);
-        assertThat(byCode.get("NEW")).isEqualTo(1);
-        // 6개 상태가 모두 표에 들어간다(0 포함).
-        assertThat(r.statusCounts()).hasSize(AdvertiserLeadStatus.LABELS.size());
+        assertThat(byCode.get(com.leadpot.lead.LeadStatuses.VALID)).isEqualTo(1);
+        assertThat(byCode.get(com.leadpot.lead.LeadStatuses.NEW)).isEqualTo(1);
+        // 고정 상태 4개가 모두 표에 들어간다(0 포함, 통합 축 V29).
+        assertThat(r.statusCounts()).hasSize(com.leadpot.lead.LeadStatuses.FIXED_LABELS.size());
     }
 
     @Test

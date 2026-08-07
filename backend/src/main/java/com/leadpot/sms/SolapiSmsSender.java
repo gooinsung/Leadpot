@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
  * </pre>
  *
  * 번호는 하이픈 없이 숫자만 보내야 한다. 90byte(EUC-KR 기준 한글 45자)를 넘으면 대행사가
- * LMS 로 자동 전환하며 단가가 13원 → 29원으로 오른다.
+ * LMS 로 자동 전환하며 단가가 18원 → 45원으로 오른다(부가세 별도, 2026-08-08 확인).
  */
 @Component
 public class SolapiSmsSender implements SmsSender {
@@ -129,7 +129,7 @@ public class SolapiSmsSender implements SmsSender {
         return byteLength(text) > SMS_MAX_BYTES ? "LMS" : "SMS";
     }
 
-    /** 첨부가 있으면 길이와 무관하게 MMS(건당 60원)다. */
+    /** 첨부가 있으면 길이와 무관하게 MMS(건당 110원)다. */
     public static String channelOf(String text, String imageId) {
         return notBlank(imageId) ? "MMS" : channelOf(text);
     }

@@ -25,10 +25,10 @@ import com.leadpot.form.FormType;
 import jakarta.persistence.EntityManager;
 
 /**
- * 자동 승인 기간 검증 — 유예 기간이 지난 리드를 완료로 넘기고 이력을 남긴다.
+ * 자동 승인 기간 검증 — 유예 기간이 지난 리드를 <b>유효</b>로 확정하고 이력을 남긴다(통합 축 V29).
  *
  * <p>가장 중요한 검증은 <b>소급 적용을 하지 않는다</b>는 것이다({@code doesNotApplyRetroactively}).
- * 그게 깨지면 기능을 켜는 순간 과거 리드가 대량으로 뒤집히고 되돌릴 수 없다.
+ * 그게 깨지면 기능을 켜는 순간 과거 리드가 대량으로 유효 처리(=과금)되고 되돌릴 수 없다.
  */
 @SpringBootTest
 @Transactional
@@ -52,27 +52,27 @@ class LeadAutoApproveTest {
     private static final Instant NOW = Instant.parse("2026-08-06T00:00:00Z");
 
     @Test
-    @DisplayName("유예 기간이 지난 신규·상담중 리드를 완료로 넘기고 자동 메모를 남긴다")
+    @DisplayName("유예 기간이 지난 신규·커스텀 리드를 유효로 확정하고 자동 메모를 남긴다")
     void approvesExpiredLeads() {
         Form form = form(7, NOW.minus(30, ChronoUnit.DAYS));
-        Lead old = lead(form, "NEW", NOW.minus(10, ChronoUnit.DAYS));
-        Lead inProgress = lead(form, "IN_PROGRESS", NOW.minus(8, ChronoUnit.DAYS));
-        Lead fresh = lead(form, "NEW", NOW.minus(3, ChronoUnit.DAYS));
+        Lead old = lead(form, LeadStatuses.NEW, NOW.minus(10, ChronoUnit.DAYS));
+        Lead inCustom = lead(form, LeadStatuses.CUSTOM, NOW.minus(8, ChronoUnit.DAYS));
+        Lead fresh = lead(form, LeadStatuses.NEW, NOW.minus(3, ChronoUnit.DAYS));
 
         LeadAutoApproveRunner.Summary s = run();
 
         assertThat(s.approved()).isEqualTo(2);
-        assertThat(status(old)).isEqualTo("DONE");
-        assertThat(status(inProgress)).isEqualTo("DONE");
-        assertThat(status(fresh)).isEqualTo("NEW"); // 아직 기간 미달
+        assertThat(status(old)).isEqualTo(LeadStatuses.VALID);
+        assertThat(status(inCustom)).isEqualTo(LeadStatuses.VALID);
+        assertThat(status(fresh)).isEqualTo(LeadStatuses.NEW); // 아직 기간 미달
 
         List<LeadNote> notes = leadNoteRepository.findByLeadIdOrderByCreatedAtAsc(old.getId());
         assertThat(notes).hasSize(1);
         assertThat(notes.get(0).getKind()).isEqualTo(LeadNote.KIND_SYSTEM);
         assertThat(notes.get(0).getBody())
-                .isEqualTo("설정에 따른 자동 승인 — 접수 후 7일 경과. 상태 변경: 신규 → 완료");
-        // 마케터 내부 이력이다 — 광고주에게 노출되면 안 된다.
-        assertThat(notes.get(0).isSharedWithAdvertiser()).isFalse();
+                .isEqualTo("설정에 따른 자동 승인 — 접수 후 7일 경과: 신규 → 유효");
+        // 공유 축(V29) — 유효 확정은 정산 근거라 광고주도 이력을 본다.
+        assertThat(notes.get(0).isSharedWithAdvertiser()).isTrue();
     }
 
     @Test
@@ -80,20 +80,21 @@ class LeadAutoApproveTest {
     void doesNotApplyRetroactively() {
         // 30일 전부터 리드를 받아온 리드폼에 '오늘' 자동 승인(7일)을 켠 상황.
         Form form = form(7, NOW.minus(1, ChronoUnit.HOURS));
-        Lead legacy = lead(form, "NEW", NOW.minus(30, ChronoUnit.DAYS));
+        Lead legacy = lead(form, LeadStatuses.NEW, NOW.minus(30, ChronoUnit.DAYS));
 
         assertThat(run().approved()).isZero();
-        assertThat(status(legacy)).isEqualTo("NEW");
+        assertThat(status(legacy)).isEqualTo(LeadStatuses.NEW);
         assertThat(leadNoteRepository.findByLeadIdOrderByCreatedAtAsc(legacy.getId())).isEmpty();
     }
 
     @Test
-    @DisplayName("불량·이미 완료·휴지통 리드는 건드리지 않는다")
+    @DisplayName("무효·AS요청·이미 유효·휴지통 리드는 건드리지 않는다")
     void skipsNonTargetLeads() {
         Form form = form(7, NOW.minus(30, ChronoUnit.DAYS));
-        Lead spam = lead(form, "SPAM", NOW.minus(10, ChronoUnit.DAYS));
-        Lead done = lead(form, "DONE", NOW.minus(10, ChronoUnit.DAYS));
-        Lead trashed = lead(form, "NEW", NOW.minus(10, ChronoUnit.DAYS));
+        Lead invalid = lead(form, LeadStatuses.INVALID, NOW.minus(10, ChronoUnit.DAYS));
+        Lead asRequested = lead(form, LeadStatuses.AS_REQUESTED, NOW.minus(10, ChronoUnit.DAYS));
+        Lead valid = lead(form, LeadStatuses.VALID, NOW.minus(10, ChronoUnit.DAYS));
+        Lead trashed = lead(form, LeadStatuses.NEW, NOW.minus(10, ChronoUnit.DAYS));
         // lead() 가 컨텍스트를 비워 detached 상태다 — save(merge) 대신 JPQL 로 직접 바꾼다.
         em.createQuery("update Lead l set l.deletedAt = :at where l.id = :id")
                 .setParameter("at", NOW.minus(9, ChronoUnit.DAYS))
@@ -102,19 +103,20 @@ class LeadAutoApproveTest {
         em.clear();
 
         assertThat(run().approved()).isZero();
-        assertThat(status(spam)).isEqualTo("SPAM");
-        assertThat(status(done)).isEqualTo("DONE");
-        assertThat(status(trashed)).isEqualTo("NEW");
+        assertThat(status(invalid)).isEqualTo(LeadStatuses.INVALID);
+        assertThat(status(asRequested)).isEqualTo(LeadStatuses.AS_REQUESTED);
+        assertThat(status(valid)).isEqualTo(LeadStatuses.VALID);
+        assertThat(status(trashed)).isEqualTo(LeadStatuses.NEW);
     }
 
     @Test
     @DisplayName("설정이 꺼진 리드폼은 대상이 아니다")
     void skipsDisabledForm() {
         Form off = formRepository.save(new Form(owner().getId(), "끔", FormType.BASIC));
-        Lead l = lead(off, "NEW", NOW.minus(100, ChronoUnit.DAYS));
+        Lead l = lead(off, LeadStatuses.NEW, NOW.minus(100, ChronoUnit.DAYS));
 
         assertThat(run().forms()).isZero();
-        assertThat(status(l)).isEqualTo("NEW");
+        assertThat(status(l)).isEqualTo(LeadStatuses.NEW);
     }
 
     @Test
@@ -194,9 +196,13 @@ class LeadAutoApproveTest {
      * 비우지 않으면 뒤이은 조회가 옛 값을 가진 관리 엔티티를 그대로 돌려준다.
      */
     private Lead lead(Form form, String status, Instant createdAt) {
-        Lead l = new Lead();
+        Lead l = new Lead(); // 기본 NEW
         l.setFormId(form.getId());
-        l.setStatus(status);
+        if (!LeadStatuses.NEW.equals(status)) {
+            // CUSTOM 은 정의를 안 만들고 임의 id 를 심는다 — H2 는 FK 가 없어 통과하고,
+            // 러너 판정은 status 값만 보므로 충분하다.
+            l.changeStatus(status, LeadStatuses.CUSTOM.equals(status) ? 999L : null, NOW);
+        }
         l.setAnswers(List.of(Map.of("label", "이름", "value", "홍길동")));
         l = leadRepository.save(l);
         em.flush();

@@ -84,13 +84,15 @@
    가독성 우선: 넉넉한 행 높이 · 미확인 강조 · 상태색 일관.
    ============================================================ */
 
-/* 마케터 리드 상태색 — 이 한 벌이 마케터 화면의 유일한 상태색 출처다(U3).
-   NEW=인디고(주의) · IN_PROGRESS=앰버 · DONE=그린 · SPAM=로즈
+/* 리드 상태색 — 이 한 벌이 마케터·광고주 화면의 유일한 상태색 출처다(U3, 통합 축 V29).
+   NEW(신규)=인디고 · VALID(유효,과금 확정)=그린 · AS_REQUESTED(AS요청,분쟁)=앰버 ·
+   INVALID(무효)=로즈 · CUSTOM(광고주 커스텀 상태 전부)=중립 회색.
    --ld=점 원색 / --ld-soft=연한 배경 / --ld-ink=연배경 위 글자(대비 확보) / --ld-fill=선택 시 채움 */
 .ld-NEW { --ld: var(--indigo); --ld-soft: var(--indigo-soft); --ld-ink: var(--indigo-ink); --ld-fill: var(--indigo-strong); }
-.ld-IN_PROGRESS { --ld: var(--amber); --ld-soft: var(--amber-soft); --ld-ink: var(--amber-ink); --ld-fill: var(--amber-ink); }
-.ld-DONE { --ld: var(--green); --ld-soft: var(--green-soft); --ld-ink: var(--green-ink); --ld-fill: var(--green-strong); }
-.ld-SPAM { --ld: var(--rose); --ld-soft: var(--rose-soft); --ld-ink: var(--rose-ink); --ld-fill: var(--rose-ink); }
+.ld-VALID { --ld: var(--green); --ld-soft: var(--green-soft); --ld-ink: var(--green-ink); --ld-fill: var(--green-strong); }
+.ld-AS_REQUESTED { --ld: var(--amber); --ld-soft: var(--amber-soft); --ld-ink: var(--amber-ink); --ld-fill: var(--amber-ink); }
+.ld-INVALID { --ld: var(--rose); --ld-soft: var(--rose-soft); --ld-ink: var(--rose-ink); --ld-fill: var(--rose-ink); }
+.ld-CUSTOM { --ld: var(--muted, #8b8fa3); --ld-soft: color-mix(in srgb, var(--muted, #8b8fa3) 16%, transparent); --ld-ink: var(--text); --ld-fill: var(--muted, #8b8fa3); }
 
 .ld-pill { background: var(--ld-soft); color: var(--ld-ink); border-color: transparent; font-weight: 700; }
 .ld-dot { width: 8px; height: 8px; border-radius: 3px; display: inline-block; background: var(--ld); flex: none; }

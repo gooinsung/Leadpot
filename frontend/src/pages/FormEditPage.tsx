@@ -24,8 +24,10 @@ import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
+import { AdvertiserBillingCard } from "../components/AdvertiserBillingCard";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
+import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 
 /**
@@ -136,6 +138,8 @@ export function FormEditPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
+  // 마케터 수신번호의 기본값으로 쓴다(가입 때 입력한 내 연락처).
+  const { user } = useAuth();
 
   const [name, setName] = useState("새 리드폼");
   const [formType, setFormType] = useState<FormType>("BASIC");
@@ -191,7 +195,9 @@ export function FormEditPage() {
   const [smsLeadEnabled, setSmsLeadEnabled] = useState(false);
   const [smsLeadBody, setSmsLeadBody] = useState("");
   const [smsLeadPhoneVarKey, setSmsLeadPhoneVarKey] = useState("");
-  // 마케터 수신번호는 리드폼별로 지정한다(계정 연락처 하나로 묶지 않는다). 비우면 계정 연락처로 떨어진다.
+  // 마케터 수신번호는 리드폼별로 지정한다(계정 연락처 하나로 묶지 않는다).
+  // 체크를 켜면 내 계정 연락처가 자동으로 채워지고(아래 toggleSmsMarketer), 원하면 이 리드폼만 다른
+  // 번호로 바꿀 수 있다. 그래도 비워서 저장하는 것은 허용한다 — 서버가 계정 연락처로 폴백한다.
   // ⚠️ 광고주 번호는 여기에 없다 — 광고주가 포털에서 본인이 등록한다(V28, MESSAGING-PLAN §9).
   //    남의 번호를 마케터가 대신 넣으면 수신 동의 근거가 없다. 상태만 아래 notifyStatus 로 보여준다.
   const [smsMarketerPhone, setSmsMarketerPhone] = useState("");
@@ -223,6 +229,20 @@ export function FormEditPage() {
     getAdvertiserNotifyStatus(Number(id)).then(setNotifyStatus).catch(() => {});
   }, [id, isNew]);
 
+  /**
+   * 마케터 접수 문자 on/off. 켤 때 수신번호가 비어 있으면 내 계정 연락처를 채워 넣는다.
+   *
+   * 예전에는 빈 칸 + "비우면 내 계정 연락처" 안내였는데, 어디로 오는지 눈으로 확인할 수 없었다.
+   * 값을 실제로 보여주면 곧바로 다른 번호로 고칠 수 있다(담당자별 운영).
+   * 끌 때는 지우지 않는다 — 다시 켜면 아까 고쳐 둔 번호가 그대로 남아 있어야 한다.
+   */
+  function toggleSmsMarketer(on: boolean) {
+    setSmsMarketerEnabled(on);
+    if (on && !smsMarketerPhone.trim() && user?.phone) {
+      setSmsMarketerPhone(user.phone);
+    }
+  }
+
   useEffect(() => {
     if (isNew) return;
     getForm(Number(id))
@@ -251,7 +271,14 @@ export function FormEditPage() {
         setSmsLeadEnabled(f.settingsConfig?.smsLeadEnabled === true);
         setSmsLeadBody((f.settingsConfig?.smsLeadBody as string) || "");
         setSmsLeadPhoneVarKey((f.settingsConfig?.smsLeadPhoneVarKey as string) || "");
-        setSmsMarketerPhone((f.settingsConfig?.smsMarketerPhone as string) || "");
+        // 예전에 켜 두고 번호는 비워 둔 리드폼도, 열었을 때 실제로 어디로 가는지 보이게 채워준다
+        // (서버 폴백과 같은 값이라 동작은 그대로다).
+        const savedMarketerPhone = (f.settingsConfig?.smsMarketerPhone as string) || "";
+        setSmsMarketerPhone(
+          !savedMarketerPhone && f.settingsConfig?.smsMarketerEnabled === true && user?.phone
+            ? user.phone
+            : savedMarketerPhone,
+        );
         setSmsLeadImageId((f.settingsConfig?.smsLeadImageId as string) || "");
         setSheetsWebhookUrl((f.settingsConfig?.sheetsWebhookUrl as string) || "");
         setSheetsSecret((f.settingsConfig?.sheetsSecret as string) || "");
@@ -800,7 +827,7 @@ export function FormEditPage() {
               )}
 
               <label className="fr-check">
-                <input type="checkbox" disabled={smsBlocked} checked={smsMarketerEnabled} onChange={(e) => setSmsMarketerEnabled(e.target.checked)} /> 나(마케터)에게 접수 문자 받기
+                <input type="checkbox" disabled={smsBlocked} checked={smsMarketerEnabled} onChange={(e) => toggleSmsMarketer(e.target.checked)} /> 나(마케터)에게 접수 문자 받기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 개인정보는 넣지 않고 <b>접수 사실과 리드폼 이름만</b> 보냅니다.
@@ -816,7 +843,7 @@ export function FormEditPage() {
                     placeholder="비우면 내 계정 연락처"
                   />
                   <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
-                    리드폼마다 다른 번호로 받을 수 있습니다(담당자별 운영).
+                    내 계정 연락처가 기본으로 채워집니다. <b>이 리드폼만 다른 번호</b>로 받으려면 고쳐주세요(담당자별 운영).
                   </span>
                 </label>
               )}
@@ -858,10 +885,10 @@ export function FormEditPage() {
                     />
                     <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
                       {smsLeadImageId
-                        ? `${smsBytes} byte · 첨부가 있어 MMS 로 전환 (건당 60원)`
+                        ? `${smsBytes} byte · 첨부가 있어 MMS 로 전환 (건당 110원)`
                         : smsBytes <= 90
-                          ? `${smsBytes}/90 byte · SMS (건당 13원)`
-                          : `${smsBytes} byte · LMS 로 전환 (건당 29원)`}
+                          ? `${smsBytes}/90 byte · SMS (건당 18원)`
+                          : `${smsBytes} byte · LMS 로 전환 (건당 45원)`}
                       {" — 한글은 2byte 로 계산됩니다."}
                     </span>
                   </label>
@@ -906,7 +933,7 @@ export function FormEditPage() {
                     )}
                     <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
                       명함 사진을 그대로 올리면 됩니다 — <b>JPG·200KB 규격은 서버가 맞춥니다.</b>{" "}
-                      첨부하면 <b>MMS(건당 60원)</b> 로 나갑니다. PDF 는 문자에 붙일 수 없습니다.
+                      첨부하면 <b>MMS(건당 110원)</b> 로 나갑니다. PDF 는 문자에 붙일 수 없습니다.
                     </span>
                   </div>
                   {answerBlocks.length > 0 && (
@@ -939,6 +966,9 @@ export function FormEditPage() {
               )}
 
             </div>
+
+            {/* 광고주 정산(V31) — 단가·충전·목표. 새 리드폼은 아직 광고주를 붙일 수 없어 저장 후 보인다. */}
+            {!isNew && <AdvertiserBillingCard formId={Number(id)} />}
 
             <div className="card card-pad" style={{ marginTop: 16 }}>
               <div className="card-h">구글시트 연동 (이 리드폼)</div>

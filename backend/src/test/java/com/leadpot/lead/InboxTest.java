@@ -48,11 +48,11 @@ class InboxTest {
         owner = userRepository.save(marketer("inbox-m@test.local", "inbox-m"));
         formA = formRepository.save(new Form(owner.getId(), "성형외과 상담", FormType.BASIC));
         formB = formRepository.save(new Form(owner.getId(), "시술 이벤트", FormType.BASIC));
-        // formA: NEW 2건, DONE 1건 / formB: NEW 1건
-        saveLead(formA, "NEW", "김민수");
-        saveLead(formA, "NEW", "이서연");
-        saveLead(formA, "DONE", "박도윤");
-        saveLead(formB, "NEW", "최지우");
+        // formA: 신규 2건, 유효 1건 / formB: 신규 1건 (통합 축 V29)
+        saveLead(formA, LeadStatuses.NEW, "김민수");
+        saveLead(formA, LeadStatuses.NEW, "이서연");
+        saveLead(formA, LeadStatuses.VALID, "박도윤");
+        saveLead(formB, LeadStatuses.NEW, "최지우");
     }
 
     @Test
@@ -70,8 +70,9 @@ class InboxTest {
         InboxResponse.Counts c = leadService.inbox(owner.getId(), null, null, null, null, null, false, 0, 25).counts();
         assertThat(c.all()).isEqualTo(4);
         assertThat(c.unseen()).isEqualTo(3); // NEW 3건
-        assertThat(c.byStatus().get("NEW")).isEqualTo(3);
-        assertThat(c.byStatus().get("DONE")).isEqualTo(1);
+        assertThat(c.byStatus().get(LeadStatuses.NEW)).isEqualTo(3);
+        assertThat(c.byStatus().get(LeadStatuses.VALID)).isEqualTo(1);
+        assertThat(c.statusNames()).containsEntry(LeadStatuses.VALID, "유효");
         assertThat(c.byForm()).anySatisfy(f -> {
             assertThat(f.formName()).isEqualTo("성형외과 상담");
             assertThat(f.count()).isEqualTo(3);
@@ -115,9 +116,11 @@ class InboxTest {
     }
 
     private void saveLead(Form form, String status, String name) {
-        Lead l = new Lead();
+        Lead l = new Lead(); // 기본 NEW
         l.setFormId(form.getId());
-        l.setStatus(status);
+        if (!LeadStatuses.NEW.equals(status)) {
+            l.changeStatus(status, null, java.time.Instant.now());
+        }
         l.setAnswers(List.of(Map.of("label", "이름", "value", name)));
         leadRepository.save(l);
     }

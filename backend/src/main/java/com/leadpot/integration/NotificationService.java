@@ -124,6 +124,67 @@ public class NotificationService {
         }
     }
 
+    /**
+     * AS 요청 알림(V30) — 리드에 이의가 접수되면 <b>마케터</b>에게 텔레그램+문자로 알린다.
+     * 요청 트랜잭션 안에서 스냅샷을 확정하고 커밋 후 발송한다(접수 실패 시 알림도 안 나간다).
+     *
+     * <p>사용자는 카카오 알림톡을 원했지만 발송 코드·전용 템플릿 심사가 아직 없다(M7).
+     * 채널만 바꾸면 되도록 문구는 채널 중립으로 둔다.
+     */
+    public void notifyAsRequest(Form form, Lead lead, String reason) {
+        try {
+            List<Dispatch> dispatches = new ArrayList<>();
+            IntegrationSettings owner = settingsRepository.findById(form.getOwnerId()).orElse(null);
+            if (telegramReady(owner)) {
+                // AS 는 돈이 걸린 분쟁이라 폼별 접수알림 토글(notifyEnabled)과 무관하게 보낸다.
+                dispatches.add(new Dispatch(form.getOwnerId(), CHANNEL_TELEGRAM, owner.getTelegramBotToken(),
+                        owner.getTelegramChatId(), null, buildAsRequestText(form, lead, reason)));
+            }
+            String smsTo = marketerPhone(form);
+            com.leadpot.sms.SmsService.SmsRequest sms = smsTo == null ? null
+                    : com.leadpot.sms.SmsService.SmsRequest.to(form.getOwnerId(), smsTo,
+                            "[리드팟] '" + nn(form.getName()) + "' 리드에 AS 요청이 접수되었습니다. 리드팟에서 확인해주세요.",
+                            com.leadpot.sms.MessageLog.TO_MARKETER)
+                            .forLead(form.getId(), lead.getId());
+            if (dispatches.isEmpty() && sms == null) {
+                return;
+            }
+            Long leadId = lead.getId();
+            Long formId = form.getId();
+            runAfterCommit(() -> {
+                for (Dispatch d : dispatches) {
+                    String err = sendTelegram(d.token(), d.chatId(), d.payload());
+                    if (err != null) {
+                        log.warn("AS 요청 알림 실패(recipient={}): {}", d.recipientUserId(), err);
+                    }
+                    logWriter.record(leadId, formId, d.recipientUserId(), d.channel(), err);
+                }
+                if (sms != null) {
+                    smsService.send(sms);
+                }
+            });
+        } catch (RuntimeException e) {
+            log.warn("AS 요청 알림 준비 실패(form={}): {}", form.getId(), e.toString());
+        }
+    }
+
+    private String buildAsRequestText(Form form, Lead lead, String reason) {
+        return "⚠️ AS 요청 · " + nn(form.getName()) + "\n"
+                + "리드 #" + lead.getId() + " 에 이의가 접수되었습니다.\n"
+                + "사유: " + cut(nn(reason), 300) + "\n"
+                + "👉 " + publicBaseUrl + "/leads?lead=" + lead.getId();
+    }
+
+    /** 마케터 문자 수신번호 — 리드폼 지정(smsMarketerPhone) 우선, 없으면 계정 연락처. */
+    private String marketerPhone(Form form) {
+        String to = form.getSettingsConfig() == null ? null
+                : str(form.getSettingsConfig().get("smsMarketerPhone"));
+        if (to == null || to.isBlank()) {
+            to = userRepository.findById(form.getOwnerId()).map(User::getPhone).orElse(null);
+        }
+        return to == null || to.isBlank() ? null : to;
+    }
+
     /** 발송 한 건(채널·수신자·페이로드). 비동기 스레드에 넘길 불변 스냅샷. */
     record Dispatch(Long recipientUserId, String channel, String token, String chatId, String url, String payload) {
     }

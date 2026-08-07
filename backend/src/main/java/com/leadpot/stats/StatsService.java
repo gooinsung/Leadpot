@@ -32,23 +32,23 @@ public class StatsService {
     private static final int DEFAULT_DAYS = 30;
     private static final int MAX_DAYS = 366;
 
-    private static final Map<String, String> STATUS_KR = Map.of(
-            "NEW", "신규", "IN_PROGRESS", "상담중", "DONE", "완료", "SPAM", "불량", "NORMAL", "정상");
-
     private final LeadRepository leadRepository;
     private final VisitRepository visitRepository;
     private final FormRepository formRepository;
     private final LandingPageRepository landingRepository;
     private final InteractionEventRepository eventRepository;
+    private final com.leadpot.lead.CustomLeadStatusRepository customStatusRepository;
 
     public StatsService(LeadRepository leadRepository, VisitRepository visitRepository,
             FormRepository formRepository, LandingPageRepository landingRepository,
-            InteractionEventRepository eventRepository) {
+            InteractionEventRepository eventRepository,
+            com.leadpot.lead.CustomLeadStatusRepository customStatusRepository) {
         this.leadRepository = leadRepository;
         this.visitRepository = visitRepository;
         this.formRepository = formRepository;
         this.landingRepository = landingRepository;
         this.eventRepository = eventRepository;
+        this.customStatusRepository = customStatusRepository;
     }
 
     @Transactional(readOnly = true)
@@ -110,11 +110,27 @@ public class StatsService {
                 leadCounts(leads, l -> utm(l.getUtm(), "medium")),
                 leadCounts(leads, l -> utm(l.getUtm(), "campaign")),
                 topReferers(leads),
-                leadCounts(leads, l -> STATUS_KR.getOrDefault(l.getStatus(), l.getStatus())),
+                leadCounts(leads, statusLabeler(leads)),
                 byLanding(leads, visits, landingNames),
                 byForm(leads, visits, formNames),
                 funnel(uniqueVisits, events, totalLeads),
                 byEvent(events));
+    }
+
+    /** 상태 라벨 함수(통합 축 V29) — 등장한 커스텀 상태 이름을 한 번에 조회해 붙인다. */
+    private java.util.function.Function<Lead, String> statusLabeler(List<Lead> leads) {
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (Lead l : leads) {
+            if (l.getCustomStatusId() != null) {
+                ids.add(l.getCustomStatusId());
+            }
+        }
+        Map<Long, String> names = new LinkedHashMap<>();
+        if (!ids.isEmpty()) {
+            customStatusRepository.findAllById(ids).forEach(s -> names.put(s.getId(), s.getName()));
+        }
+        return l -> com.leadpot.lead.LeadStatuses.label(l.getStatus(),
+                l.getCustomStatusId() == null ? null : names.get(l.getCustomStatusId()));
     }
 
     /** 전환 퍼널: 순방문 → 폼 열기(고유 방문자) → 접수. */

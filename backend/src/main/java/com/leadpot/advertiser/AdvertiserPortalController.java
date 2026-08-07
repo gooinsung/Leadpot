@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,7 @@ import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.advertiser.dto.NotifyPhoneRequest;
 import com.leadpot.common.ClientIp;
 import com.leadpot.integration.IntegrationService;
+import com.leadpot.lead.LeadStatusOptionsService;
 import com.leadpot.integration.dto.IntegrationRequest;
 import com.leadpot.integration.dto.IntegrationResponse;
 import com.leadpot.integration.dto.TestResult;
@@ -53,12 +55,14 @@ public class AdvertiserPortalController {
     private final AdvertiserLeadService leadService;
     private final IntegrationService integrationService;
     private final LeadExcelService excelService;
+    private final LeadStatusOptionsService statusOptionsService;
 
     public AdvertiserPortalController(AdvertiserLeadService leadService, IntegrationService integrationService,
-            LeadExcelService excelService) {
+            LeadExcelService excelService, LeadStatusOptionsService statusOptionsService) {
         this.excelService = excelService;
         this.leadService = leadService;
         this.integrationService = integrationService;
+        this.statusOptionsService = statusOptionsService;
     }
 
     /** 내 정보 + 소속 마케터 브랜드(화이트라벨). */
@@ -111,11 +115,54 @@ public class AdvertiserPortalController {
         return leadService.lead(userId(jwt), id, ClientIp.of(http));
     }
 
-    /** 상태 변경 (신규/확인/통화완료/부재/종료). body: {"status": "CALLED"} */
+    /**
+     * 상태 변경 — 통합 축(V29). body: {"status":"VALID"} 또는 {"status":"CUSTOM","customStatusId":3}.
+     * 무효(INVALID)·AS요청(AS_REQUESTED)은 여기로 넣을 수 없다(무효=마케터 전용, AS=전용 플로우).
+     */
     @PatchMapping("/leads/{id}/status")
     public AdvertiserLeadResponse updateStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
-            @RequestBody Map<String, String> body, HttpServletRequest http) {
-        return leadService.updateStatus(userId(jwt), id, body.get("status"), ClientIp.of(http));
+            @RequestBody Map<String, Object> body, HttpServletRequest http) {
+        return leadService.updateStatus(userId(jwt), id,
+                body.get("status") == null ? null : body.get("status").toString(),
+                asLong(body.get("customStatusId")), ClientIp.of(http));
+    }
+
+    private static Long asLong(Object v) {
+        if (v == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(v.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * AS 요청 접수(V30). body: {"reason":"...", "evidenceUrls":["..."]}.
+     * 사유는 필수, 증빙은 /api/advertiser/uploads 로 올린 이미지 URL(최대 5장).
+     */
+    @PostMapping("/leads/{id}/as-request")
+    public com.leadpot.lead.dto.LeadAsRequestResponse requestAs(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id, @RequestBody Map<String, Object> body, HttpServletRequest http) {
+        return leadService.requestAs(userId(jwt), id,
+                body.get("reason") == null ? null : body.get("reason").toString(),
+                stringList(body.get("evidenceUrls")), ClientIp.of(http));
+    }
+
+    /** 이 리드의 AS 이력(최신순). */
+    @GetMapping("/leads/{id}/as-requests")
+    public List<com.leadpot.lead.dto.LeadAsRequestResponse> asHistory(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id) {
+        return leadService.asHistory(userId(jwt), id);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> stringList(Object v) {
+        if (!(v instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream().filter(java.util.Objects::nonNull).map(Object::toString).toList();
     }
 
     /** 공유 메모/이력 조회(마케터 내부 메모는 포함되지 않는다). */
@@ -131,10 +178,43 @@ public class AdvertiserPortalController {
         return leadService.addNote(userId(jwt), id, body.get("body"), ClientIp.of(http));
     }
 
-    /** 상태 값 목록(화면 셀렉트용). */
+    /** 상태 선택지(고정 4 + 내 커스텀). 무효는 표시용 — 화면에서 선택 불가로 그린다. */
     @GetMapping("/lead-statuses")
-    public Map<String, String> statuses() {
-        return AdvertiserLeadStatus.LABELS;
+    public List<LeadStatusOptionsService.StatusOption> statuses(@AuthenticationPrincipal Jwt jwt) {
+        return statusOptionsService.optionsForAdvertiser(userId(jwt));
+    }
+
+    // ---------- 커스텀 상태 관리(V29) — 광고주 본인만 ----------
+    // (클래스 상단의 "DELETE 매핑 금지" 원칙은 **리드 데이터** 이야기다. 아래 DELETE 는
+    //  광고주가 자기 상태 정의를 지우는 것이라 해당하지 않는다 — 리드는 건드리지 못한다.)
+
+    /** 내 커스텀 상태 전부(보관 포함, 관리 화면용). */
+    @GetMapping("/statuses")
+    public List<LeadStatusOptionsService.StatusOption> manageStatuses(@AuthenticationPrincipal Jwt jwt) {
+        return statusOptionsService.manageList(userId(jwt));
+    }
+
+    /** 커스텀 상태 생성. body: {"name":"상담중"} */
+    @PostMapping("/statuses")
+    public LeadStatusOptionsService.StatusOption createStatus(@AuthenticationPrincipal Jwt jwt,
+            @RequestBody Map<String, String> body) {
+        return statusOptionsService.create(userId(jwt), body.get("name"));
+    }
+
+    /** 이름 변경·보관 토글. body: {"name":"부재중"} 또는 {"archived":true} */
+    @PatchMapping("/statuses/{id}")
+    public LeadStatusOptionsService.StatusOption updateStatusDef(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        return statusOptionsService.update(userId(jwt), id,
+                body.get("name") == null ? null : body.get("name").toString(),
+                body.get("archived") == null ? null : Boolean.valueOf(body.get("archived").toString()));
+    }
+
+    /** 삭제 — 쓰는 리드가 없을 때만. 있으면 400 과 함께 보관을 안내한다. */
+    @DeleteMapping("/statuses/{id}")
+    public ResponseEntity<Void> deleteStatusDef(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        statusOptionsService.delete(userId(jwt), id);
+        return ResponseEntity.noContent().build();
     }
 
     /**

@@ -378,7 +378,7 @@ public class WarmupRunner implements ApplicationListener<ApplicationReadyEvent> 
         lead.setAnswers(List.of(answer()));
         lead.setConsents(List.of(consent()));
         lead.setUtm(Map.of("utm_source", WARMUP_TAG));
-        lead.setStatus("NEW");
+        // 상태는 엔티티 기본값(NEW) — V29 부터 변경은 LeadStatusService 로만 한다
         lead.setPhoneVerified(false);
         lead.setGroupTag(WARMUP_TAG);
         lead.setSubmitterIp(FAKE_IP);

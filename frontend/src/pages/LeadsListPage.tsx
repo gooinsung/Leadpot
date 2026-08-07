@@ -2,26 +2,26 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  advertiserStatusLabel,
   ApiError,
   deleteLead,
   downloadLeads,
   downloadLeadTemplate,
   getForm,
   getLeadColumns,
+  getLeadStatusOptions,
   importLeads,
-  LEAD_STATUSES,
   listLeads,
   permanentDeleteLead,
   restoreLead,
   updateLeadStatus,
   type FormDetail,
   type Lead,
+  type LeadStatusOption,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
-import { leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
+import { leadStatusClass, leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
 import { toast } from "../lib/toast";
 
 // ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
@@ -38,7 +38,9 @@ export function LeadsListPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [trashed, setTrashed] = useState(false); // 휴지통 보기 여부
-  const [statusFilter, setStatusFilter] = useState(""); // "" = 전체
+  const [statusFilter, setStatusFilter] = useState(""); // "" = 전체 (키: 고정 코드 | C{id})
+  // 통합 상태 축(V29): 고정 4 + 이 폼 광고주의 커스텀 상태.
+  const [statusOptions, setStatusOptions] = useState<LeadStatusOption[]>([]);
   const [q, setQ] = useState("");
   const [dateFrom, setDateFrom] = useState(""); // 접수일시 시작(YYYY-MM-DD, KST). "" = 제한 없음
   const [dateTo, setDateTo] = useState(""); // 접수일시 끝(포함)
@@ -109,7 +111,15 @@ export function LeadsListPage() {
 
   useEffect(() => {
     getForm(formId).then(setForm).catch(() => {});
+    // 상태 선택지(고정 4 + 이 폼 광고주의 커스텀). 실패해도 화면은 고정 라벨로 동작한다.
+    getLeadStatusOptions(formId).then(setStatusOptions).catch(() => setStatusOptions([]));
   }, [formId]);
+
+  /** statusKey → 라벨 맵(목록 pill·필터 표기용). */
+  const statusNames = useMemo(
+    () => Object.fromEntries(statusOptions.map((o) => [o.key, o.label])),
+    [statusOptions],
+  );
 
   // 휴지통/일반 전환 시 목록 재조회
   useEffect(() => {
@@ -156,7 +166,7 @@ export function LeadsListPage() {
     const needle = q.trim().toLowerCase();
     return leads.filter(
       (l) =>
-        (!statusFilter || l.status === statusFilter) &&
+        (!statusFilter || l.statusKey === statusFilter) &&
         (!dupOnly || dupIds.has(l.id)) &&
         (!advUnseenOnly || !l.advertiserSeenAt) &&
         (!tagFilter || (l.tags ?? []).includes(tagFilter)) &&
@@ -180,11 +190,21 @@ export function LeadsListPage() {
     });
   }
 
-  async function onStatus(leadId: number, status: string) {
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, status } : l))); // 낙관적 반영
+  async function onStatus(leadId: number, statusKey: string) {
+    const opt = statusOptions.find((o) => o.key === statusKey);
+    if (!opt) return;
+    // 낙관적 반영(키·코드 함께) — 실패하면 서버 상태로 되돌린다(AS 대기 등 규칙 거부 포함).
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId
+          ? { ...l, status: opt.status, statusKey: opt.key, customStatusId: opt.customStatusId }
+          : l,
+      ),
+    );
     try {
-      await updateLeadStatus(leadId, status);
-    } catch {
+      await updateLeadStatus(leadId, opt.status, opt.customStatusId);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "상태를 변경하지 못했습니다.");
       load();
     }
   }
@@ -357,8 +377,8 @@ export function LeadsListPage() {
           />
           <select className="input" style={{ width: 140 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">상태 전체</option>
-            {LEAD_STATUSES.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
+            {statusOptions.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
             ))}
           </select>
           {/* 좁은 화면에서 두 날짜 입력이 줄바꿈되지 않아 문서 폭을 넘겼다 → wrap + 축소 허용 */}
@@ -454,7 +474,7 @@ export function LeadsListPage() {
                     {!trashed && l.advertiserSeenAt && (
                       <span
                         className="fl-flag seen"
-                        title={`광고주가 ${new Date(l.advertiserSeenAt).toLocaleString("ko-KR")}에 열람${l.advertiserStatus ? ` · 광고주 상태: ${advertiserStatusLabel(l.advertiserStatus)}` : ""}`}
+                        title={`광고주가 ${new Date(l.advertiserSeenAt).toLocaleString("ko-KR")}에 열람`}
                       >
                         👁
                       </span>
@@ -482,18 +502,23 @@ export function LeadsListPage() {
                     )}
                   </span>
                   <span className="fl-status" onClick={(e) => e.stopPropagation()}>
-                    {trashed ? (
-                      <span className={`pill ld-pill ld-${l.status}`}>{leadStatusLabel(l.status)}</span>
+                    {trashed || l.statusKey === "AS_REQUESTED" ? (
+                      // AS 대기 리드는 셀렉트로 못 바꾼다 — 상세 패널의 인정/거부로만 처리(통합 축 V29)
+                      <span className={`pill ld-pill ld-${leadStatusClass(l.statusKey)}`}>
+                        {leadStatusLabel(l.statusKey, statusNames)}
+                      </span>
                     ) : (
                       <select
-                        className={`lead-status-select ld-${l.status}`}
-                        value={l.status}
+                        className={`lead-status-select ld-${leadStatusClass(l.statusKey)}`}
+                        value={l.statusKey}
                         onChange={(e) => onStatus(l.id, e.target.value)}
                         aria-label="리드 상태"
                       >
-                        {LEAD_STATUSES.map((s) => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
+                        {statusOptions
+                          .filter((s) => s.status !== "AS_REQUESTED")
+                          .map((s) => (
+                            <option key={s.key} value={s.key}>{s.label}</option>
+                          ))}
                       </select>
                     )}
                   </span>

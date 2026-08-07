@@ -132,8 +132,9 @@ class AdvertiserDeleteTest {
         em.clear();
 
         LeadNote reloaded = noteRepository.findById(orphan.getId()).orElseThrow();
-        AdvertiserNoteResponse res = AdvertiserNoteResponse.of(reloaded, advertiser.getId());
+        AdvertiserNoteResponse res = AdvertiserNoteResponse.of(reloaded, advertiser.getId(), null);
         assertThat(res.mine()).isFalse(); // 작성자가 없으니 '내 메모'가 아니다
+        assertThat(res.authorRole()).isNull(); // 작성자 삭제 → 역할 미상
         assertThat(res.body()).isEqualTo("고아 메모");
     }
 

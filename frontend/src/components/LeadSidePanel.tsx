@@ -4,13 +4,19 @@ import {
   addLeadNote,
   deleteLeadNote,
   getLead,
+  getLeadStatusOptions,
+  listAsRequests,
   listLeadNotes,
+  resolveAsRequest,
   updateLeadStatus,
   updateLeadTags,
-  LEAD_STATUSES,
+  ApiError,
+  type AsRequest,
   type Lead,
   type LeadNote,
+  type LeadStatusOption,
 } from "../api/client";
+import { leadStatusClass } from "../lib/leadDisplay";
 
 interface Props {
   /** 표시할 리드 id. 바뀌면 패널 내용이 교체된다. */
@@ -45,15 +51,29 @@ export function LeadSidePanel({
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [memo, setMemo] = useState("");
+  // 광고주메모(공유) / 마케터메모(전용) 선택 — 기본은 내부용(실수로 새어나가지 않게).
+  const [memoShared, setMemoShared] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  // 통합 상태 축(V29): 고정 4 + 이 폼 광고주의 커스텀. 폼별로 다르므로 리드마다 다시 불러온다.
+  const [options, setOptions] = useState<LeadStatusOption[]>([]);
+  const [asHistory, setAsHistory] = useState<AsRequest[]>([]);
+  const [asNote, setAsNote] = useState("");
 
   const reload = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
-      const [l, n] = await Promise.all([getLead(leadId), listLeadNotes(leadId)]);
+      const [l, n, as] = await Promise.all([
+        getLead(leadId),
+        listLeadNotes(leadId),
+        listAsRequests(leadId).catch(() => [] as AsRequest[]),
+      ]);
       setLead(l);
       setNotes(n);
+      setAsHistory(as);
+      getLeadStatusOptions(l.formId).then(setOptions).catch(() => setOptions([]));
       return l;
     } catch {
       setLead(null);
@@ -78,13 +98,33 @@ export function LeadSidePanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  async function changeStatus(status: string) {
-    if (!lead || status === lead.status || busy) return;
+  async function changeStatus(opt: LeadStatusOption) {
+    if (!lead || opt.key === lead.statusKey || busy) return;
     setBusy(true);
+    setError("");
     try {
-      await updateLeadStatus(leadId, status);
+      await updateLeadStatus(leadId, opt.status, opt.customStatusId);
       const fresh = await reload(); // 상태변경 SYSTEM 이력이 서버에 쌓이므로 다시 읽는다
       if (fresh) onChanged?.(fresh);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "상태를 변경하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** AS 인정(→무효·환급) / 거부(→유효 확정). */
+  async function resolveAs(accept: boolean) {
+    if (!lead || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await resolveAsRequest(leadId, accept, asNote.trim());
+      setAsNote("");
+      const fresh = await reload();
+      if (fresh) onChanged?.(fresh);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "AS 처리에 실패했습니다.");
     } finally {
       setBusy(false);
     }
@@ -118,7 +158,7 @@ export function LeadSidePanel({
     if (!body || busy) return;
     setBusy(true);
     try {
-      const note = await addLeadNote(leadId, body);
+      const note = await addLeadNote(leadId, body, memoShared);
       setNotes((prev) => [...prev, note]);
       setMemo("");
     } finally {
@@ -167,21 +207,78 @@ export function LeadSidePanel({
             ))}
           </div>
 
-          {/* 상태 */}
+          {/* 상태 — 통합 축(V29). 유효로 넘기면 과금(단가 차감)이 확정된다. */}
           <div className="ip-section-label">상태</div>
-          <div className="ip-status-picker">
-            {LEAD_STATUSES.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                className={`chip ld-chip ld-${s.value}${lead.status === s.value ? " on" : ""}`}
-                disabled={busy}
-                onClick={() => changeStatus(s.value)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+          {lead.statusKey === "AS_REQUESTED" ? (
+            <p className="dash-sub" style={{ margin: "0 0 6px" }}>
+              AS 처리 대기 중입니다. 아래 <b>AS 요청</b>에서 인정/거부로 처리하세요.
+            </p>
+          ) : (
+            <div className="ip-status-picker">
+              {options.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  className={`chip ld-chip ld-${leadStatusClass(s.key)}${lead.statusKey === s.key ? " on" : ""}`}
+                  disabled={busy || s.status === "AS_REQUESTED"}
+                  title={s.status === "VALID" ? "유효로 확정하면 광고주 잔액에서 단가가 차감됩니다(정산 설정 시)" : undefined}
+                  onClick={() => changeStatus(s)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* AS 요청(V30) — 광고주 이의. 대기 중이면 인정/거부 버튼을 노출한다. */}
+          {asHistory.length > 0 && (
+            <>
+              <div className="ip-section-label">AS 요청</div>
+              <div className="card card-pad ip-answers">
+                {asHistory.map((r) => (
+                  <div key={r.id} style={{ display: "grid", gap: 4, paddingBottom: 8 }}>
+                    <span className="ip-note-meta">
+                      {r.status === "OPEN" ? "⏳ 처리 대기" : r.status === "ACCEPTED" ? "✅ 인정(무효 처리)" : "❌ 거부(유효 확정)"}
+                      {" · "}
+                      {new Date(r.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                    <div>사유: {r.reason}</div>
+                    {r.evidenceUrls.length > 0 && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {r.evidenceUrls.map((u) => (
+                          <a key={u} href={u} target="_blank" rel="noreferrer">
+                            <img src={u} alt="증빙" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 6 }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {r.resolutionNote && <div className="dash-sub">처리 코멘트: {r.resolutionNote}</div>}
+                    {r.status === "OPEN" && (
+                      <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+                        <input
+                          className="input"
+                          value={asNote}
+                          onChange={(e) => setAsNote(e.target.value)}
+                          placeholder="처리 코멘트 (선택)"
+                          maxLength={500}
+                        />
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => resolveAs(true)}>
+                            AS 인정 → 무효(환급)
+                          </button>
+                          <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => resolveAs(false)}>
+                            거부 → 유효 확정
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {error && <p style={{ margin: "4px 0 0", color: "var(--danger, #e5484d)", fontSize: 13 }}>{error}</p>}
 
           {/* 태그 */}
           <div className="ip-section-label">태그</div>
@@ -238,7 +335,11 @@ export function LeadSidePanel({
               {notes.map((n) => (
                 <li key={n.id} className={`ip-note${n.kind === "SYSTEM" ? " sys" : ""}`}>
                   <span className="ip-note-meta">
-                    {n.kind === "SYSTEM" ? "이력" : "메모"} ·{" "}
+                    {n.kind === "SYSTEM" ? "이력" : n.sharedWithAdvertiser ? "광고주메모" : "마케터메모"}
+                    {/* 작성자 역할 표기(2026-08-08 확정): 마케터/광고주 */}
+                    {n.authorRole === "ADVERTISER" && " · 광고주"}
+                    {n.authorRole === "MARKETER" && n.kind === "MEMO" && " · 마케터"}
+                    {" · "}
                     {new Date(n.createdAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
                     {n.authorDeleted && " · 삭제된 광고주"}
                     {n.kind === "MEMO" && (
@@ -255,8 +356,12 @@ export function LeadSidePanel({
             rows={2}
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="메모 추가…"
+            placeholder={memoShared ? "광고주메모 추가… (광고주에게도 보입니다)" : "마케터메모 추가… (나만 봅니다)"}
           />
+          <label className="dash-sub" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginTop: 4 }}>
+            <input type="checkbox" checked={memoShared} onChange={(e) => setMemoShared(e.target.checked)} />
+            광고주와 공유(광고주메모)
+          </label>
           <div className="ip-actions">
             {showFormLink ? (
               <a className="btn btn-ghost btn-sm" href={`/forms/${lead.formId}/leads`}>폼에서 열기 →</a>

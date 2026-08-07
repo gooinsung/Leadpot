@@ -41,8 +41,20 @@ public class Lead {
     @Column
     private List<Map<String, Object>> consents;
 
+    /**
+     * 통합 진행상태(V29) — 마케터·광고주가 함께 쓰는 단일 축. 값은 {@link LeadStatuses} 참고.
+     * 변경은 {@link #changeStatus} 로만 해서 변경 시각·커스텀 참조가 함께 관리되게 한다.
+     */
     @Column(nullable = false, length = 20)
-    private String status = "NEW";
+    private String status = LeadStatuses.NEW;
+
+    /** status=CUSTOM 일 때의 정의({@link CustomLeadStatus}). 그 외에는 null 로 유지한다. */
+    @Column(name = "custom_status_id")
+    private Long customStatusId;
+
+    /** 마지막 상태 변경 시각(누가 바꿨든). 광고주 리포트의 접수→상태변경 평균에 쓴다. */
+    @Column(name = "status_changed_at")
+    private Instant statusChangedAt;
 
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified;
@@ -88,17 +100,6 @@ public class Lead {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
-    /**
-     * 광고주 관점의 처리 상태 (신규/확인/통화완료/부재/종료).
-     * 마케터의 {@link #status}(신규/상담중/완료/불량)와 <b>의도적으로 분리</b>한다 —
-     * 같은 컬럼을 쓰면 광고주가 마케터의 분류(불량 등)를 덮어쓴다.
-     */
-    @Column(name = "advertiser_status", length = 30)
-    private String advertiserStatus;
-
-    @Column(name = "advertiser_status_at")
-    private Instant advertiserStatusAt;
-
     /** 광고주가 이 리드를 최초로 열어본 시각. 마케터 목록의 '광고주 확인' 표시 + 처리속도 리포트에 쓴다. */
     @Column(name = "advertiser_seen_at")
     private Instant advertiserSeenAt;
@@ -143,8 +144,29 @@ public class Lead {
         return status;
     }
 
-    public void setStatus(String status) {
+    public Long getCustomStatusId() {
+        return customStatusId;
+    }
+
+    public Instant getStatusChangedAt() {
+        return statusChangedAt;
+    }
+
+    /**
+     * 진행상태 변경(통합 축). CUSTOM 이 아니면 커스텀 참조를 반드시 비운다 —
+     * 남겨두면 나중에 CUSTOM 으로 돌아왔을 때 엉뚱한 옛 정의가 살아난다.
+     *
+     * <p>권한 검증(광고주는 무효 불가 등)과 이력·과금은 호출부(LeadStatusService)의 몫이다.
+     */
+    public void changeStatus(String status, Long customStatusId, Instant at) {
         this.status = status;
+        this.customStatusId = LeadStatuses.CUSTOM.equals(status) ? customStatusId : null;
+        this.statusChangedAt = at;
+    }
+
+    /** 목록 필터·카운트 키(고정=코드, 커스텀=C{id}). {@link LeadStatuses#key} 참고. */
+    public String statusKey() {
+        return LeadStatuses.key(status, customStatusId);
     }
 
     public boolean isPhoneVerified() {
@@ -245,20 +267,6 @@ public class Lead {
 
     public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
-    }
-
-    public String getAdvertiserStatus() {
-        return advertiserStatus;
-    }
-
-    public Instant getAdvertiserStatusAt() {
-        return advertiserStatusAt;
-    }
-
-    /** 광고주 상태 변경(변경 시각 함께 기록). */
-    public void changeAdvertiserStatus(String status, Instant at) {
-        this.advertiserStatus = status;
-        this.advertiserStatusAt = at;
     }
 
     public Instant getAdvertiserSeenAt() {

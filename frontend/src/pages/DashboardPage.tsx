@@ -11,7 +11,8 @@ export function DashboardPage() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [health, setHealth] = useState<HealthState>("checking");
-  const [totalLeads, setTotalLeads] = useState<number | null>(null);
+  // '신규 리드' = 오늘(KST) 접수된 리드 수(2026-08-08 사용자 요청 — 총 리드 카드를 교체).
+  const [todayNewLeads, setTodayNewLeads] = useState<number | null>(null);
   const [formCount, setFormCount] = useState<number | null>(null);
   const [landingCount, setLandingCount] = useState<number | null>(null);
   const [todayVisits, setTodayVisits] = useState<number | null>(null);
@@ -23,7 +24,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     getHealth().then(() => setHealth("ok")).catch(() => setHealth("error"));
-    leadsCount().then((r) => setTotalLeads(r.total)).catch(() => setTotalLeads(0));
+    leadsCount().then((r) => setTodayNewLeads(r.todayNew)).catch(() => setTodayNewLeads(0));
     listForms().then((f) => setFormCount(f.length)).catch(() => setFormCount(0));
     listLandings().then((l) => setLandingCount(l.length)).catch(() => setLandingCount(0));
     // 오늘 유입(전체 접속 수) — 통계 API 를 오늘 범위로 조회
@@ -75,9 +76,9 @@ export function DashboardPage() {
         </div>
 
         <div className="kpis">
-          <div className="kpi card row-click" onClick={() => navigate("/forms")}>
-            <div className="k-label">총 리드</div>
-            <div className="k-val">{num(totalLeads)}</div>
+          <div className="kpi card row-click" onClick={() => navigate("/leads")} title="오늘 접수된 리드">
+            <div className="k-label">신규 리드</div>
+            <div className="k-val">{num(todayNewLeads)}</div>
           </div>
           <div className="kpi card row-click" onClick={() => navigate("/stats")}>
             <div className="k-label">오늘 유입</div>

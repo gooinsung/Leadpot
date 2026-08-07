@@ -13,18 +13,20 @@ const THEME_LABEL: Record<Theme, string> = {
 const NAV = [
   { to: "/client", label: "리드", end: true },
   { to: "/client/report", label: "리포트", end: false },
-  { to: "/client/integrations", label: "알림 설정", end: false },
+  { to: "/client/integrations", label: "설정", end: false },
+  { to: "/client/guide", label: "사용 안내", end: false },
 ];
 
 /**
- * 광고주 포털 상단바. 마케터 내비를 전혀 두지 않는다.
- * 소속 마케터가 로고·색상(화이트라벨)을 설정해두면 그것을 우선 표시한다.
+ * 광고주 포털 내비 — 넓은 화면은 마케터처럼 <b>좌측 사이드바</b>(2026-08-08 사용자 요청),
+ * 좁은 화면(≤900px)은 기존 상단바+알약 탭을 유지한다(광고주는 폰 사용이 많다, U6).
+ * 전환은 advertiser.css 의 미디어쿼리가 담당한다 — DOM 은 하나다.
+ *
+ * 마케터 내비를 전혀 두지 않고, 소속 마케터의 로고·색상(화이트라벨)을 우선 표시한다.
  *
  * ⚠️ 전용 클래스(`adv-*`)를 쓴다 — 예전에는 마케터와 같은 `.topbar-*`·`.nav-link` 를
  * 공유했는데, 마케터 내비가 LNB 로 바뀌면서(U4) 그 클래스들이 사라져 이 화면만
  * 스타일이 빠져 있었다. 두 포털은 구조가 다르므로 앞으로도 공유하지 않는다.
- *
- * 광고주는 현장에서 폰으로 보는 일이 많아 **모바일 우선**으로 짠다(U6).
  */
 export function AdvertiserTopBar() {
   const { logout } = useAuth();
