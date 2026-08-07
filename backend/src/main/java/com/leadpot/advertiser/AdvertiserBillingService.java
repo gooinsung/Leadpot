@@ -196,6 +196,8 @@ public class AdvertiserBillingService {
             long balance,
             long earnedThisMonth,
             long todayLeads,
+            /** 승인 대기 — 유효도 무효도 아닌 리드(신규·커스텀·AS요청). */
+            long pendingLeads,
             long validLeads,
             java.util.List<LedgerRow> ledger) {
     }
@@ -209,7 +211,8 @@ public class AdvertiserBillingService {
     public BillingView view(Long formId) {
         AdvertiserFormGrant grant = grantRepository.findByFormId(formId).orElse(null);
         if (grant == null) {
-            return new BillingView(false, null, null, 0, 0, 0, false, 0, null, 0, 0, 0, 0, java.util.List.of());
+            return new BillingView(false, null, null, 0, 0, 0, false, 0, null, 0, 0, 0, 0, 0,
+                    java.util.List.of());
         }
         String advName = userRepository.findById(grant.getAdvertiserId())
                 .map(u -> u.getCompany() != null && !u.getCompany().isBlank() ? u.getCompany() : u.getName())
@@ -217,6 +220,8 @@ public class AdvertiserBillingService {
         Instant todayStart = LocalDate.now(KST).atStartOfDay(KST).toInstant();
         long today = leadRepository.countByFormIdAndDeletedAtIsNullAndCreatedAtAfter(formId, todayStart);
         long valid = leadRepository.countByFormIdAndDeletedAtIsNullAndStatus(formId, LeadStatuses.VALID);
+        long pending = leadRepository.countByFormIdAndDeletedAtIsNullAndStatusNotIn(formId,
+                java.util.List.of(LeadStatuses.VALID, LeadStatuses.INVALID));
         java.util.List<LedgerRow> rows = ledgerRepository.findTop50ByFormIdOrderByCreatedAtDescIdDesc(formId)
                 .stream().map(e -> new LedgerRow(e.getId(), e.getEntryType(), e.getAmount(), e.getLeadId(),
                         e.getMemo(), e.getCreatedAt()))
@@ -225,7 +230,7 @@ public class AdvertiserBillingService {
                 com.leadpot.sms.PhoneNumbers.mask(grant.getNotifyPhone()),
                 grant.getUnitPrice(), grant.getDailyGoal(), grant.getTotalGoal(),
                 grant.isBalanceAlertEnabled(), grant.getBalanceAlertThreshold(), grant.getBalanceAlertPhone(),
-                ledgerRepository.balance(formId), earnedThisMonth(formId), today, valid, rows);
+                ledgerRepository.balance(formId), earnedThisMonth(formId), today, pending, valid, rows);
     }
 
     /** 과금 설정 저장(마케터). 광고주 미연결이면 설정할 수 없다(계약 대상이 없다). */
@@ -258,6 +263,88 @@ public class AdvertiserBillingService {
                 .orElseThrow(() -> new InvalidSubmissionException("이 리드폼에는 연결된 광고주가 없습니다."));
         recordCharge(grant, amount, memo, marketerId);
         return view(formId);
+    }
+
+    /**
+     * 정산 총괄(마케터) — 과금 계약이 걸린 내 리드폼 전부의 잔액·수익·목표 진행을 한 화면으로.
+     * 리드폼 편집의 정산 카드와 같은 숫자를 폼별 왕복 없이(그룹 집계 4방) 모아 준다(2026-08-08 사용자 요청).
+     */
+    public record BillingOverviewRow(
+            Long formId,
+            String formName,
+            String advertiserName,
+            int unitPrice,
+            int dailyGoal,
+            int totalGoal,
+            boolean balanceAlertEnabled,
+            long balance,
+            long earnedThisMonth,
+            long todayLeads,
+            /** 승인 대기 — 유효도 무효도 아닌 리드. */
+            long pendingLeads,
+            long validLeads) {
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<BillingOverviewRow> overview(Long ownerId) {
+        java.util.List<com.leadpot.form.Form> forms = formRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId);
+        if (forms.isEmpty()) {
+            return java.util.List.of();
+        }
+        java.util.List<Long> formIds = forms.stream().map(com.leadpot.form.Form::getId).toList();
+        java.util.Map<Long, AdvertiserFormGrant> grantByForm = new java.util.HashMap<>();
+        for (AdvertiserFormGrant g : grantRepository.findByFormIdIn(formIds)) {
+            grantByForm.put(g.getFormId(), g);
+        }
+        if (grantByForm.isEmpty()) {
+            return java.util.List.of();
+        }
+        java.util.List<Long> grantedIds = new java.util.ArrayList<>(grantByForm.keySet());
+
+        LocalDate today = LocalDate.now(KST);
+        LocalDate first = today.withDayOfMonth(1);
+        java.util.Map<Long, Long> balances = toMap(ledgerRepository.balancesGrouped(grantedIds));
+        java.util.Map<Long, Long> earned = toMap(ledgerRepository.earnedGrouped(grantedIds,
+                first.atStartOfDay(KST).toInstant(), first.plusMonths(1).atStartOfDay(KST).toInstant()));
+        java.util.Map<Long, Long> todayCounts = toMap(leadRepository.countSinceGrouped(grantedIds,
+                today.atStartOfDay(KST).toInstant()));
+        java.util.Map<Long, Long> validCounts = toMap(leadRepository.countStatusGrouped(grantedIds,
+                LeadStatuses.VALID));
+        java.util.Map<Long, Long> pendingCounts = toMap(leadRepository.countStatusNotInGrouped(grantedIds,
+                java.util.List.of(LeadStatuses.VALID, LeadStatuses.INVALID)));
+        // 광고주 이름 일괄 조회
+        java.util.Map<Long, String> advNames = new java.util.HashMap<>();
+        java.util.Set<Long> advIds = new java.util.HashSet<>();
+        grantByForm.values().forEach(g -> advIds.add(g.getAdvertiserId()));
+        userRepository.findAllById(advIds).forEach(u -> advNames.put(u.getId(),
+                u.getCompany() != null && !u.getCompany().isBlank() ? u.getCompany() : u.getName()));
+
+        java.util.List<BillingOverviewRow> out = new java.util.ArrayList<>();
+        for (com.leadpot.form.Form form : forms) {
+            AdvertiserFormGrant g = grantByForm.get(form.getId());
+            if (g == null) {
+                continue;
+            }
+            out.add(new BillingOverviewRow(
+                    form.getId(), form.getName(),
+                    advNames.getOrDefault(g.getAdvertiserId(), "광고주"),
+                    g.getUnitPrice(), g.getDailyGoal(), g.getTotalGoal(), g.isBalanceAlertEnabled(),
+                    balances.getOrDefault(form.getId(), 0L),
+                    -earned.getOrDefault(form.getId(), 0L), // 차감(−)·환급(+) 합의 부호 반전 = 수익
+                    todayCounts.getOrDefault(form.getId(), 0L),
+                    pendingCounts.getOrDefault(form.getId(), 0L),
+                    validCounts.getOrDefault(form.getId(), 0L)));
+        }
+        return out;
+    }
+
+    /** [id, sum] Object[] 목록 → 맵. */
+    private static java.util.Map<Long, Long> toMap(java.util.List<Object[]> rows) {
+        java.util.Map<Long, Long> out = new java.util.HashMap<>();
+        for (Object[] r : rows) {
+            out.put(((Number) r[0]).longValue(), ((Number) r[1]).longValue());
+        }
+        return out;
     }
 
     // ---------- 내부 ----------

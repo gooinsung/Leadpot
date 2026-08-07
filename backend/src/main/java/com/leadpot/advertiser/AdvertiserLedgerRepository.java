@@ -28,4 +28,18 @@ public interface AdvertiserLedgerRepository extends JpaRepository<AdvertiserLedg
     long netChargedForLead(@Param("leadId") Long leadId);
 
     List<AdvertiserLedgerEntry> findTop50ByFormIdOrderByCreatedAtDescIdDesc(Long formId);
+
+    // ---------- 정산 총괄(폼 여러 개 일괄 집계 — DB 가 원격이라 폼별 왕복을 피한다) ----------
+
+    /** 폼별 잔액 합계. [formId, sum] */
+    @Query("select e.formId, coalesce(sum(e.amount), 0) from AdvertiserLedgerEntry e "
+            + "where e.formId in :formIds group by e.formId")
+    List<Object[]> balancesGrouped(@Param("formIds") List<Long> formIds);
+
+    /** 폼별 기간 수익(차감−환급). [formId, sum(amount)] — 부호 뒤집기는 호출부에서. */
+    @Query("select e.formId, coalesce(sum(e.amount), 0) from AdvertiserLedgerEntry e "
+            + "where e.formId in :formIds and e.entryType in ('DEBIT', 'REFUND') "
+            + "and e.createdAt >= :from and e.createdAt < :to group by e.formId")
+    List<Object[]> earnedGrouped(@Param("formIds") List<Long> formIds,
+            @Param("from") Instant from, @Param("to") Instant to);
 }

@@ -480,14 +480,17 @@ export function AdvertiserLeadsPage() {
                             disabled={busyId === lead.id}
                             onChange={(e) => onStatusChange(lead, e.target.value)}
                           >
-                            {/* 무효는 마케터 전용, AS요청은 상세의 'AS 요청'으로만 */}
-                            {statusOptions
-                              .filter((s) => s.status !== "INVALID" && s.status !== "AS_REQUESTED")
-                              .map((s) => (
-                                <option key={s.key} value={s.key}>
-                                  {s.label}
-                                </option>
-                              ))}
+                            {/* 무효·AS요청도 보이되 선택 불가(무효=마케터 전용, AS요청=상세의 접수로만) */}
+                            {statusOptions.map((s) => (
+                              <option
+                                key={s.key}
+                                value={s.key}
+                                disabled={s.status === "INVALID" || s.status === "AS_REQUESTED"}
+                              >
+                                {s.label}
+                                {s.status === "INVALID" ? " (담당자 전용)" : ""}
+                              </option>
+                            ))}
                           </select>
                         ) : (
                           <span className={`pill ld-pill ${statusClass(lead.statusKey)}`}>{lead.statusLabel}</span>

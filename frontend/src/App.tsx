@@ -6,6 +6,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { LeadInboxPage } from "./pages/LeadInboxPage";
 import { FormsListPage } from "./pages/FormsListPage";
 import { FormEditPage } from "./pages/FormEditPage";
+import { BillingPage } from "./pages/BillingPage";
 import { ConsentDocsListPage } from "./pages/ConsentDocsListPage";
 import { ConsentDocEditPage } from "./pages/ConsentDocEditPage";
 import { ConsentViewPage } from "./pages/ConsentViewPage";
@@ -92,6 +93,15 @@ function App() {
              이 라우트가 없으면 `*` 로 떨어져 대시보드로 튕긴다(2026-08-04 실제 그 상태였다). */}
       <Route path="/leads" element={<Navigate to="/inbox" replace />} />
       <Route path="/leads/*" element={<Navigate to="/inbox" replace />} />
+      {/* 정산 총괄(V31, 2026-08-08) — 계약 걸린 리드폼의 잔액·수익·목표 한눈에 */}
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/forms"
         element={

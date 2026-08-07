@@ -132,7 +132,14 @@ export function AdvertiserBillingCard({ formId }: { formId: number }) {
                 {view.todayLeads}{view.dailyGoal > 0 ? ` / ${view.dailyGoal}` : ""}
               </div>
             </div>
-            <div className="kpi card" style={{ minWidth: 140, padding: 12 }}>
+            {/* 승인 대기 = 유효도 무효도 아닌 리드(2026-08-08 사용자 요청 구분) */}
+            <div className="kpi card" style={{ minWidth: 140, padding: 12 }} title="아직 유효/무효 판정 전인 리드">
+              <div className="k-label">승인 대기 중 / 총 목표</div>
+              <div className="k-val">
+                {view.pendingLeads}{view.totalGoal > 0 ? ` / ${view.totalGoal}` : ""}
+              </div>
+            </div>
+            <div className="kpi card" style={{ minWidth: 140, padding: 12 }} title="유효 처리(과금 확정)된 리드">
               <div className="k-label">유효 확정 / 총 목표</div>
               <div className="k-val">
                 {view.validLeads}{view.totalGoal > 0 ? ` / ${view.totalGoal}` : ""}
