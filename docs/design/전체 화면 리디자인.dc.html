@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  body { margin: 0; background: #e8eaf3; color: #191c2e; font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #2d35a3; text-decoration: none; }
+  a:hover { color: #3a43c0; }
+  input, select, button, textarea { font-family: inherit; }
+  input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid #3a43c0; outline-offset: 2px; }
+</style>
+</helmet>
+<section style="padding:48px 56px;display:flex;flex-direction:column;gap:40px">
+  <div style="max-width:900px">
+    <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#2d35a3;margin-bottom:10px">Leadpot · 전체 화면 리디자인 (2a 컨셉 확장)</div>
+    <h1 style="margin:0;font-size:30px;font-weight:800;letter-spacing:-0.02em">모든 화면, 하나의 언어</h1>
+    <p style="margin:12px 0 0;font-size:15px;line-height:1.7;color:#5b6180;text-wrap:pretty">기존 인디고·그린 브랜드색 유지, 라운드 카드 + pill 컨트롤로 통일. 대시보드는 빈 공간을 "오늘 들어온 리드"로 채웠고(제안 — 빼도 됩니다), 인박스는 확정된 스플릿 뷰(<a href="#3b">3b</a>)입니다. 적용 방법은 <b>적용 가이드.md</b> 참고.</p>
+  </div>
+
+  <!-- 3a 대시보드 -->
+  <div id="3a" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3a</span><span style="font-size:18px;font-weight:800">대시보드</span><span style="font-size:13px;color:#5b6180">KPI + 오늘 리드 미리보기 — 빈 공간 회수</span></div>
+    <div style="width:1480px;background:#f5f6fc;border-radius:24px;box-shadow:0 3px 10px rgba(20,23,42,0.12);display:flex;align-items:stretch;overflow:hidden;min-height:780px">
+      <dc-import name="LNB" active="대시보드" hint-size="216px,780px" style="flex:none"></dc-import>
+      <main style="flex:1;min-width:0;padding:30px 34px;box-sizing:border-box">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+          <div>
+            <h1 style="margin:0;font-size:25px;font-weight:800;letter-spacing:-0.02em">안녕하세요, 마케터님 👋</h1>
+            <p style="margin:6px 0 0;font-size:13.5px;color:#5b6180">PRO 플랜 · marketer@lead-pot.com</p>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:999px;background:#e2f7ef;color:#0a7355;white-space:nowrap"><span style="width:6px;height:6px;border-radius:50%;background:#12b886"></span>서버 정상</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:18px 22px;cursor:pointer" style-hover="border-color:#3a43c0">
+              <div style="font-size:12px;font-weight:700;color:#9298c4">{{ k.label }}</div>
+              <div style="font-size:30px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin-top:4px;color:{{ k.color }}">{{ k.val }}</div>
+              <div style="font-size:12px;color:#5b6180;margin-top:2px">{{ k.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:14px">
+          <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <span style="font-size:13px;font-weight:800">오늘 들어온 리드</span>
+              <a href="#3b" style="font-size:12.5px;font-weight:700">인박스에서 모두 보기 →</a>
+            </div>
+            <sc-for list="{{ dashLeads }}" as="r" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:minmax(80px,0.7fr) 110px minmax(0,2fr) 92px 76px;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid #eef0f9;cursor:pointer" style-hover="background:#f5f6fc">
+                <span style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px;min-width:0"><sc-if value="{{ r.unread }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:50%;background:#3a43c0;flex:none"></span></sc-if><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span></span>
+                <span style="font-size:13px;color:#5b6180;font-variant-numeric:tabular-nums">{{ r.phone }}</span>
+                <span style="font-size:13px;color:#5b6180;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.summary }}</span>
+                <span style="font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:{{ r.stBg }};color:{{ r.stInk }};justify-self:start;white-space:nowrap">{{ r.status }}</span>
+                <span style="font-size:12px;color:#9298c4;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap">{{ r.timeOnly }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px;align-self:start">
+            <div style="font-size:13px;font-weight:800;margin-bottom:6px">계정 설정 · 서브도메인</div>
+            <p style="margin:0 0 12px;font-size:12.5px;color:#5b6180;line-height:1.6">공개 페이지 주소에 쓰이는 내 서브도메인입니다. 소문자·숫자·하이픈 3~30자.</p>
+            <div style="display:flex;gap:8px">
+              <input value="my-brand" style="flex:1;min-width:0;font-size:13.5px;padding:9px 16px;border:1px solid #e2e5f2;border-radius:999px;background:#f5f6fc;color:#191c2e">
+              <button style="font-size:13px;font-weight:700;padding:9px 18px;border:none;border-radius:999px;background:#3a43c0;color:#fff;cursor:pointer;white-space:nowrap;flex:none" style-hover="background:#2d35a3">변경</button>
+            </div>
+            <p style="margin:12px 0 0;font-size:12px;color:#9298c4;overflow-wrap:anywhere">공개 URL 예시: <code style="font-family:ui-monospace,monospace">my-brand.lead-pot.com/1</code></p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 3b 리드 인박스 -->
+  <div id="3b" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3b</span><span style="font-size:18px;font-weight:800">리드 인박스 — 스플릿 뷰 (확정 2a)</span></div>
+    <div style="width:1480px;background:#f5f6fc;border-radius:24px;box-shadow:0 3px 10px rgba(20,23,42,0.12);display:flex;align-items:stretch;overflow:hidden;min-height:840px">
+      <dc-import name="LNB" active="리드" hint-size="216px,840px" style="flex:none"></dc-import>
+      <div style="width:430px;flex:none;display:flex;flex-direction:column;border-right:1px solid #e2e5f2;box-sizing:border-box">
+        <div style="padding:22px 20px 0">
+          <h1 style="margin:0 0 14px;font-size:22px;font-weight:800;letter-spacing:-0.02em">리드</h1>
+          <input placeholder="이름·연락처·답변 검색" style="font-size:13.5px;padding:10px 16px;width:100%;box-sizing:border-box;border:1px solid #e2e5f2;border-radius:999px;background:#ffffff;color:#191c2e">
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <select style="flex:1;font-size:12.5px;font-weight:600;color:#5b6180;background:#ffffff;border:1px solid #e2e5f2;border-radius:999px;padding:7px 12px"><option>모든 상태</option></select>
+            <select style="flex:1;font-size:12.5px;font-weight:600;color:#5b6180;background:#ffffff;border:1px solid #e2e5f2;border-radius:999px;padding:7px 12px"><option>모든 폼</option></select>
+            <select style="flex:1;font-size:12.5px;font-weight:600;color:#5b6180;background:#ffffff;border:1px solid #e2e5f2;border-radius:999px;padding:7px 12px"><option>전체 기간</option></select>
+          </div>
+          <div style="display:inline-flex;background:#eef0f9;border-radius:999px;padding:3px;gap:2px;margin:12px 0 14px">
+            <button style="font-size:12.5px;font-weight:700;border:none;border-radius:999px;padding:6px 15px;background:#ffffff;color:#2d35a3;box-shadow:0 1px 2px rgba(20,23,42,0.08);cursor:pointer;white-space:nowrap">전체 128</button>
+            <button style="font-size:12.5px;font-weight:600;border:none;border-radius:999px;padding:6px 15px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="color:#191c2e">오늘 14</button>
+            <button style="font-size:12.5px;font-weight:600;border:none;border-radius:999px;padding:6px 15px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="color:#191c2e">미확인 9</button>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:0 12px 12px;display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ listRows }}" as="r" hint-placeholder-count="9">
+            <div style="padding:11px 14px;border-radius:14px;background:{{ r.selBg }};box-shadow:{{ r.selShadow }};cursor:pointer" style-hover="background:#eef0f9">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:14.5px;font-weight:{{ r.nameWeight }};color:#191c2e;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span>
+                <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:{{ r.stBg }};color:{{ r.stInk }};white-space:nowrap;flex:none">{{ r.status }}</span>
+                <span style="margin-left:auto;font-size:11.5px;color:#9298c4;font-variant-numeric:tabular-nums;white-space:nowrap;flex:none">{{ r.timeShort }}</span>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:3px;font-size:12.5px;color:#5b6180">
+                <span style="font-variant-numeric:tabular-nums;flex:none">{{ r.phone }}</span>
+                <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.summary }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid #e2e5f2;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:#5b6180">
+          <span style="font-variant-numeric:tabular-nums">1–25 / 128</span>
+          <div style="display:flex;gap:6px">
+            <button style="font-size:12px;font-weight:600;padding:5px 12px;border:none;border-radius:999px;background:#eef0f9;color:#9298c4">←</button>
+            <button style="font-size:12px;font-weight:700;padding:5px 12px;border:none;border-radius:999px;background:#3a43c0;color:#fff;cursor:pointer" style-hover="background:#2d35a3">→</button>
+          </div>
+        </div>
+      </div>
+      <main style="flex:1;min-width:0;padding:26px 30px;box-sizing:border-box;overflow-y:auto">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#2d35a3">보험상담 신청 · #1042</div>
+            <h2 style="margin:6px 0 0;font-size:26px;font-weight:800;letter-spacing:-0.02em;line-height:1.15">김민수</h2>
+            <div style="margin-top:6px;font-size:13.5px;color:#5b6180;font-variant-numeric:tabular-nums">010-1234-5678 · 2026. 8. 8. 오전 10:24 접수</div>
+          </div>
+          <div style="display:flex;gap:8px;flex:none">
+            <button style="font-size:13px;font-weight:600;padding:9px 16px;border:1px solid #e2e5f2;border-radius:999px;background:#ffffff;color:#5b6180;cursor:pointer;white-space:nowrap;flex:none" style-hover="background:#eef0f9">폼에서 열기</button>
+            <button style="font-size:13px;font-weight:700;padding:9px 18px;border:none;border-radius:999px;background:#12b886;color:#06281f;cursor:pointer;white-space:nowrap;flex:none" style-hover="background:#0e9d73">유효로 확정</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:14px;margin-top:18px">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:18px 20px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4;margin-bottom:10px">답변</div>
+              <sc-for list="{{ answers }}" as="a" hint-placeholder-count="5">
+                <div style="display:flex;gap:14px;padding:7px 0;font-size:14px;border-bottom:1px solid #eef0f9"><span style="min-width:84px;color:#5b6180;font-weight:500;flex:none">{{ a.k }}</span><span style="color:#191c2e;font-weight:600;min-width:0;word-break:keep-all">{{ a.v }}</span></div>
+              </sc-for>
+            </div>
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:18px 20px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4;margin-bottom:10px">방문자</div>
+              <div style="display:flex;gap:14px;padding:7px 0;font-size:13.5px;border-bottom:1px solid #eef0f9"><span style="min-width:84px;color:#5b6180;font-weight:500;flex:none">기기</span><span style="color:#191c2e;font-weight:600;word-break:keep-all">모바일 · iOS · Safari</span></div>
+              <div style="display:flex;gap:14px;padding:7px 0;font-size:13.5px;border-bottom:1px solid #eef0f9"><span style="min-width:84px;color:#5b6180;font-weight:500;flex:none;white-space:nowrap">IP · 언어</span><span style="color:#191c2e;font-weight:600;font-variant-numeric:tabular-nums">211.36.132.88 · ko-KR</span></div>
+              <div style="display:flex;gap:14px;padding:7px 0;font-size:13.5px"><span style="min-width:84px;color:#5b6180;font-weight:500;flex:none">UTM</span><span style="color:#191c2e;font-weight:600;overflow-wrap:anywhere">source=meta · medium=cpc · campaign=aug_promo</span></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:18px 20px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4;margin-bottom:10px">상태</div>
+              <div style="display:flex;flex-wrap:wrap;gap:7px">
+                <sc-for list="{{ statusChips }}" as="s" hint-placeholder-count="5">
+                  <button style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:{{ s.pickInk }};background:{{ s.pickBg }};border:1.5px solid {{ s.pickBorder }};border-radius:999px;padding:6px 14px;cursor:pointer;white-space:nowrap;flex:none" style-hover="filter:brightness(0.97)"><span style="width:6px;height:6px;border-radius:50%;background:{{ s.dot }}"></span>{{ s.label }}</button>
+                </sc-for>
+              </div>
+              <p style="margin:10px 0 0;font-size:12px;color:#9298c4">유효로 확정하면 광고주 잔액에서 단가가 차감됩니다.</p>
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4;margin:16px 0 8px">태그</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+                <span style="font-size:12px;font-weight:700;border-radius:999px;padding:4px 12px;background:#e2f7ef;color:#0a7355">재상담 ×</span>
+                <input placeholder="태그 입력 후 Enter" style="font-size:12.5px;padding:5px 12px;width:150px;border:1px solid #e2e5f2;border-radius:999px;background:transparent;color:#191c2e">
+              </div>
+            </div>
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:18px 20px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4;margin-bottom:10px">메모 · 이력</div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="background:#eef0f9;border-radius:12px;padding:9px 13px"><div style="font-size:11px;font-weight:600;color:#9298c4;font-variant-numeric:tabular-nums">이력 · 8. 8. 오전 10:24</div><div style="font-size:13px;color:#5b6180;margin-top:2px">리드 접수 (신규)</div></div>
+                <div style="background:#eef0f9;border-radius:12px;padding:9px 13px"><div style="font-size:11px;font-weight:600;color:#9298c4;font-variant-numeric:tabular-nums">마케터메모 · 8. 8. 오전 11:02</div><div style="font-size:13px;color:#191c2e;margin-top:2px">오후에 재통화 예정</div></div>
+              </div>
+              <textarea rows="2" placeholder="마케터메모 추가… (나만 봅니다)" style="margin-top:12px;font-size:13px;padding:10px 14px;width:100%;box-sizing:border-box;border:1px solid #e2e5f2;border-radius:12px;background:transparent;color:#191c2e;resize:vertical"></textarea>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#5b6180"><input type="checkbox" style="accent-color:#3a43c0">광고주와 공유</label>
+                <button style="font-size:12.5px;font-weight:700;padding:7px 16px;border:none;border-radius:999px;background:#3a43c0;color:#fff;cursor:pointer" style-hover="background:#2d35a3">메모 저장</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 3c 리드폼 목록 -->
+  <div id="3c" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3c</span><span style="font-size:18px;font-weight:800">리드폼 목록</span><span style="font-size:13px;color:#5b6180">랜딩·동의문서·요소 목록도 같은 패턴</span></div>
+    <div style="width:1480px;background:#f5f6fc;border-radius:24px;box-shadow:0 3px 10px rgba(20,23,42,0.12);display:flex;align-items:stretch;overflow:hidden;min-height:640px">
+      <dc-import name="LNB" active="리드폼" hint-size="216px,640px" style="flex:none"></dc-import>
+      <main style="flex:1;min-width:0;padding:30px 34px;box-sizing:border-box">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px">
+          <div>
+            <h1 style="margin:0;font-size:25px;font-weight:800;letter-spacing:-0.02em">내 리드폼</h1>
+            <p style="margin:6px 0 0;font-size:13.5px;color:#5b6180">랜딩과 별개로 리드폼을 만들어 여러 곳에서 재사용합니다.</p>
+          </div>
+          <button style="font-size:13.5px;font-weight:700;padding:10px 20px;border:none;border-radius:999px;background:#3a43c0;color:#fff;cursor:pointer;white-space:nowrap" style-hover="background:#2d35a3">+ 새 리드폼 만들기</button>
+        </div>
+        <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);overflow:hidden">
+          <div style="display:grid;grid-template-columns:minmax(0,2fr) 110px 90px 190px 230px;gap:14px;align-items:center;padding:12px 22px;font-size:11.5px;font-weight:700;letter-spacing:0.06em;color:#9298c4;border-bottom:1px solid #eef0f9">
+            <span>이름</span><span>유형</span><span style="text-align:right">항목 수</span><span style="text-align:right">수정일</span><span></span>
+          </div>
+          <sc-for list="{{ formsTable }}" as="f" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:minmax(0,2fr) 110px 90px 190px 230px;gap:14px;align-items:center;padding:11px 22px;border-bottom:1px solid #eef0f9;cursor:pointer" style-hover="background:#f5f6fc">
+              <span style="font-size:14.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.name }}</span>
+              <span style="font-size:11.5px;font-weight:700;padding:3px 11px;border-radius:999px;background:{{ f.typeBg }};color:{{ f.typeInk }};justify-self:start;white-space:nowrap">{{ f.type }}</span>
+              <span style="font-size:13.5px;color:#5b6180;font-variant-numeric:tabular-nums;text-align:right">{{ f.blocks }}</span>
+              <span style="font-size:13px;color:#5b6180;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap">{{ f.updated }}</span>
+              <span style="display:flex;gap:6px;justify-content:flex-end">
+                <button style="font-size:12px;font-weight:600;padding:5px 13px;border:1px solid #e2e5f2;border-radius:999px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="background:#eef0f9">리드</button>
+                <button style="font-size:12px;font-weight:600;padding:5px 13px;border:1px solid #e2e5f2;border-radius:999px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="background:#eef0f9">편집</button>
+                <button style="font-size:12px;font-weight:600;padding:5px 13px;border:none;border-radius:999px;background:transparent;color:#c0202d;cursor:pointer;white-space:nowrap" style-hover="background:#fde5e7">삭제</button>
+              </span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 6px 0;font-size:13px;color:#5b6180">
+          <span style="font-variant-numeric:tabular-nums">총 6개 중 1–6</span>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 3d 리드폼 편집기 -->
+  <div id="3d" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3d</span><span style="font-size:18px;font-weight:800">리드폼 편집기</span><span style="font-size:13px;color:#5b6180">설정 + 항목(왼쪽) · 실시간 모바일 미리보기(오른쪽 고정)</span></div>
+    <div style="width:1480px;background:#f5f6fc;border-radius:24px;box-shadow:0 3px 10px rgba(20,23,42,0.12);display:flex;align-items:stretch;overflow:hidden;min-height:860px">
+      <dc-import name="LNB" active="리드폼" hint-size="216px,860px" style="flex:none"></dc-import>
+      <main style="flex:1;min-width:0;padding:26px 34px 30px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0">
+            <a href="#3c" style="font-size:13px;font-weight:600;color:#5b6180;white-space:nowrap">← 목록</a>
+            <h1 style="margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">보험상담 신청</h1>
+            <span style="font-size:11.5px;font-weight:700;padding:3px 11px;border-radius:999px;background:#ecedf9;color:#2d35a3;white-space:nowrap">기본형</span>
+          </div>
+          <div style="display:flex;gap:8px;flex:none">
+            <button style="font-size:13px;font-weight:600;padding:9px 16px;border:1px solid #e2e5f2;border-radius:999px;background:#ffffff;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="background:#eef0f9">미리보기</button>
+            <button style="font-size:13px;font-weight:700;padding:9px 20px;border:none;border-radius:999px;background:#3a43c0;color:#fff;cursor:pointer;white-space:nowrap" style-hover="background:#2d35a3">저장</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4;margin-bottom:12px">기본 정보</div>
+              <div style="display:grid;grid-template-columns:1fr 220px;gap:12px">
+                <div><label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:6px">리드폼 이름</label><input value="보험상담 신청" style="width:100%;box-sizing:border-box;font-size:13.5px;padding:9px 16px;border:1px solid #e2e5f2;border-radius:999px;background:#f5f6fc;color:#191c2e"></div>
+                <div><label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:6px">유형</label>
+                  <div style="display:inline-flex;background:#eef0f9;border-radius:999px;padding:3px;gap:2px">
+                    <button style="font-size:12.5px;font-weight:700;border:none;border-radius:999px;padding:6px 16px;background:#ffffff;color:#2d35a3;box-shadow:0 1px 2px rgba(20,23,42,0.08);cursor:pointer;white-space:nowrap">기본형</button>
+                    <button style="font-size:12.5px;font-weight:600;border:none;border-radius:999px;padding:6px 16px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="color:#191c2e">스텝형</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <span style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4">항목 (블록)</span>
+                <span style="font-size:12px;color:#9298c4">드래그로 순서 변경</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <sc-for list="{{ editorBlocks }}" as="b" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border:1px solid #e2e5f2;border-radius:14px;background:#f5f6fc;cursor:grab" style-hover="border-color:#3a43c0">
+                    <span style="color:#c3c8ea;font-size:15px;letter-spacing:-1px;flex:none">⠿</span>
+                    <span style="font-size:14px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ b.label }}</span>
+                    <span style="font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:999px;background:#eef0f9;color:#5b6180;white-space:nowrap;flex:none">{{ b.type }}</span>
+                    <sc-if value="{{ b.required }}" hint-placeholder-val="{{ false }}"><span style="font-size:11.5px;font-weight:700;color:#c0202d;flex:none">필수</span></sc-if>
+                    <span style="margin-left:auto;display:flex;gap:4px;flex:none">
+                      <button style="font-size:12px;font-weight:600;padding:4px 11px;border:none;border-radius:999px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="background:#eef0f9">편집</button>
+                      <button style="font-size:12px;font-weight:600;padding:4px 11px;border:none;border-radius:999px;background:transparent;color:#c0202d;cursor:pointer;white-space:nowrap" style-hover="background:#fde5e7">삭제</button>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:7px;margin-top:14px;flex-wrap:wrap">
+                <button style="font-size:12.5px;font-weight:700;padding:7px 15px;border:1.5px dashed #c3c8ea;border-radius:999px;background:transparent;color:#2d35a3;cursor:pointer;white-space:nowrap" style-hover="background:#ecedf9;border-style:solid">+ 입력 항목</button>
+                <button style="font-size:12.5px;font-weight:600;padding:7px 15px;border:1.5px dashed #e2e5f2;border-radius:999px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="background:#eef0f9">+ 이미지</button>
+                <button style="font-size:12.5px;font-weight:600;padding:7px 15px;border:1.5px dashed #e2e5f2;border-radius:999px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="background:#eef0f9">+ HTML 요소</button>
+                <button style="font-size:12.5px;font-weight:600;padding:7px 15px;border:1.5px dashed #e2e5f2;border-radius:999px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="background:#eef0f9">+ 텍스트</button>
+              </div>
+            </div>
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9298c4;margin-bottom:12px">동의 · 알림</div>
+              <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px">
+                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked style="accent-color:#3a43c0;width:16px;height:16px">개인정보 수집 및 이용 동의 <span style="font-size:11.5px;font-weight:700;color:#c0202d">필수</span></label>
+                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked style="accent-color:#3a43c0;width:16px;height:16px">개인정보 제3자 제공 동의 <span style="font-size:11.5px;font-weight:700;color:#c0202d">필수</span></label>
+                <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="accent-color:#3a43c0;width:16px;height:16px">광고성 정보 수신동의</label>
+              </div>
+              <p style="margin:12px 0 0;font-size:12.5px;color:#0a7355;background:#e2f7ef;border-radius:12px;padding:9px 13px">✅ <b>김앤장 인테리어</b> 님이 등록한 번호(010-****-1234)로 접수 알림이 발송됩니다.</p>
+            </div>
+          </div>
+          <div style="position:sticky;top:20px">
+            <div style="font-size:12px;font-weight:700;color:#9298c4;margin-bottom:8px;text-align:center">실시간 미리보기</div>
+            <div style="width:340px;margin:0 auto;background:#ffffff;border:1px solid #e2e5f2;border-radius:28px;box-shadow:0 8px 24px -12px rgba(20,23,42,0.2);padding:26px 22px">
+              <sc-for list="{{ publicFields }}" as="p" hint-placeholder-count="4">
+                <div style="margin-bottom:13px">
+                  <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">{{ p.label }} <sc-if value="{{ p.required }}" hint-placeholder-val="{{ false }}"><span style="color:#f04452">*</span></sc-if></label>
+                  <input placeholder="{{ p.ph }}" style="width:100%;box-sizing:border-box;font-size:14px;padding:11px 15px;border:1px solid #e2e5f2;border-radius:12px;background:#f5f6fc;color:#191c2e">
+                </div>
+              </sc-for>
+              <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#5b6180;margin:14px 0 4px"><input type="checkbox" checked style="accent-color:#3a43c0">개인정보 수집 및 이용 동의 (필수)</label>
+              <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#5b6180"><input type="checkbox" checked style="accent-color:#3a43c0">개인정보 제3자 제공 동의 (필수)</label>
+              <button style="width:100%;margin-top:16px;font-size:15px;font-weight:800;padding:13px;border:none;border-radius:14px;background:#12b886;color:#06281f;cursor:pointer" style-hover="background:#0e9d73">무료 상담 신청하기</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 3e 통계 -->
+  <div id="3e" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3e</span><span style="font-size:18px;font-weight:800">통계</span></div>
+    <div style="width:1480px;background:#f5f6fc;border-radius:24px;box-shadow:0 3px 10px rgba(20,23,42,0.12);display:flex;align-items:stretch;overflow:hidden;min-height:860px">
+      <dc-import name="LNB" active="통계" hint-size="216px,860px" style="flex:none"></dc-import>
+      <main style="flex:1;min-width:0;padding:30px 34px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+          <div>
+            <h1 style="margin:0;font-size:25px;font-weight:800;letter-spacing:-0.02em">수집 통계</h1>
+            <p style="margin:6px 0 0;font-size:13.5px;color:#5b6180">유입(방문) · 접수(리드) · 전환율 — 기간/대상별 분석</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="display:inline-flex;background:#eef0f9;border-radius:999px;padding:3px;gap:2px">
+              <button style="font-size:12.5px;font-weight:600;border:none;border-radius:999px;padding:6px 14px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="color:#191c2e">오늘</button>
+              <button style="font-size:12.5px;font-weight:600;border:none;border-radius:999px;padding:6px 14px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="color:#191c2e">7일</button>
+              <button style="font-size:12.5px;font-weight:700;border:none;border-radius:999px;padding:6px 14px;background:#ffffff;color:#2d35a3;box-shadow:0 1px 2px rgba(20,23,42,0.08);cursor:pointer;white-space:nowrap">30일</button>
+              <button style="font-size:12.5px;font-weight:600;border:none;border-radius:999px;padding:6px 14px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap" style-hover="color:#191c2e">직접</button>
+            </div>
+            <select style="font-size:13px;font-weight:600;padding:8px 14px;border:1px solid #e2e5f2;border-radius:999px;background:#ffffff;color:#5b6180"><option>대상: 전체</option><option>보험상담 신청</option><option>대출 상담</option></select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+          <sc-for list="{{ statKpis }}" as="k" hint-placeholder-count="4">
+            <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:18px 22px">
+              <div style="font-size:12px;font-weight:700;color:#9298c4">{{ k.label }}</div>
+              <div style="font-size:28px;font-weight:800;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin-top:4px;color:{{ k.color }}">{{ k.val }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px;margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <span style="font-size:13px;font-weight:800">추이</span>
+            <span style="display:flex;align-items:center;gap:14px">
+              <span style="display:flex;align-items:center;gap:12px;font-size:12px;color:#5b6180"><span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:3px;background:#c3c8ea"></span>트래픽</span><span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:3px;background:#12b886"></span>리드</span></span>
+              <span style="display:inline-flex;background:#eef0f9;border-radius:999px;padding:2px;gap:2px">
+                <button style="font-size:11.5px;font-weight:700;border:none;border-radius:999px;padding:4px 12px;background:#ffffff;color:#2d35a3;cursor:pointer;white-space:nowrap">일별</button>
+                <button style="font-size:11.5px;font-weight:600;border:none;border-radius:999px;padding:4px 12px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap">주간</button>
+                <button style="font-size:11.5px;font-weight:600;border:none;border-radius:999px;padding:4px 12px;background:transparent;color:#5b6180;cursor:pointer;white-space:nowrap">월별</button>
+              </span>
+            </span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px;height:180px">
+            <sc-for list="{{ chart }}" as="c" hint-placeholder-count="14">
+              <div style="flex:1;display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%">
+                <div style="width:12px;border-radius:6px 6px 3px 3px;background:#c3c8ea;height:{{ c.v }}"></div>
+                <div style="width:12px;border-radius:6px 6px 3px 3px;background:#12b886;height:{{ c.l }}"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <sc-for list="{{ chart }}" as="c" hint-placeholder-count="14">
+              <span style="flex:1;text-align:center;font-size:10.5px;color:#9298c4;font-variant-numeric:tabular-nums">{{ c.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+          <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px">
+            <div style="font-size:13px;font-weight:800;margin-bottom:14px">전환 퍼널</div>
+            <sc-for list="{{ funnel }}" as="f" hint-placeholder-count="3">
+              <div style="margin-bottom:12px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span style="font-weight:700">{{ f.label }} <span style="color:#9298c4;font-weight:500">{{ f.hint }}</span></span><span style="font-variant-numeric:tabular-nums;color:#5b6180">{{ f.val }}<sc-if value="{{ f.rate }}" hint-placeholder-val="{{ false }}"><b style="color:#2d35a3"> · {{ f.rate }}</b></sc-if></span></div>
+                <div style="height:10px;border-radius:999px;background:#eef0f9;overflow:hidden"><div style="height:100%;border-radius:999px;background:{{ f.barColor }};width:{{ f.w }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:20px 22px">
+            <div style="font-size:13px;font-weight:800;margin-bottom:14px">UTM 소스 (접수 리드 기준)</div>
+            <sc-for list="{{ utmBars }}" as="u" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:90px 1fr 44px;gap:10px;align-items:center;margin-bottom:10px;font-size:12.5px">
+                <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ u.label }}</span>
+                <div style="height:10px;border-radius:999px;background:#eef0f9;overflow:hidden"><div style="height:100%;border-radius:999px;background:#3a43c0;opacity:{{ u.op }};width:{{ u.w }}"></div></div>
+                <span style="text-align:right;font-variant-numeric:tabular-nums;color:#5b6180">{{ u.val }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 3f 광고주 포털 -->
+  <div id="3f" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3f</span><span style="font-size:18px;font-weight:800">광고주 포털 — 리드</span><span style="font-size:13px;color:#5b6180">상단 바 내비(광고주는 LNB 없음) · 전화 버튼 · 행 위 상태 변경</span></div>
+    <div style="width:1180px;background:#f5f6fc;border-radius:24px;box-shadow:0 3px 10px rgba(20,23,42,0.12);overflow:hidden;min-height:760px">
+      <div style="display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 28px;background:#ffffff;border-bottom:1px solid #e2e5f2">
+        <div style="display:flex;align-items:center;gap:28px">
+          <span style="font-weight:800;font-size:19px;letter-spacing:-0.035em"><span style="color:#4ecb98">Lead</span><span style="color:#191c2e">Pot</span></span>
+          <nav style="display:flex;gap:4px">
+            <a href="#3f" style="font-size:13.5px;font-weight:700;padding:7px 15px;border-radius:999px;background:#ecedf9;color:#2d35a3;white-space:nowrap">리드</a>
+            <a href="#3f" style="font-size:13.5px;font-weight:600;padding:7px 15px;border-radius:999px;color:#5b6180;white-space:nowrap" style-hover="background:#eef0f9">리포트</a>
+            <a href="#3f" style="font-size:13.5px;font-weight:600;padding:7px 15px;border-radius:999px;color:#5b6180;white-space:nowrap" style-hover="background:#eef0f9">알림 설정</a>
+            <a href="#3f" style="font-size:13.5px;font-weight:600;padding:7px 15px;border-radius:999px;color:#5b6180;white-space:nowrap" style-hover="background:#eef0f9">이용 가이드</a>
+          </nav>
+        </div>
+        <span style="display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#3a43c0;color:#fff;font-size:13px;font-weight:800">김</span>
+      </div>
+      <main style="padding:26px 28px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <h1 style="margin:0;font-size:23px;font-weight:800;letter-spacing:-0.02em">김앤장 인테리어 님, 새 리드 3건이 기다려요</h1>
+          <select style="font-size:13px;font-weight:600;padding:8px 14px;border:1px solid #e2e5f2;border-radius:999px;background:#ffffff;color:#5b6180"><option>인테리어 견적</option></select>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px">
+          <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:16px 20px"><div style="font-size:12px;font-weight:700;color:#9298c4">미확인 리드</div><div style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;color:#2d35a3">3</div></div>
+          <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:16px 20px"><div style="font-size:12px;font-weight:700;color:#9298c4">오늘 접수</div><div style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px">5</div></div>
+          <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);padding:16px 20px"><div style="font-size:12px;font-weight:700;color:#9298c4">이번 달 전환</div><div style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;color:#0a7355">12</div></div>
+        </div>
+        <div style="background:#ffffff;border:1px solid #e2e5f2;border-radius:18px;box-shadow:0 1px 2px rgba(20,23,42,0.04);margin-top:14px;overflow:hidden">
+          <sc-for list="{{ advLeads }}" as="r" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:minmax(80px,0.7fr) minmax(0,1.8fr) 128px 140px 90px;gap:14px;align-items:center;padding:12px 22px;border-bottom:1px solid #eef0f9;cursor:pointer" style-hover="background:#f5f6fc">
+              <span style="font-size:14.5px;font-weight:{{ r.w }};display:flex;align-items:center;gap:7px;min-width:0"><sc-if value="{{ r.unread }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:50%;background:#3a43c0;flex:none"></span></sc-if><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span></span>
+              <span style="font-size:13px;color:#5b6180;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.summary }}</span>
+              <button style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;font-weight:700;padding:7px 0;border:none;border-radius:999px;background:#e2f7ef;color:#0a7355;cursor:pointer;white-space:nowrap" style-hover="background:#d1f0e4">📞 010-{{ r.phEnd }}</button>
+              <select style="font-size:12px;font-weight:700;padding:6px 12px;border:none;border-radius:999px;background:{{ r.stBg }};color:{{ r.stInk }};cursor:pointer"><option>{{ r.status }}</option></select>
+              <span style="font-size:12px;color:#9298c4;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap">{{ r.timeOnly }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 3g 로그인 · 3h 공개 폼 -->
+  <div style="display:flex;gap:40px;align-items:flex-start">
+    <div id="3g" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3g</span><span style="font-size:18px;font-weight:800">로그인</span></div>
+      <div style="width:760px;height:640px;background:#f5f6fc;border-radius:24px;box-shadow:0 3px 10px rgba(20,23,42,0.12);display:flex;align-items:center;justify-content:center">
+        <div style="width:400px;background:#ffffff;border:1px solid #e2e5f2;border-radius:22px;box-shadow:0 8px 24px -12px rgba(20,23,42,0.14);padding:34px 32px">
+          <div style="font-weight:800;font-size:24px;letter-spacing:-0.035em;margin-bottom:20px"><span style="color:#4ecb98">Lead</span><span style="color:#191c2e">Pot</span></div>
+          <h1 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-0.02em">다시 오신 걸 환영해요</h1>
+          <p style="margin:6px 0 22px;font-size:13.5px;color:#5b6180">리드팟 계정으로 로그인하세요.</p>
+          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:6px">이메일</label>
+          <input placeholder="you@example.com" style="width:100%;box-sizing:border-box;font-size:14px;padding:11px 17px;border:1px solid #e2e5f2;border-radius:999px;background:#f5f6fc;color:#191c2e;margin-bottom:14px">
+          <label style="display:block;font-size:12.5px;font-weight:600;margin-bottom:6px">비밀번호</label>
+          <input type="password" placeholder="비밀번호" style="width:100%;box-sizing:border-box;font-size:14px;padding:11px 17px;border:1px solid #e2e5f2;border-radius:999px;background:#f5f6fc;color:#191c2e">
+          <button style="width:100%;margin-top:20px;font-size:15px;font-weight:800;padding:13px;border:none;border-radius:999px;background:#3a43c0;color:#fff;cursor:pointer" style-hover="background:#2d35a3">로그인</button>
+          <p style="margin:16px 0 0;font-size:12.5px;color:#9298c4;text-align:center">계정이 필요하신가요? 운영자에게 문의해주세요.</p>
+        </div>
+      </div>
+    </div>
+    <div id="3h" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;font-weight:800;background:#3a43c0;color:#fff;border-radius:999px;padding:3px 12px">3h</span><span style="font-size:18px;font-weight:800">공개 폼 (최종 사용자 · 모바일)</span></div>
+      <div style="width:390px;background:#ffffff;border:1px solid #e2e5f2;border-radius:32px;box-shadow:0 3px 10px rgba(20,23,42,0.12);padding:30px 24px;box-sizing:border-box">
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#2d35a3;margin-bottom:6px">무료 상담</div>
+        <h2 style="margin:0 0 4px;font-size:22px;font-weight:800;letter-spacing:-0.02em;line-height:1.3">30초면 끝나요.<br>맞춤 견적을 받아보세요</h2>
+        <p style="margin:0 0 20px;font-size:13px;color:#5b6180">남겨주신 연락처로 전문 상담사가 연락드립니다.</p>
+        <sc-for list="{{ publicFields }}" as="p" hint-placeholder-count="4">
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:13.5px;font-weight:700;margin-bottom:7px">{{ p.label }} <sc-if value="{{ p.required }}" hint-placeholder-val="{{ false }}"><span style="color:#f04452">*</span></sc-if></label>
+            <input placeholder="{{ p.ph }}" style="width:100%;box-sizing:border-box;font-size:15px;padding:13px 16px;border:1.5px solid #e2e5f2;border-radius:14px;background:#f5f6fc;color:#191c2e">
+          </div>
+        </sc-for>
+        <div style="background:#f5f6fc;border-radius:14px;padding:12px 14px;margin:18px 0 6px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:8px"><input type="checkbox" checked style="accent-color:#3a43c0;width:17px;height:17px">전체 동의</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#5b6180;margin-bottom:5px;padding-left:2px"><input type="checkbox" checked style="accent-color:#3a43c0">개인정보 수집 및 이용 동의 (필수) <a href="#3h" style="font-size:11.5px">보기</a></label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#5b6180;padding-left:2px"><input type="checkbox" checked style="accent-color:#3a43c0">개인정보 제3자 제공 동의 (필수) <a href="#3h" style="font-size:11.5px">보기</a></label>
+        </div>
+        <button style="width:100%;margin-top:14px;font-size:16px;font-weight:800;padding:15px;border:none;border-radius:16px;background:#12b886;color:#06281f;cursor:pointer" style-hover="background:#0e9d73">무료 상담 신청하기</button>
+        <p style="margin:10px 0 0;font-size:11.5px;color:#9298c4;text-align:center">버튼·강조색은 리드폼별 설정을 그대로 따릅니다</p>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const st = {
+      NEW: { label: "신규", bg: "#ecedf9", ink: "#2d35a3" },
+      VALID: { label: "유효", bg: "#e2f7ef", ink: "#0a7355" },
+      AS: { label: "AS요청", bg: "#fdf1dc", ink: "#8a5200" },
+      INVALID: { label: "무효", bg: "#fde5e7", ink: "#c0202d" },
+      CUSTOM: { label: "통화완료", bg: "#eef0f9", ink: "#5b6180" },
+    };
+    const dots = { NEW: "#3a43c0", VALID: "#12b886", AS: "#f5a524", INVALID: "#f04452", CUSTOM: "#8b8fa3" };
+    const data = [
+      ["김민수", "010-1234-··", "2000만원~4000만원 · 집(자가) · 40대", "보험상담 신청", "NEW", "26. 8. 8. 오전 10:24", true, true],
+      ["이서연", "010-5827-··", "5000만원 이상 · 전세 · 30대", "대출 상담", "NEW", "26. 8. 8. 오전 09:51", true, false],
+      ["박지훈", "010-3391-··", "아파트 32평 · 전체 리모델링 · 10월 희망", "인테리어 견적", "VALID", "26. 8. 8. 오전 09:12", false, false],
+      ["최은지", "010-7745-··", "1000만원~2000만원 · 월세 · 20대", "대출 상담", "CUSTOM", "26. 8. 7. 오후 06:40", false, false],
+      ["정다은", "010-2210-··", "실비+암보험 · 기존 보험 있음", "보험상담 신청", "VALID", "26. 8. 7. 오후 04:18", false, false],
+      ["한상우", "010-9083-··", "빌라 18평 · 부분(주방·욕실)", "인테리어 견적", "AS", "26. 8. 7. 오후 02:03", false, false],
+      ["오유진", "010-4462-··", "3000만원~5000만원 · 자가 · 50대", "대출 상담", "INVALID", "26. 8. 7. 오전 11:37", false, false],
+      ["강태현", "010-6619-··", "종신보험 문의 · 45세 남", "보험상담 신청", "VALID", "26. 8. 7. 오전 10:22", false, false],
+      ["윤소희", "010-8830-··", "오피스텔 12평 · 도배·장판", "인테리어 견적", "CUSTOM", "26. 8. 6. 오후 07:55", false, false],
+    ];
+    const mk = ([name, phone, summary, form, key, time, unread, active]) => ({
+      name, phone, summary, form, time, unread,
+      timeShort: time.replace("26. ", ""),
+      timeOnly: time.split(". ").pop(),
+      nameWeight: unread ? 800 : 600,
+      status: st[key].label, stBg: st[key].bg, stInk: st[key].ink, stDot: dots[key],
+      selBg: active ? "#ecedf9" : "transparent",
+      selShadow: active ? "inset 0 0 0 1.5px #3a43c0" : "none",
+    });
+    const rows = data.map(mk);
+    const astPalette = {
+      NEW: { bg: "#fde5e7", ink: "#c0202d" }, CONFIRMED: { bg: "#ecedf9", ink: "#2d35a3" },
+      CALLED: { bg: "#f3e9fd", ink: "#6b21b0" }, NO_ANSWER: { bg: "#fdf1dc", ink: "#8a5200" },
+      CONVERTED: { bg: "#e2f7ef", ink: "#0a7355" }, CLOSED: { bg: "#eef0f9", ink: "#5b6180" },
+    };
+    const adv = [
+      ["박지훈", "아파트 32평 · 전체 리모델링 · 10월 희망", "3391", "NEW", "신규", "오전 09:12", true],
+      ["한상우", "빌라 18평 · 부분(주방·욕실)", "9083", "CONFIRMED", "확인", "오전 08:47", true],
+      ["윤소희", "오피스텔 12평 · 도배·장판", "8830", "CALLED", "통화완료", "어제", false],
+      ["문경호", "주방 확장 · 9월 착공 희망", "9127", "NO_ANSWER", "부재", "어제", false],
+      ["김하늘", "상가 24평 · 카페 인테리어", "5540", "CONVERTED", "전환", "8. 6.", false],
+    ];
+    return {
+      kpis: [
+        { label: "신규 리드", val: "14", sub: "오늘 접수 · 인박스로", color: "#2d35a3" },
+        { label: "오늘 유입", val: "312", sub: "공개 페이지 방문", color: "#191c2e" },
+        { label: "리드폼", val: "6", sub: "사용 중", color: "#191c2e" },
+        { label: "랜딩페이지", val: "9", sub: "공개 중", color: "#191c2e" },
+      ],
+      dashLeads: rows.slice(0, 4),
+      listRows: rows,
+      answers: [
+        { k: "이름", v: "김민수" },
+        { k: "연락처", v: "010-1234-5678" },
+        { k: "대출 희망액", v: "2000만원~4000만원" },
+        { k: "주거 형태", v: "집(자가)" },
+        { k: "연령대", v: "40대" },
+      ],
+      statusChips: [
+        { key: "NEW" }, { key: "VALID" }, { key: "AS" }, { key: "INVALID" }, { key: "CUSTOM" },
+      ].map(({ key }) => ({
+        label: st[key].label, dot: dots[key],
+        pickInk: key === "NEW" ? "#fff" : st[key].ink,
+        pickBg: key === "NEW" ? "#3a43c0" : "transparent",
+        pickBorder: key === "NEW" ? "#3a43c0" : "#e2e5f2",
+      })),
+      formsTable: [
+        { name: "보험상담 신청", type: "기본형", typeBg: "#ecedf9", typeInk: "#2d35a3", blocks: 7, updated: "2026. 8. 7. 오후 3:12" },
+        { name: "대출 상담", type: "스텝형", typeBg: "#e2f7ef", typeInk: "#0a7355", blocks: 9, updated: "2026. 8. 6. 오전 11:40" },
+        { name: "인테리어 견적", type: "스텝형", typeBg: "#e2f7ef", typeInk: "#0a7355", blocks: 8, updated: "2026. 8. 4. 오후 5:03" },
+        { name: "무료 견적 이벤트", type: "기본형", typeBg: "#ecedf9", typeInk: "#2d35a3", blocks: 5, updated: "2026. 7. 30. 오후 2:28" },
+      ],
+      editorBlocks: [
+        { label: "이름", type: "한 줄 텍스트", required: true },
+        { label: "연락처", type: "연락처", required: true },
+        { label: "대출 희망액", type: "선택박스", required: true },
+        { label: "주거 형태", type: "단일 선택(카드)", required: true },
+        { label: "안내 이미지", type: "이미지", required: false },
+      ],
+      publicFields: [
+        { label: "이름", ph: "홍길동", required: true },
+        { label: "연락처", ph: "010-0000-0000", required: true },
+        { label: "대출 희망액", ph: "선택하세요", required: true },
+        { label: "주거 형태", ph: "선택하세요", required: false },
+      ],
+      statKpis: [
+        { label: "순 방문 (고유)", val: "1,842", color: "#191c2e" },
+        { label: "총 트래픽", val: "2,310", color: "#191c2e" },
+        { label: "접수 (리드)", val: "128", color: "#2d35a3" },
+        { label: "전환율 (순 방문 대비)", val: "6.9%", color: "#0a7355" },
+      ],
+      chart: [42, 55, 38, 70, 62, 88, 74, 95, 60, 82, 100, 68, 76, 90].map((v, i) => ({
+        v: `${v}%`, l: `${Math.round(v * 0.28)}%`, label: `7/${25 + i > 31 ? i - 6 : 25 + i}`,
+      })),
+      funnel: [
+        { label: "방문", hint: "순방문", val: "1,842", rate: "", w: "100%", barColor: "#c3c8ea" },
+        { label: "폼 열기", hint: "CTA 클릭", val: "512", rate: "27.8%", w: "28%", barColor: "#3a43c0" },
+        { label: "접수", hint: "리드 제출", val: "128", rate: "25.0%", w: "7%", barColor: "#12b886" },
+      ],
+      utmBars: [
+        { label: "meta", val: "82", w: "64%", op: 1 },
+        { label: "google", val: "28", w: "22%", op: 0.75 },
+        { label: "(직접 유입)", val: "12", w: "9%", op: 0.5 },
+        { label: "naver", val: "6", w: "5%", op: 0.35 },
+      ],
+      advLeads: adv.map(([name, summary, phEnd, key, status, timeOnly, unread]) => ({
+        name, summary, phEnd, status, timeOnly, unread,
+        w: unread ? 800 : 600,
+        stBg: astPalette[key].bg, stInk: astPalette[key].ink,
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import { deleteForm, listForms, type FormSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
+import { runBulk, useSelection } from "../lib/useSelection";
 
 export function FormsListPage() {
   const navigate = useNavigate();
@@ -12,6 +13,21 @@ export function FormsListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const paging = usePaging(forms, 10);
+
+  // 전체선택 + 일괄 삭제 (2026-08-08 — 액션 있는 모든 목록 공통)
+  const sel = useSelection(paging.pageItems.map((f) => f.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  async function onBulkDelete() {
+    if (sel.count === 0 || bulkBusy) return;
+    if (!window.confirm(`선택한 리드폼 ${sel.count}개를 삭제할까요? 수집된 리드도 함께 사라질 수 있습니다.`)) return;
+    setBulkBusy(true);
+    const { ok, fail } = await runBulk([...sel.selected], deleteForm);
+    setBulkBusy(false);
+    if (fail > 0) toast.error(`${ok}개 삭제, ${fail}개 실패`);
+    else toast.success(`${ok}개 리드폼을 삭제했습니다.`);
+    sel.clear();
+    load();
+  }
 
   async function load() {
     setLoading(true);
@@ -68,10 +84,20 @@ export function FormsListPage() {
           </div>
         ) : (
           <>
+          {sel.count > 0 && (
+            <div className="il-bulk" style={{ paddingBottom: 10 }}>
+              <span className="bulk-count">{sel.count}개 선택</span>
+              <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 삭제</button>
+              <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
+            </div>
+          )}
           <div className="card card-table">
             <table>
               <thead>
                 <tr>
+                  <th className="sel-col">
+                    <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
+                  </th>
                   <th>이름</th>
                   <th>유형</th>
                   <th>항목 수</th>
@@ -82,6 +108,9 @@ export function FormsListPage() {
               <tbody>
                 {paging.pageItems.map((f) => (
                   <tr key={f.id} className="row-click" onClick={() => navigate(`/forms/${f.id}/edit`)}>
+                    <td className="sel-col" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={sel.selected.has(f.id)} onChange={() => sel.toggle(f.id)} aria-label="선택" />
+                    </td>
                     <td>{f.name}</td>
                     <td>
                       {/* 리디자인 §6: 기본형=인디고 soft · 스텝형=그린 soft */}

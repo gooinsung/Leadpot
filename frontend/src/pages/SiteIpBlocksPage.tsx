@@ -12,6 +12,7 @@ import {
 import { TopBar } from "../components/TopBar";
 import { Loading } from "../components/Loading";
 import { toast } from "../lib/toast";
+import { runBulk, useSelection } from "../lib/useSelection";
 
 /**
  * 계정 전역 접속 차단.
@@ -88,6 +89,21 @@ export function SiteIpBlocksPage() {
     }
   }
 
+  // 전체선택 + 일괄 해제 (2026-08-08)
+  const sel = useSelection(blocks.map((b) => b.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  async function onBulkDelete() {
+    if (sel.count === 0 || bulkBusy) return;
+    if (!window.confirm(`선택한 ${sel.count}개 차단을 해제할까요?`)) return;
+    setBulkBusy(true);
+    const { ok, fail } = await runBulk([...sel.selected], deleteSiteIpBlock);
+    setBulkBusy(false);
+    if (fail > 0) toast.error(`${ok}개 해제, ${fail}개 실패`);
+    else toast.success(`${ok}개 차단을 해제했습니다.`);
+    sel.clear();
+    load();
+  }
+
   return (
     <div className="app-shell">
       <TopBar />
@@ -147,10 +163,21 @@ export function SiteIpBlocksPage() {
             </p>
           </div>
         ) : (
+          <>
+          {sel.count > 0 && (
+            <div className="il-bulk" style={{ paddingBottom: 10 }}>
+              <span className="bulk-count">{sel.count}개 선택</span>
+              <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 해제</button>
+              <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>선택 취소</button>
+            </div>
+          )}
           <div className="card card-table">
             <table>
               <thead>
                 <tr>
+                  <th className="sel-col">
+                    <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
+                  </th>
                   <th>IP / 대역</th>
                   <th>사유</th>
                   <th>등록일</th>
@@ -160,6 +187,9 @@ export function SiteIpBlocksPage() {
               <tbody>
                 {blocks.map((b) => (
                   <tr key={b.id}>
+                    <td className="sel-col">
+                      <input type="checkbox" checked={sel.selected.has(b.id)} onChange={() => sel.toggle(b.id)} aria-label="선택" />
+                    </td>
                     <td style={{ fontFamily: "var(--mono)" }}>{b.pattern}</td>
                     <td>{b.reason || <span className="dash-sub">—</span>}</td>
                     <td className="num">{new Date(b.createdAt).toLocaleString("ko-KR")}</td>
@@ -173,6 +203,7 @@ export function SiteIpBlocksPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* 차단 시도 로그 — 규칙만 있으면 실제로 막히고 있는지 알 수 없다. */}

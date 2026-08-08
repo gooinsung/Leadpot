@@ -3,6 +3,10 @@ import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
+  bulkPermanentDeleteLeads,
+  bulkRestoreLeads,
+  bulkTrashLeads,
+  bulkUpdateLeadStatus,
   deleteLead,
   downloadLeads,
   downloadLeadTemplate,
@@ -22,6 +26,7 @@ import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
 import { leadStatusClass, leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
+import { useSelection } from "../lib/useSelection";
 import { toast } from "../lib/toast";
 
 // ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
@@ -182,6 +187,33 @@ export function LeadsListPage() {
   }, [leads, q, statusFilter, dupOnly, advUnseenOnly, dupIds, tagFilter, dateFrom, dateTo]);
 
   const paging = usePaging(filtered, 25); // 컴팩트 행이라 한 화면에 더 많이(U3)
+
+  // 전체선택(현재 페이지 기준, 2026-08-08) + 일괄 작업
+  const sel = useSelection(paging.pageItems.map((l) => l.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  async function runBulkAction(label: string, work: () => Promise<unknown>, confirmText?: string) {
+    if (sel.count === 0 || bulkBusy) return;
+    if (confirmText && !window.confirm(confirmText)) return;
+    setBulkBusy(true);
+    try {
+      await work();
+      toast.success(`${sel.count}건 ${label} 완료`);
+      sel.clear();
+      load();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : `${label}에 실패했습니다.`);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  function onBulkStatusChange(statusKey: string) {
+    const opt = statusOptions.find((o) => o.key === statusKey);
+    if (!opt) return;
+    void runBulkAction("상태 변경", () =>
+      bulkUpdateLeadStatus([...sel.selected], opt.status, opt.customStatusId));
+  }
 
   function copyLink() {
     navigator.clipboard?.writeText(publicUrl).then(() => {
@@ -444,9 +476,55 @@ export function LeadsListPage() {
           </div>
         ) : (
           <>
+          {/* 일괄 작업 바(2026-08-08) — 전체선택은 항상, 액션은 선택이 있을 때만 */}
+          <div className="il-bulk" style={{ padding: "0 2px 10px" }}>
+            <label className="bulk-check">
+              <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} />
+              전체 선택
+            </label>
+            {sel.count > 0 && (
+              <>
+                <span className="bulk-count">{sel.count}건</span>
+                {trashed ? (
+                  <>
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy}
+                      onClick={() => runBulkAction("복원", () => bulkRestoreLeads([...sel.selected]))}>
+                      복원
+                    </button>
+                    <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy}
+                      onClick={() => runBulkAction("영구 삭제", () => bulkPermanentDeleteLeads([...sel.selected]),
+                        `${sel.count}건을 영구 삭제할까요? 되돌릴 수 없습니다.`)}>
+                      영구 삭제
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <select className="input bulk-select" value="" disabled={bulkBusy}
+                      onChange={(e) => e.target.value && onBulkStatusChange(e.target.value)}
+                      aria-label="일괄 상태 변경">
+                      <option value="">상태 변경…</option>
+                      {statusOptions
+                        .filter((s) => s.status !== "AS_REQUESTED")
+                        .map((s) => (
+                          <option key={s.key} value={s.key}>{s.label}(으)로</option>
+                        ))}
+                    </select>
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy}
+                      onClick={() => runBulkAction("휴지통 이동", () => bulkTrashLeads([...sel.selected]),
+                        `${sel.count}건을 휴지통으로 이동할까요?`)}>
+                      휴지통
+                    </button>
+                  </>
+                )}
+                <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
+              </>
+            )}
+          </div>
+
           {/* 한 리드 = 한 줄(U3). 전체 답변·방문자정보는 줄을 클릭해 여는 상세 패널에서 본다. */}
-          <div className={`flead-rows${trashed ? " trash" : ""}`} role="list">
+          <div className={`flead-rows sel-on${trashed ? " trash" : ""}`} role="list">
             <div className="flead-head" aria-hidden="true">
+              <span />
               <span>이름</span>
               <span>연락처</span>
               <span>답변 요약</span>
@@ -462,10 +540,18 @@ export function LeadsListPage() {
                 <div
                   role="listitem"
                   key={l.id}
-                  className={`flead-row${detailId === l.id ? " active" : ""}`}
+                  className={`flead-row${detailId === l.id ? " active" : ""}${sel.selected.has(l.id) ? " selected" : ""}`}
                   onClick={() => setDetailId(l.id)}
                   title="클릭하면 상세(전체 답변·방문자정보·메모)가 열립니다"
                 >
+                  <span className="fl-check" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={sel.selected.has(l.id)}
+                      onChange={() => sel.toggle(l.id)}
+                      aria-label="리드 선택"
+                    />
+                  </span>
                   <span className="fl-name">
                     <span className="fl-name-text">{name}</span>
                     {!trashed && dupIds.has(l.id) && (

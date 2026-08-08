@@ -19,6 +19,7 @@ import {
   pickPhone,
   summarizeAnswers,
 } from "../lib/leadDisplay";
+import { useSelection } from "../lib/useSelection";
 
 const PAGE_SIZE = 25;
 
@@ -64,8 +65,6 @@ export function LeadInboxPage() {
   // 상세 선택. 데스크톱은 openId 가 없어도 첫 리드를 보여준다(자동 선택).
   const [openId, setOpenId] = useState<number | null>(null);
   const isNarrow = useIsNarrow();
-  // 일괄 선택
-  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const kstDate = (d: Date) =>
@@ -80,7 +79,6 @@ export function LeadInboxPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    setSelected(new Set()); // 목록이 바뀌면 선택 초기화(선택은 현재 화면 기준)
     try {
       const res = await getInbox({
         unseen: view === "unseen",
@@ -116,6 +114,10 @@ export function LeadInboxPage() {
   const total = data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // 전체선택(현재 페이지 기준, 2026-08-08) — 목록이 바뀌면 훅이 사라진 id 를 걷어낸다.
+  const { selected, allSelected, toggle: toggleSelect, toggleAll, clear: clearSelection } =
+    useSelection(items.map((i) => i.id));
+
   // 데스크톱: 선택이 없거나 목록 밖이면 첫 리드 자동 선택(오른쪽이 비지 않게).
   const selectedId = !isNarrow
     ? (openId != null && items.some((i) => i.id === openId) ? openId : items[0]?.id ?? null)
@@ -140,15 +142,7 @@ export function LeadInboxPage() {
     await load();
   }
 
-  // ---- 일괄 선택 ----
-  function toggleSelect(id: number) {
-    setSelected((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  }
+  // ---- 일괄 작업 (선택 상태는 useSelection 훅) ----
   async function onBulkStatus(statusKey: string) {
     if (selected.size === 0 || bulkBusy) return;
     setBulkBusy(true);
@@ -156,6 +150,7 @@ export function LeadInboxPage() {
     try {
       const { status, customStatusId } = keyToStatusBody(statusKey);
       await bulkUpdateLeadStatus([...selected], status, customStatusId);
+      clearSelection();
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "일괄 상태변경에 실패했습니다.");
@@ -170,6 +165,7 @@ export function LeadInboxPage() {
     setError("");
     try {
       await bulkTrashLeads([...selected]);
+      clearSelection();
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "일괄 이동에 실패했습니다.");
@@ -251,26 +247,34 @@ export function LeadInboxPage() {
                 </button>
               ))}
             </div>
-            {/* 일괄 작업 — 카드에 hover 하면 체크박스가 드러난다(가이드 §4) */}
-            {selected.size > 0 && (
+            {/* 일괄 작업 — 전체선택(현재 페이지)은 항상, 액션은 선택이 있을 때만(2026-08-08) */}
+            {items.length > 0 && (
               <div className="il-bulk">
-                <span className="bulk-count">{selected.size}건 선택</span>
-                <select
-                  className="input bulk-select"
-                  value=""
-                  disabled={bulkBusy}
-                  onChange={(e) => e.target.value && onBulkStatus(e.target.value)}
-                  aria-label="일괄 상태 변경"
-                >
-                  <option value="">상태 변경…</option>
-                  {Object.entries(counts?.statusNames ?? {})
-                    .filter(([key]) => key !== "AS_REQUESTED")
-                    .map(([key, label]) => (
-                      <option key={key} value={key}>{label}(으)로</option>
-                    ))}
-                </select>
-                <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
-                <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={() => setSelected(new Set())}>해제</button>
+                <label className="bulk-check">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+                  전체 선택
+                </label>
+                {selected.size > 0 && (
+                  <>
+                    <span className="bulk-count">{selected.size}건</span>
+                    <select
+                      className="input bulk-select"
+                      value=""
+                      disabled={bulkBusy}
+                      onChange={(e) => e.target.value && onBulkStatus(e.target.value)}
+                      aria-label="일괄 상태 변경"
+                    >
+                      <option value="">상태 변경…</option>
+                      {Object.entries(counts?.statusNames ?? {})
+                        .filter(([key]) => key !== "AS_REQUESTED")
+                        .map(([key, label]) => (
+                          <option key={key} value={key}>{label}(으)로</option>
+                        ))}
+                    </select>
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={clearSelection}>해제</button>
+                  </>
+                )}
               </div>
             )}
           </div>

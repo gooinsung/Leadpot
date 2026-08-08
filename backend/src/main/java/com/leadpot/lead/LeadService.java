@@ -418,6 +418,42 @@ public class LeadService {
         return n;
     }
 
+    /** 일괄 복원(2026-08-08, 휴지통 전체선택). 내 것이 아닌 id 는 건너뛴다. */
+    @Transactional
+    public int bulkRestore(Long ownerId, List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (Long id : ids) {
+            try {
+                restore(ownerId, id);
+                n++;
+            } catch (NotFoundException ignored) {
+                // 내 리드가 아니면 건너뛴다(부분 성공).
+            }
+        }
+        return n;
+    }
+
+    /** 일괄 영구 삭제(휴지통 전용, 되돌릴 수 없음). 내 것이 아닌 id 는 건너뛴다. */
+    @Transactional
+    public int bulkPermanentDelete(Long ownerId, List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (Long id : ids) {
+            try {
+                permanentDelete(ownerId, id);
+                n++;
+            } catch (NotFoundException ignored) {
+                // 내 리드가 아니면 건너뛴다(부분 성공).
+            }
+        }
+        return n;
+    }
+
     /** 일괄 휴지통 이동(U2). 내 것이 아닌 id 는 건너뛴다. 실제 처리 건수를 돌려준다. */
     @Transactional
     public int bulkSoftDelete(Long ownerId, List<Long> ids) {
