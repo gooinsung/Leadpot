@@ -183,6 +183,12 @@ export function FormEditPage() {
   // 기준 시각(autoApproveSince)은 서버가 찍으므로 여기서 보내지 않는다(소급 적용 방지).
   const [autoApproveEnabled, setAutoApproveEnabled] = useState(false);
   const [autoApproveDays, setAutoApproveDays] = useState(7);
+  // 목표(2026-08-09) — 일간/월간 목표 + 기간. 보고서는 /goals 에서 본다. 과금 목표(grant)와 별개.
+  const [goalEnabled, setGoalEnabled] = useState(false);
+  const [goalDaily, setGoalDaily] = useState(0);
+  const [goalMonthly, setGoalMonthly] = useState(0);
+  const [goalStart, setGoalStart] = useState("");
+  const [goalEnd, setGoalEnd] = useState("");
   const [notifyEnabled, setNotifyEnabled] = useState(true);
   const [sheetsEnabled, setSheetsEnabled] = useState(false);
   // 계정의 문자 발송 권한(V25). 권한이 없으면 이 화면의 문자 설정을 비활성화하고 이유를 안내한다.
@@ -264,6 +270,11 @@ export function FormEditPage() {
         setIpDedupDays(Number(f.settingsConfig?.ipDedupDays) || 0);
         setAutoApproveEnabled(f.settingsConfig?.autoApproveEnabled === true);
         setAutoApproveDays(Number(f.settingsConfig?.autoApproveDays) || 7);
+        setGoalEnabled(f.settingsConfig?.goalEnabled === true);
+        setGoalDaily(Number(f.settingsConfig?.goalDaily) || 0);
+        setGoalMonthly(Number(f.settingsConfig?.goalMonthly) || 0);
+        setGoalStart((f.settingsConfig?.goalStart as string) || "");
+        setGoalEnd((f.settingsConfig?.goalEnd as string) || "");
         setNotifyEnabled(f.settingsConfig?.notifyEnabled !== false);
         setSheetsEnabled(f.settingsConfig?.sheetsEnabled === true);
         setSmsMarketerEnabled(f.settingsConfig?.smsMarketerEnabled === true);
@@ -452,6 +463,11 @@ export function FormEditPage() {
       ipDedupDays,
       autoApproveEnabled,
       autoApproveDays,
+      goalEnabled,
+      goalDaily,
+      goalMonthly,
+      goalStart,
+      goalEnd,
       notifyEnabled,
       sheetsEnabled,
       smsMarketerEnabled,
@@ -808,6 +824,43 @@ export function FormEditPage() {
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 이 리드폼에 접수되면 <b>연동</b> 메뉴에 설정한 <b>계정 텔레그램</b>으로 알림을 보냅니다. (계정 텔레그램이 켜져 있어야 발송)
               </p>
+
+              {/* 목표(2026-08-09) — 일간/월간 목표 + 기간. 달성 현황은 '목표' 메뉴 보고서에서. */}
+              <label className="fr-check" style={{ marginTop: 14 }}>
+                <input type="checkbox" checked={goalEnabled} onChange={(e) => setGoalEnabled(e.target.checked)} /> 수집 목표 설정
+              </label>
+              {goalEnabled && (
+                <div style={{ display: "grid", gap: 10, maxWidth: 620, marginTop: 10 }}>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <label className="field" style={{ flex: "1 1 140px", marginBottom: 0 }}>
+                      <span className="field-label">일간 목표 (건)</span>
+                      <input className="input" type="number" min={0} value={goalDaily}
+                        onChange={(e) => setGoalDaily(Math.max(0, Number(e.target.value) || 0))} placeholder="0 = 없음" />
+                    </label>
+                    <label className="field" style={{ flex: "1 1 140px", marginBottom: 0 }}>
+                      <span className="field-label">월간 목표 (건)</span>
+                      <input className="input" type="number" min={0} value={goalMonthly}
+                        onChange={(e) => setGoalMonthly(Math.max(0, Number(e.target.value) || 0))} placeholder="0 = 없음" />
+                    </label>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <label className="field" style={{ flex: "1 1 150px", marginBottom: 0 }}>
+                      <span className="field-label">시작일</span>
+                      <input className="input" type="date" value={goalStart} max={goalEnd || undefined}
+                        onChange={(e) => setGoalStart(e.target.value)} />
+                    </label>
+                    <label className="field" style={{ flex: "1 1 150px", marginBottom: 0 }}>
+                      <span className="field-label">종료일</span>
+                      <input className="input" type="date" value={goalEnd} min={goalStart || undefined}
+                        onChange={(e) => setGoalEnd(e.target.value)} />
+                    </label>
+                  </div>
+                  <p className="dash-sub" style={{ margin: 0, fontSize: 12 }}>
+                    기간·목표를 채우면 <b>목표</b> 메뉴에서 일별/월별 달성 보고서를 볼 수 있습니다.
+                    (일간·월간 중 하나만 채워도 됩니다. 광고주 정산의 일 목표 문자 알림과는 별개입니다)
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }}>

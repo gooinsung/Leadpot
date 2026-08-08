@@ -717,6 +717,41 @@ export function getBillingOverview(): Promise<BillingOverviewRow[]> {
   return request<BillingOverviewRow[]>("/api/billing/overview");
 }
 
+// ---------- 목표 보고서 (2026-08-09) ----------
+// 설정은 리드폼 편집에서 settingsConfig(goalEnabled·goalDaily·goalMonthly·goalStart·goalEnd)로 저장.
+export interface GoalDayRow {
+  date: string;
+  count: number;
+  /** 일간 목표 달성 여부. 목표가 0이면 판정 없음(null). */
+  met: boolean | null;
+}
+export interface GoalMonthRow {
+  month: string;
+  count: number;
+  /** 월간 목표 달성. 진행 중인 달의 미달은 null(아직 실패 아님). */
+  met: boolean | null;
+}
+export interface GoalReportRow {
+  formId: number;
+  formName: string;
+  dailyTarget: number;
+  monthlyTarget: number;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  todayCount: number;
+  monthCount: number;
+  totalCount: number;
+  /** 기간 경과율 0~1 */
+  periodProgress: number;
+  days: GoalDayRow[];
+  months: GoalMonthRow[];
+}
+/** 목표가 켜진 내 리드폼 전부의 달성 보고서. */
+export function getGoalReport(): Promise<GoalReportRow[]> {
+  return request<GoalReportRow[]>("/api/goals/report");
+}
+
 /** 리드 단건 상세(본인 리드폼만). */
 export function getLead(id: number): Promise<Lead> {
   return request<Lead>(`/api/leads/${id}`);
