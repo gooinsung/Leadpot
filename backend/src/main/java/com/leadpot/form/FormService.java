@@ -26,12 +26,20 @@ public class FormService {
     private final FormRepository formRepository;
     private final SiteIpBlockService siteIpBlockService;
     private final UserRepository userRepository;
+    private final com.leadpot.lead.LeadRepository leadRepository;
+    private final com.leadpot.ipblock.IpBlockRepository ipBlockRepository;
+    private final com.leadpot.ipblock.IpBlockHitRepository ipBlockHitRepository;
 
     public FormService(FormRepository formRepository, SiteIpBlockService siteIpBlockService,
-            UserRepository userRepository) {
+            UserRepository userRepository, com.leadpot.lead.LeadRepository leadRepository,
+            com.leadpot.ipblock.IpBlockRepository ipBlockRepository,
+            com.leadpot.ipblock.IpBlockHitRepository ipBlockHitRepository) {
         this.formRepository = formRepository;
         this.siteIpBlockService = siteIpBlockService;
         this.userRepository = userRepository;
+        this.leadRepository = leadRepository;
+        this.ipBlockRepository = ipBlockRepository;
+        this.ipBlockHitRepository = ipBlockHitRepository;
     }
 
     @Transactional(readOnly = true)
@@ -101,9 +109,21 @@ public class FormService {
         return FormResponse.from(form);
     }
 
+    /**
+     * 리드폼 삭제 — 소속 데이터까지 함께 지운다(영구 삭제, 화면에서 경고 후 진행).
+     *
+     * <p>🐛 2026-08-09 수정: {@code leads}·{@code ip_blocks}·{@code ip_block_hits} 의 form_id FK 에
+     * {@code on delete} 규칙이 없어(V5·V13), 리드가 1건이라도 있으면 DB 가 삭제를 거부해 500 이 났다.
+     * 이전 기간(V32 마이그레이션 금지)이라 FK 를 고치는 대신 자식부터 지운다.
+     * 리드의 하위(lead_notes·lead_as_requests)는 DB cascade 가, 광고주 권한(grants)도 cascade 가 정리하고,
+     * 원장(advertiser_ledger)은 FK 없이 form_id 스냅샷이라 돈 기록은 남는다(의도 — V31 설계).
+     */
     @Transactional
     public void delete(Long ownerId, Long id) {
         Form form = load(ownerId, id);
+        leadRepository.deleteAllByFormId(id);
+        ipBlockHitRepository.deleteByFormId(id);
+        ipBlockRepository.deleteByFormId(id);
         formRepository.delete(form);
     }
 
