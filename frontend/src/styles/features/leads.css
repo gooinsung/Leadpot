@@ -237,9 +237,14 @@
 .flead-row:last-child { border-bottom: none; }
 .flead-row:hover { background: var(--surface-2); }
 .flead-row.active { background: var(--indigo-soft); }
-/* 일괄 작업 공용 요소(스플릿 목록의 .il-bulk 이 사용) */
+/* 일괄 작업 공용 요소 — 전체선택(2026-08-08)은 액션 있는 모든 목록이 이 한 벌을 쓴다 */
+.bulk-check { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.bulk-check input { width: 16px; height: 16px; accent-color: var(--indigo); cursor: pointer; }
 .bulk-count { font-size: 13px; font-weight: 700; color: var(--indigo-strong); }
 .bulk-select { width: auto; font-size: 13px; padding: 6px 10px; }
+/* 표 목록의 체크 열(리드폼·랜딩 등) — 좁게 고정 */
+th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
+.sel-col input { width: 16px; height: 16px; accent-color: var(--indigo); cursor: pointer; vertical-align: middle; }
 .ir-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--indigo); flex: none; }
 
 /* ============================================================
@@ -251,8 +256,12 @@
    액션 열은 휴지통(복원·영구삭제 2개)일 때만 넓힌다. */
 .flead-rows { --fl-act: 72px; }
 .flead-rows.trash { --fl-act: 140px; }
+/* 전체선택(2026-08-08): 체크 열 28px 가 맨 앞에 붙는다(.sel-on) */
 .flead-row,
-.flead-head { grid-template-columns: minmax(110px, 1.15fr) minmax(105px, 0.85fr) minmax(0, 2fr) 132px 128px var(--fl-act); }
+.flead-head { grid-template-columns: 28px minmax(110px, 1.15fr) minmax(105px, 0.85fr) minmax(0, 2fr) 132px 128px var(--fl-act); }
+.fl-check { display: flex; align-items: center; }
+.fl-check input { width: 16px; height: 16px; accent-color: var(--indigo); cursor: pointer; }
+.flead-row.selected { background: color-mix(in srgb, var(--indigo-soft) 70%, var(--surface)); }
 .fl-name { font-size: var(--fs-lg); font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; min-width: 0; }
 .fl-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fl-phone { font-size: var(--fs-md); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -289,6 +298,7 @@
 @media (max-width: 900px) {
   .flead-row { grid-template-columns: minmax(0, 1fr) max-content; gap: 4px 10px; }
   .flead-head { display: none; }
+  .fl-check { display: none; } /* 일괄 작업은 데스크톱 전용 — 좁은 화면 행 접힘을 깨지 않는다 */
   .fl-name { grid-area: 1 / 1; }
   .fl-status { grid-area: 1 / 2; justify-self: end; }
   .fl-phone { grid-area: 2 / 1; }

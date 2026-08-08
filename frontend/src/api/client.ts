@@ -506,6 +506,14 @@ export function bulkUpdateLeadStatus(
 export function bulkTrashLeads(ids: number[]): Promise<{ trashed: number }> {
   return request<{ trashed: number }>("/api/leads/bulk/trash", { method: "POST", body: { ids } });
 }
+/** 일괄 복원(휴지통 전체선택). */
+export function bulkRestoreLeads(ids: number[]): Promise<{ restored: number }> {
+  return request<{ restored: number }>("/api/leads/bulk/restore", { method: "POST", body: { ids } });
+}
+/** 일괄 영구 삭제(휴지통 전용 — 되돌릴 수 없음). */
+export function bulkPermanentDeleteLeads(ids: number[]): Promise<{ deleted: number }> {
+  return request<{ deleted: number }>("/api/leads/bulk/permanent", { method: "POST", body: { ids } });
+}
 
 /** 내 모든 리드폼의 리드를 한 스트림으로(필터·페이징 + rail 카운트). */
 export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {

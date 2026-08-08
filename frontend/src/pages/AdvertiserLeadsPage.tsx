@@ -21,6 +21,7 @@ import { AdvertiserTopBar } from "../components/AdvertiserTopBar";
 import { AdvertiserLeadDetail } from "../components/AdvertiserLeadDetail";
 import { Pagination } from "../components/Pagination";
 import { leadStatusClass } from "../lib/leadDisplay";
+import { useSelection } from "../lib/useSelection";
 
 /** 서버가 한 번에 내려주는 최대 건수(백엔드 MAX_PAGE_SIZE 와 일치). '전체' 선택 시 이 값을 쓴다. */
 const SERVER_MAX = 100;
@@ -226,6 +227,31 @@ export function AdvertiserLeadsPage() {
 
   const currentForm = forms.find((f) => f.formId === formId) ?? null;
   const shown = unseenOnly ? leads.filter((l) => !l.advertiserSeenAt) : leads;
+
+  // 전체선택 + 일괄 상태변경 (2026-08-08). 잠긴 리드(무효·AS대기)는 건너뛴다.
+  const changeable = shown.filter((l) => l.statusKey !== "INVALID" && l.statusKey !== "AS_REQUESTED");
+  const sel = useSelection(changeable.map((l) => l.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  async function onBulkStatus(statusKey: string) {
+    const opt = statusOptions.find((o) => o.key === statusKey);
+    if (!opt || sel.count === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setError("");
+    let ok = 0;
+    let fail = 0;
+    for (const id of sel.selected) {
+      try {
+        applyUpdated(await updateAdvertiserLeadStatus(id, opt.status, opt.customStatusId));
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    setBulkBusy(false);
+    if (fail > 0) setError(`${ok}건 변경, ${fail}건 실패`);
+    sel.clear();
+    await reloadRef.current();
+  }
   const pages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const hasFilter = !!(q || statusFilter || dateFrom || dateTo || unseenOnly);
 
@@ -458,14 +484,53 @@ export function AdvertiserLeadsPage() {
           </div>
         ) : (
           <>
+            {/* 전체선택 + 일괄 상태변경(2026-08-08) — 무효·AS대기 리드는 대상에서 제외 */}
+            {currentForm?.canStatus && changeable.length > 0 && (
+              <div className="il-bulk" style={{ paddingBottom: 10 }}>
+                <label className="bulk-check">
+                  <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} />
+                  전체 선택
+                </label>
+                {sel.count > 0 && (
+                  <>
+                    <span className="bulk-count">{sel.count}건</span>
+                    <select
+                      className="input bulk-select"
+                      value=""
+                      disabled={bulkBusy}
+                      onChange={(e) => e.target.value && onBulkStatus(e.target.value)}
+                      aria-label="일괄 상태 변경"
+                    >
+                      <option value="">상태 변경…</option>
+                      {statusOptions
+                        .filter((s) => s.status !== "INVALID" && s.status !== "AS_REQUESTED")
+                        .map((s) => (
+                          <option key={s.key} value={s.key}>{s.label}(으)로</option>
+                        ))}
+                    </select>
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
+                  </>
+                )}
+              </div>
+            )}
             <div className="leads">
               {shown.map((lead) => {
                 const phone = phoneOf(lead);
                 const unseen = !lead.advertiserSeenAt;
+                const selectable = lead.statusKey !== "INVALID" && lead.statusKey !== "AS_REQUESTED";
                 return (
                   <div className={`card card-pad lead-card${unseen ? " adv-unseen" : ""}`} key={lead.id}>
                     <div className="lead-head">
-                      <span className="lead-time">
+                      <span className="lead-time" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {currentForm?.canStatus && selectable && (
+                          <input
+                            type="checkbox"
+                            checked={sel.selected.has(lead.id)}
+                            onChange={() => sel.toggle(lead.id)}
+                            aria-label="리드 선택"
+                            style={{ width: 16, height: 16, accentColor: "var(--indigo)" }}
+                          />
+                        )}
                         {new Date(lead.createdAt).toLocaleString("ko-KR")}
                         {unseen && (
                           <span className="badge b-wait" style={{ marginLeft: 8 }}>

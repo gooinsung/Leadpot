@@ -7,6 +7,7 @@ import { publicSiteUrl } from "../lib/site";
 import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
+import { runBulk, useSelection } from "../lib/useSelection";
 
 export function LandingsListPage() {
   const navigate = useNavigate();
@@ -15,6 +16,21 @@ export function LandingsListPage() {
   const [items, setItems] = useState<LandingSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const paging = usePaging(items, 10);
+
+  // 전체선택 + 일괄 삭제 (2026-08-08)
+  const sel = useSelection(paging.pageItems.map((l) => l.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  async function onBulkDelete() {
+    if (sel.count === 0 || bulkBusy) return;
+    if (!window.confirm(`선택한 랜딩 ${sel.count}개를 삭제할까요?`)) return;
+    setBulkBusy(true);
+    const { ok, fail } = await runBulk([...sel.selected], deleteLanding);
+    setBulkBusy(false);
+    if (fail > 0) toast.error(`${ok}개 삭제, ${fail}개 실패`);
+    else toast.success(`${ok}개 랜딩을 삭제했습니다.`);
+    sel.clear();
+    load();
+  }
 
   async function load() {
     setLoading(true);
@@ -61,14 +77,29 @@ export function LandingsListPage() {
           </div>
         ) : (
           <>
+          {sel.count > 0 && (
+            <div className="il-bulk" style={{ paddingBottom: 10 }}>
+              <span className="bulk-count">{sel.count}개 선택</span>
+              <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 삭제</button>
+              <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
+            </div>
+          )}
           <div className="card card-table">
             <table>
               <thead>
-                <tr><th>제목</th><th>공개 주소</th><th>상태</th><th>수정일</th><th></th></tr>
+                <tr>
+                  <th className="sel-col">
+                    <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
+                  </th>
+                  <th>제목</th><th>공개 주소</th><th>상태</th><th>수정일</th><th></th>
+                </tr>
               </thead>
               <tbody>
                 {paging.pageItems.map((l) => (
                   <tr key={l.id} className="row-click" onClick={() => navigate(`/landings/${l.id}/edit`)}>
+                    <td className="sel-col" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={sel.selected.has(l.id)} onChange={() => sel.toggle(l.id)} aria-label="선택" />
+                    </td>
                     <td>{l.title}</td>
                     <td className="num">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
                     <td><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>

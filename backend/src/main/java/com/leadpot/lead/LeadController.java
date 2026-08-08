@@ -184,6 +184,18 @@ public class LeadController {
         return Map.of("trashed", leadService.bulkSoftDelete(userId(jwt), req.ids()));
     }
 
+    /** 일괄 복원(휴지통 전체선택, 2026-08-08). body: {"ids":[...]}. */
+    @PostMapping("/bulk/restore")
+    public Map<String, Integer> bulkRestore(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
+        return Map.of("restored", leadService.bulkRestore(userId(jwt), req.ids()));
+    }
+
+    /** 일괄 영구 삭제(휴지통 전용, 되돌릴 수 없음). body: {"ids":[...]}. */
+    @PostMapping("/bulk/permanent")
+    public Map<String, Integer> bulkPermanent(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
+        return Map.of("deleted", leadService.bulkPermanentDelete(userId(jwt), req.ids()));
+    }
+
     /** 휴지통으로 이동(soft delete). */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {

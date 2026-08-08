@@ -14,6 +14,8 @@ import {
   type IpBlockHit,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { runBulk, useSelection } from "../lib/useSelection";
+import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
 
 export function IpBlocksPage() {
@@ -77,6 +79,21 @@ export function IpBlocksPage() {
     } catch {
       loadBlocks();
     }
+  }
+
+  // 전체선택 + 일괄 해제 (2026-08-08)
+  const sel = useSelection(blocksPaging.pageItems.map((b) => b.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  async function onBulkDelete() {
+    if (sel.count === 0 || bulkBusy) return;
+    if (!window.confirm(`선택한 ${sel.count}개 차단을 해제할까요?`)) return;
+    setBulkBusy(true);
+    const { ok, fail } = await runBulk([...sel.selected], (id) => deleteIpBlock(formId, id));
+    setBulkBusy(false);
+    if (fail > 0) toast.error(`${ok}개 해제, ${fail}개 실패`);
+    else toast.success(`${ok}개 차단을 해제했습니다.`);
+    sel.clear();
+    loadBlocks();
   }
 
   async function onClearHits() {
@@ -146,9 +163,19 @@ export function IpBlocksPage() {
               </div>
             ) : (
               <div className="card card-table" style={{ marginBottom: 28 }}>
+                {sel.count > 0 && (
+                  <div className="il-bulk" style={{ padding: "10px 14px 0" }}>
+                    <span className="bulk-count">{sel.count}개 선택</span>
+                    <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 해제</button>
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>선택 취소</button>
+                  </div>
+                )}
                 <table>
                   <thead>
                     <tr>
+                      <th className="sel-col">
+                        <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
+                      </th>
                       <th>IP / 대역</th>
                       <th>사유</th>
                       <th>등록일</th>
@@ -158,6 +185,9 @@ export function IpBlocksPage() {
                   <tbody>
                     {blocksPaging.pageItems.map((b) => (
                       <tr key={b.id}>
+                        <td className="sel-col">
+                          <input type="checkbox" checked={sel.selected.has(b.id)} onChange={() => sel.toggle(b.id)} aria-label="선택" />
+                        </td>
                         <td><code>{b.pattern}</code></td>
                         <td>{b.reason || <span className="dash-sub">—</span>}</td>
                         <td className="num">{new Date(b.createdAt).toLocaleString("ko-KR")}</td>
