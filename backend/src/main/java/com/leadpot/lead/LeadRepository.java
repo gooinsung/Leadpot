@@ -33,6 +33,15 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 커스텀 상태 삭제 가능 판정(V29) — 휴지통 리드도 복원될 수 있으므로 함께 센다.
     boolean existsByCustomStatusId(Long customStatusId);
 
+    /**
+     * 리드폼 삭제 시 소속 리드 일괄 삭제(휴지통 포함). 벌크 DELETE 한 방 — 자식(lead_notes·
+     * lead_as_requests)은 DB cascade 가 정리한다. leads.form_id FK 에 on delete 가 없어(V5)
+     * 이걸 먼저 지우지 않으면 리드폼 삭제가 DB 에서 거부된다(2026-08-09 사용자 제보 버그).
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("delete from Lead l where l.formId = :formId")
+    void deleteAllByFormId(@Param("formId") Long formId);
+
     // 과금 화면(V31): 유효 리드 수(누적 확정 물량 표시용).
     long countByFormIdAndDeletedAtIsNullAndStatus(Long formId, String status);
 

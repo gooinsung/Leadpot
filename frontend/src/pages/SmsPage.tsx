@@ -76,7 +76,9 @@ export function SmsPage() {
   const unlimited = !!status && status.limit < 0;
 
   return (
-    <>
+    // ⚠️ 반드시 .app-shell 로 감싼다 — 이게 없으면 LNB 가로 배치 규칙(.app-shell:has(.app-nav))이
+    // 안 걸려 본문이 LNB(100vh) 아래로 밀린다(2026-08-09 사용자 제보: 이력이 푸터 밑에 렌더).
+    <div className="app-shell">
       <TopBar />
       <main className="wrap dashboard">
         <div className="dash-head">
@@ -224,6 +226,6 @@ export function SmsPage() {
           </>
         )}
       </main>
-    </>
+    </div>
   );
 }

@@ -29,6 +29,25 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ### ✅ 2026-08-09 (저녁) — **목표 기능 + 리드폼 삭제 버그 + SmsPage 레이아웃 수정**
+>
+> 1. **목표(Goal) 기능 신규** — 리드폼별 일간/월간 수집 목표 + 시작~종료 기간, 보고서로 확인.
+>    - 저장: `forms.settings_config`(JSONB) 무스키마 — `goalEnabled/goalDaily/goalMonthly/goalStart/goalEnd`
+>      (**V32 마이그레이션 금지 준수**, [GoalSettings.java](../backend/src/main/java/com/leadpot/form/GoalSettings.java))
+>    - 백엔드: `GET /api/goals/report` — [GoalReportService](../backend/src/main/java/com/leadpot/form/GoalReportService.java)
+>      (KST 버킷팅은 자바에서, 일별 최근 31행, 진행 중인 달 미달은 met=null 보류)
+>    - 프론트: 리드폼 편집 '옵션' 카드에 목표 설정 UI + **/goals 보고서 페이지 신규**(운영 내비 '목표')
+>    - 과금(grant.dailyGoal)과 별개다 — 그쪽은 광고주 계약·문자 알림용.
+> 2. **리드폼 삭제 500 수정** — leads(V5)·ip_blocks·ip_block_hits(V13)의 FK 에 on delete 가 없어
+>    자식 있는 폼 삭제가 FK 위반으로 죽었다. 마이그레이션 금지 기간이라 DB 대신
+>    **FormService.delete 가 자식부터 지우도록** 수정(leads → ip_block_hits → ip_blocks → form).
+>    lead_notes/as_requests 는 DB cascade 가 이미 있다. H2 테스트는 FK 를 안 만들어 못 잡았던 버그.
+> 3. **SmsPage 문자발송이력이 푸터 아래 렌더** — 유일하게 `.app-shell` 래퍼가 없던 페이지.
+>    LNB 가로 배치 규칙이 `.app-shell:has(> .app-nav)` 라 래퍼 없으면 본문이 LNB(100vh) 아래로 밀린다.
+> 4. 답변 완료(코드 무관): Railway 로그 보는 곳(서비스 → Deployments → View Logs / Observability),
+>    알림톡 수신동의(정보성 접수확인은 동의 불필요·고객용은 별도 템플릿 심사·M7 발송코드는 미구현),
+>    물리/논리 삭제 현황(리드만 논리삭제·나머지 물리삭제).
+
 > ### ✅ 2026-08-09 — **호스팅 이전 Phase A 컷오버 완료: `api.lead-pot.com` → Railway(싱가포르)**
 >
 > **방문자 랜딩 API 실측: VM 850~980ms → Railway 220~246ms (약 4배 단축).** 계획서 목표(200ms) 달성.
@@ -47,8 +66,8 @@
 > - 시크릿·백업: `C:\Users\gooinsung\leadpot-backup\` (vm-env / railway-env / cf-dns-token / dns 백업). git 금지.
 >
 > #### 남은 일 (계획서 Step 순)
-> 1. **사용자**: Railway Variables 에서 `APP_WARMUP_ENABLED=true` 로 변경(무중단 재배포) ·
->    **Trial→Hobby 결제 활성화 확인** · 로그인해서 기존 세션 유지 확인(JWT 시크릿 검증)
+> 1. ~~**사용자**: Railway Variables 에서 `APP_WARMUP_ENABLED=true` 로 변경(무중단 재배포) ·
+>    **Trial→Hobby 결제 활성화 확인** · 로그인해서 기존 세션 유지 확인(JWT 시크릿 검증)~~ → **3종 모두 확인 완료 (2026-08-09)**
 > 2. **A5**: 2~3일 관찰(리드 유실·알림·요금) → VM 백엔드 중지(`docker compose -f docker-compose.prod.yml down`)
 >    → Railway `APP_LEAD_AUTO_APPROVE_ENABLED=true`
 > 3. **A6**: Neon 비번 재발급 → Railway 환경변수만 갱신 (VM 내린 뒤에만!)

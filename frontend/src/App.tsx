@@ -16,6 +16,7 @@ import { LeadsListPage } from "./pages/LeadsListPage";
 import { IpBlocksPage } from "./pages/IpBlocksPage";
 import { SiteIpBlocksPage } from "./pages/SiteIpBlocksPage";
 import { SmsPage } from "./pages/SmsPage";
+import { GoalsPage } from "./pages/GoalsPage";
 import { PublicFormPage } from "./pages/PublicFormPage";
 import { LandingsListPage } from "./pages/LandingsListPage";
 import { LandingEditPage } from "./pages/LandingEditPage";
@@ -235,6 +236,14 @@ function App() {
         element={
           <ProtectedRoute>
             <SmsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/goals"
+        element={
+          <ProtectedRoute>
+            <GoalsPage />
           </ProtectedRoute>
         }
       />
