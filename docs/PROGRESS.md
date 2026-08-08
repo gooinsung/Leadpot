@@ -29,7 +29,37 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> ### 🟢 2026-08-09 예정 — **호스팅 이전 착수 (사용자 확정 2026-08-08 "내일 진행")**
+> ### ✅ 2026-08-09 — **호스팅 이전 Phase A 컷오버 완료: `api.lead-pot.com` → Railway(싱가포르)**
+>
+> **방문자 랜딩 API 실측: VM 850~980ms → Railway 220~246ms (약 4배 단축).** 계획서 목표(200ms) 달성.
+>
+> #### 지금 상태 (이어받는 세션은 여기 숙지)
+> - `api.lead-pot.com` = **CNAME `09g4ey7v.up.railway.app`** (DNS-only, TTL 60) + TXT `_railway-verify.api`.
+>   Railway 인증서 자동 발급 완료. ⚠️ 첫 CNAME(`9fubn50t`)은 Railway 도메인 재등록으로 값이 바뀐 것 —
+>   재등록하면 대상이 또 바뀔 수 있다.
+> - **VM 백엔드는 롤백용으로 계속 가동 중** (docker `leadpot-backend`). 롤백 = Cloudflare 에서 `api` 를
+>   A `129.225.198.2` 로 되돌리면 끝 (백업: `C:\Users\gooinsung\leadpot-backup\dns-api-record-backup-2026-08-09.json`).
+> - **자동 승인은 VM 쪽만 돈다** — Railway 는 `APP_LEAD_AUTO_APPROVE_ENABLED=false` (이중 과금 방지).
+>   **VM 을 내리는 날 Railway 에서 true 로 켜는 것 잊지 말 것** ⭐
+> - Railway 프로젝트: 서비스명 Leadpot, Root Directory=`backend`, 리전 싱가포르, 포트 8080,
+>   Watch Paths=`backend/**`. **push 하면 VM(Actions)과 Railway 둘 다 배포된다**(이전 기간 의도).
+> - R2: 신규 업로드부터 R2(`leadpot-uploads`, APAC). 기존 업로드 파일은 **0개였음**(복사 불필요 확정).
+> - 시크릿·백업: `C:\Users\gooinsung\leadpot-backup\` (vm-env / railway-env / cf-dns-token / dns 백업). git 금지.
+>
+> #### 남은 일 (계획서 Step 순)
+> 1. **사용자**: Railway Variables 에서 `APP_WARMUP_ENABLED=true` 로 변경(무중단 재배포) ·
+>    **Trial→Hobby 결제 활성화 확인** · 로그인해서 기존 세션 유지 확인(JWT 시크릿 검증)
+> 2. **A5**: 2~3일 관찰(리드 유실·알림·요금) → VM 백엔드 중지(`docker compose -f docker-compose.prod.yml down`)
+>    → Railway `APP_LEAD_AUTO_APPROVE_ENABLED=true`
+> 3. **A6**: Neon 비번 재발급 → Railway 환경변수만 갱신 (VM 내린 뒤에만!)
+> 4. **Phase B**: 프론트 → Cloudflare Pages (VM 을 끄기 위한 마무리)
+> 5. **Phase C**: Actions 워크플로 삭제 · CLAUDE.md §2/§3/§6 전면 갱신 · VM 종료
+> 6. 그 후: DB → Railway Postgres 교체 검토(Neon 무료 100 CU-h/월 한도 → keepalive 24시간이면 초과 가능,
+>    콘솔 Usage 확인 필요 — 2026-08-09 조사 결론)
+>
+> ---
+>
+> ### ~~🟢 2026-08-09 예정 — 호스팅 이전 착수 (사용자 확정 2026-08-08 "내일 진행")~~ → 위처럼 실행됨
 >
 > **[HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) 를 그대로 실행한다. Step 0 부터.**
 > 2026-08-08 세션에서 SSH 로 사전 판정을 마쳤고, 계획서에 없는 갱신 사항이 4개 있다:
