@@ -21,15 +21,23 @@ const SHORT: Record<string, string> = {
 
 /**
  * 메타 전환 이벤트 — 리드 제출 시 발사할 표준 이벤트.
- * 상담·문의형 전환에 쓰이는 것만 담았다. Purchase 는 value·currency 파라미터가 필요해
- * 빈 값으로 쏘면 경고가 나므로 넣지 않았다.
+ *
+ * <p><b>이벤트 코드를 앞에 둔다</b> — 메타 광고 관리자에서 최적화 이벤트를 고를 때 기준이 되는 건
+ * 코드이고, 한글 표기는 메타 화면 번역이라 우리가 임의로 지어 쓰면 오히려 헷갈린다
+ * (예: CompleteRegistration 은 메타에서 '등록 완료'로 나온다 — 2026-08-10 사용자 확인).
+ *
+ * <p>리드폼 제출에 쓸 만한 것만 담았다. <b>Purchase 는 뺐다</b> — 메타 공식 문서상
+ * {@code currency}·{@code value} 가 <b>필수</b>라 빈 값으로 쏘면 제대로 집계되지 않는다.
+ * 장바구니·카탈로그 계열(AddToCart·ViewContent 등)도 리드폼과 맞지 않아 뺐다.
  */
 export const META_EVENTS: { value: string; label: string }[] = [
-  { value: "Lead", label: "잠재고객 (Lead)" },
-  { value: "CompleteRegistration", label: "가입 완료 (CompleteRegistration)" },
-  { value: "SubmitApplication", label: "신청서 제출 (SubmitApplication)" },
-  { value: "Contact", label: "문의 (Contact)" },
-  { value: "Schedule", label: "예약 (Schedule)" },
+  { value: "Lead", label: "Lead — 잠재 고객" },
+  { value: "CompleteRegistration", label: "CompleteRegistration — 등록 완료" },
+  { value: "SubmitApplication", label: "SubmitApplication — 신청서 제출" },
+  { value: "Contact", label: "Contact — 문의·연락" },
+  { value: "Schedule", label: "Schedule — 예약" },
+  { value: "Subscribe", label: "Subscribe — 구독" },
+  { value: "StartTrial", label: "StartTrial — 체험 시작" },
 ];
 /** 미설정 리드폼의 기본 메타 전환 이벤트. pixels.ts 기본값과 반드시 같아야 한다. */
 export const META_EVENT_DEFAULT = "Lead";
@@ -39,9 +47,10 @@ export const META_EVENT_DEFAULT = "Lead";
  * 안 맞으면 엉뚱한 전환으로 집계된다.
  */
 export const DAANGN_EVENTS: { value: string; label: string }[] = [
-  { value: "Purchase", label: "구매 (Purchase)" },
-  { value: "Lead", label: "잠재고객 수집 (Lead)" },
-  { value: "SubmitApplication", label: "서비스 신청 (SubmitApplication)" },
+  { value: "Purchase", label: "Purchase — 구매" },
+  { value: "Lead", label: "Lead — 잠재고객 수집" },
+  { value: "SubmitApplication", label: "SubmitApplication — 서비스 신청" },
+  { value: "CompleteRegistration", label: "CompleteRegistration — 회원가입" },
 ];
 /** 미설정 리드폼의 기본 당근 전환 이벤트. pixels.ts 기본값과 반드시 같아야 한다. */
 export const DAANGN_EVENT_DEFAULT = "Purchase";
@@ -53,7 +62,7 @@ const EVENT_PICKERS: Record<string, { field: string; label: string; options: typ
     label: "메타 전환 이벤트",
     options: META_EVENTS,
     def: META_EVENT_DEFAULT,
-    help: "리드 제출 시 메타에 보낼 표준 이벤트입니다. 광고 세트의 최적화 이벤트와 같아야 성과로 잡힙니다.",
+    help: "리드 제출 시 메타에 보낼 표준 이벤트입니다. 앞의 영문 코드가 광고 세트의 최적화 이벤트와 같아야 성과로 잡힙니다. (구매/Purchase 는 금액·통화가 필수라 목록에서 뺐습니다)",
   },
   daangn: {
     field: "daangnEvent",
