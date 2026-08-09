@@ -11,6 +11,7 @@ import {
   type HtmlComponentCategory,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { HtmlImageUploadButton } from "../components/HtmlImageUploadButton";
 import { toast } from "../lib/toast";
 
 export function HtmlComponentEditPage() {
@@ -94,6 +95,9 @@ export function HtmlComponentEditPage() {
               ))}
             </select>
             <div className="card-h">HTML 내용</div>
+            <div style={{ marginBottom: 8 }}>
+              <HtmlImageUploadButton type="component" onInsert={(h) => setHtml((prev) => (prev.trim() ? `${prev}\n${h}` : h))} />
+            </div>
             <textarea
               className="input"
               style={{ minHeight: 340, fontFamily: "var(--mono)", fontSize: 13 }}

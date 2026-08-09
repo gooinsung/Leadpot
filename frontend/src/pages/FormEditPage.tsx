@@ -22,6 +22,7 @@ import {
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
+import { HtmlImageUploadButton } from "../components/HtmlImageUploadButton";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
 import { AdvertiserBillingCard } from "../components/AdvertiserBillingCard";
@@ -1246,7 +1247,10 @@ function BlockFields({
       return (
         <div className="field">
           <label>HTML</label>
-          <HtmlComponentPicker onInsert={(h) => onContent({ html: curHtml.trim() ? `${curHtml}\n${h}` : h })} />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <HtmlComponentPicker onInsert={(h) => onContent({ html: curHtml.trim() ? `${curHtml}\n${h}` : h })} />
+            <HtmlImageUploadButton type="form" onInsert={(h) => onContent({ html: curHtml.trim() ? `${curHtml}\n${h}` : h })} />
+          </div>
           <textarea className="input" rows={3} value={curHtml} onChange={(e) => onContent({ html: e.target.value })} />
         </div>
       );
