@@ -5,6 +5,7 @@ import {
   ApiError,
   bulkTrashLeads,
   bulkUpdateLeadStatus,
+  markLeadsSeen,
   getInbox,
   type InboxItem,
   type InboxResponse,
@@ -158,6 +159,37 @@ export function LeadInboxPage() {
       setBulkBusy(false);
     }
   }
+  /**
+   * 리드를 열면서 '확인'으로 표시(V32).
+   * 데스크톱에서 첫 리드가 자동 선택되는 것으로는 표시하지 않는다 —
+   * <b>사용자가 직접 누른 것</b>만 봤다고 본다. 표시 실패는 무시(열람은 계속돼야 한다).
+   */
+  function openLead(id: number) {
+    setOpenId(id);
+    const item = items.find((i) => i.id === id);
+    if (item && !item.seenAt) {
+      markLeadsSeen([id]).then(() => load()).catch(() => {});
+    }
+  }
+
+  /**
+   * 선택한 리드를 '확인'으로 표시(V32). 리드 상태는 그대로 둔다 —
+   * 미확인은 상태가 아니라 "내가 이 리드를 봤는지"다.
+   */
+  async function onBulkSeen() {
+    if (selected.size === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setError("");
+    try {
+      await markLeadsSeen([...selected]);
+      clearSelection();
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "확인 처리에 실패했습니다.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
   async function onBulkTrash() {
     if (selected.size === 0 || bulkBusy) return;
     if (!window.confirm(`${selected.size}건을 휴지통으로 이동할까요?`)) return;
@@ -271,6 +303,7 @@ export function LeadInboxPage() {
                           <option key={key} value={key}>{label}(으)로</option>
                         ))}
                     </select>
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkSeen}>확인으로 변경</button>
                     <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
                     <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={clearSelection}>해제</button>
                   </>
@@ -306,7 +339,7 @@ export function LeadInboxPage() {
                   statusNames={counts?.statusNames}
                   active={selectedId === it.id}
                   checked={selected.has(it.id)}
-                  onOpen={() => setOpenId(it.id)}
+                  onOpen={() => openLead(it.id)}
                   onToggle={() => toggleSelect(it.id)}
                 />
               ))
@@ -387,7 +420,9 @@ function InboxCard({
   onToggle: () => void;
 }) {
   const phone = pickPhone(item.answers);
-  const unread = item.status === "NEW";
+  // 미확인 = 내가 아직 안 연 리드(V32). 예전엔 status === "NEW" 였는데
+  // 상태는 광고주도 바꾸는 축이라 '내가 봤는지'와 섞이면 안 된다.
+  const unread = !item.seenAt;
   return (
     <div
       role="listitem"

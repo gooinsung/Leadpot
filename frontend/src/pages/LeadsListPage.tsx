@@ -6,6 +6,7 @@ import {
   bulkPermanentDeleteLeads,
   bulkRestoreLeads,
   bulkTrashLeads,
+  markLeadsSeen,
   bulkUpdateLeadStatus,
   deleteLead,
   downloadLeads,
@@ -509,6 +510,11 @@ export function LeadsListPage() {
                           <option key={s.key} value={s.key}>{s.label}(으)로</option>
                         ))}
                     </select>
+                    {/* 확인 표시 — 리드 상태와 무관한 '내가 봤는지'만 바꾼다(V32) */}
+                    <button className="btn btn-ghost btn-sm" disabled={bulkBusy}
+                      onClick={() => runBulkAction("확인 처리", () => markLeadsSeen([...sel.selected]))}>
+                      확인으로 변경
+                    </button>
                     <button className="btn btn-ghost btn-sm" disabled={bulkBusy}
                       onClick={() => runBulkAction("휴지통 이동", () => bulkTrashLeads([...sel.selected]),
                         `${sel.count}건을 휴지통으로 이동할까요?`)}>

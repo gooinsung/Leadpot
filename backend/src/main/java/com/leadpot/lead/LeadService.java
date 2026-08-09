@@ -235,7 +235,9 @@ public class LeadService {
         for (Lead l : all) {
             String key = l.statusKey();
             byStatus.merge(key, 1L, Long::sum);
-            if (LeadStatuses.NEW.equals(l.getStatus())) {
+            // 미확인 = 마케터가 아직 안 연 리드(V32). 상태(NEW)와 무관하다 —
+            // 상태는 광고주도 바꾸므로 '내가 봤는가'의 근거가 될 수 없다.
+            if (l.getSeenAt() == null) {
                 unseenCount++;
             }
             if (l.getCreatedAt() != null && !l.getCreatedAt().isBefore(todayStart)) {
@@ -267,7 +269,7 @@ public class LeadService {
             if (formId != null && !formId.equals(l.getFormId())) {
                 continue;
             }
-            if (unseen && !LeadStatuses.NEW.equals(l.getStatus())) {
+            if (unseen && l.getSeenAt() != null) {
                 continue;
             }
             if (!st.isEmpty() && !st.equals(l.statusKey())) {
@@ -291,7 +293,7 @@ public class LeadService {
         int end = Math.min(start + pageSize, filtered.size());
         List<InboxResponse.Item> items = filtered.subList(start, end).stream()
                 .map(l -> new InboxResponse.Item(l.getId(), l.getFormId(), nameById.get(l.getFormId()),
-                        l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getCreatedAt()))
+                        l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getCreatedAt(), l.getSeenAt()))
                 .toList();
 
         return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
@@ -352,6 +354,37 @@ public class LeadService {
     @Transactional
     public void permanentDelete(Long ownerId, Long leadId) {
         leadRepository.delete(requireOwnedLead(ownerId, leadId));
+    }
+
+    /**
+     * 마케터 열람 표시(V32). 상세를 열었을 때 자동으로, 목록에서 '확인으로 변경'으로 일괄 호출된다.
+     *
+     * <p>리드 상태는 건드리지 않는다 — 열람과 상태는 별개 축이다(상태는 광고주도 바꾸고, VALID 는 과금 트리거다).
+     *
+     * @param seen true=확인, false=미확인으로 되돌리기
+     * @return 실제로 처리한 건수(내 리드가 아닌 id 는 조용히 건너뛴다 — 부분 성공)
+     */
+    @Transactional
+    public int markSeen(Long ownerId, List<Long> ids, boolean seen) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        Instant now = Instant.now();
+        int n = 0;
+        for (Long id : ids) {
+            try {
+                Lead lead = requireOwnedLead(ownerId, id);
+                if (seen) {
+                    lead.markSeen(now);
+                } else {
+                    lead.markUnseen();
+                }
+                n++;
+            } catch (NotFoundException ignored) {
+                // 내 리드가 아니면 건너뛴다(부분 성공).
+            }
+        }
+        return n;
     }
 
     private Lead requireOwnedLead(Long ownerId, Long leadId) {
