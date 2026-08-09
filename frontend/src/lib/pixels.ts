@@ -11,6 +11,7 @@
 export interface PixelConfig {
   google?: string; // gtag ID (G-XXXX / AW-XXXX)
   meta?: string; // Meta(Facebook) Pixel ID
+  metaEvent?: string; // 메타 전환 이벤트(Lead | CompleteRegistration | SubmitApplication | Contact | Schedule), 기본 Lead
   tiktok?: string; // TikTok Pixel ID
   kakao?: string; // Kakao 픽셀 트랙 ID
   daangn?: string; // 당근(Karrot) 픽셀 ID
@@ -147,7 +148,10 @@ export function firePixelLead(cfg: unknown): void {
   const tiktok = val(cfg, "tiktok");
   const kakao = val(cfg, "kakao");
   const daangn = val(cfg, "daangn");
-  try { if (meta && w.fbq) w.fbq("track", "Lead"); } catch { /* ignore */ }
+  // 메타도 전환 이벤트를 리드폼별로 고를 수 있다(잠재고객/가입완료/신청서/문의/예약).
+  // 미설정이면 Lead — components/PixelFields.tsx 의 META_EVENT_DEFAULT 와 같아야 한다.
+  const metaEvent = val(cfg, "metaEvent") || "Lead";
+  try { if (meta && w.fbq) w.fbq("track", metaEvent); } catch { /* ignore */ }
   try { if (google && w.gtag) w.gtag("event", "generate_lead"); } catch { /* ignore */ }
   // Google Ads 전환: send_to=AW-ID/LABEL 로 conversion 이벤트 발사(광고 전환 카운트).
   try { if (googleAds && w.gtag) w.gtag("event", "conversion", { send_to: googleAds }); } catch { /* ignore */ }
