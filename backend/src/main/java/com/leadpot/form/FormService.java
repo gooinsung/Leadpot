@@ -76,7 +76,8 @@ public class FormService {
                 throw new NotFoundException("리드폼을 찾을 수 없습니다.");
             }
         }
-        return FormResponse.from(form);
+        // 공개 응답 — 운영 설정(시트 웹훅·시크릿, 알림 번호, 문자 본문 등)은 빼고 내려준다.
+        return FormResponse.publicOf(form);
     }
 
     /** 리드 저장 시 소유권/상태 확인용 — 리드폼 엔티티 로드(없으면 404). */

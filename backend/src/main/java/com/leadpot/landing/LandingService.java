@@ -195,7 +195,8 @@ public class LandingService {
             if ("FORM".equals(String.valueOf(block.get("type")))) {
                 Long formId = toLong(block.get("formId"));
                 if (formId != null && !forms.containsKey(formId)) {
-                    formRepository.findById(formId).ifPresent(f -> forms.put(formId, FormResponse.from(f)));
+                    // 공개 응답이므로 운영 설정(settingsConfig)은 빼고 담는다 — FormResponse.publicOf 주석 참고.
+                    formRepository.findById(formId).ifPresent(f -> forms.put(formId, FormResponse.publicOf(f)));
                 }
             }
         }
