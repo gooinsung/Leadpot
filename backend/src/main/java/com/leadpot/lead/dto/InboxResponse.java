@@ -27,7 +27,9 @@ public record InboxResponse(
             /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
             String statusKey,
             List<String> tags,
-            Instant createdAt) {
+            Instant createdAt,
+            /** 마케터가 열어본 시각. null 이면 '미확인'(V32). 상태와 무관하다. */
+            Instant seenAt) {
     }
 
     /** 사이드 rail 카운트(전체 기준). */

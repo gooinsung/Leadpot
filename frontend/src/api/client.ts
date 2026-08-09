@@ -421,6 +421,8 @@ export interface Lead {
   customStatusId: number | null;
   /** 광고주가 처음 열어본 시각. null = 아직 안 봄 → 목록에 '광고주 확인' 미표시 */
   advertiserSeenAt: string | null;
+  /** 내(마케터)가 열어본 시각. null = '미확인'. 리드 상태와 무관하다(V32). */
+  seenAt: string | null;
 }
 
 export interface LeadNote {
@@ -480,6 +482,8 @@ export interface InboxItem {
   statusKey: string;
   tags: string[] | null;
   createdAt: string;
+  /** 내(마케터)가 열어본 시각. null = '미확인'(V32). 상태와 무관하다. */
+  seenAt: string | null;
 }
 export interface InboxCounts {
   all: number;
@@ -518,6 +522,17 @@ export function bulkUpdateLeadStatus(
     method: "PATCH",
     body: { ids, status, customStatusId: customStatusId ?? null },
   });
+}
+/**
+ * 마케터 '확인' 표시 일괄 처리(V32). { updated } 반환.
+ * 리드 상태는 건드리지 않는다 — '미확인'은 상태가 아니라 내가 봤는지 여부다.
+ */
+export function markLeadsSeen(ids: number[]): Promise<{ updated: number }> {
+  return request<{ updated: number }>("/api/leads/bulk/seen", { method: "POST", body: { ids } });
+}
+/** 다시 '미확인'으로 되돌리기. */
+export function markLeadsUnseen(ids: number[]): Promise<{ updated: number }> {
+  return request<{ updated: number }>("/api/leads/bulk/unseen", { method: "POST", body: { ids } });
 }
 /** 일괄 휴지통 이동(U2). { trashed } 반환. */
 export function bulkTrashLeads(ids: number[]): Promise<{ trashed: number }> {

@@ -178,6 +178,23 @@ public class LeadController {
                 leadService.bulkUpdateStatus(userId(jwt), req.ids(), req.status(), req.customStatusId()));
     }
 
+    /**
+     * 마케터 열람 표시 일괄 변경(V32). body: {"ids":[...]}. 처리 건수 반환.
+     *
+     * <p>'미확인'은 리드 상태가 아니라 <b>내가 이 리드를 봤는지</b>다 — 상태는 광고주도 바꾸므로
+     * 열람 여부의 근거가 될 수 없다. 상태는 전혀 건드리지 않는다.
+     */
+    @PostMapping("/bulk/seen")
+    public Map<String, Integer> bulkSeen(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
+        return Map.of("updated", leadService.markSeen(userId(jwt), req.ids(), true));
+    }
+
+    /** 다시 '미확인'으로 되돌리기(나중에 처리하려고 남겨둘 때). body: {"ids":[...]}. */
+    @PostMapping("/bulk/unseen")
+    public Map<String, Integer> bulkUnseen(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
+        return Map.of("updated", leadService.markSeen(userId(jwt), req.ids(), false));
+    }
+
     /** 일괄 휴지통 이동(U2). body: {"ids":[...]}. 처리 건수 반환. */
     @PostMapping("/bulk/trash")
     public Map<String, Integer> bulkTrash(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {

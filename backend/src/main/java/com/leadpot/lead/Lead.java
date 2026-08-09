@@ -104,8 +104,31 @@ public class Lead {
     @Column(name = "advertiser_seen_at")
     private Instant advertiserSeenAt;
 
+    /**
+     * <b>마케터</b>가 이 리드를 열어본 시각. NULL 이면 '미확인'(V32).
+     * 리드 상태와 무관하다 — 상태는 광고주도 바꾸는 축이라 열람 여부와 섞으면 안 된다.
+     */
+    @Column(name = "seen_at")
+    private Instant seenAt;
+
     public Long getId() {
         return id;
+    }
+
+    public Instant getSeenAt() {
+        return seenAt;
+    }
+
+    /** 마케터가 봤다고 표시. 이미 본 리드는 최초 시각을 유지한다(처음 본 때가 의미 있는 값이다). */
+    public void markSeen(Instant at) {
+        if (seenAt == null) {
+            seenAt = at;
+        }
+    }
+
+    /** 다시 '미확인'으로 되돌린다(나중에 처리하려고 남겨둘 때). */
+    public void markUnseen() {
+        seenAt = null;
     }
 
     public Long getFormId() {
