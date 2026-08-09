@@ -3,10 +3,19 @@ import { getLandingLive, recordEvent, type FormDetail, type LandingBlock, type L
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
 
-/** 블록 여백(위/아래/좌우, px) → 인라인 스타일. */
+/**
+ * 블록 여백(위/아래/좌우, px) → 인라인 스타일.
+ *
+ * <p>`full`(전체 폭)이 켜진 블록은 좌우 여백을 0으로 눌러 화면 끝까지 채운다.
+ * HTML·텍스트 블록은 CSS 에서 좌우 20px 패딩을 갖는데(가독성 기본값), 직접 만든
+ * 풀폭 디자인에는 그게 흰 띠로 보인다. **인라인으로만 덮으므로 이 값을 안 켠 블록은
+ * 지금과 완전히 동일하다**(기존 랜딩 영향 없음).
+ */
 function blockStyle(b: LandingBlock): CSSProperties {
   const px = (v: unknown) => (v == null || v === "" ? undefined : `${Number(v)}px`);
-  return { marginTop: px(b.mt), marginBottom: px(b.mb), marginLeft: px(b.mx), marginRight: px(b.mx) };
+  const base: CSSProperties = { marginTop: px(b.mt), marginBottom: px(b.mb) };
+  if (b.full) return { ...base, marginLeft: 0, marginRight: 0, paddingLeft: 0, paddingRight: 0, width: "100%" };
+  return { ...base, marginLeft: px(b.mx), marginRight: px(b.mx) };
 }
 
 /** 공개 랜딩 렌더(모바일 최적화). 블록 렌더 + 인라인 리드폼 / CTA 오버레이. 데이터 로딩은 상위 페이지가 담당. */

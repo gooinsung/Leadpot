@@ -38,10 +38,15 @@ function appendHtml(existing: string, inserted: string): string {
   return base.trim() ? `${base}\n${inserted}` : inserted;
 }
 
-/** 블록 여백(위/아래/좌우, px) → 인라인 스타일. 미리보기·공개 랜딩 공용 개념. */
+/**
+ * 블록 여백(위/아래/좌우, px) → 인라인 스타일. 미리보기·공개 랜딩 공용 개념.
+ * `full`(전체 폭)이면 좌우 여백·패딩을 0 으로 — LandingView.blockStyle 과 반드시 같게 유지할 것.
+ */
 function blockStyle(b: LandingBlock): CSSProperties {
   const px = (v: unknown) => (v == null || v === "" ? undefined : `${Number(v)}px`);
-  return { marginTop: px(b.mt), marginBottom: px(b.mb), marginLeft: px(b.mx), marginRight: px(b.mx) };
+  const base: CSSProperties = { marginTop: px(b.mt), marginBottom: px(b.mb) };
+  if (b.full) return { ...base, marginLeft: 0, marginRight: 0, paddingLeft: 0, paddingRight: 0, width: "100%" };
+  return { ...base, marginLeft: px(b.mx), marginRight: px(b.mx) };
 }
 
 export function LandingEditPage() {
@@ -254,8 +259,14 @@ export function LandingEditPage() {
                     <span className="mini-label">여백(px) — 플로팅 헤더 대비 상단 여백 등</span>
                     <div className="block-margin-item"><span>위</span><input className="input" type="number" min={0} value={(b.mt as number) ?? ""} onChange={(e) => patch(i, { mt: e.target.value ? Number(e.target.value) : undefined })} /></div>
                     <div className="block-margin-item"><span>아래</span><input className="input" type="number" min={0} value={(b.mb as number) ?? ""} onChange={(e) => patch(i, { mb: e.target.value ? Number(e.target.value) : undefined })} /></div>
-                    <div className="block-margin-item"><span>좌우</span><input className="input" type="number" min={0} value={(b.mx as number) ?? ""} onChange={(e) => patch(i, { mx: e.target.value ? Number(e.target.value) : undefined })} /></div>
+                    <div className="block-margin-item"><span>좌우</span><input className="input" type="number" min={0} value={(b.mx as number) ?? ""} onChange={(e) => patch(i, { mx: e.target.value ? Number(e.target.value) : undefined })} disabled={!!b.full} /></div>
                   </div>
+                  {b.type !== "FORM" && (
+                    <label className="block-full-toggle">
+                      <input type="checkbox" checked={!!b.full} onChange={(e) => patch(i, { full: e.target.checked || undefined })} />
+                      <span>좌우 여백 없이 화면 전체 폭 사용</span>
+                    </label>
+                  )}
                 </div>
               ))}
               <div className="add-block-row">
