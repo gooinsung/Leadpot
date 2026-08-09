@@ -31,9 +31,9 @@ function doPost(e) {
   var answers = data.answers || {};
   var keys = Object.keys(answers);
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['접수일시', '리드폼', '상태', '중복'].concat(keys));
+    sheet.appendRow(['접수일시', '리드폼'].concat(keys));
   }
-  var row = [data.createdAt, data.formName, data.status, data.duplicate ? 'Y' : 'N']
+  var row = [data.createdAt, data.formName]
     .concat(keys.map(function (k) { return answers[k]; }));
   sheet.appendRow(row);
   return ContentService.createTextOutput(JSON.stringify({ ok: true }))
@@ -173,6 +173,13 @@ export function IntegrationsPage() {
                 <li><b>배포 → 새 배포 → 유형: 웹 앱</b>, 실행 계정=<b>나</b>, 액세스=<b>모든 사용자</b> 로 배포.</li>
                 <li>발급된 <b>웹 앱 URL</b>(끝이 <code>/exec</code>)을 <b>리드폼 편집 &gt; 옵션 &gt; 구글시트</b> 칸에 붙여넣기 → 저장 → 그 화면에서 테스트.</li>
               </ol>
+              <p className="dash-sub" style={{ marginTop: 8, fontSize: 12 }}>
+                시트에 기록되는 값은 <b>접수일시 · 리드폼 이름 · 리드폼에서 받은 답변</b>뿐입니다.
+                IP·기기·유입경로(UTM) 같은 방문자 정보는 보내지 않습니다 — 필요하면 리드 목록의 내보내기를 쓰세요.
+                <br />
+                ⚠️ <b>이미 연동해 둔 시트가 있다면</b> 위 코드로 다시 붙여넣고 재배포하세요. 예전 코드는
+                ‘상태·중복’ 열을 쓰는데 이제 그 값을 보내지 않아 빈칸으로 남습니다.
+              </p>
               <div style={{ position: "relative", marginTop: 8 }}>
                 <textarea
                   className="input"

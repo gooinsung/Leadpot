@@ -210,7 +210,7 @@ public class NotificationService {
         String sheetSecret = fs == null ? "" : str(fs.get("sheetsSecret"));
         if (fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled")) && notBlank(webhookUrl)) {
             out.add(new Dispatch(form.getOwnerId(), CHANNEL_SHEETS, null, null, webhookUrl,
-                    buildSheetsBody(form, lead, duplicate, sheetSecret)));
+                    buildSheetsBody(form, lead, sheetSecret)));
         }
 
         // ② 광고주 텔레그램 — 유효한 권한 + 활성 광고주 + 본인 계정 채널. 마케터의 폼별 토글과 독립적이다.
@@ -341,25 +341,25 @@ public class NotificationService {
         return sb.toString();
     }
 
-    private String buildSheetsBody(Form form, Lead lead, boolean duplicate, String secret) {
+    /**
+     * 시트로 보낼 본문. <b>접수일시 · 리드폼 이름 · 입력 답변</b>만 담는다(2026-08-10 사용자 확정).
+     *
+     * <p>예전엔 leadId·상태·중복여부·IP·기기·OS·브라우저·유입경로·UTM 까지 함께 보냈다.
+     * 시트는 광고주에게 공유되는 경우가 많아 <b>필요 최소한만</b> 내보내는 편이 낫다 —
+     * 방문자 정보가 필요하면 리드 상세·CSV 내보내기에서 본다.
+     *
+     * <p>{@code event}·{@code secret} 은 데이터가 아니라 프로토콜이라 그대로 둔다
+     * (스크립트가 시크릿을 대조해 무단 기록을 막는다).
+     */
+    private String buildSheetsBody(Form form, Lead lead, String secret) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("event", "new_lead");
         if (secret != null && !secret.isBlank()) {
             payload.put("secret", secret);
         }
-        payload.put("formId", form.getId());
         payload.put("formName", nn(form.getName()));
-        payload.put("leadId", lead.getId());
-        payload.put("status", nn(lead.getStatus()));
-        payload.put("duplicate", duplicate);
         payload.put("createdAt", (lead.getCreatedAt() != null ? lead.getCreatedAt() : Instant.now()).toString());
         payload.put("answers", answersMap(lead));
-        payload.put("ip", nn(lead.getSubmitterIp()));
-        payload.put("device", nn(lead.getDevice()));
-        payload.put("os", nn(lead.getOs()));
-        payload.put("browser", nn(lead.getBrowser()));
-        payload.put("referer", nn(lead.getReferer()));
-        payload.put("utm", lead.getUtm() == null ? Map.of() : lead.getUtm());
         return toJson(payload);
     }
 
@@ -371,6 +371,7 @@ public class NotificationService {
             payload.put("secret", secret);
         }
         payload.put("formName", "Leadpot 연동 테스트");
+        payload.put("createdAt", Instant.now().toString()); // 실제 전송과 같은 모양이어야 열이 맞는다
         Map<String, Object> answers = new LinkedHashMap<>();
         answers.put("테스트", "연결 확인");
         payload.put("answers", answers);
