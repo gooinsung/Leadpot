@@ -14,6 +14,7 @@ export interface PixelConfig {
   tiktok?: string; // TikTok Pixel ID
   kakao?: string; // Kakao 픽셀 트랙 ID
   daangn?: string; // 당근(Karrot) 픽셀 ID
+  daangnEvent?: string; // 당근 전환 이벤트(Purchase | Lead | SubmitApplication), 기본 Purchase
 }
 
 function val(cfg: unknown, key: string): string {
@@ -152,5 +153,8 @@ export function firePixelLead(cfg: unknown): void {
   try { if (googleAds && w.gtag) w.gtag("event", "conversion", { send_to: googleAds }); } catch { /* ignore */ }
   try { if (tiktok && w.ttq) w.ttq.track("SubmitForm"); } catch { /* ignore */ }
   try { if (kakao && w.kakaoPixel) w.kakaoPixel(kakao).completeRegistration(); } catch { /* ignore */ }
-  try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track("CompleteRegistration"); } catch { /* ignore */ }
+  // 당근은 전환 이벤트를 리드폼별로 고를 수 있다(구매/잠재고객/서비스신청).
+  // 미설정이면 Purchase — components/PixelFields.tsx 의 DAANGN_EVENT_DEFAULT 와 같아야 한다.
+  const daangnEvent = val(cfg, "daangnEvent") || "Purchase";
+  try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track(daangnEvent); } catch { /* ignore */ }
 }

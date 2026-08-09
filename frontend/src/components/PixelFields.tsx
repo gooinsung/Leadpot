@@ -9,6 +9,18 @@ const PLATFORMS: { key: string; label: string; ph: string }[] = [
   { key: "daangn", label: "당근 픽셀 ID", ph: "당근 비즈니스 픽셀 ID" },
 ];
 
+/**
+ * 당근 전환 이벤트 — 리드 제출 시 발사할 이벤트를 고른다.
+ * 당근 광고 관리자에서 잡고 싶은 전환 유형에 맞춰야 한다(안 맞으면 엉뚱한 전환으로 집계된다).
+ */
+export const DAANGN_EVENTS: { value: string; label: string }[] = [
+  { value: "Purchase", label: "구매 (Purchase)" },
+  { value: "Lead", label: "잠재고객 수집 (Lead)" },
+  { value: "SubmitApplication", label: "서비스 신청 (SubmitApplication)" },
+];
+/** 미설정 리드폼의 기본 전환 이벤트. pixels.ts 의 기본값과 반드시 같아야 한다. */
+export const DAANGN_EVENT_DEFAULT = "Purchase";
+
 /** 광고 픽셀 ID 입력(구글·메타·틱톡·카카오·당근). value/onChange 로 상위 tracking 상태와 연결. */
 export function PixelFields({
   value,
@@ -21,24 +33,47 @@ export function PixelFields({
   const get = (k: string) => (v[k] == null ? "" : String(v[k]));
 
   function set(key: string, val: string) {
+    // 기존 값을 먼저 펼친다 — PLATFORMS 에 없는 키(daangnEvent 등)가 저장에서 사라지지 않게.
     const next: Record<string, string> = {};
-    for (const p of PLATFORMS) next[p.key] = p.key === key ? val : get(p.key);
+    for (const k of Object.keys(v)) next[k] = get(k);
+    for (const p of PLATFORMS) next[p.key] = get(p.key);
+    next[key] = val;
     onChange(next);
   }
 
   return (
     <div>
       {PLATFORMS.map((p) => (
-        <div className="field" key={p.key}>
-          <label>{p.label}</label>
-          <input
-            className="input"
-            value={get(p.key)}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => set(p.key, e.target.value)}
-            placeholder={p.ph}
-            spellCheck={false}
-            autoCapitalize="none"
-          />
+        <div key={p.key}>
+          <div className="field">
+            <label>{p.label}</label>
+            <input
+              className="input"
+              value={get(p.key)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => set(p.key, e.target.value)}
+              placeholder={p.ph}
+              spellCheck={false}
+              autoCapitalize="none"
+            />
+          </div>
+          {/* 당근만 전환 이벤트를 고를 수 있다 — 다른 플랫폼은 표준 전환 이벤트가 하나로 정해져 있다. */}
+          {p.key === "daangn" && (
+            <div className="field">
+              <label>당근 전환 이벤트</label>
+              <select
+                className="input"
+                value={get("daangnEvent") || DAANGN_EVENT_DEFAULT}
+                onChange={(e) => set("daangnEvent", e.target.value)}
+              >
+                {DAANGN_EVENTS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <span className="field-optional" style={{ marginTop: 4 }}>
+                리드 제출 시 당근에 보낼 전환 이벤트입니다. <b>당근 광고 관리자에서 설정한 전환 유형과 같아야</b> 성과로 잡힙니다.
+              </span>
+            </div>
+          )}
         </div>
       ))}
       <p className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
