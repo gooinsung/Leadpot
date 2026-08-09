@@ -188,6 +188,16 @@
   width: 66px;
   text-align: center;
 }
+/* 전체 폭(좌우 여백 제거) 토글 — 랜딩 편집기 블록 전용 */
+.block-full-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
 
 /* 이미지 업로드 필드 */
 .img-upload-row {
