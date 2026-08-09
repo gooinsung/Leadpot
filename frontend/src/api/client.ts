@@ -1066,11 +1066,12 @@ export function recordEvent(input: { landingPageId?: number | null; formId?: num
 }
 
 // ---------- 이미지 업로드 ----------
-/** 이미지 파일 업로드(로그인 필요) → 절대 URL 반환. */
-export async function uploadImage(file: File): Promise<{ url: string }> {
+/** 이미지 파일 업로드(로그인 필요) → 절대 URL 반환. type 은 저장 경로 프리픽스({type}-image/…), 생략 시 landing. */
+export async function uploadImage(file: File, type?: string): Promise<{ url: string }> {
   const tokens = getTokens();
   const fd = new FormData();
   fd.append("file", file);
+  if (type) fd.append("type", type);
   const res = await fetch(`${BASE_URL}/api/uploads`, {
     method: "POST",
     headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},

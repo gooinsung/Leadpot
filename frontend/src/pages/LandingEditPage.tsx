@@ -20,6 +20,7 @@ import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { DynamicSnippetPicker } from "../components/DynamicSnippetPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
+import { HtmlImageUploadButton } from "../components/HtmlImageUploadButton";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
@@ -220,9 +221,10 @@ export function LandingEditPage() {
                   {b.type === "HTML" && (
                     <div className="field">
                       <label>HTML</label>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                         <HtmlComponentPicker onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
                         <DynamicSnippetPicker onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
+                        <HtmlImageUploadButton type="landing" onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
                       </div>
                       <textarea className="input" rows={3} value={(b.html as string) ?? ""} onChange={(e) => patch(i, { html: e.target.value })} />
                     </div>
