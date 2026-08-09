@@ -10,6 +10,7 @@ import {
   type LeadConsent,
 } from "../api/client";
 import { resolveStyle } from "./formRenderers/formStyle";
+import { PhoneInput3 } from "./PhoneInput3";
 import { consentDocUrl } from "../lib/site";
 import { CompletionView } from "./formRenderers/CompletionView";
 import { firePixelLead } from "../lib/pixels";
@@ -77,6 +78,36 @@ export function PublicFormView({
 
   const style = resolveStyle(form);
   const sorted = useMemo(() => [...form.blocks].sort((a, b) => a.sortOrder - b.sortOrder), [form]);
+
+  /**
+   * '기본 선택'(defaultIndex) 초기값 주입 — 선택박스·단일/다중 선택에 미리 골라둔 값을 채운다.
+   * 이미 사용자가 만진 값(prev)이 항상 이긴다 → 지운 선택이 되살아나지 않는다.
+   * 선택지를 지워 인덱스가 어긋난 경우는 무시한다(존재할 때만 적용).
+   */
+  useEffect(() => {
+    const initValues: Record<string, string> = {};
+    const initChoices: Record<number, number[]> = {};
+    if (form.formType === "BASIC") {
+      sorted.forEach((b, i) => {
+        if (b.blockType !== "FIELD" || b.fieldType !== "select") return;
+        const list = (b.options?.choices as string[]) ?? [];
+        const di = b.options?.defaultIndex;
+        if (typeof di === "number" && list[di] != null) initValues[`f${i}`] = list[di];
+      });
+    } else {
+      sorted.filter((b) => b.blockType === "CHOICE").forEach((b, i) => {
+        const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
+        const di = b.content?.defaultIndex;
+        if (typeof di !== "number") return;
+        const opts = (b.content?.options as { label?: string }[]) ?? [];
+        if (opts[di] == null) return;
+        if (answerType === "single" || answerType === "multi") initChoices[i] = [di];
+        else if (answerType === "select") initValues[`s${i}`] = opts[di].label ?? "";
+      });
+    }
+    if (Object.keys(initValues).length) setValues((prev) => ({ ...initValues, ...prev }));
+    if (Object.keys(initChoices).length) setChoices((prev) => ({ ...initChoices, ...prev }));
+  }, [form.formType, sorted]);
   const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";
 
   function setVal(key: string, v: string) {
@@ -244,8 +275,10 @@ function LiveField({ block, idx, value, onChange }: { block: FormBlock; idx: num
           <option value="">{block.placeholder || "선택하세요"}</option>
           {choices.map((c, i) => <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>)}
         </select>
+      ) : type === "tel" ? (
+        <PhoneInput3 id={`fld-${idx}`} value={value} onChange={onChange} required={block.required} />
       ) : (
-        <input id={`fld-${idx}`} className="input" type={inputType} inputMode={type === "tel" ? "tel" : type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input id={`fld-${idx}`} className="input" type={inputType} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
     </div>
   );

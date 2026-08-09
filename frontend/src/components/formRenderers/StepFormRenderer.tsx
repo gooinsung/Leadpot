@@ -1,11 +1,20 @@
 import { useMemo, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
+import { PhoneInput3 } from "../PhoneInput3";
 import { resolveStyle } from "./formStyle";
 
 interface ChoiceOption {
   label?: string;
   desc?: string;
+}
+
+/** '기본 선택'(content.defaultIndex) → 선택된 인덱스 목록. 선택지 밖이면 없음 취급. */
+function defaultSelection(block: FormBlock | undefined): number[] {
+  const di = block?.content?.defaultIndex;
+  if (typeof di !== "number") return [];
+  const opts = (block?.content?.options as ChoiceOption[]) || [];
+  return opts[di] == null ? [] : [di];
 }
 
 /** STEP 유형 렌더러 — 진행바 + 단계별 카드 선택 + 다음/이전 + 마지막 연락처 단계(인라인 미리보기). */
@@ -49,7 +58,8 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
       {!isContact ? (
         <ChoiceStep
           block={choiceBlocks[step]}
-          selected={selections[step] ?? []}
+          // 아직 안 만진 단계는 '기본 선택'을 그대로 보여준다(편집 중 값이 바뀌어도 즉시 반영).
+          selected={selections[step] ?? defaultSelection(choiceBlocks[step])}
           accent={s.accentColor}
           onToggle={(optIdx, multi) => toggleOption(step, optIdx, multi)}
         />
@@ -64,7 +74,11 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
               <label>
                 {b.label || "(제목 없음)"} {b.required && <span className="req">*</span>}
               </label>
-              <input className="input" placeholder={b.placeholder ?? ""} readOnly />
+              {b.fieldType === "tel" ? (
+                <PhoneInput3 value="" onChange={() => {}} readOnly />
+              ) : (
+                <input className="input" placeholder={b.placeholder ?? ""} readOnly />
+              )}
             </div>
           ))}
           <ConsentView config={form.consentConfig} accent={s.accentColor} />
@@ -138,7 +152,7 @@ function ChoiceStep({
         </div>
       ) : answerType === "select" ? (
         <div className="sfr-field">
-          <select className="input" defaultValue="">
+          <select className="input" value={options[selected[0]]?.label ?? ""} onChange={() => {}}>
             <option value="" disabled>{placeholder || "선택하세요"}</option>
             {options.map((o, i) => <option key={i} value={o.label}>{o.label || `선택지 ${i + 1}`}</option>)}
           </select>

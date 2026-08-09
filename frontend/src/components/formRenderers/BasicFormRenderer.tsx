@@ -1,6 +1,7 @@
 import type { FormBlock, FormInput } from "../../api/client";
 import { HtmlBlock } from "../HtmlBlock";
 import { ConsentView } from "./ConsentView";
+import { PhoneInput3 } from "../PhoneInput3";
 import { resolveStyle } from "./formStyle";
 
 /** BASIC 유형 리드폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
@@ -61,6 +62,9 @@ function FieldView({ block }: { block: FormBlock }) {
   const inputType =
     type === "email" ? "email" : type === "tel" || type === "phone010" ? "tel" : type === "number" ? "number" : type === "date" ? "date" : "text";
   const choices = (block.options?.choices as string[]) ?? [];
+  // 기본 선택(defaultIndex) 을 미리보기에도 반영 — 편집 중 바로 확인할 수 있게 한다.
+  const di = block.options?.defaultIndex;
+  const defaultChoice = typeof di === "number" && choices[di] != null ? choices[di] : "";
   return (
     <div className="field">
       <label>
@@ -69,7 +73,7 @@ function FieldView({ block }: { block: FormBlock }) {
       {type === "textarea" ? (
         <textarea className="input" placeholder={block.placeholder ?? ""} rows={3} readOnly />
       ) : type === "select" ? (
-        <select className="input" defaultValue="">
+        <select className="input" value={defaultChoice} onChange={() => {}}>
           <option value="" disabled>
             {block.placeholder || "선택하세요"}
           </option>
@@ -77,6 +81,8 @@ function FieldView({ block }: { block: FormBlock }) {
             <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>
           ))}
         </select>
+      ) : type === "tel" ? (
+        <PhoneInput3 value="" onChange={() => {}} readOnly />
       ) : (
         <input className="input" type={inputType} placeholder={block.placeholder ?? ""} readOnly />
       )}

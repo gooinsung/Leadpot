@@ -104,6 +104,8 @@ interface StepData {
   placeholder: string;
   required: boolean;
   options: { label: string; desc: string }[];
+  /** 기본 선택 — options 의 인덱스. null 이면 미리 선택하지 않는다. */
+  defaultIndex?: number | null;
   /**
    * 서버가 발급한 불변 변수키. 스텝형은 저장할 때 CHOICE 블록을 이 상태에서 새로 조립하므로,
    * 여기에 들고 있지 않으면 저장마다 키가 새로 발급되어 메시지 템플릿이 깨진다.
@@ -310,6 +312,7 @@ export function FormEditPage() {
                 label: o.label ?? "",
                 desc: o.desc ?? "",
               })),
+              defaultIndex: typeof b.content?.defaultIndex === "number" ? (b.content.defaultIndex as number) : null,
             })),
           );
           setContactFields(sorted.filter((b) => b.blockType === "FIELD"));
@@ -418,6 +421,13 @@ export function FormEditPage() {
               placeholder: s.placeholder,
               required: s.required,
               options: OPTION_ANSWER_TYPES.includes(s.answerType) ? s.options : [],
+              // 기본 선택 — 선택지가 있는 유형에서만 의미가 있다. 선택지 밖의 인덱스는 저장하지 않는다.
+              defaultIndex:
+                OPTION_ANSWER_TYPES.includes(s.answerType)
+                  && typeof s.defaultIndex === "number"
+                  && s.options[s.defaultIndex] != null
+                  ? s.defaultIndex
+                  : null,
             },
           })),
           ...contactFields.map((f, j) => ({ ...f, stepNo: steps.length, sortOrder: steps.length + j })),
@@ -620,6 +630,22 @@ export function FormEditPage() {
                             </div>
                           ))}
                           <button className="btn btn-ghost btn-sm" onClick={() => addOption(i)}>+ 선택지</button>
+                          <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
+                            <label>기본 선택</label>
+                            <select
+                              className="input"
+                              value={s.defaultIndex ?? ""}
+                              onChange={(e) => patchStep(i, { defaultIndex: e.target.value === "" ? null : Number(e.target.value) })}
+                            >
+                              <option value="">없음 (미리 선택하지 않음)</option>
+                              {s.options.map((o, oi) => (
+                                <option key={oi} value={oi}>{o.label || `선택지 ${oi + 1}`}</option>
+                              ))}
+                            </select>
+                            <span className="field-optional" style={{ marginTop: 4 }}>
+                              방문자에게 미리 선택된 상태로 보입니다. 그대로 두면 그 값으로 접수됩니다.
+                            </span>
+                          </div>
                         </>
                       ) : (
                         <div className="field">
@@ -1174,8 +1200,12 @@ function DedupField({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial
 /** 선택박스(select) 필드의 선택지 목록 편집. block.options.choices(string[]) 에 저장. */
 function SelectChoicesEditor({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial<FormBlock>) => void }) {
   const choices = ((block.options?.choices as string[]) ?? []);
+  const defaultIndex = typeof block.options?.defaultIndex === "number" ? (block.options.defaultIndex as number) : null;
   function setChoices(next: string[]) {
     onPatch({ options: { ...(block.options ?? {}), choices: next } });
+  }
+  function setDefaultIndex(next: number | null) {
+    onPatch({ options: { ...(block.options ?? {}), defaultIndex: next } });
   }
   return (
     <div className="select-choices">
@@ -1192,6 +1222,22 @@ function SelectChoicesEditor({ block, onPatch }: { block: FormBlock; onPatch: (p
         </div>
       ))}
       <button className="btn btn-ghost btn-sm" type="button" onClick={() => setChoices([...choices, ""])}>+ 선택지</button>
+      <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
+        <label>기본 선택</label>
+        <select
+          className="input"
+          value={defaultIndex ?? ""}
+          onChange={(e) => setDefaultIndex(e.target.value === "" ? null : Number(e.target.value))}
+        >
+          <option value="">없음 (미리 선택하지 않음)</option>
+          {choices.map((c, i) => (
+            <option key={i} value={i}>{c || `선택지 ${i + 1}`}</option>
+          ))}
+        </select>
+        <span className="field-optional" style={{ marginTop: 4 }}>
+          방문자에게 미리 선택된 상태로 보입니다. 그대로 두면 그 값으로 접수됩니다.
+        </span>
+      </div>
     </div>
   );
 }

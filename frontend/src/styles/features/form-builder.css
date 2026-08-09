@@ -188,6 +188,22 @@
   width: 66px;
   text-align: center;
 }
+/* 연락처 3칸 입력 — [010]-[XXXX]-[XXXX] (components/PhoneInput3.tsx) */
+.phone3-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.phone3-row .phone3-box {
+  flex: 1;
+  min-width: 0; /* flex 자식이 입력칸 기본폭 때문에 넘치지 않게 */
+  text-align: center;
+}
+.phone3-sep {
+  color: var(--muted);
+  flex: none;
+}
+
 /* 전체 폭(좌우 여백 제거) 토글 — 랜딩 편집기 블록 전용 */
 .block-full-toggle {
   display: flex;
