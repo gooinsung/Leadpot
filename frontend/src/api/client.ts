@@ -131,6 +131,23 @@ async function tryRefresh(refreshToken: string): Promise<boolean> {
   }
 }
 
+/**
+ * 파일 업로드(FormData)·파일 다운로드(blob)처럼 request() 를 못 쓰는 요청용 fetch.
+ * **401 이면 refresh 로 1회 재발급 후 재시도한다 — request() 와 동일한 동작.**
+ * 이게 없으면 액세스 토큰(30분) 만료 후 업로드·내보내기만 조용히 401 로 실패한다
+ * (JSON 호출은 request() 가 알아서 갱신하므로 화면은 멀쩡해 보인다).
+ */
+async function authedFetch(path: string, init: RequestInit = {}, retried = false): Promise<Response> {
+  const tokens = getTokens();
+  const headers = new Headers(init.headers);
+  if (tokens?.accessToken) headers.set("Authorization", `Bearer ${tokens.accessToken}`);
+  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+  if (res.status === 401 && !retried && tokens?.refreshToken && (await tryRefresh(tokens.refreshToken))) {
+    return authedFetch(path, init, true); // FormData·문자열 본문은 재사용 가능하다
+  }
+  return res;
+}
+
 // ---------- 도메인 타입 ----------
 export interface HealthResponse {
   status: string;
@@ -547,10 +564,7 @@ export function permanentDeleteLead(id: number): Promise<void> {
 
 /** 리드폼 기본 양식 다운로드(xlsx | csv). 헤더=리드폼 항목. */
 export async function downloadLeadTemplate(formId: number, format: "xlsx" | "csv", formName: string): Promise<void> {
-  const tokens = getTokens();
-  const res = await fetch(`${BASE_URL}/api/leads/template?formId=${formId}&format=${format}`, {
-    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
-  });
+  const res = await authedFetch(`/api/leads/template?formId=${formId}&format=${format}`);
   if (!res.ok) throw await parseError(res);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -571,14 +585,9 @@ export interface ImportResult {
 
 /** 엑셀/CSV 파일로 리드 일괄 등록. */
 export async function importLeads(formId: number, file: File): Promise<ImportResult> {
-  const tokens = getTokens();
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(`${BASE_URL}/api/leads/import?formId=${formId}`, {
-    method: "POST",
-    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
-    body: fd,
-  });
+  const res = await authedFetch(`/api/leads/import?formId=${formId}`, { method: "POST", body: fd });
   if (!res.ok) throw await parseError(res);
   return (await res.json()) as ImportResult;
 }
@@ -820,13 +829,9 @@ export async function downloadLeads(
   formId: number,
   opts: { format: "csv" | "xlsx"; columns?: string[]; ids?: number[]; formName?: string },
 ): Promise<void> {
-  const tokens = getTokens();
-  const res = await fetch(`${BASE_URL}/api/leads/export?formId=${formId}`, {
+  const res = await authedFetch(`/api/leads/export?formId=${formId}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ format: opts.format, columns: opts.columns ?? null, ids: opts.ids ?? null }),
   });
   if (!res.ok) throw await parseError(res);
@@ -1068,15 +1073,10 @@ export function recordEvent(input: { landingPageId?: number | null; formId?: num
 // ---------- 이미지 업로드 ----------
 /** 이미지 파일 업로드(로그인 필요) → 절대 URL 반환. type 은 저장 경로 프리픽스({type}-image/…), 생략 시 landing. */
 export async function uploadImage(file: File, type?: string): Promise<{ url: string }> {
-  const tokens = getTokens();
   const fd = new FormData();
   fd.append("file", file);
   if (type) fd.append("type", type);
-  const res = await fetch(`${BASE_URL}/api/uploads`, {
-    method: "POST",
-    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
-    body: fd,
-  });
+  const res = await authedFetch("/api/uploads", { method: "POST", body: fd });
   if (!res.ok) throw await parseError(res);
   // 백엔드가 절대 URL(로컬=서버주소 / R2=공개베이스URL)을 반환
   return (await res.json()) as { url: string };
@@ -1518,14 +1518,9 @@ export function listAdvertiserAsRequests(leadId: number): Promise<AsRequest[]> {
 }
 /** AS 증빙 이미지 업로드(jpg/png/gif/webp, 5MB 이하). 반환된 url 을 requestAdvertiserAs 에 넣는다. */
 export async function uploadAdvertiserEvidence(file: File): Promise<{ url: string }> {
-  const tokens = getTokens();
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(`${BASE_URL}/api/advertiser/uploads`, {
-    method: "POST",
-    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
-    body: fd,
-  });
+  const res = await authedFetch("/api/advertiser/uploads", { method: "POST", body: fd });
   if (!res.ok) throw await parseError(res);
   return (await res.json()) as { url: string };
 }
@@ -1584,16 +1579,12 @@ export async function downloadAdvertiserLeads(
   formId: number,
   opts: { format: "csv" | "xlsx"; status?: string; q?: string; from?: string; to?: string; formName?: string },
 ): Promise<void> {
-  const tokens = getTokens();
   const p = new URLSearchParams({ formId: String(formId), format: opts.format });
   if (opts.status) p.set("status", opts.status);
   if (opts.q) p.set("q", opts.q);
   if (opts.from) p.set("from", opts.from);
   if (opts.to) p.set("to", opts.to);
-  const res = await fetch(`${BASE_URL}/api/advertiser/leads/export?${p.toString()}`, {
-    method: "POST",
-    headers: { ...(tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}) },
-  });
+  const res = await authedFetch(`/api/advertiser/leads/export?${p.toString()}`, { method: "POST" });
   if (!res.ok) throw await parseError(res);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -1708,14 +1699,9 @@ export interface SmsAttachment {
  * 첨부가 붙은 문자는 MMS(건당 110원)로 나간다.
  */
 export async function uploadSmsAttachment(file: File): Promise<SmsAttachment> {
-  const tokens = getTokens();
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(`${BASE_URL}/api/sms/attachment`, {
-    method: "POST",
-    headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
-    body: fd,
-  });
+  const res = await authedFetch("/api/sms/attachment", { method: "POST", body: fd });
   if (!res.ok) throw await parseError(res);
   return (await res.json()) as SmsAttachment;
 }
