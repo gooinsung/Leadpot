@@ -29,6 +29,18 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ### ✅ 2026-08-09 (밤) — **HTML 편집기에 이미지 업로드 버튼 추가 (gooin PC)**
+>
+> HTML 블록에 `<img>` 를 넣으려면 이미지 URL 이 필요한데 얻을 방법이 없던 문제.
+> [HtmlImageUploadButton](../frontend/src/components/HtmlImageUploadButton.tsx) 신규 —
+> 클릭 → 파일 선택 → `/api/uploads`(R2) 업로드 → `<img src="공개URL" style="display:block;width:100%">`
+> 태그를 HTML 에 자동 삽입 + URL 클립보드 복사(토스트 안내). 백엔드 수정 없음.
+> - 부착 3곳: 랜딩 편집기 HTML 블록 · 리드폼 편집기 HTML 블록 · HTML 요소 편집 페이지
+> - `uploadImage(file, type?)` 에 저장 경로 프리픽스 추가 — landing / form / component 별로 R2 폴더 분리
+> - 로컬 실검증 완료: 업로드 → R2 공개 URL 200 확인(`landing-image/2026/08/09/…png`)
+> - ⚠️ **검증 잔여물**: Neon 에 테스트 계정 `claude-test-20260809@example.com`(id 43, 비번은 세션 중 랜덤 생성·미보관) +
+>   R2 에 40px 테스트 png 1개. 정리하려면 계정은 DB 에서, png 는 R2 콘솔에서 삭제.
+
 > ### 🏁 2026-08-09 세션 마감 — 배포 완료(main 49d9eb5, VM Actions 2종 success + Railway 자동배포·헬스 200)
 >
 > - **삭제 정책 방침(사용자와 논의, 아직 미구현)**: 돈·분쟁 관련(리드·리드폼·광고주·원장)은 **논리삭제**,
