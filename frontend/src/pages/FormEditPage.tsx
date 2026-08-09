@@ -97,6 +97,31 @@ const ANSWER_TYPES = [
 ];
 const OPTION_ANSWER_TYPES = ["single", "multi", "select"]; // 선택지 목록이 필요한 유형
 
+/** 접은 카드 기억용(브라우저에만 저장). 매번 다시 접지 않아도 되게 한다. */
+const COLLAPSE_KEY = "leadpot-form-edit-collapsed";
+
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "{}") as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * 카드 제목 겸 접기 버튼.
+ * 내용 숨김은 CSS 가 한다 — 카드에 `data-collapsed="true"` 면 제목 외 자식을 감춘다.
+ * (JSX 구조를 건드리지 않으려는 의도적 선택 — styles/features/form-builder.css 참고)
+ */
+function SectionHead({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" className="card-h card-h-btn" onClick={onToggle} aria-expanded={open}>
+      <span>{title}</span>
+      <span className={`card-h-caret${open ? " on" : ""}`} aria-hidden="true">▾</span>
+    </button>
+  );
+}
+
 interface StepData {
   question: string;
   description: string;
@@ -221,6 +246,17 @@ export function FormEditPage() {
   const [sheetTest, setSheetTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [sheetTesting, setSheetTesting] = useState(false);
   const [tracking, setTracking] = useState<Record<string, unknown> | null>(null); // 광고 픽셀
+  // 카드 접기 상태(브라우저에 기억). sec(key) 로 카드에 붙이고 SectionHead 로 제목을 그린다.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
+  function toggleSection(key: string) {
+    setCollapsed((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next)); } catch { /* 저장 실패는 무시 */ }
+      return next;
+    });
+  }
+  /** 카드에 접힘 표시를 붙인다(내용 숨김은 CSS). */
+  const sec = (key: string) => ({ "data-collapsed": collapsed[key] ? "true" : undefined });
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -561,8 +597,8 @@ export function FormEditPage() {
         <div className="edit-grid">
           <div className="edit-panel">
             {formType === "BASIC" ? (
-              <div className="card card-pad">
-                <div className="card-h">본문 블록</div>
+              <div className="card card-pad" {...sec("blocks")}>
+                <SectionHead title="본문 블록" open={!collapsed.blocks} onToggle={() => toggleSection("blocks")} />
                 {blocks.map((b, i) => (
                   <div className="block-editor" key={i}>
                     <div className="block-editor-head">
@@ -586,8 +622,8 @@ export function FormEditPage() {
               </div>
             ) : (
               <>
-                <div className="card card-pad">
-                  <div className="card-h">질문 단계</div>
+                <div className="card card-pad" {...sec("steps")}>
+                  <SectionHead title="질문 단계" open={!collapsed.steps} onToggle={() => toggleSection("steps")} />
                   {steps.map((s, i) => (
                     <div className="block-editor" key={i}>
                       <div className="block-editor-head">
@@ -660,8 +696,8 @@ export function FormEditPage() {
                   </div>
                 </div>
 
-                <div className="card card-pad" style={{ marginTop: 16 }}>
-                  <div className="card-h">마지막 단계 · 연락처</div>
+                <div className="card card-pad" style={{ marginTop: 16 }} {...sec("contact")}>
+                  <SectionHead title="마지막 단계 · 연락처" open={!collapsed.contact} onToggle={() => toggleSection("contact")} />
                   <div className="field">
                     <label>상단 안내 문구(선택)</label>
                     <input className="input" placeholder="예: 마지막 정보를 입력하면 분석 내용을 바로 보내드립니다!" value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} />
@@ -682,8 +718,8 @@ export function FormEditPage() {
               </>
             )}
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">동의 항목</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("consent")}>
+              <SectionHead title="동의 항목" open={!collapsed.consent} onToggle={() => toggleSection("consent")} />
               {consentItems.map((it, i) => (
                 <div className="block-editor" key={i}>
                   <div className="block-editor-head">
@@ -746,22 +782,22 @@ export function FormEditPage() {
               </div>
             </div>
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">제출</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("submit")}>
+              <SectionHead title="제출" open={!collapsed.submit} onToggle={() => toggleSection("submit")} />
               <div className="field">
                 <label>제출 버튼 문구</label>
                 <input className="input" value={submitLabel} onChange={(e) => setSubmitLabel(e.target.value)} />
               </div>
             </div>
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">디자인 · 색상</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("design")}>
+              <SectionHead title="디자인 · 색상" open={!collapsed.design} onToggle={() => toggleSection("design")} />
               <ColorField label="제출 버튼 색" value={buttonColor} onChange={setButtonColor} />
               <ColorField label="리드폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
             </div>
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">제출 완료 후</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("success")}>
+              <SectionHead title="제출 완료 후" open={!collapsed.success} onToggle={() => toggleSection("success")} />
               <div className="field">
                 <label>완료 처리</label>
                 <select className="input" value={successMode} onChange={(e) => setSuccessMode(e.target.value as "message" | "redirect")}>
@@ -788,8 +824,8 @@ export function FormEditPage() {
               )}
             </div>
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">옵션</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("options")}>
+              <SectionHead title="옵션" open={!collapsed.options} onToggle={() => toggleSection("options")} />
               <label className="fr-check">
                 <input type="checkbox" checked={requirePhone} onChange={(e) => setRequirePhone(e.target.checked)} /> 휴대폰 본인인증 사용
               </label>
@@ -890,8 +926,8 @@ export function FormEditPage() {
               )}
             </div>
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">문자 발송 (이 리드폼)</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("sms")}>
+              <SectionHead title="문자 발송 (이 리드폼)" open={!collapsed.sms} onToggle={() => toggleSection("sms")} />
               {/* 권한이 없으면 켜봐야 서버가 저장 시점에 다시 꺼버린다(FormService.sanitizeSmsSettings).
                   그러면 "켰는데 안 나간다"가 되므로, 아예 잠그고 이유를 먼저 보여준다. */}
               {smsBlocked ? (
@@ -1050,8 +1086,8 @@ export function FormEditPage() {
             {/* 광고주 정산(V31) — 단가·충전·목표. 새 리드폼은 아직 광고주를 붙일 수 없어 저장 후 보인다. */}
             {!isNew && <AdvertiserBillingCard formId={Number(id)} />}
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">구글시트 연동 (이 리드폼)</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("sheets")}>
+              <SectionHead title="구글시트 연동 (이 리드폼)" open={!collapsed.sheets} onToggle={() => toggleSection("sheets")} />
               <label className="fr-check">
                 <input type="checkbox" checked={sheetsEnabled} onChange={(e) => setSheetsEnabled(e.target.checked)} /> 이 리드폼의 리드를 구글시트로 자동 기록
               </label>
@@ -1105,8 +1141,8 @@ export function FormEditPage() {
               )}
             </div>
 
-            <div className="card card-pad" style={{ marginTop: 16 }}>
-              <div className="card-h">광고 픽셀 (선택)</div>
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("pixels")}>
+              <SectionHead title="광고 픽셀 (선택)" open={!collapsed.pixels} onToggle={() => toggleSection("pixels")} />
               <PixelFields value={tracking} onChange={setTracking} />
             </div>
           </div>

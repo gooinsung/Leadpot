@@ -188,6 +188,81 @@
   width: 66px;
   text-align: center;
 }
+/* ---------- 리드폼 편집 — 카드 제목 확대 + 접기 ----------
+   기본 .card-h(12px 대문자 muted)는 이 화면에서 너무 작아 섹션 구분이 안 됐다.
+   여기서만 키운다(다른 화면의 .card-h 는 그대로). */
+.form-edit .card-h {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+}
+.form-edit .card-h-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.form-edit .card-h-btn:hover .card-h-caret {
+  color: var(--text);
+}
+.card-h-caret {
+  font-size: 13px;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.card-h-caret.on {
+  transform: rotate(180deg);
+}
+/* 접힌 카드: 제목 버튼만 남기고 나머지 자식을 감춘다 —
+   JSX 구조를 바꾸지 않으려는 의도적 방식(pages/FormEditPage.tsx SectionHead 주석 참고). */
+.form-edit .card[data-collapsed="true"] > *:not(.card-h-btn) {
+  display: none;
+}
+.form-edit .card[data-collapsed="true"] .card-h-btn {
+  margin-bottom: 0;
+}
+
+/* 광고 픽셀 — 사용할 플랫폼 고르기 */
+.pixel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pixel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.pixel-chip.on {
+  border-color: var(--indigo);
+  background: var(--indigo-soft);
+  color: var(--indigo-ink);
+  font-weight: 600;
+}
+.pixel-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 12px);
+  padding: 14px;
+  margin-top: 12px;
+  background: var(--surface-2);
+}
+
 /* 연락처 3칸 입력 — [010]-[XXXX]-[XXXX] (components/PhoneInput3.tsx) */
 .phone3-row {
   display: flex;
