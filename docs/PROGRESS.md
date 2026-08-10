@@ -29,6 +29,43 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## 🌅 2026-08-12 착수 예정 — 광고주 화면 보강 (사용자 지시 2026-08-11 밤)
+>
+> ### ① 광고주 삭제 — ✅ **이미 다 만들어져 있다. 새로 만들지 말 것.**
+>
+> 사용자가 "만들 것"으로 알고 있었으나 조사 결과 완성돼 있다(2026-08-11 확인).
+>
+> | 계층 | 위치 |
+> |---|---|
+> | API | `DELETE /api/advertisers/{id}` — [AdvertiserController.java:83](../backend/src/main/java/com/leadpot/advertiser/AdvertiserController.java#L83) |
+> | 서비스 | [AdvertiserService.delete:289](../backend/src/main/java/com/leadpot/advertiser/AdvertiserService.java#L289) — grants 먼저 지우고 계정 삭제 |
+> | 화면 | `/advertisers` 카드 메뉴 **"계정 삭제"**(빨강) + 확인 다이얼로그 — [AdvertisersPage.tsx:376](../frontend/src/pages/AdvertisersPage.tsx#L376) |
+> | 정지/해제 | `AdvertiserService:270` — 정지하면 로그인·토큰 재발급이 즉시 막힌다 |
+>
+> - **리드 데이터는 남는다**(계정만 삭제). 리드 메모의 작성자는 `on delete set null`(V27)로 끊어지고
+>   화면엔 '삭제된 광고주'로 표시된다.
+> - ⚠️ 과거에 **메모를 남긴 광고주가 FK 위반으로 삭제 안 되던 버그**가 있었고 V27 로 고쳤다(2026-08-06).
+> - **→ 내일 할 일은 "만들기"가 아니라 "실제로 잘 되는지 확인"이다.** 사용자가 원하는 동작과
+>   지금 동작(계정만 삭제·리드 유지)이 같은지부터 물어볼 것. 다르면 그때 범위를 잡는다.
+>
+> ### ② 광고주 페이지에 전환율 추가 — 🆕 **새로 만들어야 한다**
+>
+> 광고주 리포트에 지금 있는 것: **미확인율 · 평균 확인까지 · 평균 처리까지 · 상태 분포**
+> ([AdvertiserReportResponse.java](../backend/src/main/java/com/leadpot/advertiser/dto/AdvertiserReportResponse.java) · [AdvertiserReportPage.tsx](../frontend/src/pages/AdvertiserReportPage.tsx)).
+> **전환율(방문 → 접수)은 없다.**
+>
+> 마케터 쪽엔 이미 있으므로 **계산 로직을 새로 짜지 말고 재사용**한다:
+> [StatsService](../backend/src/main/java/com/leadpot/stats/StatsService.java) · [StatsResponse](../backend/src/main/java/com/leadpot/stats/StatsResponse.java) · [Visit](../backend/src/main/java/com/leadpot/visit/Visit.java) · 화면은 [StatsPage.tsx](../frontend/src/pages/StatsPage.tsx).
+>
+> **착수 전에 사용자에게 물을 것** (CLAUDE.md §0):
+> 1. **어느 화면인가** — 광고주 포털(`/client/report`, 광고주 본인이 봄)인가, 마케터가 보는 광고주별 화면인가? 둘 다인가?
+> 2. **전환율의 분모** — 방문수 대비 접수인가(마케터 통계와 같은 정의), 아니면 접수 대비 유효(`VALID`)인가?
+>    광고주 입장에선 후자가 더 관심사일 수 있다. **둘은 완전히 다른 지표다.**
+> 3. **광고주에게 방문수를 보여줘도 되는가** — 마케터의 트래픽 규모가 드러난다. 영업상 민감할 수 있다.
+>    (그래서 지금 광고주 화면엔 접수 이후 지표만 있는 것으로 보인다 — 의도된 설계인지 확인 필요)
+>
+> ⚠️ 3번이 핵심이다. 방문수를 광고주에게 그냥 노출하면 되돌리기 어렵다.
+
 > ## ✅ 2026-08-11 — 알림톡(M7) **배포 완료** · main `adcbd25`
 >
 > **마케터·광고주 접수 알림이 이제 알림톡으로 나간다. 문자는 고객향 전용.** (건당 18원 → 13원)
