@@ -149,12 +149,22 @@ npm run dev
 > 프론트·백엔드 **둘 다 GitHub Actions 가 Oracle VM 으로 배포**한다. Cloudflare 는 DNS·SSL 프록시만 담당한다.
 > 상세·실측치는 [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C.
 
-> 🚚 **이 구성은 이전(移轉)이 예정돼 있다 (2026-08-07 확정, 아직 착수 전).**
-> 백엔드 → **Railway(싱가포르)** · 프론트 → **Cloudflare Pages** · Oracle VM 종료. DB(Neon 싱가포르)는 그대로.
-> 목적: **웜 응답 541ms → 200ms**(응답시간의 74%가 Neon 왕복) · **배포 다운타임 약 2분 → 0** · **시크릿을 웹 UI 로**(현재는 SSH 접속 후 수동 편집·재기동).
-> **착수 전 [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) 를 읽을 것.** 이전이 끝나면 이 §6 과 §2·§3 을 전면 갱신한다.
+> 🚚 **백엔드는 이미 Railway 로 이전됐다 (Phase A 컷오버 완료 2026-08-09, 커밋 `611d3eb`).**
+>
+> | | 지금 어디서 도는가 | 배포 | 환경변수 |
+> |---|---|---|---|
+> | **백엔드** `api.lead-pot.com` | **Railway(싱가포르)** | `main` push → Railway 가 `backend/**` 감지해 자동 배포 | **Railway → Variables 화면**(저장하면 무중단 재배포) |
+> | **프론트** `app.lead-pot.com` | 아직 Oracle VM Nginx | `main` push → GitHub Actions rsync | — |
+>
+> - 랜딩 API 실측 **850~980ms → 220~246ms**. VM 은 프론트 때문에 아직 살아 있다.
+> - **push 하면 VM(Actions)과 Railway 둘 다 배포된다**(이전 기간 의도). 실제 API 트래픽은 Railway 만 받는다.
+> - ⚠️ **시크릿을 SSH 로 고치지 말 것.** 백엔드 환경변수는 이제 **Railway Variables** 다.
+>   아래 §6 본문의 "VM `.env` 를 SSH 로 편집" 설명은 **프론트·VM 에만 해당**하는 옛 절차다.
+> - 남은 단계(A5~C: 프론트 → Cloudflare Pages, VM 종료)는 [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md).
+>   **VM 을 내리는 날 Railway 에서 `APP_LEAD_AUTO_APPROVE_ENABLED=true` 로 켜는 것을 잊지 말 것** ⭐
+>   전부 끝나면 이 §6 과 §2·§3 을 전면 갱신한다.
 
-**`main` 에 push 하면 두 워크플로가 경로별로 자동 실행된다. 수동 배포는 필요 없다.**
+**`main` 에 push 하면 아래 두 워크플로가 경로별로 자동 실행된다(+ Railway 가 백엔드를 따로 배포한다). 수동 배포는 필요 없다.**
 
 | 워크플로 | 트리거 경로 | 하는 일 | 소요 | 다운타임 |
 |---|---|---|---|---|

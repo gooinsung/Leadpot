@@ -1,6 +1,7 @@
 # docs/HOSTING-MIGRATION-PLAN.md — 호스팅 이전 계획 (Oracle VM → Railway + Cloudflare Pages)
 
-> **작성 2026-08-07 (gooin PC). 상태: 📋 계획 확정, 착수 전.**
+> **작성 2026-08-07 (gooin PC). 상태: 🔄 진행 중 — Phase A(백엔드 → Railway) 컷오버 완료 2026-08-09(`611d3eb`).**
+> **남은 것: A5~C (프론트 → Cloudflare Pages, VM 종료).** 아래 본문의 Phase A 절차는 이미 끝난 내용이다.
 > 기준 커밋 `61adf17` · **Flyway V28** · 백엔드 테스트 212개 통과.
 > 이어받는 세션은 이 문서 하나만 읽으면 처음부터 끝까지 실행할 수 있다.
 > 관련: [CLAUDE.md](../CLAUDE.md) §6(배포법) · [DEPLOY.md](DEPLOY.md) 부록 C · [PROGRESS.md](PROGRESS.md)
