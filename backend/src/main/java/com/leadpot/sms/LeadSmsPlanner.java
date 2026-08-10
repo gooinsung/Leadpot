@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,7 @@ import com.leadpot.auth.UserRepository;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormBlock;
 import com.leadpot.lead.Lead;
+import com.leadpot.lead.LeadRepository;
 
 /**
  * 리드 접수 시 나갈 문자 목록을 만든다(전송은 하지 않음).
@@ -42,14 +44,30 @@ public class LeadSmsPlanner {
     private static final DateTimeFormatter DT =
             DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.of("Asia/Seoul"));
 
+    /**
+     * 알림톡 템플릿 변수(카카오 승인본과 <b>한 글자도 달라선 안 된다</b> — 다르면 그 건이 발송 실패한다).
+     * 템플릿 원문은 docs/MESSAGING-PLAN.md §9.
+     */
+    private static final String V_ROLE = "#{담당역할}";
+    private static final String V_FORM = "#{리드폼}";
+    private static final String V_RECEIVED_AT = "#{접수시각}";
+    private static final String V_UNSEEN = "#{미확인건수}";
+
+    /** {@link #V_ROLE} 치환값 — 수신자가 어떤 자격으로 받는지 구분한다. */
+    private static final String ROLE_MARKETER = "마케터";
+    private static final String ROLE_ADVERTISER = "광고주";
+
     private final AdvertiserFormGrantRepository grantRepository;
     private final UserRepository userRepository;
+    private final LeadRepository leadRepository;
     private final String publicBaseUrl;
 
     public LeadSmsPlanner(AdvertiserFormGrantRepository grantRepository, UserRepository userRepository,
+            LeadRepository leadRepository,
             @Value("${app.public-base-url:https://app.lead-pot.com}") String publicBaseUrl) {
         this.grantRepository = grantRepository;
         this.userRepository = userRepository;
+        this.leadRepository = leadRepository;
         this.publicBaseUrl = trimTrailingSlash(publicBaseUrl);
     }
 
@@ -73,7 +91,9 @@ public class LeadSmsPlanner {
                 User marketer = userRepository.findById(form.getOwnerId()).orElse(null);
                 to = marketer == null ? "" : nn(marketer.getPhone());
             }
-            out.add(request(form, lead, to, marketerText(form, lead), MessageLog.TO_MARKETER, senderPhone));
+            out.add(request(form, lead, to, marketerText(form, lead), MessageLog.TO_MARKETER, senderPhone)
+                    .withAlimtalk(variables(ROLE_MARKETER, form, lead,
+                            leadRepository.countByFormIdAndDeletedAtIsNullAndSeenAtIsNull(form.getId()))));
         }
 
         // ② 광고주 — 마케터가 켰고 + 광고주가 연결됐고 + 광고주가 자기 번호를 등록했을 때만.
@@ -97,7 +117,9 @@ public class LeadSmsPlanner {
                     to = nn(grant.getNotifyPhone());
                 }
             }
-            out.add(request(form, lead, to, advertiserText(grant, form, lead), MessageLog.TO_ADVERTISER, senderPhone));
+            out.add(request(form, lead, to, advertiserText(grant, form, lead), MessageLog.TO_ADVERTISER, senderPhone)
+                    .withAlimtalk(variables(ROLE_ADVERTISER, form, lead,
+                            leadRepository.countByFormIdAndDeletedAtIsNullAndAdvertiserSeenAtIsNull(form.getId()))));
         }
 
         // ③ 고객(리드 본인) — 마케터가 쓴 템플릿. 본문이 비어 있으면 보내지 않는다.
@@ -135,10 +157,31 @@ public class LeadSmsPlanner {
         return "";
     }
 
+    /**
+     * 알림톡 변수 4개. <b>어느 하나라도 비면 그 건이 발송 실패</b>하므로(대행사 규칙)
+     * 모든 값에 기본값을 보장한다 — 리드폼 이름이 비어 있거나 광고주 계정 연결이 없는 경우가 실제로 있다.
+     *
+     * @param unseen 미확인 건수. <b>방금 접수된 리드까지 포함</b>된다 — plan() 이 커밋 전 트랜잭션 안에서
+     *               돌아 조회 시 flush 되기 때문이다. 0 이 나올 일은 없지만, 새 리드 알림에 "0건"이
+     *               찍히면 명백히 틀려 보이므로 최소 1 로 막는다
+     */
+    Map<String, String> variables(String role, Form form, Lead lead, long unseen) {
+        Map<String, String> v = new LinkedHashMap<>();
+        v.put(V_ROLE, role);
+        v.put(V_FORM, blank(form.getName()) ? "리드폼" : form.getName().trim());
+        v.put(V_RECEIVED_AT, DT.format(lead.getCreatedAt() != null ? lead.getCreatedAt() : Instant.now()));
+        v.put(V_UNSEEN, String.valueOf(Math.max(1, unseen)));
+        return v;
+    }
+
+    private static boolean blank(String s) {
+        return s == null || s.isBlank();
+    }
+
     private SmsService.SmsRequest request(Form form, Lead lead, String to, String text,
             String recipientType, String senderPhone) {
         return new SmsService.SmsRequest(form.getOwnerId(), to, text, recipientType,
-                form.getId(), lead.getId(), null, null, blankToNull(senderPhone), null);
+                form.getId(), lead.getId(), null, null, blankToNull(senderPhone), null, null);
     }
 
     /**

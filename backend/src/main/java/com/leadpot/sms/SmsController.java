@@ -91,8 +91,13 @@ public class SmsController {
                 .stream().map(MessageLogItem::from).toList();
     }
 
-    /** 테스트 발송 요청. 번호를 비우면 내 계정 연락처로 보낸다. */
-    public record TestSendRequest(String to, String text) {
+    /**
+     * 테스트 발송 요청. 번호를 비우면 내 계정 연락처로 보낸다.
+     *
+     * @param alimtalk true 면 문자 대신 <b>알림톡</b>으로 보낸다. 본문은 카카오 심사본이 나가므로
+     *                 {@code text} 는 무시되고 변수만 샘플값으로 채워진다
+     */
+    public record TestSendRequest(String to, String text, Boolean alimtalk) {
     }
 
     /** 테스트 발송 결과 — 실패 사유를 그대로 돌려줘야 조치가 된다(미등록 발신번호·잔액 부족 등). */
@@ -110,6 +115,9 @@ public class SmsController {
         User me = userRepository.findById(ownerId)
                 .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다."));
         String to = request.to() == null || request.to().isBlank() ? me.getPhone() : request.to();
+        if (Boolean.TRUE.equals(request.alimtalk())) {
+            return testAlimtalk(ownerId, to);
+        }
         String text = request.text() == null || request.text().isBlank()
                 ? "[리드팟] 문자 발송 연동 테스트입니다."
                 : request.text();
@@ -118,6 +126,31 @@ public class SmsController {
         MessageLog entry = smsService.send(SmsService.SmsRequest.to(ownerId, to, text, MessageLog.TO_TEST));
         return new TestSendResult(MessageLog.STATUS_SENT.equals(entry.getStatus()), entry.getStatus(),
                 entry.getError(), entry.getChannel(), SolapiSmsSender.byteLength(text));
+    }
+
+    /**
+     * 알림톡 테스트 발송. 본문은 카카오 심사본이 그대로 나가고 변수만 샘플값으로 채운다.
+     *
+     * <p><b>설정이 없으면 폴백(문자)에 기대지 않고 거부한다</b> — 자동 발송에서는 폴백이 안전장치지만,
+     * 사용자가 "알림톡 테스트"를 누른 상황에서 문자가 날아오면 연동이 된 것으로 오해한다.
+     */
+    private TestSendResult testAlimtalk(Long ownerId, String to) {
+        if (!smsService.alimtalkConfigured()) {
+            throw new InvalidSubmissionException(
+                    "알림톡 채널·템플릿이 설정되지 않았습니다. 서버 환경변수(PF_ID·ATA_TEMPLATE_ID)를 확인해주세요.");
+        }
+        requireChannel(ownerId, SmsPermissions.ATA);
+        java.util.Map<String, String> variables = new java.util.LinkedHashMap<>();
+        variables.put("#{담당역할}", "마케터");
+        variables.put("#{리드폼}", "연동 테스트");
+        variables.put("#{접수시각}", java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm")
+                .withZone(java.time.ZoneId.of("Asia/Seoul")).format(java.time.Instant.now()));
+        variables.put("#{미확인건수}", "1");
+        MessageLog entry = smsService.send(SmsService.SmsRequest
+                .to(ownerId, to, "[리드팟] 알림톡 연동 테스트입니다.", MessageLog.TO_TEST)
+                .withAlimtalk(variables));
+        return new TestSendResult(MessageLog.STATUS_SENT.equals(entry.getStatus()), entry.getStatus(),
+                entry.getError(), entry.getChannel(), 0);
     }
 
     /**

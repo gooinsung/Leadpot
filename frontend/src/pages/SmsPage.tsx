@@ -52,19 +52,24 @@ export function SmsPage() {
     reload();
   }, []);
 
-  async function onTest() {
+  async function onTest(alimtalk = false) {
     setSending(true);
     try {
-      const r = await testSms({ to: testTo.trim() || undefined });
+      const r = await testSms({ to: testTo.trim() || undefined, alimtalk });
       if (r.ok) {
-        toast.success(`테스트 문자를 보냈습니다. (${r.channel} · ${r.bytes}byte)`);
+        toast.success(
+          alimtalk
+            ? "테스트 알림톡을 보냈습니다. 카카오톡을 확인해주세요."
+            : `테스트 문자를 보냈습니다. (${r.channel} · ${r.bytes}byte)`,
+        );
       } else {
         // 실패 사유를 그대로 보여준다 — 미등록 발신번호·잔액 부족 등 조치가 필요한 내용이 담긴다.
         toast.error(r.error || "발송에 실패했습니다.");
       }
       await reload();
-    } catch {
-      toast.error("발송 요청에 실패했습니다.");
+    } catch (e) {
+      // 알림톡은 설정이 없으면 서버가 400 으로 거부한다 — 사유를 감추면 뭘 고쳐야 할지 알 수 없다.
+      toast.error(e instanceof Error ? e.message : "발송 요청에 실패했습니다.");
     } finally {
       setSending(false);
     }
@@ -163,12 +168,22 @@ export function SmsPage() {
                       placeholder="비우면 내 계정 연락처"
                     />
                   </label>
-                  <button className="btn btn-primary" type="button" onClick={onTest} disabled={sending}>
-                    {sending ? "보내는 중…" : "테스트 발송"}
+                  {/* ⚠️ onClick={onTest} 로 두면 클릭 이벤트가 첫 인자로 들어가 alimtalk 이 참이 된다. */}
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={() => onTest(false)}
+                    disabled={sending}
+                  >
+                    {sending ? "보내는 중…" : "문자 테스트"}
+                  </button>
+                  <button className="btn" type="button" onClick={() => onTest(true)} disabled={sending}>
+                    {sending ? "보내는 중…" : "알림톡 테스트"}
                   </button>
                 </div>
                 <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
-                  테스트도 실제로 발송되어 건당 비용이 발생하고 사용량에 포함됩니다.
+                  테스트도 실제로 발송되어 건당 비용이 발생하고 사용량에 포함됩니다. 알림톡은 본문이
+                  카카오 심사본으로 고정이라 변수만 샘플값으로 채워 나갑니다.
                 </p>
               </div>
             )}

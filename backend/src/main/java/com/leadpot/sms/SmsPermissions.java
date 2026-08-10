@@ -21,8 +21,20 @@ import com.leadpot.auth.User;
  */
 public final class SmsPermissions {
 
-    /** 우리가 다루는 채널. {@code SolapiSmsSender.channelOf} 가 돌려주는 값과 같아야 한다. */
-    public static final List<String> CHANNELS = List.of("SMS", "LMS", "MMS");
+    /**
+     * 우리가 다루는 채널. 앞의 셋은 {@code SolapiSmsSender.channelOf} 가 돌려주는 값과 같아야 한다.
+     * {@link #ATA} 만 본문 길이가 아니라 <b>수신자 유형</b>으로 결정된다(마케터·광고주 접수 알림).
+     */
+    public static final List<String> CHANNELS = List.of("SMS", "LMS", "MMS", "ATA");
+
+    /**
+     * 알림톡. 단가가 가장 싸고(약 13원) 본문이 카카오 심사본으로 고정된다.
+     *
+     * <p>⚠️ <b>기존 계정에는 이 채널이 허용 목록에 없다</b> — V25 로 만든 계정은
+     * {@code sms_allowed_channels} 가 "SMS,LMS,MMS" 뿐이라, 관리자 화면에서 켜 주기 전까지
+     * 알림톡이 전부 SKIPPED 된다(조용히 사라지지 않고 사유가 이력에 남는다).
+     */
+    public static final String ATA = "ATA";
 
     /** 월 상한이 이 값이면 무제한. */
     public static final int UNLIMITED = -1;

@@ -1637,8 +1637,12 @@ export function acceptInvite(
 
 // ---------- 문자 발송 ----------
 
-/** 문자 채널. 단가가 크게 갈리므로 계정별로 허용 여부를 나눈다. */
-export type SmsChannel = "SMS" | "LMS" | "MMS";
+/**
+ * 발송 채널. 단가가 크게 갈리므로 계정별로 허용 여부를 나눈다.
+ *
+ * `ATA` = 알림톡(카카오). 마케터·광고주 접수 알림이 이 채널로 나가며 본문은 카카오 심사본으로 고정이다.
+ */
+export type SmsChannel = "SMS" | "LMS" | "MMS" | "ATA";
 
 export interface SmsStatus {
   /** 지금 문자를 보낼 수 있는 상태인가(자격증명 + 계정 권한). */
@@ -1691,8 +1695,16 @@ export function listSmsLogs(): Promise<MessageLogItem[]> {
   return request<MessageLogItem[]>("/api/sms/logs");
 }
 
-/** 테스트 발송. 번호를 비우면 내 계정 연락처로 보낸다. */
-export function testSms(input: { to?: string; text?: string }): Promise<SmsSendResult> {
+/**
+ * 테스트 발송. 번호를 비우면 내 계정 연락처로 보낸다.
+ *
+ * `alimtalk: true` 면 알림톡으로 보낸다 — 본문은 카카오 심사본이 나가므로 `text` 는 무시된다.
+ */
+export function testSms(input: {
+  to?: string;
+  text?: string;
+  alimtalk?: boolean;
+}): Promise<SmsSendResult> {
   return request<SmsSendResult>("/api/sms/test", { method: "POST", body: input });
 }
 

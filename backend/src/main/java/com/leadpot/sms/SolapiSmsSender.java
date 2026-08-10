@@ -68,7 +68,76 @@ public class SolapiSmsSender implements SmsSender {
                 message.append(",\"type\":\"MMS\"")
                         .append(",\"imageId\":").append(json(imageId.trim()));
             }
-            String body = message.append("}}").toString();
+            return post(cred, message.append("}}").toString(), channel);
+        } catch (Exception e) {
+            return SmsResult.failed(e.getClass().getSimpleName() + ": " + e.getMessage(), channel);
+        }
+    }
+
+    /**
+     * 알림톡 발송. 같은 엔드포인트에 {@code kakaoOptions} 를 얹으면 되고, {@code templateId} 가 있으면
+     * 대행사가 알아서 알림톡으로 처리한다(별도 API 가 아니다).
+     *
+     * <pre>
+     * "kakaoOptions": {"pfId":"KA01PF…", "templateId":"KA01TP…",
+     *                  "disableSms":true, "variables":{"#{담당역할}":"마케터", …}}
+     * </pre>
+     *
+     * <p><b>{@code from}(발신번호)은 알림톡에도 필수다</b> — 대체발송 경로 때문에 대행사가 요구한다.
+     * 대체발송을 꺼도 마찬가지라 시스템 발신번호를 그대로 넣는다.
+     */
+    @Override
+    public SmsResult sendAlimtalk(SmsCredentials cred, String to, Alimtalk options, String fallbackText) {
+        String channel = SmsPermissions.ATA;
+        if (options == null || !notBlank(options.pfId()) || !notBlank(options.templateId())) {
+            return SmsResult.failed("알림톡 채널·템플릿이 설정되지 않았습니다.", channel);
+        }
+        String recipient = PhoneNumbers.normalize(to);
+        if (recipient == null) {
+            return SmsResult.failed("수신번호 형식이 올바르지 않습니다.", channel);
+        }
+        String from = PhoneNumbers.normalize(cred.senderPhone());
+        if (from == null) {
+            return SmsResult.failed("발신번호가 설정되지 않았거나 형식이 올바르지 않습니다.", channel);
+        }
+        try {
+            StringBuilder kakao = new StringBuilder("{\"pfId\":").append(json(options.pfId().trim()))
+                    .append(",\"templateId\":").append(json(options.templateId().trim()))
+                    // 대체발송을 끈다(사용자 결정 2026-08-10) — 알림톡이 안 가면 문자로 새어나가지 않고
+                    // FAILED 로 이력에 남는다. 켜려면 이 값만 false 로 바꾸면 fallbackText 가 나간다.
+                    .append(",\"disableSms\":true")
+                    .append(",\"variables\":{");
+            boolean first = true;
+            for (java.util.Map.Entry<String, String> e : options.variables().entrySet()) {
+                if (!first) {
+                    kakao.append(',');
+                }
+                first = false;
+                kakao.append(json(e.getKey())).append(':').append(json(e.getValue() == null ? "" : e.getValue()));
+            }
+            kakao.append("}}");
+
+            String body = "{\"message\":{"
+                    + "\"to\":" + json(recipient)
+                    + ",\"from\":" + json(from)
+                    + ",\"text\":" + json(fallbackText == null ? "" : fallbackText)
+                    + ",\"kakaoOptions\":" + kakao
+                    + "}}";
+            return post(cred, body, channel);
+        } catch (Exception e) {
+            return SmsResult.failed(e.getClass().getSimpleName() + ": " + e.getMessage(), channel);
+        }
+    }
+
+    /**
+     * 발송 요청을 보내고 결과를 판정한다.
+     *
+     * <p>HTTP 2xx 라도 본문의 {@code statusCode} 가 성공(2xxx)이 아니면 실패로 본다 —
+     * <b>알림톡은 여기로 실패가 온다</b>(템플릿 불일치·변수 누락 등). 대체발송을 꺼 뒀으므로
+     * 이걸 성공으로 기록하면 알림이 조용히 사라진다. 필드가 없으면 예전대로 HTTP 상태로만 판단한다.
+     */
+    private SmsResult post(SmsCredentials cred, String body, String channel) {
+        try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(SEND_URL))
                     .timeout(Duration.ofSeconds(10))
@@ -77,11 +146,16 @@ public class SolapiSmsSender implements SmsSender {
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                     .build();
             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (res.statusCode() / 100 == 2) {
-                return SmsResult.sent(extract(res.body(), "messageId"), channel);
+            if (res.statusCode() / 100 != 2) {
+                // 대행사 오류 본문에 사유가 담긴다(잔액 부족·미등록 발신번호 등) — 화면에 그대로 보여줘야 조치가 된다.
+                return SmsResult.failed("HTTP " + res.statusCode() + " " + cut(res.body(), 300), channel);
             }
-            // 대행사 오류 본문에 사유가 담긴다(잔액 부족·미등록 발신번호 등) — 화면에 그대로 보여줘야 조치가 된다.
-            return SmsResult.failed("HTTP " + res.statusCode() + " " + cut(res.body(), 300), channel);
+            String status = extract(res.body(), "statusCode");
+            if (status != null && !status.startsWith("2")) {
+                String message = extract(res.body(), "statusMessage");
+                return SmsResult.failed(status + " " + (message == null ? cut(res.body(), 200) : message), channel);
+            }
+            return SmsResult.sent(extract(res.body(), "messageId"), channel);
         } catch (Exception e) {
             return SmsResult.failed(e.getClass().getSimpleName() + ": " + e.getMessage(), channel);
         }

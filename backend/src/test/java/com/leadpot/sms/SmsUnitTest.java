@@ -1,6 +1,8 @@
 package com.leadpot.sms;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -186,7 +188,7 @@ class SmsUnitTest {
     class LeadPhone {
 
         /** leadPhone 은 저장소를 쓰지 않는 순수 계산이라 의존성 없이 검증한다. */
-        private final LeadSmsPlanner planner = new LeadSmsPlanner(null, null, "https://app.lead-pot.com");
+        private final LeadSmsPlanner planner = new LeadSmsPlanner(null, null, null, "https://app.lead-pot.com");
 
         private Form formWith(FormBlock... blocks) {
             Form f = new Form(1L, "상담", FormType.BASIC);
@@ -296,6 +298,83 @@ class SmsUnitTest {
         void 첨부가_없으면_길이로_판정한다() {
             assertEquals("SMS", SolapiSmsSender.channelOf("짧은 문자", null));
             assertEquals("LMS", SolapiSmsSender.channelOf("가".repeat(46), "  "));
+        }
+    }
+
+    @Nested
+    @DisplayName("알림톡 — 마케터·광고주 접수 알림")
+    class Alimtalk {
+
+        private final SolapiSmsSender sender = new SolapiSmsSender();
+        private final SmsCredentials cred = new SmsCredentials("key", "secret", "025556666", true);
+
+        /** 저장소를 쓰지 않는 순수 계산이라 의존성 없이 검증한다(leadPhone 과 같은 이유). */
+        private final LeadSmsPlanner planner = new LeadSmsPlanner(null, null, null, "https://app.lead-pot.com");
+
+        private Form form(String name) {
+            return new Form(1L, name, FormType.BASIC);
+        }
+
+        @Test
+        void 변수명은_카카오_승인본과_한_글자도_달라선_안_된다() {
+            // 여기가 어긋나면 발송이 통째로 실패한다. 승인본은 docs/MESSAGING-PLAN.md §9.
+            Map<String, String> v = planner.variables("마케터", form("개인회생 상담"), lead(), 3);
+            assertThat(v).containsOnlyKeys("#{담당역할}", "#{리드폼}", "#{접수시각}", "#{미확인건수}");
+            assertEquals("마케터", v.get("#{담당역할}"));
+            assertEquals("개인회생 상담", v.get("#{리드폼}"));
+            assertEquals("3", v.get("#{미확인건수}"));
+        }
+
+        @Test
+        void 빈_값이_하나도_없어야_한다() {
+            // 대행사는 치환값이 빈 변수가 있으면 그 건을 실패 처리한다.
+            Map<String, String> v = planner.variables("광고주", form("  "), lead(), 0);
+            assertThat(v.values()).noneMatch(s -> s == null || s.isBlank());
+            assertEquals("리드폼", v.get("#{리드폼}"));
+            // 새 리드 알림에 "0건"이 찍히면 명백히 틀려 보인다.
+            assertEquals("1", v.get("#{미확인건수}"));
+        }
+
+        @Test
+        void 채널_템플릿이_없으면_호출도_하지_않고_실패한다() {
+            SmsSender.SmsResult r = sender.sendAlimtalk(cred, "01011112222",
+                    new SmsSender.Alimtalk("", "KA01TP…", Map.of()), "대체 문구");
+            assertFalse(r.ok());
+            assertEquals(SmsPermissions.ATA, r.channel());
+            assertThat(r.error()).contains("설정되지");
+        }
+
+        @Test
+        void 수신번호가_틀리면_실패한다() {
+            SmsSender.SmsResult r = sender.sendAlimtalk(cred, "번호아님",
+                    new SmsSender.Alimtalk("KA01PF…", "KA01TP…", Map.of()), "대체 문구");
+            assertFalse(r.ok());
+            assertEquals(SmsPermissions.ATA, r.channel());
+        }
+
+        @Test
+        void 지원하지_않는_대행사는_실패로_돌려준다() {
+            // 인터페이스 기본 구현 — 알리고 등을 붙일 때 조용히 성공으로 처리되면 안 된다.
+            SmsSender other = new SmsSender() {
+                @Override
+                public String provider() {
+                    return "other";
+                }
+
+                @Override
+                public SmsResult send(SmsCredentials c, String to, String text, String imageId) {
+                    return SmsResult.sent("X", "SMS");
+                }
+
+                @Override
+                public UploadResult upload(SmsCredentials c, byte[] jpeg, String name) {
+                    return UploadResult.failed("미지원");
+                }
+            };
+            SmsSender.SmsResult r = other.sendAlimtalk(cred, "01011112222",
+                    new SmsSender.Alimtalk("KA01PF…", "KA01TP…", Map.of()), "대체 문구");
+            assertFalse(r.ok());
+            assertEquals(SmsPermissions.ATA, r.channel());
         }
     }
 }
