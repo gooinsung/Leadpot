@@ -38,13 +38,22 @@ public class SmsService {
     private final String systemApiSecret;
     private final String systemSenderPhone;
 
+    /**
+     * 알림톡 채널·템플릿. 자격증명은 아니지만(이것만으로는 못 보낸다) 값이 바뀔 수 있어 같이 환경변수로 둔다 —
+     * 템플릿을 재심사해 새 id 를 받아도 재배포 없이 교체된다.
+     */
+    private final String alimtalkPfId;
+    private final String alimtalkTemplateId;
+
     public SmsService(SmsSender sender,
             UserRepository userRepository,
             MessageLogRepository logRepository,
             MessageLogWriter logWriter,
             @Value("${app.sms.solapi.api-key:}") String systemApiKey,
             @Value("${app.sms.solapi.api-secret:}") String systemApiSecret,
-            @Value("${app.sms.solapi.sender-phone:}") String systemSenderPhone) {
+            @Value("${app.sms.solapi.sender-phone:}") String systemSenderPhone,
+            @Value("${app.sms.solapi.pf-id:}") String alimtalkPfId,
+            @Value("${app.sms.solapi.ata-template-id:}") String alimtalkTemplateId) {
         this.sender = sender;
         this.userRepository = userRepository;
         this.logRepository = logRepository;
@@ -52,31 +61,46 @@ public class SmsService {
         this.systemApiKey = systemApiKey;
         this.systemApiSecret = systemApiSecret;
         this.systemSenderPhone = systemSenderPhone;
+        this.alimtalkPfId = alimtalkPfId;
+        this.alimtalkTemplateId = alimtalkTemplateId;
     }
 
-    /** 발송 요청 한 건. 트랜잭션 밖(비동기 스레드)으로 넘길 수 있는 불변 스냅샷이다. */
+    /**
+     * 발송 요청 한 건. 트랜잭션 밖(비동기 스레드)으로 넘길 수 있는 불변 스냅샷이다.
+     *
+     * @param text              문자 본문. 알림톡으로 나가는 요청에서도 채워 둔다 —
+     *                          알림톡 설정이 없으면 이 본문이 문자로 나가는 폴백이 된다
+     * @param alimtalkVariables 값이 있으면 <b>알림톡 후보</b>다(실제 채널은 {@link #useAlimtalk} 가 정한다).
+     *                          키는 {@code "#{담당역할}"} 형태
+     */
     public record SmsRequest(Long ownerId, String to, String text, String recipientType,
             Long formId, Long leadId, Long ruleId, Long templateId, String senderPhoneOverride,
-            String imageId) {
+            String imageId, java.util.Map<String, String> alimtalkVariables) {
 
         public static SmsRequest to(Long ownerId, String to, String text, String recipientType) {
-            return new SmsRequest(ownerId, to, text, recipientType, null, null, null, null, null, null);
+            return new SmsRequest(ownerId, to, text, recipientType, null, null, null, null, null, null, null);
         }
 
         public SmsRequest forLead(Long formId, Long leadId) {
             return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId,
-                    senderPhoneOverride, imageId);
+                    senderPhoneOverride, imageId, alimtalkVariables);
         }
 
         public SmsRequest withSenderPhone(String phone) {
             return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId, phone,
-                    imageId);
+                    imageId, alimtalkVariables);
         }
 
         /** 첨부 이미지(대행사 fileId)를 붙인다 — 붙으면 MMS 로 나간다. */
         public SmsRequest withImage(String imageId) {
             return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId,
-                    senderPhoneOverride, imageId);
+                    senderPhoneOverride, imageId, alimtalkVariables);
+        }
+
+        /** 알림톡으로 보낼 변수를 붙인다(마케터·광고주 접수 알림). */
+        public SmsRequest withAlimtalk(java.util.Map<String, String> variables) {
+            return new SmsRequest(ownerId, to, text, recipientType, formId, leadId, ruleId, templateId,
+                    senderPhoneOverride, imageId, variables);
         }
     }
 
@@ -86,7 +110,8 @@ public class SmsService {
      * @return 남긴 이력(상태 확인용)
      */
     public MessageLog send(SmsRequest req) {
-        String channel = SolapiSmsSender.channelOf(req.text(), req.imageId());
+        boolean alimtalk = useAlimtalk(req);
+        String channel = alimtalk ? SmsPermissions.ATA : SolapiSmsSender.channelOf(req.text(), req.imageId());
         SmsCredentials cred = resolveCredentials(req.ownerId(), req.senderPhoneOverride());
 
         // 계정 권한(V25)을 가장 먼저 본다.
@@ -110,7 +135,11 @@ public class SmsService {
             return skip(req, channel, "수신번호가 없거나 형식이 올바르지 않습니다.");
         }
 
-        SmsSender.SmsResult result = sender.send(cred, req.to(), req.text(), req.imageId());
+        SmsSender.SmsResult result = alimtalk
+                ? sender.sendAlimtalk(cred, req.to(),
+                        new SmsSender.Alimtalk(alimtalkPfId, alimtalkTemplateId, req.alimtalkVariables()),
+                        req.text())
+                : sender.send(cred, req.to(), req.text(), req.imageId());
         MessageLog entry = base(req, result.channel(),
                 result.ok() ? MessageLog.STATUS_SENT : MessageLog.STATUS_FAILED, cred.system());
         entry.setProviderMessageId(result.providerMessageId());
@@ -129,6 +158,29 @@ public class SmsService {
             return SmsSender.UploadResult.failed("문자 발송 설정이 없습니다. 발신번호·API 키를 확인해주세요.");
         }
         return sender.upload(cred, jpeg, name);
+    }
+
+    // ---------- 알림톡 ----------
+
+    /**
+     * 이 요청을 알림톡으로 보낼 것인가.
+     *
+     * <p>변수를 담아 온 요청이라도 <b>채널·템플릿 환경변수가 없으면 기존 문자로 나간다</b>.
+     * 이 폴백 덕분에 ① 코드가 설정보다 먼저 배포돼도 알림이 끊기지 않고
+     * ② 문제가 생기면 VM 의 env 두 줄만 지우고 재기동하면 즉시 문자로 되돌아간다(재배포 불필요).
+     */
+    private boolean useAlimtalk(SmsRequest req) {
+        return req.alimtalkVariables() != null && !req.alimtalkVariables().isEmpty()
+                && notBlank(alimtalkPfId) && notBlank(alimtalkTemplateId);
+    }
+
+    /** 알림톡을 보낼 수 있는 설정이 갖춰졌는가(화면 안내용). */
+    public boolean alimtalkConfigured() {
+        return notBlank(alimtalkPfId) && notBlank(alimtalkTemplateId);
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     // ---------- 자격증명 ----------

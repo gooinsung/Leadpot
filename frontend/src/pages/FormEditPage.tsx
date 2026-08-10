@@ -927,7 +927,7 @@ export function FormEditPage() {
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }} {...sec("sms")}>
-              <SectionHead title="문자 발송 (이 리드폼)" open={!collapsed.sms} onToggle={() => toggleSection("sms")} />
+              <SectionHead title="접수 알림 발송 (이 리드폼)" open={!collapsed.sms} onToggle={() => toggleSection("sms")} />
               {/* 권한이 없으면 켜봐야 서버가 저장 시점에 다시 꺼버린다(FormService.sanitizeSmsSettings).
                   그러면 "켰는데 안 나간다"가 되므로, 아예 잠그고 이유를 먼저 보여준다. */}
               {smsBlocked ? (
@@ -943,10 +943,11 @@ export function FormEditPage() {
               )}
 
               <label className="fr-check">
-                <input type="checkbox" disabled={smsBlocked} checked={smsMarketerEnabled} onChange={(e) => toggleSmsMarketer(e.target.checked)} /> 나(마케터)에게 접수 문자 받기
+                <input type="checkbox" disabled={smsBlocked} checked={smsMarketerEnabled} onChange={(e) => toggleSmsMarketer(e.target.checked)} /> 나(마케터)에게 접수 <b>알림톡</b> 받기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
-                개인정보는 넣지 않고 <b>접수 사실과 리드폼 이름만</b> 보냅니다.
+                개인정보는 넣지 않고 <b>접수 사실·리드폼 이름·미확인 건수만</b> 카카오톡으로 보냅니다.
+                본문은 카카오 심사본으로 고정이라 편집할 수 없습니다.
               </p>
               {smsMarketerEnabled && (
                 <label className="field" style={{ maxWidth: 320, marginTop: 10 }}>
@@ -965,7 +966,7 @@ export function FormEditPage() {
               )}
 
               <label className="fr-check" style={{ marginTop: 14 }}>
-                <input type="checkbox" disabled={smsBlocked} checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 광고주에게 접수 알림 보내기
+                <input type="checkbox" disabled={smsBlocked} checked={smsAdvertiserEnabled} onChange={(e) => setSmsAdvertiserEnabled(e.target.checked)} /> 광고주에게 접수 <b>알림톡</b> 보내기
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
                 <b>여기서 켜기만 하고, 받을 번호는 광고주가 직접 등록합니다.</b> 남의 번호를 대신 넣으면

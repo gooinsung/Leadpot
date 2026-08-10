@@ -120,7 +120,20 @@ class SmsPermissionsTest {
             assertThat(SolapiSmsSender.channelOf("짧은 본문")).isIn(SmsPermissions.CHANNELS.toArray());
             assertThat(SolapiSmsSender.channelOf("가".repeat(200))).isIn(SmsPermissions.CHANNELS.toArray());
             assertThat(SolapiSmsSender.channelOf("본문", "file-id")).isEqualTo("MMS");
-            assertThat(SmsPermissions.CHANNELS).isEqualTo(List.of("SMS", "LMS", "MMS"));
+            // ATA(알림톡)만 본문 길이가 아니라 수신자 유형으로 정해지므로 channelOf 가 돌려주지 않는다.
+            assertThat(SmsPermissions.CHANNELS).isEqualTo(List.of("SMS", "LMS", "MMS", SmsPermissions.ATA));
+        }
+
+        @Test
+        void 알림톡_채널도_허용목록으로_통제된다() {
+            // 기존 계정은 CSV 에 ATA 가 없다 — 관리자가 켜기 전까지 막혀야 한다(조용히 열리면 안 된다).
+            User onlySms = user(true, "SMS,LMS,MMS", -1);
+            assertThat(SmsPermissions.channelAllowed(onlySms, SmsPermissions.ATA)).isFalse();
+            assertThat(SmsPermissions.denyReason(onlySms, SmsPermissions.ATA, 0)).contains("ATA");
+
+            User withAta = user(true, "SMS,ATA", -1);
+            assertThat(SmsPermissions.channelAllowed(withAta, SmsPermissions.ATA)).isTrue();
+            assertThat(SmsPermissions.normalizeChannels("ata,sms")).isEqualTo("SMS,ATA");
         }
     }
 }

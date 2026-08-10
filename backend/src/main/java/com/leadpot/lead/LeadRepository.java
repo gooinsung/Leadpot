@@ -30,6 +30,12 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 실시간 폴링(A6): 특정 시각 이후 접수된 활성 리드 수(광고주 새 리드 감지용).
     long countByFormIdAndDeletedAtIsNullAndCreatedAtAfter(Long formId, java.time.Instant after);
 
+    // 알림톡 #{미확인건수} — 이 리드폼의 마케터 미확인 수(V32 seen_at). 접수 알림에 함께 실어 보낸다.
+    long countByFormIdAndDeletedAtIsNullAndSeenAtIsNull(Long formId);
+
+    // 알림톡 #{미확인건수} — 광고주용. 마케터 열람과 독립된 축이다(advertiser_seen_at).
+    long countByFormIdAndDeletedAtIsNullAndAdvertiserSeenAtIsNull(Long formId);
+
     // 커스텀 상태 삭제 가능 판정(V29) — 휴지통 리드도 복원될 수 있으므로 함께 센다.
     boolean existsByCustomStatusId(Long customStatusId);
 

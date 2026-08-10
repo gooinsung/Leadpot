@@ -26,13 +26,15 @@ import { toast } from "../lib/toast";
  * 데스크톱 우선 화면이다(공개 화면이 아니므로 모바일 퍼스트 대상이 아니다). 다만 표는
  * `card-table`(overflow-x:auto)을 써서 좁은 화면에서 페이지가 넓어지지 않게 한다.
  */
-const CHANNELS: SmsChannel[] = ["SMS", "LMS", "MMS"];
+const CHANNELS: SmsChannel[] = ["SMS", "LMS", "MMS", "ATA"];
 
 /** 채널별 참고 단가(2026-08-04 솔라피 공개 페이지). ⚠️ 실제 청구 단가는 확인이 필요하다. */
 const CHANNEL_HINT: Record<SmsChannel, string> = {
   SMS: "단문 · 약 18원",
   LMS: "장문(90byte 초과) · 약 45원",
   MMS: "첨부 포함 · 약 110원",
+  // 기존 계정에는 이 채널이 꺼져 있다 — 켜 주기 전까지 마케터·광고주 알림이 나가지 않는다.
+  ATA: "알림톡(마케터·광고주 알림) · 약 13원",
 };
 
 export function AdminUsersPage() {
