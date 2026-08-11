@@ -28,7 +28,8 @@
 
 **A를 고른 이유**
 1. 플랫폼 승인이 **필요 없다** — 우리 코드만으로 완결된다.
-2. 우리가 이미 하는 아웃바운드(`settingsConfig.sheetsWebhookUrl` → Apps Script)의 **역방향**이라 개념이 일관된다.
+2. 우리가 이미 하는 아웃바운드(`settingsConfig.sheetsSpreadsheetId` → Sheets API)의 **역방향**이라 개념이 일관된다.
+   (2026-08-11 이전에는 아웃바운드가 Apps Script 웹훅이었다 — 서비스 계정으로 교체됨.)
 3. **나중에 C로 갈아끼울 때 인바운드 수신부를 그대로 재사용**한다 — 바뀌는 건 앞단(누가 POST 하는가)뿐이다.
 
 **C는 언젠가 해야 한다.** 시트를 거치지 않아 지연이 수초고, 고객이 스크립트를 설치할 필요가 없다.
@@ -103,7 +104,9 @@ Google 공식 문서 표현: *"Script executions and API requests don't cause tr
 
 시크릿 없이 열면 **아무나 우리 리드폼에 리드를 밀어넣을 수 있다**(문자까지 나간다).
 - 리드폼별 시크릿을 발급하고 Apps Script 가 헤더/본문에 실어 보낸다.
-- 우리는 아웃바운드에서 이미 `settingsConfig.sheetsSecret` 을 쓰고 있다 — **방향만 반대인 같은 개념**이다.
+- ~~우리는 아웃바운드에서 이미 `settingsConfig.sheetsSecret` 을 쓰고 있다~~ — **2026-08-11 삭제됨**.
+  아웃바운드가 서비스 계정 방식이 되면서 공유 시크릿이 필요 없어졌다(구글이 인증한다).
+  인바운드는 여전히 시크릿이 필요하다 — 여기서 처음 만들어야 한다.
 - 시크릿 노출 시 **재발급**이 가능해야 한다.
 - 요청량 제한(rate limit)도 필요하다 — 잘못 만든 스크립트가 1분마다 수천 행을 밀어넣을 수 있다.
 
@@ -181,7 +184,7 @@ Google 공식 문서 표현: *"Script executions and API requests don't cause tr
 
 | 있는 것 | 어디에 쓰나 |
 |---|---|
-| `settingsConfig.sheetsWebhookUrl`·`sheetsSecret` (아웃바운드) | 인바운드 시크릿의 **같은 개념·반대 방향** |
+| `GoogleSheetsClient` (아웃바운드·서비스 계정) | 인바운드도 같은 서비스 계정으로 시트를 **읽으면** 된다(폴링 B안) |
 | `LeadService.stampVarKeys` | 매핑된 답변에 varKey 심기 |
 | `NotificationService.notifyNewLead` | 문자·텔레그램·시트·광고주 알림 일괄 |
 | `LeadSmsPlanner` | 수신자·본문 결정 |

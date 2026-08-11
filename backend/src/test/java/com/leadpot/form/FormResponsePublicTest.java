@@ -15,16 +15,18 @@ import com.leadpot.form.dto.FormResponse;
  * 공개 응답에 운영 설정이 섞여 나가지 않는지 지키는 테스트.
  *
  * <p>공개 랜딩·공개 리드폼 응답은 <b>비로그인 누구나</b> 받아볼 수 있다. 여기에 리드폼의
- * {@code settingsConfig} 가 담기면 구글시트 시크릿·알림 수신번호·고객 문자 본문이 그대로 유출된다.
- * (2026-08-10 발견 — 시트 연동을 켜는 순간 시크릿이 공개되는 상태였다.)
+ * {@code settingsConfig} 가 담기면 알림 수신번호·고객 문자 본문·연동 시트 주소가 그대로 유출된다.
+ * (2026-08-10 발견 — 당시엔 시트 연동을 켜는 순간 시트 시크릿이 공개되는 상태였다.
+ *  시트 연동은 2026-08-11 서비스 계정 방식으로 바뀌어 시크릿 자체가 없어졌지만,
+ *  운영 설정을 공개 응답에서 빼는 원칙은 그대로다.)
  */
 class FormResponsePublicTest {
 
     private static Form formWithSecrets() {
         Form form = new Form(1L, "테스트 리드폼", FormType.BASIC);
         form.setSettingsConfig(Map.of(
-                "sheetsWebhookUrl", "https://script.google.com/macros/s/AAA/exec",
-                "sheetsSecret", "super-secret",
+                "sheetsSpreadsheetId", "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
+                "sheetsTabName", "리드",
                 "smsMarketerPhone", "01012345678",
                 "smsLeadBody", "{{f1}} 님 접수되었습니다"));
         form.setStyleConfig(Map.of("accentColor", "#3a43c0"));
@@ -58,6 +60,6 @@ class FormResponsePublicTest {
         FormResponse res = FormResponse.from(formWithSecrets());
 
         assertNotNull(res.settingsConfig(), "편집 화면이 읽어야 하므로 소유자 응답에는 남아야 한다");
-        assertEquals("super-secret", res.settingsConfig().get("sheetsSecret"));
+        assertEquals("01012345678", res.settingsConfig().get("smsMarketerPhone"));
     }
 }

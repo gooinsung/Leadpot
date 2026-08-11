@@ -109,6 +109,18 @@ function loadCollapsed(): Record<string, boolean> {
 }
 
 /**
+ * 구글시트 주소에서 시트 ID 만 뽑는다. 사용자는 보통 주소창을 통째로 붙여넣는다:
+ * `https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0` → `<ID>`
+ * ID 를 그대로 넣었으면 그대로 둔다. 알아볼 수 없으면 입력값을 그대로 돌려줘 서버가 판단하게 한다.
+ * (백엔드 `GoogleSheetsClient.extractSpreadsheetId` 와 같은 규칙)
+ */
+function extractSpreadsheetId(input: string): string {
+  const s = input.trim();
+  const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return m ? m[1] : s;
+}
+
+/**
  * 카드 제목 겸 접기 버튼.
  * 내용 숨김은 CSS 가 한다 — 카드에 `data-collapsed="true"` 면 제목 외 자식을 감춘다.
  * (JSX 구조를 건드리지 않으려는 의도적 선택 — styles/features/form-builder.css 참고)
@@ -241,8 +253,9 @@ export function FormEditPage() {
   const [smsLeadImageId, setSmsLeadImageId] = useState("");
   const [smsAttachPreview, setSmsAttachPreview] = useState("");
   const [smsAttachBusy, setSmsAttachBusy] = useState(false);
-  const [sheetsWebhookUrl, setSheetsWebhookUrl] = useState("");
-  const [sheetsSecret, setSheetsSecret] = useState("");
+  // 구글시트: 시트 ID(주소를 붙여넣으면 ID 만 뽑아 저장) + 탭 이름(비우면 맨 앞 탭).
+  const [sheetsSpreadsheetId, setSheetsSpreadsheetId] = useState("");
+  const [sheetsTabName, setSheetsTabName] = useState("");
   const [sheetTest, setSheetTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [sheetTesting, setSheetTesting] = useState(false);
   const [tracking, setTracking] = useState<Record<string, unknown> | null>(null); // 광고 픽셀
@@ -330,8 +343,8 @@ export function FormEditPage() {
             : savedMarketerPhone,
         );
         setSmsLeadImageId((f.settingsConfig?.smsLeadImageId as string) || "");
-        setSheetsWebhookUrl((f.settingsConfig?.sheetsWebhookUrl as string) || "");
-        setSheetsSecret((f.settingsConfig?.sheetsSecret as string) || "");
+        setSheetsSpreadsheetId((f.settingsConfig?.sheetsSpreadsheetId as string) || "");
+        setSheetsTabName((f.settingsConfig?.sheetsTabName as string) || "");
         setTracking(f.trackingConfig ?? null);
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
@@ -526,8 +539,8 @@ export function FormEditPage() {
       // smsAdvertiserPhone 은 더 이상 보내지 않는다 — 광고주가 포털에서 직접 등록한다(V28).
       // 기존에 저장된 값은 서버가 읽지 않으므로 발송에 쓰이지 않는다.
       smsLeadImageId,
-      sheetsWebhookUrl: sheetsWebhookUrl.trim(),
-      sheetsSecret: sheetsSecret.trim(),
+      sheetsSpreadsheetId: extractSpreadsheetId(sheetsSpreadsheetId),
+      sheetsTabName: sheetsTabName.trim(),
     },
     trackingConfig: tracking ?? undefined,
     blocks: builtBlocks,
@@ -1093,30 +1106,31 @@ export function FormEditPage() {
                 <input type="checkbox" checked={sheetsEnabled} onChange={(e) => setSheetsEnabled(e.target.checked)} /> 이 리드폼의 리드를 구글시트로 자동 기록
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
-                리드폼마다 다른 시트로 보낼 수 있습니다. 시트 준비(Apps Script) 방법은 <Link to="/integrations">연동</Link> 메뉴 참고.
+                리드폼마다 다른 시트로 보낼 수 있습니다. 시트 준비 방법(서비스 계정을 편집자로 추가)은 <Link to="/integrations">연동</Link> 메뉴 참고.
               </p>
               {sheetsEnabled && (
                 <div className="form-grid" style={{ display: "grid", gap: 12, maxWidth: 620, marginTop: 8 }}>
                   <label className="field">
-                    <span className="field-label">Apps Script 웹앱 URL</span>
+                    <span className="field-label">구글시트 주소</span>
                     <input
                       className="input"
-                      value={sheetsWebhookUrl}
-                      onChange={(e) => setSheetsWebhookUrl(e.target.value)}
-                      placeholder="https://script.google.com/macros/s/.../exec"
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">시트 시크릿 키 (선택 · 권장)</span>
-                    <input
-                      className="input"
-                      value={sheetsSecret}
-                      onChange={(e) => setSheetsSecret(e.target.value)}
-                      placeholder="Apps Script 의 SECRET 과 동일한 값"
+                      value={sheetsSpreadsheetId}
+                      onChange={(e) => setSheetsSpreadsheetId(e.target.value)}
+                      onBlur={(e) => setSheetsSpreadsheetId(extractSpreadsheetId(e.target.value))}
+                      placeholder="https://docs.google.com/spreadsheets/d/... (주소 그대로 붙여넣기)"
                     />
                     <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
-                      웹앱 URL 은 로그인 없이 열려 있어, 이 키를 넣고 코드의 <code>SECRET</code> 에 같은 값을 넣으면 키가 맞는 요청만 시트에 기록됩니다. (개인정보 보호)
+                      주소를 붙여넣으면 시트 ID 만 저장됩니다. 그 시트의 <b>공유</b>에 <Link to="/integrations">연동</Link> 메뉴의 서비스 계정 이메일이 <b>편집자</b>로 추가돼 있어야 합니다.
                     </span>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">탭 이름 (선택)</span>
+                    <input
+                      className="input"
+                      value={sheetsTabName}
+                      onChange={(e) => setSheetsTabName(e.target.value)}
+                      placeholder="비우면 맨 앞 탭에 기록"
+                    />
                   </label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <button
@@ -1136,7 +1150,7 @@ export function FormEditPage() {
                     )}
                   </div>
                   <span className="dash-sub" style={{ fontSize: 12 }}>
-                    ※ 방금 바꾼 URL/시크릿으로 테스트하려면 <b>먼저 저장</b>하세요(테스트는 저장된 값 기준).
+                    ※ 방금 바꾼 주소/탭으로 테스트하려면 <b>먼저 저장</b>하세요(테스트는 저장된 값 기준).
                   </span>
                 </div>
               )}

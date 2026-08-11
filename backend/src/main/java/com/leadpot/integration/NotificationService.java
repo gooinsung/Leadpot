@@ -33,7 +33,7 @@ import com.leadpot.lead.Lead;
 import jakarta.annotation.PreDestroy;
 
 /**
- * 새 리드 알림/전송(외부 연동). 텔레그램 봇 메시지 + 구글시트 Apps Script 웹훅 POST.
+ * 새 리드 알림/전송(외부 연동). 텔레그램 봇 메시지 + 구글시트 행 추가(Sheets API).
  * 리드 접수를 절대 방해하지 않도록 <b>커밋 이후 비동기</b>로 보내고 모든 예외를 삼킨다(best-effort).
  */
 @Service
@@ -49,13 +49,14 @@ public class NotificationService {
     private final AdvertiserFormGrantRepository grantRepository;
     private final UserRepository userRepository;
     private final NotificationLogWriter logWriter;
+    private final GoogleSheetsClient sheetsClient;
     private final com.leadpot.sms.LeadSmsPlanner smsPlanner;
     private final com.leadpot.sms.SmsService smsService;
     /** 광고주 알림 메시지의 리드 상세 딥링크에 쓰는 공개 앱 주소(끝 슬래시 없이). */
     private final String publicBaseUrl;
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
-            .followRedirects(HttpClient.Redirect.NORMAL) // Apps Script 웹앱은 302 리다이렉트를 사용한다
+            .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
     private final ExecutorService executor = Executors.newFixedThreadPool(2, r -> {
         Thread t = new Thread(r, "lead-notify");
@@ -66,6 +67,7 @@ public class NotificationService {
     public NotificationService(IntegrationSettingsRepository settingsRepository,
             AdvertiserFormGrantRepository grantRepository, UserRepository userRepository,
             NotificationLogWriter logWriter,
+            GoogleSheetsClient sheetsClient,
             com.leadpot.sms.LeadSmsPlanner smsPlanner,
             com.leadpot.sms.SmsService smsService,
             @Value("${app.public-base-url:https://app.lead-pot.com}") String publicBaseUrl) {
@@ -73,6 +75,7 @@ public class NotificationService {
         this.grantRepository = grantRepository;
         this.userRepository = userRepository;
         this.logWriter = logWriter;
+        this.sheetsClient = sheetsClient;
         this.smsPlanner = smsPlanner;
         this.smsService = smsService;
         this.publicBaseUrl = trimTrailingSlash(publicBaseUrl);
@@ -107,7 +110,7 @@ public class NotificationService {
                 for (Dispatch d : dispatches) {
                     String err = CHANNEL_TELEGRAM.equals(d.channel())
                             ? sendTelegram(d.token(), d.chatId(), d.payload())
-                            : sendSheets(d.url(), d.payload());
+                            : sendSheets(d.sheetsRow());
                     if (err != null) {
                         log.warn("리드 알림 실패(channel={}, recipient={}): {}", d.channel(), d.recipientUserId(), err);
                     }
@@ -138,7 +141,7 @@ public class NotificationService {
             if (telegramReady(owner)) {
                 // AS 는 돈이 걸린 분쟁이라 폼별 접수알림 토글(notifyEnabled)과 무관하게 보낸다.
                 dispatches.add(new Dispatch(form.getOwnerId(), CHANNEL_TELEGRAM, owner.getTelegramBotToken(),
-                        owner.getTelegramChatId(), null, buildAsRequestText(form, lead, reason)));
+                        owner.getTelegramChatId(), buildAsRequestText(form, lead, reason), null));
             }
             String smsTo = marketerPhone(form);
             com.leadpot.sms.SmsService.SmsRequest sms = smsTo == null ? null
@@ -185,8 +188,19 @@ public class NotificationService {
         return to == null || to.isBlank() ? null : to;
     }
 
-    /** 발송 한 건(채널·수신자·페이로드). 비동기 스레드에 넘길 불변 스냅샷. */
-    record Dispatch(Long recipientUserId, String channel, String token, String chatId, String url, String payload) {
+    /**
+     * 발송 한 건(채널·수신자·페이로드). 비동기 스레드에 넘길 불변 스냅샷.
+     * 텔레그램은 {@code payload}(본문), 구글시트는 {@code sheetsRow} 를 쓴다.
+     */
+    record Dispatch(Long recipientUserId, String channel, String token, String chatId, String payload,
+            SheetsRow sheetsRow) {
+    }
+
+    /**
+     * 시트에 넣을 한 행. {@code header} 는 <b>시트가 비어 있을 때만</b> 첫 행으로 들어간다
+     * (예전 Apps Script 와 같은 동작 — 사용자 확정 2026-08-11).
+     */
+    record SheetsRow(String spreadsheetId, String tabName, List<Object> header, List<Object> values) {
     }
 
     /**
@@ -201,16 +215,13 @@ public class NotificationService {
         IntegrationSettings owner = settingsRepository.findById(form.getOwnerId()).orElse(null);
         if (formTelegramEnabled(form) && telegramReady(owner)) {
             out.add(new Dispatch(form.getOwnerId(), CHANNEL_TELEGRAM, owner.getTelegramBotToken(),
-                    owner.getTelegramChatId(), null, buildTelegramText(form, lead, duplicate)));
+                    owner.getTelegramChatId(), buildTelegramText(form, lead, duplicate), null));
         }
 
-        // ① 구글시트 — 리드폼별 설정(settingsConfig)
-        Map<String, Object> fs = form.getSettingsConfig();
-        String webhookUrl = fs == null ? "" : str(fs.get("sheetsWebhookUrl"));
-        String sheetSecret = fs == null ? "" : str(fs.get("sheetsSecret"));
-        if (fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled")) && notBlank(webhookUrl)) {
-            out.add(new Dispatch(form.getOwnerId(), CHANNEL_SHEETS, null, null, webhookUrl,
-                    buildSheetsBody(form, lead, sheetSecret)));
+        // ① 구글시트 — 리드폼별 설정(settingsConfig). 시트 ID 는 서비스 계정이 편집자로 들어간 시트다.
+        if (sheetsActive(form)) {
+            out.add(new Dispatch(form.getOwnerId(), CHANNEL_SHEETS, null, null, null,
+                    buildSheetsRow(form, lead)));
         }
 
         // ② 광고주 텔레그램 — 유효한 권한 + 활성 광고주 + 본인 계정 채널. 마케터의 폼별 토글과 독립적이다.
@@ -221,7 +232,7 @@ public class NotificationService {
                 IntegrationSettings advSettings = settingsRepository.findById(adv.getId()).orElse(null);
                 if (telegramReady(advSettings)) {
                     out.add(new Dispatch(adv.getId(), CHANNEL_TELEGRAM, advSettings.getTelegramBotToken(),
-                            advSettings.getTelegramChatId(), null, buildAdvertiserTelegramText(grant, form, lead)));
+                            advSettings.getTelegramChatId(), buildAdvertiserTelegramText(grant, form, lead), null));
                 }
             }
         }
@@ -235,7 +246,8 @@ public class NotificationService {
 
     private boolean sheetsActive(Form form) {
         Map<String, Object> fs = form.getSettingsConfig();
-        return fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled")) && notBlank(str(fs.get("sheetsWebhookUrl")));
+        return fs != null && Boolean.TRUE.equals(fs.get("sheetsEnabled"))
+                && notBlank(str(fs.get("sheetsSpreadsheetId")));
     }
 
     private static boolean telegramReady(IntegrationSettings s) {
@@ -291,23 +303,12 @@ public class NotificationService {
         }
     }
 
-    /** 구글시트 Apps Script 웹훅으로 JSON POST. 성공 시 null, 실패 시 사유 문자열. */
-    public String sendSheets(String url, String jsonBody) {
-        try {
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(url.trim()))
-                    .timeout(Duration.ofSeconds(8))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                    .build();
-            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (res.statusCode() / 100 == 2) {
-                return null;
-            }
-            return "HTTP " + res.statusCode() + " " + cut(res.body(), 200);
-        } catch (Exception e) {
-            return e.getClass().getSimpleName() + ": " + e.getMessage();
+    /** 구글시트에 한 행 추가(Sheets API·서비스 계정). 성공 시 null, 실패 시 사유 문자열. */
+    public String sendSheets(SheetsRow row) {
+        if (row == null) {
+            return "시트 설정이 비어 있습니다.";
         }
+        return sheetsClient.appendRow(row.spreadsheetId(), row.tabName(), row.header(), row.values());
     }
 
     // ---------- 메시지/페이로드 구성 ----------
@@ -342,40 +343,35 @@ public class NotificationService {
     }
 
     /**
-     * 시트로 보낼 본문. <b>접수일시 · 리드폼 이름 · 입력 답변</b>만 담는다(2026-08-10 사용자 확정).
+     * 시트에 넣을 한 행. <b>접수일시 · 리드폼 이름 · 입력 답변</b>만 담는다(2026-08-10 사용자 확정).
      *
      * <p>예전엔 leadId·상태·중복여부·IP·기기·OS·브라우저·유입경로·UTM 까지 함께 보냈다.
      * 시트는 광고주에게 공유되는 경우가 많아 <b>필요 최소한만</b> 내보내는 편이 낫다 —
      * 방문자 정보가 필요하면 리드 상세·CSV 내보내기에서 본다.
      *
-     * <p>{@code event}·{@code secret} 은 데이터가 아니라 프로토콜이라 그대로 둔다
-     * (스크립트가 시크릿을 대조해 무단 기록을 막는다).
+     * <p>열 순서는 예전 Apps Script 와 같다: {@code 접수일시 · 리드폼 · 답변…}.
+     * 접수일시는 UTC ISO 문자열 대신 <b>한국시간 문자열</b>로 넣는다 —
+     * 시트가 날짜로 알아봐서 정렬·필터가 먹는다(USER_ENTERED).
      */
-    private String buildSheetsBody(Form form, Lead lead, String secret) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("event", "new_lead");
-        if (secret != null && !secret.isBlank()) {
-            payload.put("secret", secret);
-        }
-        payload.put("formName", nn(form.getName()));
-        payload.put("createdAt", (lead.getCreatedAt() != null ? lead.getCreatedAt() : Instant.now()).toString());
-        payload.put("answers", answersMap(lead));
-        return toJson(payload);
+    private SheetsRow buildSheetsRow(Form form, Lead lead) {
+        Map<String, Object> fs = form.getSettingsConfig();
+        Map<String, String> answers = answersMap(lead);
+
+        List<Object> header = new ArrayList<>(List.of("접수일시", "리드폼"));
+        header.addAll(answers.keySet());
+        List<Object> values = new ArrayList<>();
+        values.add(DT.format(lead.getCreatedAt() != null ? lead.getCreatedAt() : Instant.now()));
+        values.add(nn(form.getName()));
+        values.addAll(answers.values());
+
+        return new SheetsRow(str(fs.get("sheetsSpreadsheetId")), str(fs.get("sheetsTabName")), header, values);
     }
 
-    /** 구글시트 연동 테스트용 본문(시크릿 포함). */
-    public String sheetsTestBody(String secret) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("event", "test");
-        if (secret != null && !secret.isBlank()) {
-            payload.put("secret", secret);
-        }
-        payload.put("formName", "Leadpot 연동 테스트");
-        payload.put("createdAt", Instant.now().toString()); // 실제 전송과 같은 모양이어야 열이 맞는다
-        Map<String, Object> answers = new LinkedHashMap<>();
-        answers.put("테스트", "연결 확인");
-        payload.put("answers", answers);
-        return toJson(payload);
+    /** 구글시트 연동 테스트용 한 행. 실제 전송과 같은 모양이어야 열이 맞는다. */
+    public SheetsRow sheetsTestRow(String spreadsheetId, String tabName) {
+        return new SheetsRow(spreadsheetId, tabName,
+                List.of("접수일시", "리드폼", "테스트"),
+                List.of(DT.format(Instant.now()), "Leadpot 연동 테스트", "연결 확인"));
     }
 
     // ---------- 소형 JSON 직렬화(의존성 없이) ----------

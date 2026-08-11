@@ -210,7 +210,7 @@ FormBlock b = new FormBlock();                 // FormBlockDto.toEntity() — id
 - **커밋 후 비동기 발송** — 리드 접수 트랜잭션이 커밋된 뒤에만 발송하는 장치가 이미 있다(롤백 시 발송 안 됨).
 - **리드폼별 on/off 토글** — `settingsConfig.notifyEnabled` 패턴.
 - **R2 파일 업로드** — 명함 등 첨부파일 저장에 재사용(`landing-image/YYYY/MM/DD/` 규칙 참고).
-- **⚠️ 웹훅으로 이미 가능한 것** — `sendSheets()` 는 도메인 제한이 없어 **Make·Zapier Webhook URL 을 넣으면 그대로 동작한다**(리드폼 편집 > 구글시트 웹훅 칸). 급하면 그쪽으로 문자·메일을 우회 발송할 수 있다. 단 리드폼당 1개만·재시도 없음·`new_lead` 이벤트만.
+- **⚠️ ~~웹훅으로 이미 가능한 것~~ (2026-08-11 무효)** — 예전엔 `sendSheets()` 가 임의 URL 로 POST 해서 **Make·Zapier Webhook URL 을 구글시트 칸에 넣으면 우회 발송이 됐다**. 시트 연동을 **서비스 계정 + Sheets API** 로 바꾸면서 그 칸은 이제 **시트 ID 만** 받는다 → **이 우회로는 더 이상 없다.** 범용 웹훅이 필요하면 별도 채널로 새로 만들어야 한다.
 
 ---
 
