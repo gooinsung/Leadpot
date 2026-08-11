@@ -15,6 +15,10 @@ import com.leadpot.lead.LeadStatuses;
  * <li>{@code avgSecondsToSeen} — 접수→최초 열람 평균(초). 열람한 리드 대상. null=열람 이력 없음.</li>
  * <li>{@code avgSecondsToStatus} — 접수→상태 변경 평균(초). 상태를 바꾼 리드 대상. null=변경 이력 없음.</li>
  * <li>{@code unseenRate} — 미확인 비율(0~1).</li>
+ * <li>{@code converted}/{@code conversionRate} — <b>접수 대비 전환</b>. 전환 = 상태가
+ *     {@link LeadStatuses#VALID 유효}인 리드(사용자 확정 2026-08-11).
+ *     ⚠️ 자동 승인이 켜진 리드폼은 신규→유효가 자동이라 이 값이 높게 나온다 —
+ *     "계약 성사율"이 아니라 <b>받은 DB 중 유효 과금 대상 비율</b>로 읽어야 한다.</li>
  * </ul>
  * "첫 상태변경"이 아니라 광고주가 남긴 <b>상태변경 시각</b> 기준이다(대부분 1회라 실질 동일).
  */
@@ -27,6 +31,8 @@ public record AdvertiserReportResponse(
         int seen,
         int unseen,
         double unseenRate,
+        int converted,
+        double conversionRate,
         Long avgSecondsToSeen,
         Long avgSecondsToStatus,
         List<StatusCount> statusCounts) {
@@ -48,6 +54,7 @@ public record AdvertiserReportResponse(
         int seenN = 0;
         long statusSum = 0;
         int statusN = 0;
+        int converted = 0;
 
         // 고정 상태를 정의 순서대로 0 으로 초기화(빈 상태도 표에 보이게). 커스텀은 등장 순서대로 뒤에 붙는다.
         Map<String, Integer> counts = new LinkedHashMap<>();
@@ -59,6 +66,9 @@ public record AdvertiserReportResponse(
         for (Lead l : leads) {
             String key = l.statusKey();
             counts.merge(key, 1, Integer::sum);
+            if (LeadStatuses.VALID.equals(l.getStatus())) {
+                converted++;
+            }
             labels.putIfAbsent(key, LeadStatuses.label(l.getStatus(),
                     l.getCustomStatusId() == null ? null : customNames.get(l.getCustomStatusId())));
             Instant created = l.getCreatedAt();
@@ -74,6 +84,7 @@ public record AdvertiserReportResponse(
         int seen = seenN;
         int unseen = total - seen;
         double unseenRate = total == 0 ? 0 : (double) unseen / total;
+        double conversionRate = total == 0 ? 0 : (double) converted / total;
         Long avgSeen = seenN > 0 ? seenSum / seenN : null;
         Long avgStatus = statusN > 0 ? statusSum / statusN : null;
 
@@ -82,6 +93,6 @@ public record AdvertiserReportResponse(
                 .toList();
 
         return new AdvertiserReportResponse(formId, name, from, to, total, seen, unseen, unseenRate,
-                avgSeen, avgStatus, statusCounts);
+                converted, conversionRate, avgSeen, avgStatus, statusCounts);
     }
 }

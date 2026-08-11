@@ -1557,7 +1557,7 @@ export function getAdvertiserLeadUpdates(formId: number, since?: string): Promis
   return request<AdvertiserLeadUpdates>(`/api/advertiser/leads/updates?formId=${formId}${qs}`);
 }
 
-/** 처리속도 리포트(A7): 접수→열람/상태 평균, 미확인율, 상태 분포. */
+/** 처리속도 리포트(A7): 접수→열람/상태 평균, 미확인율, 전환율, 상태 분포. */
 export interface AdvertiserReport {
   formId: number;
   formName: string;
@@ -1567,6 +1567,10 @@ export interface AdvertiserReport {
   seen: number;
   unseen: number;
   unseenRate: number;
+  /** 전환(=상태가 '유효'인 리드) 건수. */
+  converted: number;
+  /** 접수 대비 전환 비율(0~1). 방문수와 무관하다 — 광고주에게도 보여준다. */
+  conversionRate: number;
   avgSecondsToSeen: number | null;
   avgSecondsToStatus: number | null;
   statusCounts: { status: string; label: string; count: number }[];

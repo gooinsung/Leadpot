@@ -140,6 +140,15 @@ export function AdvertiserReportPage() {
                 <div className="ck-val" style={{ fontSize: 26 }}>{report.total.toLocaleString()}</div>
               </div>
               <div className="card card-pad">
+                <span className="ck-label">전환율</span>
+                <div className="ck-val" style={{ fontSize: 26 }}>
+                  {Math.round(report.conversionRate * 100)}%
+                </div>
+                <span className="dash-sub" style={{ fontSize: 12 }}>
+                  접수 {report.total}건 중 유효 {report.converted}건
+                </span>
+              </div>
+              <div className="card card-pad">
                 <span className="ck-label">미확인율</span>
                 <div className="ck-val" style={{ fontSize: 26 }}>
                   {Math.round(report.unseenRate * 100)}%
@@ -172,6 +181,9 @@ export function AdvertiserReportPage() {
                   </div>
                 ))}
               </div>
+              <p className="dash-sub" style={{ fontSize: 12, marginTop: 12, marginBottom: 0 }}>
+                <b>전환율</b>은 접수한 리드 중 상태가 <b>'유효'</b>인 비율입니다.
+              </p>
             </div>
           </>
         )}

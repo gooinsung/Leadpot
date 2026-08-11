@@ -79,6 +79,9 @@ class AdvertiserReportTest {
         assertThat(r.unseenRate()).isEqualTo(0.5);
         assertThat(r.avgSecondsToSeen()).isEqualTo(120L);
         assertThat(r.avgSecondsToStatus()).isEqualTo(300L);
+        // 전환 = 유효 상태. 2건 중 1건이 유효라 50%.
+        assertThat(r.converted()).isEqualTo(1);
+        assertThat(r.conversionRate()).isEqualTo(0.5);
         // 상태 분포: 유효 1, 신규 1(미변경은 NEW)
         Map<String, Integer> byCode = r.statusCounts().stream()
                 .collect(java.util.stream.Collectors.toMap(
@@ -91,13 +94,42 @@ class AdvertiserReportTest {
     }
 
     @Test
-    @DisplayName("리드가 없으면 평균은 null, 미확인율 0")
+    @DisplayName("리드가 없으면 평균은 null, 미확인율·전환율 0 (0 나누기 금지)")
     void emptyIsSafe() {
         AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
         assertThat(r.total()).isZero();
         assertThat(r.avgSecondsToSeen()).isNull();
         assertThat(r.avgSecondsToStatus()).isNull();
         assertThat(r.unseenRate()).isEqualTo(0);
+        assertThat(r.converted()).isZero();
+        assertThat(r.conversionRate()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("전환은 '유효'만 센다 — 무효·AS요청·신규는 전환이 아니다")
+    void onlyValidCountsAsConversion() {
+        // 유효 2건
+        valid(saveLead());
+        valid(saveLead());
+        // 무효 1건 · AS요청 1건 · 신규 1건 → 전환에서 빠진다
+        status(saveLead(), com.leadpot.lead.LeadStatuses.INVALID);
+        status(saveLead(), com.leadpot.lead.LeadStatuses.AS_REQUESTED);
+        saveLead();
+
+        AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
+
+        assertThat(r.total()).isEqualTo(5);
+        assertThat(r.converted()).isEqualTo(2);
+        assertThat(r.conversionRate()).isEqualTo(0.4);
+    }
+
+    private void valid(Lead l) {
+        status(l, com.leadpot.lead.LeadStatuses.VALID);
+    }
+
+    private void status(Lead l, String status) {
+        l.changeStatus(status, null, l.getCreatedAt().plusSeconds(60));
+        leadRepository.save(l);
     }
 
     @Test

@@ -643,6 +643,11 @@ export function AdvertisersPage() {
                       <div className="ck-val" style={{ fontSize: 22 }}>{report.total.toLocaleString()}</div>
                     </div>
                     <div className="card card-pad">
+                      <span className="ck-label">전환율</span>
+                      <div className="ck-val" style={{ fontSize: 22 }}>{Math.round(report.conversionRate * 100)}%</div>
+                      <span className="dash-sub" style={{ fontSize: 12 }}>유효 {report.converted}건</span>
+                    </div>
+                    <div className="card card-pad">
                       <span className="ck-label">미확인율</span>
                       <div className="ck-val" style={{ fontSize: 22 }}>{Math.round(report.unseenRate * 100)}%</div>
                     </div>
@@ -664,6 +669,7 @@ export function AdvertisersPage() {
                   </div>
                   <p className="dash-sub" style={{ fontSize: 12, marginTop: 12 }}>
                     이 광고주에게 배정된 <b>모든 리드폼</b>을 합산한 값입니다. '평균 처리까지'는 광고주의 상태 변경 시각 기준입니다.
+                    '전환율'은 접수 대비 <b>'유효'</b> 상태 비율입니다(자동 승인을 켠 리드폼은 높게 나옵니다).
                   </p>
                 </>
               )}
