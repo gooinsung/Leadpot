@@ -211,6 +211,14 @@ export function LandingEditPage() {
                 <div className="block-editor" key={i}>
                   <div className="block-editor-head">
                     <span className={`pill ${b.type === "FORM" ? "g" : ""}`}>{blockLabel(b.type)}</span>
+                    {/* 블록 이름 — 편집 화면에서 블록을 구분하기 위한 라벨. 공개 페이지에는 나오지 않는다. */}
+                    <input
+                      className="input block-name-input"
+                      value={b.name ?? ""}
+                      onChange={(e) => patch(i, { name: e.target.value || undefined })}
+                      placeholder={`${blockLabel(b.type)} ${i + 1} · 이름 지정 (예: 헤더 이미지)`}
+                      title="편집 화면에서만 보이는 블록 이름입니다. 공개 페이지에는 노출되지 않습니다."
+                    />
                     <div className="block-editor-ctrl">
                       <button className="btn btn-ghost btn-sm" onClick={() => move(i, -1)} disabled={i === 0}>↑</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => move(i, 1)} disabled={i === blocks.length - 1}>↓</button>

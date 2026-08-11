@@ -947,6 +947,8 @@ export function clearSiteIpBlockHits(): Promise<void> {
 export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM";
 export interface LandingBlock {
   type: LandingBlockType;
+  /** 편집 화면에서만 쓰는 블록 이름(예: "헤더 이미지", "선착순 HTML"). 공개 페이지에는 노출하지 않는다. */
+  name?: string;
   // IMAGE: {url, alt} · TEXT: {text} · HTML: {html} · FORM: {formId, trigger:"inline"|"overlay", buttonLabel}
   [key: string]: unknown;
 }

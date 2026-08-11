@@ -49,6 +49,13 @@
   display: flex;
   gap: 4px;
 }
+/* 랜딩 블록 이름 입력 — 타입 배지와 이동/삭제 버튼 사이를 채운다(편집 화면 전용 라벨). */
+.block-name-input {
+  flex: 1;
+  margin: 0 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
 .block-row {
   display: flex;
   gap: 12px;
