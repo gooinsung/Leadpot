@@ -16,30 +16,6 @@ const EMPTY: IntegrationSettings = {
   telegramChatId: "",
 };
 
-// 사용자가 구글시트에 붙여넣을 Apps Script 코드(웹훅 수신 → 행 추가).
-// SECRET 을 채우면(리드팟 '시트 시크릿 키'와 동일하게) URL 을 아는 제3자의 무단 기록을 막는다.
-const APPS_SCRIPT = `// 아래 SECRET 을 리드팟 '시트 시크릿 키'에 입력한 값과 똑같이 채우세요. (비우면 검사 안 함)
-var SECRET = '';
-
-function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
-  if (SECRET && data.secret !== SECRET) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'unauthorized' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var answers = data.answers || {};
-  var keys = Object.keys(answers);
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['접수일시', '리드폼'].concat(keys));
-  }
-  var row = [data.createdAt, data.formName]
-    .concat(keys.map(function (k) { return answers[k]; }));
-  sheet.appendRow(row);
-  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
-    .setMimeType(ContentService.MimeType.JSON);
-}`;
-
 export function IntegrationsPage() {
   const [s, setS] = useState<IntegrationSettings>(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -67,7 +43,12 @@ export function IntegrationsPage() {
     setError("");
     setTestResult(null);
     try {
-      const r = await updateIntegrations(s);
+      // sheetsServiceAccountEmail 은 서버가 내려주는 읽기 전용 값이라 되돌려 보내지 않는다.
+      const r = await updateIntegrations({
+        telegramEnabled: s.telegramEnabled,
+        telegramBotToken: s.telegramBotToken,
+        telegramChatId: s.telegramChatId,
+      });
       setS({ ...EMPTY, ...r });
       setSaved(true);
     } catch (err) {
@@ -91,8 +72,8 @@ export function IntegrationsPage() {
     }
   }
 
-  function copyScript() {
-    navigator.clipboard?.writeText(APPS_SCRIPT).then(() => {
+  function copyServiceAccount() {
+    navigator.clipboard?.writeText(s.sheetsServiceAccountEmail || "").then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
@@ -107,7 +88,7 @@ export function IntegrationsPage() {
             <p className="eyebrow">알림 · 연동</p>
             <h1 className="dash-title">외부 연동</h1>
             <p className="dash-sub">
-              <b>텔레그램 알림</b>은 계정에 한 번 설정하고, 리드폼별로 켜고 끕니다(리드폼 편집 &gt; 옵션). <b>구글시트</b>는 리드폼마다 다른 시트로 보낼 수 있어 <b>각 리드폼 편집 화면</b>에서 설정합니다. 아래는 구글시트 준비(Apps Script) 방법 안내입니다.
+              <b>텔레그램 알림</b>은 계정에 한 번 설정하고, 리드폼별로 켜고 끕니다(리드폼 편집 &gt; 옵션). <b>구글시트</b>는 리드폼마다 다른 시트로 보낼 수 있어 <b>각 리드폼 편집 화면</b>에서 설정합니다. 아래는 구글시트 준비 방법 안내입니다.
             </p>
           </div>
         </div>
@@ -161,38 +142,53 @@ export function IntegrationsPage() {
               </details>
             </div>
 
-            {/* 구글시트 연동 방법(공통 안내) — 실제 URL·시크릿은 각 리드폼 편집에서 입력 */}
+            {/* 구글시트 연동 방법(공통 안내) — 실제 시트 주소·탭은 각 리드폼 편집에서 입력 */}
             <div className="card card-pad" style={{ marginBottom: 20 }}>
               <div className="card-h">구글시트 연동 방법 (리드폼별 설정)</div>
               <p className="dash-sub" style={{ marginTop: 0 }}>
-                구글시트는 <b>리드폼마다 다른 시트</b>로 보낼 수 있어, <b>웹앱 URL·시크릿 키는 각 리드폼 편집 화면 &gt; 옵션</b>에서 입력합니다. 여기서는 시트를 준비하는 방법만 안내합니다. (OAuth 불필요·무료)
+                아래 <b>서비스 계정 이메일을 시트 공유에 '편집자'로 추가</b>하기만 하면 됩니다.
+                스크립트를 심거나 배포할 필요가 없습니다. 시트 주소는 <b>각 리드폼 편집 화면 &gt; 옵션 &gt; 구글시트</b>에 넣습니다.
               </p>
-              <ol className="dash-sub" style={{ marginTop: 8, lineHeight: 1.7, paddingLeft: 20 }}>
-                <li>구글시트 새로 만들기 → 상단 메뉴 <b>확장 프로그램 → Apps Script</b>.</li>
-                <li>아래 코드를 붙여넣기. (시크릿 키를 쓸 거면 <code>SECRET</code> 값을 정해서 넣고, 같은 값을 리드폼의 시트 시크릿 칸에도 입력)</li>
-                <li><b>배포 → 새 배포 → 유형: 웹 앱</b>, 실행 계정=<b>나</b>, 액세스=<b>모든 사용자</b> 로 배포.</li>
-                <li>발급된 <b>웹 앱 URL</b>(끝이 <code>/exec</code>)을 <b>리드폼 편집 &gt; 옵션 &gt; 구글시트</b> 칸에 붙여넣기 → 저장 → 그 화면에서 테스트.</li>
+
+              {s.sheetsServiceAccountEmail ? (
+                <div style={{ marginTop: 12 }}>
+                  <span className="field-label">서비스 계정 이메일</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+                    <input
+                      className="input"
+                      readOnly
+                      style={{ fontFamily: "var(--mono)", fontSize: 12.5, flex: 1, minWidth: 280 }}
+                      value={s.sheetsServiceAccountEmail}
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    <button className="btn btn-ghost btn-sm" onClick={copyServiceAccount}>
+                      {copied ? "복사됨!" : "복사"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="dash-sub" style={{ marginTop: 12, color: "var(--danger, #e5484d)" }}>
+                  ⚠️ 서버에 구글 서비스 계정 키가 아직 설정되지 않았습니다. 설정 전에는 시트 전송이 동작하지 않습니다.
+                </p>
+              )}
+
+              <ol className="dash-sub" style={{ marginTop: 12, lineHeight: 1.7, paddingLeft: 20 }}>
+                <li>기록할 구글시트를 열고 오른쪽 위 <b>공유</b> 클릭.</li>
+                <li>위 <b>서비스 계정 이메일</b>을 붙여넣고 권한을 <b>편집자</b>로 지정 → 보내기. (알림 메일 체크는 꺼도 됩니다)</li>
+                <li>시트 <b>주소를 그대로 복사</b> → <b>리드폼 편집 &gt; 옵션 &gt; 구글시트</b> 칸에 붙여넣기 → 저장.</li>
+                <li>같은 화면의 <b>시트 테스트 발송</b>으로 확인.</li>
               </ol>
+
               <p className="dash-sub" style={{ marginTop: 8, fontSize: 12 }}>
                 시트에 기록되는 값은 <b>접수일시 · 리드폼 이름 · 리드폼에서 받은 답변</b>뿐입니다.
                 IP·기기·유입경로(UTM) 같은 방문자 정보는 보내지 않습니다 — 필요하면 리드 목록의 내보내기를 쓰세요.
                 <br />
-                ⚠️ <b>이미 연동해 둔 시트가 있다면</b> 위 코드로 다시 붙여넣고 재배포하세요. 예전 코드는
-                ‘상태·중복’ 열을 쓰는데 이제 그 값을 보내지 않아 빈칸으로 남습니다.
+                ⚠️ <b>예전 Apps Script 방식으로 연동해 둔 리드폼이 있다면</b> 위 절차로 다시 설정해야 합니다.
+                웹앱 URL 방식은 더 이상 쓰지 않습니다(설정을 옮기기 전까지 그 리드폼은 시트에 쌓이지 않습니다).
+                <br />
+                ※ 광고주 회사가 <b>외부 사용자와 파일 공유 금지</b> 정책을 쓰면 서비스 계정 추가가 막힐 수 있습니다.
+                그 경우 광고주 쪽 구글 관리자에게 예외를 요청해야 합니다.
               </p>
-              <div style={{ position: "relative", marginTop: 8 }}>
-                <textarea
-                  className="input"
-                  readOnly
-                  rows={14}
-                  style={{ fontFamily: "var(--mono)", fontSize: 12.5, lineHeight: 1.5 }}
-                  value={APPS_SCRIPT}
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-                <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={copyScript}>
-                  {copied ? "복사됨!" : "코드 복사"}
-                </button>
-              </div>
             </div>
 
             {error && (

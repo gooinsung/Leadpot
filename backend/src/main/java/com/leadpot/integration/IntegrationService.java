@@ -22,18 +22,21 @@ public class IntegrationService {
 
     private final IntegrationSettingsRepository repository;
     private final NotificationService notificationService;
+    private final GoogleSheetsClient sheetsClient;
     private final FormService formService;
 
     public IntegrationService(IntegrationSettingsRepository repository, NotificationService notificationService,
-            FormService formService) {
+            GoogleSheetsClient sheetsClient, FormService formService) {
         this.repository = repository;
         this.notificationService = notificationService;
+        this.sheetsClient = sheetsClient;
         this.formService = formService;
     }
 
     @Transactional(readOnly = true)
     public IntegrationResponse get(Long ownerId) {
-        return IntegrationResponse.from(repository.findById(ownerId).orElse(null));
+        return IntegrationResponse.from(repository.findById(ownerId).orElse(null),
+                sheetsClient.serviceAccountEmail());
     }
 
     @Transactional
@@ -45,7 +48,7 @@ public class IntegrationService {
         s.setTelegramEnabled(req.telegramEnabled()
                 && notBlank(s.getTelegramBotToken()) && notBlank(s.getTelegramChatId()));
         repository.save(s);
-        return IntegrationResponse.from(s);
+        return IntegrationResponse.from(s, sheetsClient.serviceAccountEmail());
     }
 
     /** 계정 텔레그램 채널에 테스트 메시지 발송. */
@@ -68,11 +71,12 @@ public class IntegrationService {
         FormResponse form = formService.get(ownerId, formId); // 소유권 확인(아니면 404)
         List<TestResult.ChannelResult> results = new ArrayList<>();
         Map<String, Object> cfg = form.settingsConfig();
-        String url = cfg == null ? "" : str(cfg.get("sheetsWebhookUrl"));
-        String secret = cfg == null ? "" : str(cfg.get("sheetsSecret"));
+        String spreadsheetId = cfg == null ? "" : str(cfg.get("sheetsSpreadsheetId"));
+        String tabName = cfg == null ? "" : str(cfg.get("sheetsTabName"));
         boolean enabled = cfg != null && Boolean.TRUE.equals(cfg.get("sheetsEnabled"));
-        if (enabled && notBlank(url)) {
-            String err = notificationService.sendSheets(url, notificationService.sheetsTestBody(secret));
+        if (enabled && notBlank(spreadsheetId)) {
+            String err = notificationService.sendSheets(
+                    notificationService.sheetsTestRow(spreadsheetId, tabName));
             results.add(new TestResult.ChannelResult("sheets", err == null, err == null ? "전송 성공" : err));
         }
         return new TestResult(results);

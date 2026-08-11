@@ -40,6 +40,13 @@ dependencies {
 	// 엑셀(.xlsx) 양식 다운로드 / 리드 일괄 가져오기
 	implementation 'org.apache.poi:poi-ooxml:5.3.0'
 
+	// 구글시트 연동: 서비스 계정으로 Sheets API 직접 호출.
+	// (예전엔 광고주 시트에 Apps Script 웹앱을 심었지만, 배포한 사람의 계정으로 실행돼
+	//  그 사람이 시트 공유에서 빠지면 조용히 끊겼다. 2026-08-11 서비스 계정으로 교체.)
+	implementation 'com.google.apis:google-api-services-sheets:v4-rev20220927-2.0.0'
+	implementation 'com.google.auth:google-auth-library-oauth2-http:1.23.0'
+	implementation 'com.google.api-client:google-api-client:2.2.0'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.security:spring-security-test'

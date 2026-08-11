@@ -809,6 +809,11 @@ export interface IntegrationSettings {
   telegramEnabled: boolean;
   telegramBotToken: string;
   telegramChatId: string;
+  /**
+   * 구글시트 연동에 쓰는 서비스 계정 이메일. 서버 공통 값이라 **읽기 전용**이다(저장 시 보내지 않는다).
+   * 광고주에게 "이 이메일을 시트 편집자로 추가하세요" 라고 안내할 주소. 서버에 키가 없으면 빈 문자열.
+   */
+  sheetsServiceAccountEmail?: string;
 }
 export interface IntegrationTestResult {
   results: { channel: string; ok: boolean; message: string }[];
