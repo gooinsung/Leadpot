@@ -197,8 +197,10 @@ public class NotificationService {
     }
 
     /**
-     * 시트에 넣을 한 행. {@code header} 는 <b>시트가 비어 있을 때만</b> 첫 행으로 들어간다
-     * (예전 Apps Script 와 같은 동작 — 사용자 확정 2026-08-11).
+     * 시트에 넣을 한 행. {@code header} 와 {@code values} 는 <b>같은 길이의 짝</b>으로,
+     * {@code header[i]} 가 {@code values[i]} 를 어느 열에 넣을지 결정하는 이름이다
+     * ({@link GoogleSheetsClient#appendRow} 가 시트 1행에서 그 이름을 찾아 그 열에만 쓴다).
+     * 시트가 비어 있을 때는 {@code header} 가 첫 행으로 들어간다.
      */
     record SheetsRow(String spreadsheetId, String tabName, List<Object> header, List<Object> values) {
     }
@@ -349,7 +351,9 @@ public class NotificationService {
      * 시트는 광고주에게 공유되는 경우가 많아 <b>필요 최소한만</b> 내보내는 편이 낫다 —
      * 방문자 정보가 필요하면 리드 상세·CSV 내보내기에서 본다.
      *
-     * <p>열 순서는 예전 Apps Script 와 같다: {@code 접수일시 · 리드폼 · 답변…}.
+     * <p>빈 시트에 처음 깔리는 열 순서는 예전 Apps Script 와 같다: {@code 접수일시 · 리드폼 · 답변…}.
+     * 이미 쓰던 시트라면 <b>순서가 아니라 헤더 이름으로</b> 열을 찾으므로, 사용자가 열을 삽입하거나
+     * 순서를 바꿔도 값이 밀리지 않는다({@link GoogleSheetsClient} 참고).
      * 접수일시는 UTC ISO 문자열 대신 <b>한국시간 문자열</b>로 넣는다 —
      * 시트가 날짜로 알아봐서 정렬·필터가 먹는다(USER_ENTERED).
      */
