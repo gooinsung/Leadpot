@@ -4,6 +4,7 @@ import {
   addLeadNote,
   deleteLeadNote,
   getLead,
+  getLeadAdvertiserActivity,
   getLeadStatusOptions,
   listAsRequests,
   listLeadNotes,
@@ -13,10 +14,35 @@ import {
   ApiError,
   type AsRequest,
   type Lead,
+  type LeadAdvertiserActivity,
   type LeadNote,
   type LeadStatusOption,
 } from "../api/client";
 import { leadStatusClass, pickName, pickPhone } from "../lib/leadDisplay";
+
+/** 확신 등급 배지 문구(V33). 등급 정의는 api/client.ts 의 AdvertiserActivityLevel 참고. */
+const ADV_LEVEL_LABEL: Record<string, string> = {
+  NOT_VIEWED: "열람 기록 없음",
+  VIEWED: "열람함",
+  ACTED: "열람 + 처리함",
+};
+
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "-";
+  return new Date(iso).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
+}
+
+/** 두 시각 사이 간격을 사람이 읽는 말로("29분" · "3시간" · "2일"). */
+function elapsed(from: string, to: string | null): string {
+  if (!to) return "-";
+  const ms = new Date(to).getTime() - new Date(from).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "-";
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min}분`;
+  const hour = Math.round(min / 60);
+  if (hour < 48) return `${hour}시간`;
+  return `${Math.round(hour / 24)}일`;
+}
 
 interface Props {
   /** 표시할 리드 id. 바뀌면 패널 내용이 교체된다. */
@@ -61,19 +87,24 @@ export function LeadSidePanel({
   const [options, setOptions] = useState<LeadStatusOption[]>([]);
   const [asHistory, setAsHistory] = useState<AsRequest[]>([]);
   const [asNote, setAsNote] = useState("");
+  // 광고주가 이 리드를 보기는 했는지(V33). 실패해도 상세 자체는 떠야 하므로 null 로 두고 섹션만 접는다.
+  const [advActivity, setAdvActivity] = useState<LeadAdvertiserActivity | null>(null);
+  const [advOpen, setAdvOpen] = useState(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [l, n, as] = await Promise.all([
+      const [l, n, as, adv] = await Promise.all([
         getLead(leadId),
         listLeadNotes(leadId),
         listAsRequests(leadId).catch(() => [] as AsRequest[]),
+        getLeadAdvertiserActivity(leadId).catch(() => null),
       ]);
       setLead(l);
       setNotes(n);
       setAsHistory(as);
+      setAdvActivity(adv);
       getLeadStatusOptions(l.formId).then(setOptions).catch(() => setOptions([]));
       return l;
     } catch {
@@ -87,6 +118,7 @@ export function LeadSidePanel({
   useEffect(() => {
     setMemo("");
     setTagInput("");
+    setAdvOpen(false);
     reload();
   }, [reload]);
 
@@ -277,6 +309,67 @@ export function LeadSidePanel({
     </div>
   );
 
+  /**
+   * 광고주 확인(V33) — "보낸 리드를 광고주가 보기는 했나".
+   * 확인/미확인 한 비트가 아니라 <b>언제·몇 번 봤고 처리까지 했는지</b>를 보여준다.
+   * 배정된 광고주가 없으면(또는 조회 실패) 아예 그리지 않는다.
+   */
+  const advertiserSection = lead && advActivity && advActivity.level !== "NO_ADVERTISER" && (
+    <div className={split ? "card card-pad" : ""}>
+      <div className="ip-section-label" style={split ? { marginTop: 0 } : undefined}>광고주 확인</div>
+      <div className={`adv-seen lv-${advActivity.level.toLowerCase()}`}>
+        <span className="adv-seen-badge">{ADV_LEVEL_LABEL[advActivity.level]}</span>
+        <span className="adv-seen-who">
+          {advActivity.advertiserName}
+          {!advActivity.advertiserActive && " · 비활성 계정"}
+        </span>
+      </div>
+      <p className="dash-sub adv-seen-line">
+        {advActivity.level === "NOT_VIEWED" ? (
+          <>
+            포털에서 연 기록이 없습니다.{" "}
+            {advActivity.advertiserLastLoginAt
+              ? `마지막 로그인 ${fmtDateTime(advActivity.advertiserLastLoginAt)}.`
+              : "포털에 로그인한 적이 없습니다."}
+            <br />
+            알림톡·구글시트로만 처리했을 수도 있어 <b>안 봤다는 확정은 아닙니다.</b>
+          </>
+        ) : (
+          <>
+            {fmtDateTime(advActivity.firstViewedAt)} 최초 열람
+            {` (접수 ${elapsed(lead.createdAt, advActivity.firstViewedAt)} 뒤)`}
+            {advActivity.viewCount > 1 && ` · 열람 ${advActivity.viewCount}회`}
+            {advActivity.lastViewedAt !== advActivity.firstViewedAt &&
+              ` · 최근 ${fmtDateTime(advActivity.lastViewedAt)}`}
+            {advActivity.acted && <><br />상태 변경·메모까지 남겼습니다.</>}
+          </>
+        )}
+      </p>
+      {advActivity.entries.length > 0 && (
+        <>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdvOpen((v) => !v)}>
+            {advOpen ? "이력 접기" : `이력 ${advActivity.entries.length}건 보기`}
+          </button>
+          {advOpen && (
+            <ul className="ip-notes adv-seen-log">
+              {advActivity.entries.map((e) => (
+                <li key={e.id} className="ip-note sys">
+                  <span className="ip-note-meta">
+                    {e.actionLabel}
+                    {" · "}
+                    {fmtDateTime(e.createdAt)}
+                    {e.ip && ` · ${e.ip}`}
+                  </span>
+                  {e.detail && <div>{e.detail}</div>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   const asSection = asHistory.length > 0 && (
     <div className={split ? "card card-pad" : ""}>
       <div className="ip-section-label" style={split ? { marginTop: 0 } : undefined}>AS 요청</div>
@@ -411,6 +504,7 @@ export function LeadSidePanel({
               </div>
               <div className="ip-col">
                 {statusTagsSection}
+                {advertiserSection}
                 {asSection}
                 {notesSection}
               </div>
@@ -443,6 +537,7 @@ export function LeadSidePanel({
         <div className="ip-body">
           {answersSection}
           {statusTagsSection}
+          {advertiserSection}
           {asSection}
           {errorLine}
           {visitorSection}

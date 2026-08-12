@@ -337,6 +337,25 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
 .ip-note-x { margin-left: auto; }
 .ip-actions { display: flex; gap: 8px; justify-content: space-between; align-items: center; margin-top: 12px; }
 
+/* 광고주 확인(V33) — "보낸 리드를 광고주가 보기는 했나".
+   등급별 색: 열람 기록 없음=앰버(마케터가 챙겨야 할 상태) / 열람=인디고 / 열람+처리=그린. */
+.adv-seen { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.adv-seen.lv-not_viewed { --adv: var(--amber-ink); --adv-soft: var(--amber-soft); }
+.adv-seen.lv-viewed { --adv: var(--indigo-ink); --adv-soft: var(--indigo-soft); }
+.adv-seen.lv-acted { --adv: var(--green-ink); --adv-soft: var(--green-soft); }
+.adv-seen-badge {
+  background: var(--adv-soft);
+  color: var(--adv);
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.adv-seen-who { font-size: 13px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.adv-seen-line { margin: 8px 0 10px; font-size: 12.5px; line-height: 1.55; }
+.adv-seen-log { margin-top: 8px; }
+
 /* 태그 편집(패널) */
 .ip-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ip-tag { display: inline-flex; align-items: center; gap: 6px; }
