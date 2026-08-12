@@ -29,6 +29,33 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## 🔄 광고주 리드 확인 추적(V33) — 코드 완료, 실환경 확인만 남음 (2026-08-12)
+>
+> 브랜치 `feature/advertiser-lead-activity`. **마케터 리드 상세에서 "광고주가 이 리드를 보기는 했나"를 확인**할 수 있게 했다.
+>
+> **왜**: `advertiser_seen_at` 한 칸으로는 "봤다/안 봤다" 한 비트뿐이라, 언제·몇 번 봤는지도
+> 열어만 보고 말았는지도 알 수 없었다. 새 표를 만들지 않고 이미 쌓던 `advertiser_access_logs` 를 리드 단위로 모아서 답한다.
+>
+> - **열람 이력을 매번 기록**([AdvertiserLeadService.lead](../backend/src/main/java/com/leadpot/advertiser/AdvertiserLeadService.java)) —
+>   예전엔 최초 1회만 남겼다. 새로고침 폭주 방지로 **30분 dedupe 창**을 뒀다.
+> - **마케터 API** `GET /api/leads/{id}/advertiser-activity`
+>   ([AdvertiserLeadActivityService](../backend/src/main/java/com/leadpot/advertiser/AdvertiserLeadActivityService.java)).
+>   확신 등급 4단계: `NO_ADVERTISER`(섹션 숨김) / `NOT_VIEWED` / `VIEWED` / `ACTED`(상태변경·메모까지 = 가장 강한 증거).
+> - **리드 상세 '광고주 확인' 섹션**([LeadSidePanel.tsx](../frontend/src/components/LeadSidePanel.tsx)) —
+>   배지 + 접수→최초열람 소요시간 + 열람 횟수 + 접었다 펴는 이력.
+> - ⭐ **광고주 화면에서는 확인/미확인을 전부 걷어냈다**(사용자 지시 2026-08-12) —
+>   미확인 배너·할 일 카드·'미확인만' 필터·카드 강조·폼 배지·리포트의 미확인율/평균 확인까지.
+>   **기록은 계속 쌓인다** — 마케터만 본다.
+>
+> **남은 것 / 주의**
+> - ❗ **실환경(로컬 기동) 확인을 못 했다** — 백엔드·프론트 빌드와 테스트(신규 `AdvertiserLeadActivityTest` 7건 포함)만 통과.
+>   광고주 계정으로 리드를 열어보고 마케터 화면에서 타임라인이 뜨는지 눈으로 볼 것.
+> - 광고주 API 응답(`unseenCount`·`unseenLeads`·`unseenRate`)에는 숫자가 **아직 실려 나간다**. 화면에만 안 그린다 —
+>   DTO 를 마케터/광고주용으로 쪼개야 서버에서까지 지울 수 있어서 이번엔 손대지 않았다.
+> - 알림톡 `#{미확인건수}` 변수는 그대로 뒀다(카카오 사전 승인 템플릿이라 코드로 임의 변경 불가).
+> - 후속 후보(사용자가 A 범위만 선택): 알림톡 도달(`message_logs`)·텔레그램·시트 동기화까지 합친 **통합 타임라인**(B),
+>   체류시간·연락처 노출 계측(C).
+>
 > ## ✅ 구글시트 서비스 계정 전환 — 배포·검증 완료 (2026-08-11)
 >
 > `main` 병합 `adba648`(작업 커밋 `0bdd16c`). **Railway 변수 등록 + 화면 확인까지 사용자 완료.**
