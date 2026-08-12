@@ -148,18 +148,8 @@ export function AdvertiserReportPage() {
                   접수 {report.total}건 중 유효 {report.converted}건
                 </span>
               </div>
-              <div className="card card-pad">
-                <span className="ck-label">미확인율</span>
-                <div className="ck-val" style={{ fontSize: 26 }}>
-                  {Math.round(report.unseenRate * 100)}%
-                </div>
-                <span className="dash-sub" style={{ fontSize: 12 }}>{report.unseen}건 미확인</span>
-              </div>
-              <div className="card card-pad">
-                <span className="ck-label">평균 확인까지</span>
-                <div className="ck-val" style={{ fontSize: 22 }}>{fmtDuration(report.avgSecondsToSeen)}</div>
-                <span className="dash-sub" style={{ fontSize: 12 }}>접수 → 최초 열람</span>
-              </div>
+              {/* 열람 지표(미확인율·평균 확인까지)는 광고주에게 보여주지 않는다(V33) —
+                  마케터 화면(광고주 관리 > 리포트)에만 남는다. */}
               <div className="card card-pad">
                 <span className="ck-label">평균 처리까지</span>
                 <div className="ck-val" style={{ fontSize: 22 }}>{fmtDuration(report.avgSecondsToStatus)}</div>

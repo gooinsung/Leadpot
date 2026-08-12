@@ -40,7 +40,10 @@ function phoneOf(lead: AdvertiserLead): string | null {
 
 /**
  * 광고주 리드 목록. 마케터 리드 목록과 같은 구조(답변 인라인 표시 · 검색 · 상태/기간 필터 · 페이징)로 맞추고,
- * 광고주 전용 요소(전화 버튼 · 미확인 강조)를 더했다. 모바일에서도 그대로 쓸 수 있게 반응형.
+ * 광고주 전용 요소(전화 버튼)를 더했다. 모바일에서도 그대로 쓸 수 있게 반응형.
+ *
+ * <p>⚠️ <b>열람 여부(확인/미확인)는 이 화면에 그리지 않는다</b>(V33). 기록은 계속 쌓이지만
+ * 그건 마케터가 "광고주가 이 리드를 보기는 했나"를 확인하는 근거지, 광고주에게 보여줄 성적표가 아니다.
  */
 export function AdvertiserLeadsPage() {
   // 텔레그램 알림 딥링크(/client?form=..&lead=..)로 들어오면 해당 폼·리드를 바로 연다.
@@ -65,7 +68,6 @@ export function AdvertiserLeadsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [unseenOnly, setUnseenOnly] = useState(false);
 
   // 페이징 (서버 페이징 — Pagination 컴포넌트는 1-base, API 는 0-base)
   const [page, setPage] = useState(1);
@@ -226,7 +228,7 @@ export function AdvertiserLeadsPage() {
   }
 
   const currentForm = forms.find((f) => f.formId === formId) ?? null;
-  const shown = unseenOnly ? leads.filter((l) => !l.advertiserSeenAt) : leads;
+  const shown = leads;
 
   // 전체선택 + 일괄 상태변경 (2026-08-08). 잠긴 리드(무효·AS대기)는 건너뛴다.
   const changeable = shown.filter((l) => l.statusKey !== "INVALID" && l.statusKey !== "AS_REQUESTED");
@@ -253,10 +255,8 @@ export function AdvertiserLeadsPage() {
     await reloadRef.current();
   }
   const pages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(total / pageSize));
-  const hasFilter = !!(q || statusFilter || dateFrom || dateTo || unseenOnly);
+  const hasFilter = !!(q || statusFilter || dateFrom || dateTo);
 
-  /** 지금 보고 있는 리드폼의 미확인 건수(폼이 하나면 그 폼, 여러 개면 선택한 폼). */
-  const unseenCount = currentForm?.unseenCount ?? 0;
   const today = (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -266,11 +266,10 @@ export function AdvertiserLeadsPage() {
    * 할 일 큐 클릭 — 조건을 '더하지' 않고 그 할 일만 남긴다.
    * 여러 필터가 겹쳐 왜 안 보이는지 헷갈리는 일을 막는다.
    */
-  function applyTask(task: "unseen" | "today" | "all") {
+  function applyTask(task: "today" | "all") {
     setQ("");
     setStatusFilter("");
     setPage(1);
-    setUnseenOnly(task === "unseen");
     setDateFrom(task === "today" ? today : "");
     setDateTo(task === "today" ? today : "");
   }
@@ -310,49 +309,32 @@ export function AdvertiserLeadsPage() {
           </button>
         )}
 
-        {dash && dash.unseenLeads > 0 && (
-          <button type="button" className="unseen-banner" onClick={() => setUnseenOnly(true)}>
-            <span className="unseen-dot" />
-            확인하지 않은 리드 <strong>{dash.unseenLeads}건</strong>이 있습니다
-            <span className="unseen-go">보기 →</span>
-          </button>
-        )}
-
         <div className="dash-head">
           <div>
             <p className="eyebrow">접수 내역</p>
-            {/* 리디자인 §9: 할 일 문구로 인사 — 미확인이 없으면 차분하게 */}
+            {/* 리디자인 §9: 할 일 문구로 인사 — 오늘 들어온 리드가 있으면 그걸 앞세운다.
+                열람 여부(확인/미확인)는 광고주에게 보여주지 않는다(V33). */}
             <h1 className="dash-title">
-              {(dash?.unseenLeads ?? 0) > 0
-                ? `${me ? `${me.company || me.name} 님, ` : ""}새 리드 ${dash!.unseenLeads}건이 기다려요`
+              {(dash?.todayLeads ?? 0) > 0
+                ? `${me ? `${me.company || me.name} 님, ` : ""}오늘 새 리드 ${dash!.todayLeads}건이 들어왔어요`
                 : `${me ? `${me.company || me.name} 님, ` : ""}접수된 리드를 확인하세요`}
             </h1>
             <p className="dash-sub">
               {currentForm
-                ? `${currentForm.name} · 총 ${currentForm.leadCount.toLocaleString()}건${
-                    currentForm.unseenCount > 0 ? ` · 미확인 ${currentForm.unseenCount}건` : ""
-                  }`
+                ? `${currentForm.name} · 총 ${currentForm.leadCount.toLocaleString()}건`
                 : "담당 마케터가 권한을 부여한 리드폼의 접수 내역입니다."}
             </p>
           </div>
         </div>
 
-        {/* 할 일 큐(U6 Task-First) — 숫자를 보여주기만 하지 않고 누르면 바로 그 목록으로 간다.
-            광고주가 로그인해서 가장 먼저 할 일은 '미확인 처리'다. */}
+        {/* 할 일 큐(U6 Task-First) — 숫자를 보여주기만 하지 않고 누르면 바로 그 목록으로 간다. */}
         {dash && forms.length > 0 && (
           <div className="task-queue">
             <button
               type="button"
-              className={`task-card${unseenOnly ? " on" : ""}${unseenCount > 0 ? " urgent" : ""}`}
-              onClick={() => applyTask("unseen")}
-            >
-              <span className="task-label">미확인</span>
-              <span className="task-val">{unseenCount}</span>
-              <span className="task-hint">{unseenCount > 0 ? "먼저 확인하세요" : "모두 확인했습니다"}</span>
-            </button>
-            <button
-              type="button"
-              className={`task-card${dateFrom === today && dateTo === today ? " on" : ""}`}
+              className={`task-card${dateFrom === today && dateTo === today ? " on" : ""}${
+                dash.todayLeads > 0 ? " urgent" : ""
+              }`}
               onClick={() => applyTask("today")}
             >
               <span className="task-label">오늘 접수</span>
@@ -385,13 +367,9 @@ export function AdvertiserLeadsPage() {
               <button
                 key={f.formId}
                 className={f.formId === formId ? "chip on" : "chip"}
-                onClick={() => {
-                  setFormId(f.formId);
-                  setUnseenOnly(false);
-                }}
+                onClick={() => setFormId(f.formId)}
               >
                 {f.name}
-                {f.unseenCount > 0 && <span className="chip-badge">{f.unseenCount}</span>}
               </button>
             ))}
           </div>
@@ -441,12 +419,6 @@ export function AdvertiserLeadsPage() {
                 aria-label="접수 종료일"
               />
             </div>
-            <button
-              className={`btn btn-sm ${unseenOnly ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setUnseenOnly((v) => !v)}
-            >
-              미확인만
-            </button>
             {hasFilter && (
               <button
                 className="btn btn-ghost btn-sm"
@@ -455,7 +427,6 @@ export function AdvertiserLeadsPage() {
                   setStatusFilter("");
                   setDateFrom("");
                   setDateTo("");
-                  setUnseenOnly(false);
                 }}
               >
                 필터 초기화
@@ -516,10 +487,9 @@ export function AdvertiserLeadsPage() {
             <div className="leads">
               {shown.map((lead) => {
                 const phone = phoneOf(lead);
-                const unseen = !lead.advertiserSeenAt;
                 const selectable = lead.statusKey !== "INVALID" && lead.statusKey !== "AS_REQUESTED";
                 return (
-                  <div className={`card card-pad lead-card${unseen ? " adv-unseen" : ""}`} key={lead.id}>
+                  <div className="card card-pad lead-card" key={lead.id}>
                     <div className="lead-head">
                       <span className="lead-time" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {currentForm?.canStatus && selectable && (
@@ -532,11 +502,6 @@ export function AdvertiserLeadsPage() {
                           />
                         )}
                         {new Date(lead.createdAt).toLocaleString("ko-KR")}
-                        {unseen && (
-                          <span className="badge b-wait" style={{ marginLeft: 8 }}>
-                            미확인
-                          </span>
-                        )}
                       </span>
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                         {/* 광고주의 첫 행동은 대부분 '전화 걸기' — 그린 soft pill + 번호 표시(리디자인 §9) */}
@@ -585,21 +550,14 @@ export function AdvertiserLeadsPage() {
               })}
             </div>
 
-            {!unseenOnly && (
-              <Pagination
-                total={total}
-                page={page}
-                pages={pages}
-                pageSize={pageSize}
-                onPage={setPage}
-                onPageSize={setPageSize}
-              />
-            )}
-            {unseenOnly && (
-              <p className="dash-sub" style={{ marginTop: 12, fontSize: 13 }}>
-                현재 페이지에서 미확인 {shown.length}건만 보고 있습니다. 전체를 보려면 '미확인만'을 해제하세요.
-              </p>
-            )}
+            <Pagination
+              total={total}
+              page={page}
+              pages={pages}
+              pageSize={pageSize}
+              onPage={setPage}
+              onPageSize={setPageSize}
+            />
             {pageSize === -1 && total > SERVER_MAX && (
               <p className="dash-sub" style={{ marginTop: 8, fontSize: 12 }}>
                 ⓘ 한 번에 최대 {SERVER_MAX}건까지 표시됩니다(총 {total.toLocaleString()}건). 기간·검색으로 좁혀서
