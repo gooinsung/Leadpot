@@ -38,13 +38,16 @@ public class LeadController {
     private final LeadExcelService excelService;
     private final LeadStatusOptionsService statusOptionsService;
     private final com.leadpot.form.FormService formService;
+    private final com.leadpot.advertiser.AdvertiserLeadActivityService advertiserActivityService;
 
     public LeadController(LeadService leadService, LeadExcelService excelService,
-            LeadStatusOptionsService statusOptionsService, com.leadpot.form.FormService formService) {
+            LeadStatusOptionsService statusOptionsService, com.leadpot.form.FormService formService,
+            com.leadpot.advertiser.AdvertiserLeadActivityService advertiserActivityService) {
         this.leadService = leadService;
         this.excelService = excelService;
         this.statusOptionsService = statusOptionsService;
         this.formService = formService;
+        this.advertiserActivityService = advertiserActivityService;
     }
 
     @GetMapping
@@ -83,6 +86,16 @@ public class LeadController {
     @GetMapping("/{id}")
     public LeadResponse getOne(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         return leadService.getOne(userId(jwt), id);
+    }
+
+    /**
+     * 이 리드를 <b>광고주가 보기는 했는지</b>(V33). 요약(최초/최근 열람·열람 횟수·행동 여부)과 시간순 이력.
+     * 마케터 전용이다 — 광고주 화면에는 확인 여부를 노출하지 않는다.
+     */
+    @GetMapping("/{id}/advertiser-activity")
+    public com.leadpot.advertiser.dto.LeadAdvertiserActivityResponse advertiserActivity(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return advertiserActivityService.of(userId(jwt), id);
     }
 
     /** 리드 메모/이력 목록. */

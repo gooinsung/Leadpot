@@ -53,6 +53,8 @@ public class AdvertiserLeadService {
     private static final int MAX_PAGE_SIZE = 100;
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    /** 같은 리드를 이 시간 안에 다시 열면 열람 이력을 새로 남기지 않는다(새로고침 폭주 방지). */
+    private static final java.time.Duration VIEW_DEDUPE_WINDOW = java.time.Duration.ofMinutes(30);
     private static final DateTimeFormatter DT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(KST);
 
@@ -329,17 +331,34 @@ public class AdvertiserLeadService {
         return out;
     }
 
-    /** 리드 상세. 최초 열람이면 {@code advertiser_seen_at} 을 남긴다(마케터 목록의 '확인' 표시 근거). */
+    /**
+     * 리드 상세. 최초 열람이면 {@code advertiser_seen_at} 을 남기고, <b>열람 이력은 매번</b> 남긴다(V33).
+     * <p>
+     * 예전엔 최초 1회만 기록했다. 그러면 마케터가 "봤다/안 봤다" 한 비트밖에 볼 수 없어서
+     * <b>언제·몇 번 봤는지</b>를 알 수 없었다 — 리드 상세의 '광고주' 타임라인이 이 이력을 쓴다.
+     * 새로고침·연속 클릭으로 같은 줄이 쌓이지 않게 {@link #VIEW_DEDUPE_WINDOW} 안의 재열람은 접는다.
+     */
     @Transactional
     public AdvertiserLeadResponse lead(Long advertiserId, Long leadId, String ip) {
         Lead lead = requireOwnedLead(advertiserId, leadId);
-        boolean first = lead.markAdvertiserSeen(Instant.now());
-        if (first) {
+        Instant now = Instant.now();
+        boolean first = lead.markAdvertiserSeen(now);
+        if (first || !viewedRecently(advertiserId, leadId, now)) {
             audit.record(new AdvertiserAccessLog(advertiserId, emailOf(advertiserId),
                     AdvertiserAccessLog.ACTION_VIEW_LEAD, ip)
-                    .target(lead.getFormId(), lead.getId(), "최초 열람"));
+                    .target(lead.getFormId(), lead.getId(), first ? "최초 열람" : "다시 열람"));
         }
         return toResponse(lead);
+    }
+
+    /** 방금 전(윈도 안) 같은 리드를 이미 열어봤는지. 감사 로그가 없어도 본래 동작은 막지 않는다. */
+    private boolean viewedRecently(Long advertiserId, Long leadId, Instant now) {
+        try {
+            return accessLogRepository.existsByAdvertiserIdAndLeadIdAndActionAndCreatedAtAfter(
+                    advertiserId, leadId, AdvertiserAccessLog.ACTION_VIEW_LEAD, now.minus(VIEW_DEDUPE_WINDOW));
+        } catch (RuntimeException e) {
+            return false; // 판정 실패 시엔 기록하는 쪽으로(누락보다 중복이 낫다)
+        }
     }
 
     /**

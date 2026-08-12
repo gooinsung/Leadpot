@@ -612,6 +612,53 @@ export function leadsCount(): Promise<{ total: number; todayNew: number }> {
   return request<{ total: number; todayNew: number }>("/api/leads/count");
 }
 
+// ---------- 광고주 확인 여부(V33) ----------
+// "광고주가 이 리드를 보기는 했나"를 시각 한 칸이 아니라 요약 + 이력으로 답한다. 마케터 전용.
+
+/** 광고주 활동 이력 한 줄. */
+export interface AdvertiserActivityEntry {
+  id: number;
+  action: string;
+  /** 서버가 내려주는 한글 라벨(리드 열람 / 상태 변경 / 메모 …). */
+  actionLabel: string;
+  formId: number | null;
+  leadId: number | null;
+  detail: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+/**
+ * 확신 등급.
+ * - NO_ADVERTISER: 이 리드폼에 배정된 광고주가 없다(섹션 숨김)
+ * - NOT_VIEWED: 포털 열람 기록 없음 (알림톡·시트로만 일했을 수도 있어 '안 봤다'의 확정은 아니다)
+ * - VIEWED: 열어는 봤다
+ * - ACTED: 상태 변경·메모 등 행동까지 있었다(가장 강한 증거)
+ */
+export type AdvertiserActivityLevel = "NO_ADVERTISER" | "NOT_VIEWED" | "VIEWED" | "ACTED";
+
+export interface LeadAdvertiserActivity {
+  leadId: number;
+  advertiserId: number | null;
+  advertiserName: string | null;
+  advertiserEmail: string | null;
+  advertiserActive: boolean;
+  /** 포털 마지막 로그인. 열람 기록이 없을 때 원인(로그인 자체를 안 함)을 가늠하는 데 쓴다. */
+  advertiserLastLoginAt: string | null;
+  firstViewedAt: string | null;
+  lastViewedAt: string | null;
+  /** 열람 횟수. 30분 안의 재열람은 한 번으로 접힌다. */
+  viewCount: number;
+  acted: boolean;
+  level: AdvertiserActivityLevel;
+  entries: AdvertiserActivityEntry[];
+}
+
+/** 이 리드를 광고주가 보기는 했는지(요약 + 시간순 이력). */
+export function getLeadAdvertiserActivity(leadId: number): Promise<LeadAdvertiserActivity> {
+  return request<LeadAdvertiserActivity>(`/api/leads/${leadId}/advertiser-activity`);
+}
+
 // ---------- 통합 진행상태(V29) ----------
 // 마케터·광고주가 같은 축을 쓴다: 신규/유효/AS요청/무효 + 광고주 커스텀 상태.
 // 유효(VALID)로 넘기는 순간 과금(단가 차감)이 확정된다. 무효 전환·해제는 마케터만.

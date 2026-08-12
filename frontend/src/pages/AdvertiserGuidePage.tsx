@@ -26,9 +26,9 @@ export function AdvertiserGuidePage() {
         <div className="card card-pad" style={{ marginBottom: 16 }}>
           <div className="card-h">1. 새 리드 확인하고 전화하기</div>
           <ol className="dash-sub" style={{ margin: 0, paddingLeft: 20, lineHeight: 1.9 }}>
-            <li><Link to="/client">리드</Link> 메뉴에서 접수된 신청을 확인합니다. <b>미확인</b> 카드를 누르면 아직 안 본 건만 모아 볼 수 있습니다.</li>
+            <li><Link to="/client">리드</Link> 메뉴에서 접수된 신청을 확인합니다. <b>오늘 접수</b> 카드를 누르면 오늘 들어온 건만 모아 볼 수 있습니다.</li>
             <li>각 리드의 <b>📞 전화</b> 버튼을 누르면 바로 통화로 연결됩니다(휴대폰에서).</li>
-            <li>리드를 열어보는 순간 담당 마케터에게 "확인함"으로 표시됩니다 — 빨리 열어볼수록 좋습니다.</li>
+            <li>리드 열람·상태 변경·메모는 개인정보 취급 기록으로 남아 담당 마케터가 확인할 수 있습니다.</li>
           </ol>
         </div>
 
