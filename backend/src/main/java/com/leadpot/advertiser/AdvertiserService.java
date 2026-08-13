@@ -382,12 +382,20 @@ public class AdvertiserService {
         if (grant == null) {
             return AdvertiserNotifyStatus.notLinked();
         }
-        String name = userRepository.findById(grant.getAdvertiserId())
-                .map(u -> u.getCompany() != null && !u.getCompany().isBlank() ? u.getCompany() : u.getName())
-                .orElse("광고주");
-        boolean registered = grant.hasNotifyPhone();
-        return new AdvertiserNotifyStatus(true, name, registered,
-                registered ? PhoneNumbers.mask(grant.getNotifyPhone()) : null);
+        User advertiser = userRepository.findById(grant.getAdvertiserId()).orElse(null);
+        String name = advertiser == null ? "광고주"
+                : (advertiser.getCompany() != null && !advertiser.getCompany().isBlank()
+                        ? advertiser.getCompany()
+                        : advertiser.getName());
+        // 실제 발송 번호는 폼 전용 → 계정 기본 순으로 정해진다(V33). 마케터에게도 그 결과를 보여줘야
+        // "왜 안 왔지"를 추적할 수 있다 — 출처를 함께 내려 어떤 조치가 필요한지 구분되게 한다.
+        String effective = grant.resolveNotifyPhone(advertiser == null ? null : advertiser.getNotifyPhone());
+        String source = effective == null ? AdvertiserNotifyStatus.SOURCE_NONE
+                : grant.hasNotifyPhone() ? AdvertiserNotifyStatus.SOURCE_FORM
+                        : AdvertiserNotifyStatus.SOURCE_ACCOUNT;
+        return new AdvertiserNotifyStatus(true, name, effective != null,
+                effective == null ? null : PhoneNumbers.mask(effective),
+                source, grant.isNotifyDisabled());
     }
 
     /**

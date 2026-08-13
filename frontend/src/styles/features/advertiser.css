@@ -648,3 +648,56 @@
   border-color: var(--amber);
 }
 
+
+/* ============================================================
+   접수 알림 수신번호 — 리드폼별 조정(V33)
+   기본은 계정 번호를 따라가고, 이 행에서만 예외를 준다.
+   ============================================================ */
+
+.notify-form-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+.notify-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.notify-form-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* 지금 어디로 가는지 한눈에 — 켜짐/꺼짐/번호없음을 색으로 구분한다 */
+.notify-badge {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.notify-badge.on {
+  background: var(--green-soft);
+  color: var(--green-ink);
+}
+
+.notify-badge.off {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.notify-badge.none {
+  background: var(--amber-soft);
+  color: var(--amber-ink);
+}

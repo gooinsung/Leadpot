@@ -227,6 +227,136 @@ class AdvertiserNotifyPhoneTest {
                 .isInstanceOf(NotFoundException.class);
     }
 
+    // ---------- V33: 계정 기본 번호 + 리드폼별 덮어쓰기 ----------
+
+    /**
+     * V33 의 핵심. 폼마다 다시 등록해야 했던 게 실제로 알림 유실로 이어졌다
+     * (2026-08-13: 폼 24 는 등록됐고 새 폼 33 은 미등록 → 그 폼만 광고주 알림이 안 나갔다).
+     */
+    @Test
+    @DisplayName("폼 전용 번호가 없으면 계정 기본 번호로 발송된다")
+    void fallsBackToAccountDefault() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "010-5555-6666");
+
+        assertThat(advertiserRequest().to()).isEqualTo("01055556666");
+    }
+
+    @Test
+    @DisplayName("폼 전용 번호가 계정 기본 번호보다 우선한다")
+    void formPhoneWinsOverAccountDefault() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "01055556666");
+        advertiserLeadService.updateNotifyPhone(advertiser.getId(), form.getId(), "01077778888");
+
+        assertThat(advertiserRequest().to()).isEqualTo("01077778888");
+    }
+
+    @Test
+    @DisplayName("폼 전용 번호를 비우면 계정 기본 번호로 돌아간다(발송이 멈추지 않는다)")
+    void clearingFormPhoneRestoresAccountDefault() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "01055556666");
+        advertiserLeadService.updateNotifyPhone(advertiser.getId(), form.getId(), "01077778888");
+
+        advertiserLeadService.updateNotifyPhone(advertiser.getId(), form.getId(), "");
+
+        assertThat(advertiserRequest().to()).isEqualTo("01055556666");
+    }
+
+    @Test
+    @DisplayName("이 폼만 끄면 계정 기본 번호가 있어도 발송하지 않는다")
+    void perFormDisableStopsSending() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "01055556666");
+
+        advertiserLeadService.updateNotifyDisabled(advertiser.getId(), form.getId(), true);
+
+        // 목록에서 빼지 않고 빈 수신번호로 남긴다 — SKIPPED 로 이력에 남아야 추적이 된다.
+        assertThat(advertiserRequest().to()).isBlank();
+    }
+
+    @Test
+    @DisplayName("껐다가 다시 켜면 계정 기본 번호로 재개된다")
+    void perFormDisableCanBeUndone() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "01055556666");
+        advertiserLeadService.updateNotifyDisabled(advertiser.getId(), form.getId(), true);
+
+        advertiserLeadService.updateNotifyDisabled(advertiser.getId(), form.getId(), false);
+
+        assertThat(advertiserRequest().to()).isEqualTo("01055556666");
+    }
+
+    /**
+     * ⚠️ 가입 연락처는 수신 동의가 아니다. 계정 기본 번호가 생겼다고 여기로 폴백하면
+     * V28 이 막아둔 구멍이 다시 열린다 — 이 테스트가 깨지면 완화하지 말고 원인을 고칠 것.
+     */
+    @Test
+    @DisplayName("가입 연락처(users.phone)로는 절대 폴백하지 않는다")
+    void neverFallsBackToSignupPhone() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiser.setPhone("01099998888");
+        userRepository.save(advertiser);
+
+        assertThat(advertiserRequest().to()).isBlank();
+    }
+
+    @Test
+    @DisplayName("계정 기본 번호도 형식이 틀리면 거부한다")
+    void rejectsMalformedAccountDefault() {
+        assertThatThrownBy(() -> advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "010-1"))
+                .isInstanceOf(InvalidSubmissionException.class);
+    }
+
+    @Test
+    @DisplayName("마케터 상태 조회에 번호 출처가 표시된다(계정 기본 / 폼 전용)")
+    void notifyStatusShowsSource() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "01055556666");
+
+        AdvertiserNotifyStatus byAccount = advertiserService.notifyStatus(marketer.getId(), form.getId());
+        assertThat(byAccount.registered()).isTrue();
+        assertThat(byAccount.source()).isEqualTo(AdvertiserNotifyStatus.SOURCE_ACCOUNT);
+        assertThat(byAccount.disabledByAdvertiser()).isFalse();
+
+        advertiserLeadService.updateNotifyPhone(advertiser.getId(), form.getId(), "01077778888");
+        AdvertiserNotifyStatus byForm = advertiserService.notifyStatus(marketer.getId(), form.getId());
+        assertThat(byForm.source()).isEqualTo(AdvertiserNotifyStatus.SOURCE_FORM);
+    }
+
+    @Test
+    @DisplayName("마케터 상태 조회는 '광고주가 껐음'을 미등록과 구분해 알려준다")
+    void notifyStatusDistinguishesDisabled() {
+        enableAdvertiserSms();
+        grant(null);
+        advertiserLeadService.updateDefaultNotifyPhone(advertiser.getId(), "01055556666");
+        advertiserLeadService.updateNotifyDisabled(advertiser.getId(), form.getId(), true);
+
+        AdvertiserNotifyStatus status = advertiserService.notifyStatus(marketer.getId(), form.getId());
+        assertThat(status.registered()).isFalse();
+        assertThat(status.disabledByAdvertiser()).isTrue();
+        // 마케터에게 번호를 노출하지 않는다 — 발송 불가 상태에서는 마스킹 값도 주지 않는다.
+        assertThat(status.phoneMasked()).isNull();
+    }
+
+    @Test
+    @DisplayName("권한 없는 리드폼은 끌 수도 없다")
+    void cannotDisableFormWithoutGrant() {
+        Form other = formRepository.save(new Form(marketer.getId(), "다른 폼", FormType.BASIC));
+
+        assertThatThrownBy(() -> advertiserLeadService.updateNotifyDisabled(
+                advertiser.getId(), other.getId(), true))
+                .isInstanceOf(NotFoundException.class);
+    }
+
     // ---------- 헬퍼 ----------
 
     /** 이 리드에 대해 광고주에게 나갈 문자 1건. 토글이 켜져 있으면 번호가 없어도 목록에는 오른다. */
