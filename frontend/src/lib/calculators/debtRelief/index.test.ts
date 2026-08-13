@@ -88,26 +88,71 @@ describe("가용소득이 지배하는 일반 케이스", () => {
 });
 
 describe("최저변제액이 지배하는 저소득 케이스", () => {
-  // 월소득 160만 / 1인 → 가용소득 61,457원. 36개월로는 최저변제액 400만원을 못 채운다.
+  // 월소득 160만 / 1인 → 원칙 가용소득 61,457원. 60개월(3,687,420)로도 최저변제액 400만을 못 채운다.
+  // → 실무처럼 생계비를 줄인 안으로 계산한다.
   const r = calcDebtRelief({ totalDebt: 100_000_000, monthlyIncome: 1_600_000, assets: 0, securedDebt: 0 });
 
   it("최저변제액이 하한으로 작동한다", () => {
-    expect(r.disposableIncome).toBe(61_457);
     expect(r.minRepayment).toBe(4_000_000);
     expect(r.bindingConstraint).toBe("MIN_REPAYMENT");
-    expect(r.totalRepayment).toBe(4_000_000);
   });
 
-  it("60개월로도 하한을 못 채우면 경고를 남긴다", () => {
-    // 4,000,000 / 61,457 ≈ 65.1개월 > 60개월 상한
+  it("생계비를 줄여 최저변제액을 맞춘다", () => {
+    // 4,000,000 / 60개월 = 월 66,667원 → 생계비 1,600,000 − 66,667 = 1,533,333
     expect(r.repaymentMonths).toBe(60);
+    expect(r.disposableIncome).toBe(66_667);
+    expect(r.livingCost).toBe(1_533_333);
+    expect(r.totalRepayment).toBe(66_667 * 60);
+    expect(r.assumptions).toContain("LIVING_COST_REDUCED");
     expect(r.assumptions).toContain("PERIOD_EXTENDED");
-    expect(r.assumptions).toContain("FLOOR_EXCEEDS_CAPACITY");
   });
 
   it("탕감률이 96%로 나온다", () => {
-    expect(r.reliefAmount).toBe(96_000_000);
+    expect(r.reliefAmount).toBe(100_000_000 - 66_667 * 60);
     expect(r.reliefRate).toBe(96);
+  });
+});
+
+describe("소득이 법정 생계비(60%)보다 적어도 개인회생은 가능하다", () => {
+  /**
+   * 여기가 이 계산기의 핵심 판단이다. 60% 는 **원칙값**이고 법원이 낮춰 인정할 수 있어서,
+   * 소득이 60% 미만이어도 최저변제액만 갚으면 인가된다. 이걸 파산으로 보내면
+   * 3인(322만)·4인(390만) 미만 소득자가 전부 오판된다.
+   */
+  it("월소득 150만 / 1인 (생계비 154만 미만) 도 회생 가능하다", () => {
+    const r = calcDebtRelief({ totalDebt: 30_000_000, monthlyIncome: 1_500_000, assets: 0, securedDebt: 0 });
+    expect(r.eligible).toBe(true);
+    expect(r.assumptions).toContain("LIVING_COST_REDUCED");
+    // 최저변제액 3천만×5% = 150만 → 월 25,000원 × 60개월
+    expect(r.minRepayment).toBe(1_500_000);
+    expect(r.disposableIncome).toBe(25_000);
+    expect(r.livingCost).toBe(1_475_000);
+    expect(r.reliefRate).toBe(95);
+  });
+
+  it("월소득 300만 / 3인 (생계비 322만 미만) 도 회생 가능하다", () => {
+    const r = calcDebtRelief({
+      totalDebt: 80_000_000, monthlyIncome: 3_000_000, dependents: 2, assets: 10_000_000, securedDebt: 0,
+    });
+    expect(r.eligible).toBe(true);
+    // 청산가치 1천만이 하한 → 월 166,667원 × 60개월
+    expect(r.bindingConstraint).toBe("LIQUIDATION_VALUE");
+    expect(r.disposableIncome).toBe(166_667);
+    expect(r.repaymentMonths).toBe(60);
+    expect(r.reliefRate).toBe(87.5);
+  });
+
+  it("생계급여 수준(중위소득 32%)까지 줄여도 못 갚으면 파산 트랙이다", () => {
+    // 월소득 70만 / 1인 → 1인 생계급여 하한 820,556원. 70만 − 25,000 = 675,000 < 820,556
+    const r = calcDebtRelief({ totalDebt: 30_000_000, monthlyIncome: 700_000, assets: 0, securedDebt: 0 });
+    expect(r.eligible).toBe(false);
+    expect(r.ineligibleReason).toBe("INSUFFICIENT_INCOME");
+  });
+
+  it("파산 경계선 바로 위는 회생 가능하다", () => {
+    // 하한 820,556 + 월 25,000 = 845,556 이상이면 가능
+    expect(calcDebtRelief({ totalDebt: 30_000_000, monthlyIncome: 846_000, assets: 0 }).eligible).toBe(true);
+    expect(calcDebtRelief({ totalDebt: 30_000_000, monthlyIncome: 845_000, assets: 0 }).eligible).toBe(false);
   });
 });
 
@@ -144,18 +189,12 @@ describe("청산가치가 지배하는 케이스", () => {
 });
 
 describe("자격 게이트", () => {
-  it("소득이 생계비 이하면 개인회생이 아니라 파산 트랙이다", () => {
-    const r = calcDebtRelief({ totalDebt: 30_000_000, monthlyIncome: 1_500_000 });
+  it("파산 트랙일 때도 화면 안내용으로 원칙 생계비를 돌려준다", () => {
+    const r = calcDebtRelief({ totalDebt: 30_000_000, monthlyIncome: 700_000 });
     expect(r.eligible).toBe(false);
-    expect(r.ineligibleReason).toBe("NO_DISPOSABLE_INCOME");
-    expect(r.disposableIncome).toBeLessThanOrEqual(0);
-    // 화면 안내를 위해 생계비 자체는 계산해서 돌려준다
+    expect(r.ineligibleReason).toBe("INSUFFICIENT_INCOME");
     expect(r.livingCost).toBe(LIVING_1);
-  });
-
-  it("생계비와 소득이 정확히 같아도 가용소득 0이므로 불가다", () => {
-    const r = calcDebtRelief({ totalDebt: 30_000_000, monthlyIncome: LIVING_1 });
-    expect(r.ineligibleReason).toBe("NO_DISPOSABLE_INCOME");
+    expect(r.disposableIncome).toBeLessThanOrEqual(0);
   });
 
   it("무담보채무 10억 초과는 신청 자격이 없다", () => {
@@ -201,15 +240,18 @@ describe("담보채무 분리", () => {
 
 describe("추가생계비", () => {
   it("미성년 자녀 교육비가 1인당 20만원 가산된다", () => {
+    // 원칙 생계비로도 하한을 채울 수 있는 소득이어야 교육비 가산이 그대로 보인다
+    // (소득이 낮으면 생계비 감액 경로로 빠져 값이 덮인다).
     const r = calcDebtRelief({
       totalDebt: 50_000_000,
-      monthlyIncome: 3_000_000,
+      monthlyIncome: 4_500_000,
       dependents: 2,
       minorChildren: 2,
       assets: 0,
     });
     expect(r.livingCost).toBe(LIVING_3 + 400_000);
-    expect(r.disposableIncome).toBe(3_000_000 - (LIVING_3 + 400_000));
+    expect(r.disposableIncome).toBe(4_500_000 - (LIVING_3 + 400_000));
+    expect(r.assumptions).not.toContain("LIVING_COST_REDUCED");
   });
 
   it("기본+추가 생계비는 중위소득 100%를 넘지 못한다", () => {

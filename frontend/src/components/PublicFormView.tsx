@@ -14,9 +14,9 @@ import { PhoneInput3 } from "./PhoneInput3";
 import { consentDocUrl } from "../lib/site";
 import { CompletionView } from "./formRenderers/CompletionView";
 import { firePixelLead } from "../lib/pixels";
-import { CalcResultView } from "./formRenderers/CalcResultView";
+import { CalcFollowUp, CalcGateView, CalcLoadingView, CalcResultView } from "./formRenderers/CalcResultView";
 import { findCalculator } from "../lib/calculators/registry";
-import type { CalcView } from "../lib/calculators/types";
+import type { CalcView, CalculatorDef } from "../lib/calculators/types";
 
 /**
  * 계산기 입력값 모으기 — 질문(CHOICE) 블록 중 `content.calcInput` 이 붙은 것들의 답을
@@ -98,6 +98,8 @@ export function PublicFormView({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  /** 계산기: 접수 직후 "AI가 계산 중" 을 3초 보여준 다음 결과를 공개한다. */
+  const [revealing, setRevealing] = useState(false);
 
   const consentItems = useMemo(() => (form.consentConfig?.items as ConsentItem[]) ?? [], [form]);
 
@@ -243,6 +245,11 @@ export function PublicFormView({
         window.location.href = success.redirectUrl as string;
         return;
       }
+      // 계산기가 붙은 폼은 결과 공개 전 3초 로딩을 거친다(리다이렉트 설정이면 여기까지 오지 않는다).
+      if (calculator) {
+        setRevealing(true);
+        setTimeout(() => setRevealing(false), 3000);
+      }
       setSubmitted(true);
       onSubmitted?.();
     } catch (err) {
@@ -252,6 +259,18 @@ export function PublicFormView({
     }
   }
 
+  // 계산기: 접수가 끝난 **뒤** 결과를 보여준다(결과를 먼저 보여주면 그것만 보고 나간다).
+  // 계산은 이미 끝나 있지만 3초 로딩을 거친다 — 즉시 뜨면 4개 답변으로 뽑은 숫자의 무게가 안 실린다.
+  if (submitted && calculator && calcView) {
+    return revealing ? (
+      <CalcLoadingView accentColor={style.accentColor} />
+    ) : (
+      <div className="calc-result-screen">
+        <CalcResultView view={calcView} disclaimer={calculator.disclaimer} accentColor={style.accentColor} />
+        <CalcFollowUp text={calculator.followUp} />
+      </div>
+    );
+  }
   if (submitted) return <CompletionView config={form.successConfig} accent={style.accentColor} />;
 
   return (
@@ -283,6 +302,7 @@ export function PublicFormView({
           onSubmit={onSubmit}
           calcView={calcView}
           calcDisclaimer={calculator?.disclaimer ?? ""}
+          calcGate={calculator?.gate ?? null}
         />
       )}
     </>
@@ -373,18 +393,24 @@ function StepFlow(props: {
   submitting: boolean;
   submitError: string;
   onSubmit: () => void;
-  /** 계산기가 붙어 있으면 결과 단계가 질문과 연락처 사이에 하나 더 생긴다. null = 계산기 없음. */
+  /** 계산기가 붙어 있으면 마지막 단계가 '결과 받기 위한 정보 입력' 화면이 된다. null = 계산기 없음. */
   calcView: CalcView | null;
   calcDisclaimer: string;
+  /** 연락처 받기 전 유도 문구(계산기 정의). */
+  calcGate: CalculatorDef["gate"] | null;
 }) {
-  const { sorted, contactMessage, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcDisclaimer } = props;
+  const { sorted, contactMessage, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcGate } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
-  // 단계 구성: [질문 0..n-1] → (계산 결과) → [연락처]
+  /**
+   * 단계 구성: [질문 0..n-1] → [마지막 단계]
+   *
+   * 계산기가 있으면 마지막 단계에 **결과와 연락처를 한 화면에** 둔다 —
+   * 결과를 보려고 버튼을 한 번 더 누르게 만들면 그 클릭에서 이탈한다(사용자 결정 2026-08-13).
+   */
   const hasCalc = calcView != null;
-  const isCalc = hasCalc && step === choiceBlocks.length;
-  const total = choiceBlocks.length + (hasCalc ? 2 : 1);
-  const isContact = step >= choiceBlocks.length + (hasCalc ? 1 : 0);
+  const total = choiceBlocks.length + 1;
+  const isContact = step >= choiceBlocks.length;
   const [stepError, setStepError] = useState("");
 
   function toggle(si: number, oi: number, multi: boolean) {
@@ -432,14 +458,12 @@ function StepFlow(props: {
   return (
     <div className="sfr">
       <div className="sfr-head">
-        <span>{isContact ? "마지막 단계" : isCalc ? "진단 결과" : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
+        <span>{isContact ? (hasCalc ? "진단 결과" : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
         <span>SSL 보안연결</span>
       </div>
       <div className="sfr-progress"><i style={{ width: `${((step + 1) / total) * 100}%`, background: style.accentColor }} /></div>
 
-      {isCalc ? (
-        <CalcResultView view={calcView!} disclaimer={calcDisclaimer} accentColor={style.accentColor} />
-      ) : !isContact ? (
+      {!isContact ? (
         (() => {
           const b = choiceBlocks[step];
           const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
@@ -484,7 +508,12 @@ function StepFlow(props: {
         })()
       ) : (
         <div>
-          <h3 className="t-h3" style={{ marginBottom: 12 }}>{contactMessage || "연락처를 남겨주세요"}</h3>
+          {/* 계산기: 결과를 보려면 정보를 입력해야 한다 — 결과 먼저 보여주면 리드가 안 남는다. */}
+          {hasCalc && calcGate ? (
+            <CalcGateView gate={calcGate} accentColor={style.accentColor} />
+          ) : (
+            <h3 className="t-h3" style={{ marginBottom: 12 }}>{contactMessage || "연락처를 남겨주세요"}</h3>
+          )}
           {contactBlocks.map((b, i) => (
             <LiveField key={i} block={b} idx={1000 + i} value={values[`c${i}`] ?? ""} onChange={(v) => setVal(`c${i}`, v)} />
           ))}
@@ -498,12 +527,10 @@ function StepFlow(props: {
         {step > 0 && <button className="btn btn-ghost" type="button" onClick={goPrev}>이전</button>}
         {isContact ? (
           <button className="btn" type="button" style={{ flex: 1, background: style.buttonColor, color: style.buttonText }} disabled={submitting} onClick={onSubmit}>
-            {submitting ? "제출 중…" : submitLabel}
+            {submitting ? "제출 중…" : (calcGate?.submitLabel || submitLabel)}
           </button>
         ) : (
-          <button className="btn" type="button" style={{ flex: 1, background: isCalc ? style.buttonColor : style.accentColor, color: isCalc ? style.buttonText : style.accentText }} onClick={goNext}>
-            {isCalc ? "이 결과로 무료 상담받기" : "다음"}
-          </button>
+          <button className="btn" type="button" style={{ flex: 1, background: style.accentColor, color: style.accentText }} onClick={goNext}>다음</button>
         )}
       </div>
     </div>

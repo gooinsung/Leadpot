@@ -24,8 +24,14 @@ export type IneligibleReason =
   | "SECURED_DEBT_LIMIT"
   /** 변제 대상 채무(무담보)가 없음 */
   | "NO_UNSECURED_DEBT"
-  /** 소득이 생계비 이하 → 변제할 재원이 없다. 개인회생이 아니라 **개인파산** 트랙. */
-  | "NO_DISPOSABLE_INCOME";
+  /**
+   * 생계비를 생계급여 수준(중위소득 32%)까지 줄여도 최저변제액을 못 갚는다 →
+   * 변제 재원이 없으므로 개인회생이 아니라 **개인파산** 트랙.
+   *
+   * ⚠️ "소득 < 생계비(60%)" 만으로는 여기 오지 않는다 — 60%는 원칙값이고 법원이 낮춰 인정할 수 있어서,
+   * 소득이 60% 미만이어도 개인회생이 되는 게 실무다. 그걸 파산으로 보내면 대부분이 오판된다.
+   */
+  | "INSUFFICIENT_INCOME";
 
 /** 총변제액을 결정한 기준(3원칙 중 어느 것이 이겼는지). 화면에 "왜 이 금액인지" 설명하는 근거. */
 export type BindingConstraint = "DISPOSABLE_INCOME" | "MIN_REPAYMENT" | "LIQUIDATION_VALUE" | "FULL_DEBT";
@@ -44,8 +50,11 @@ export type ResultFlag =
   | "EXTRA_LIVING_COST_CAPPED"
   /** 최저변제액·청산가치를 맞추려 변제기간을 요청값보다 늘렸다. */
   | "PERIOD_EXTENDED"
-  /** 법정 하한을 60개월 가용소득으로도 못 채운다 → 재산 처분·소득 증대 없이는 인가가 어렵다. */
-  | "FLOOR_EXCEEDS_CAPACITY"
+  /**
+   * 원칙 생계비(60%)로는 최저변제액·청산가치를 못 채워 **생계비를 줄인 안**으로 계산했다.
+   * 실무에서 흔하지만 법원 재량이라 소명이 필요하다 — 화면에 반드시 알린다.
+   */
+  | "LIVING_COST_REDUCED"
   /** 채무를 전액 변제하게 된다 → 개인회생 실익이 없다. */
   | "NO_RELIEF";
 
@@ -203,53 +212,72 @@ export function calcDebtRelief(input: DebtReliefInput): DebtReliefResult {
   }
 
   // 배우자에게 소득이 있으면 가구 생계비를 소득 비율로 안분한다(단순 안분 — 실무는 사안별).
+  let prorationRatio = 1;
   if (spouseIncome > 0 && monthlyIncome + spouseIncome > 0) {
-    livingCost = Math.round((livingCost * monthlyIncome) / (monthlyIncome + spouseIncome));
+    prorationRatio = monthlyIncome / (monthlyIncome + spouseIncome);
+    livingCost = Math.round(livingCost * prorationRatio);
     flags.push("LIVING_COST_PRORATED");
-  }
-
-  const disposableIncome = monthlyIncome - livingCost;
-  if (disposableIncome <= 0) {
-    // 갚을 재원이 없으면 개인회생은 인가될 수 없다 → 개인파산 검토 대상.
-    return ineligible("NO_DISPOSABLE_INCOME", {
-      year,
-      householdSize,
-      medianIncome,
-      baseLivingCost,
-      livingCost,
-      disposableIncome,
-      unsecuredDebt,
-      liquidationValue: assets,
-      assumptions: flags,
-    });
   }
 
   // ── ② 3원칙 중 최댓값 ─────────────────────────────────────────
   const minRepayment = minRepaymentFor(unsecuredDebt);
   const liquidationValue = assets;
+  const floor = Math.max(minRepayment, liquidationValue);
 
   const requestedMonths = Math.min(
     LAW.MAX_MONTHS,
     Math.max(1, Math.floor(input.repaymentMonths ?? LAW.DEFAULT_MONTHS)),
   );
   let months = requestedMonths;
-  const floor = Math.max(minRepayment, liquidationValue);
 
-  // 어느 기준이 금액을 지배하는지는 **요청한 변제기간**을 기준으로 판단한다.
-  // (하한 때문에 기간을 늘린 뒤 비교하면 늘 가용소득이 이긴 것처럼 보인다 — 근거 표시가 뒤집힌다.)
+  /** 원칙 생계비(중위소득 60%)를 그대로 인정받았을 때의 가용소득. 음수일 수 있다. */
+  const principalDisposable = monthlyIncome - livingCost;
+
+  // 어느 기준이 금액을 지배하는지는 **원칙 생계비 · 요청한 변제기간**을 기준으로 판단한다.
+  // (하한 때문에 기간을 늘리거나 생계비를 줄인 뒤 비교하면 늘 가용소득이 이긴 것처럼 보인다 —
+  //  근거 표시가 뒤집힌다.)
   let bindingConstraint: BindingConstraint =
-    floor <= disposableIncome * requestedMonths
+    floor <= principalDisposable * requestedMonths
       ? "DISPOSABLE_INCOME"
       : liquidationValue >= minRepayment
         ? "LIQUIDATION_VALUE"
         : "MIN_REPAYMENT";
 
-  // 가용소득만으로 하한을 못 채우면 실무처럼 변제기간을 늘린다(월변제금을 가용소득 위로 올릴 수는 없다).
-  if (disposableIncome * months < floor) {
-    const needed = Math.ceil(floor / disposableIncome);
-    months = Math.min(needed, LAW.MAX_MONTHS);
+  let disposableIncome = principalDisposable;
+
+  if (principalDisposable <= 0 || principalDisposable * LAW.MAX_MONTHS < floor) {
+    // 원칙 생계비로는 60개월을 다 써도 법정 하한을 못 채운다.
+    // → 실무처럼 **생계비를 줄인 안**으로 다시 본다. 60%는 원칙값이고 법원이 낮춰 인정할 수 있다.
+    //   (여기서 바로 파산으로 보내면 3인 322만·4인 390만 미만 소득자가 전부 오판된다.)
+    const requiredMonthly = Math.ceil(floor / LAW.MAX_MONTHS);
+    const reducedLivingCost = monthlyIncome - requiredMonthly;
+    // 다만 생계급여 수준(중위소득 32%) 밑으로는 줄일 수 없다 — 실질적으로 생활이 불가능하다.
+    const survivalFloor = Math.round(medianIncome * std.survivalRate * prorationRatio);
+
+    if (reducedLivingCost < survivalFloor) {
+      return ineligible("INSUFFICIENT_INCOME", {
+        year,
+        householdSize,
+        medianIncome,
+        baseLivingCost,
+        livingCost,
+        disposableIncome: principalDisposable,
+        unsecuredDebt,
+        minRepayment,
+        liquidationValue,
+        assumptions: flags,
+      });
+    }
+
+    livingCost = reducedLivingCost;
+    disposableIncome = requiredMonthly;
+    months = LAW.MAX_MONTHS;
+    flags.push("LIVING_COST_REDUCED");
     if (months > requestedMonths) flags.push("PERIOD_EXTENDED");
-    if (needed > LAW.MAX_MONTHS) flags.push("FLOOR_EXCEEDS_CAPACITY");
+  } else if (principalDisposable * months < floor) {
+    // 원칙 생계비로도 가능하지만 요청 기간으로는 하한이 안 채워진다 → 기간만 늘린다.
+    months = Math.min(Math.ceil(floor / principalDisposable), LAW.MAX_MONTHS);
+    if (months > requestedMonths) flags.push("PERIOD_EXTENDED");
   }
 
   let totalRepayment = Math.max(disposableIncome * months, floor);
