@@ -9,7 +9,27 @@ import { CALCULATORS, findCalculator } from "../registry";
  */
 
 /** 정상 계산이 나오는 입력(1인 가구·월 250만·채무 5천만·재산 없음). */
-const OK_RAW = { totalDebt: "5000", monthlyIncome: "250", dependents: "0", assets: "0", securedDebt: "0" };
+const OK_RAW = { totalDebt: "5000", monthlyIncome: "250", dependents: "0", assets: "0" };
+
+describe("질문 구성", () => {
+  it("질문은 4개다 — 담보대출·미성년자녀는 묻지 않는다(2026-08-13 결정)", () => {
+    expect(def.inputs.map((i) => i.key)).toEqual(["totalDebt", "monthlyIncome", "dependents", "assets"]);
+  });
+
+  it("담보대출은 1번 질문에서 제외하도록 안내한다", () => {
+    // 이 안내가 사라지면 담보대출을 포함해 입력하는 사람이 생겨 탕감액이 과대 추정된다.
+    expect(def.inputs[0].description).toContain("주택담보대출은 빼고");
+  });
+
+  it("담보대출을 묻지 않으므로 '분리하지 않았다' 경고는 뜨지 않는다", () => {
+    // 1번 질문에서 이미 제외했는데 경고가 뜨면 거짓 안내가 된다.
+    expect(def.run(OK_RAW).warnings.some((w) => w.includes("담보 대출을 분리하지"))).toBe(false);
+  });
+
+  it("추가생계비 미반영 경고는 계속 뜬다(상담 훅)", () => {
+    expect(def.run(OK_RAW).warnings.some((w) => w.includes("추가 생계비"))).toBe(true);
+  });
+});
 
 describe("계약(다른 계층과의 접합부)", () => {
   it("outputLabels 와 toAnswers 의 label 이 정확히 일치한다", () => {
@@ -111,9 +131,7 @@ describe("결과 화면 재료", () => {
 
   it("청산가치가 지배하면 근거 문구가 바뀐다", () => {
     // 3인 가구·월 360만·채무 8천만·재산 5천만 → 청산가치가 하한
-    const view = def.run({
-      totalDebt: "8000", monthlyIncome: "360", dependents: "2", assets: "5000", securedDebt: "0",
-    });
+    const view = def.run({ totalDebt: "8000", monthlyIncome: "360", dependents: "2", assets: "5000" });
     expect(view.breakdown.find((b) => b.label === "총 변제금액")?.hint).toContain("청산가치");
   });
 });
