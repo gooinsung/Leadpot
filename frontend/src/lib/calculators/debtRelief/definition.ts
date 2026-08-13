@@ -117,8 +117,12 @@ export const debtReliefCalculator: CalculatorDef = {
   inputs: [
     {
       key: "totalDebt",
+      // 담보채무를 따로 묻지 않고 여기서 제외시킨다(사용자 결정 2026-08-13, B안).
+      // 단계를 하나 줄이는 대가로, 제외하지 않고 입력하면 탕감액이 과대 추정된다 →
+      // 결과의 '변제 대상 채무' 근거에 "주택담보대출 제외" 를 남겨 전제를 드러낸다.
       question: "총 채무액이 얼마인가요?",
-      description: "카드·대출·연체금 등 전체 금액을 만원 단위로 입력해주세요.",
+      description:
+        "카드·신용대출·연체금 등을 만원 단위로 입력해주세요. 주택담보대출은 빼고 입력해주세요 — 담보 대출은 개인회생 변제 대상이 아닙니다.",
       required: true,
       answerType: "number",
       unit: "만원",
@@ -149,23 +153,6 @@ export const debtReliefCalculator: CalculatorDef = {
       answerType: "single",
       options: ASSET_OPTIONS,
     },
-    {
-      key: "securedDebt",
-      question: "총 채무 중 주택담보대출이 있나요?",
-      description: "담보 대출은 개인회생 변제 대상이 아니라 따로 계산합니다. 없으면 0을 입력해주세요.",
-      required: false,
-      answerType: "number",
-      unit: "만원",
-      placeholder: "없으면 0",
-    },
-    {
-      key: "minorChildren",
-      question: "미성년 자녀가 몇 명인가요?",
-      description: "자녀 교육비는 추가 생계비로 인정되어 탕감액이 늘어납니다.",
-      required: false,
-      answerType: "single",
-      options: COUNT_OPTIONS(3),
-    },
   ],
 
   run(raw) {
@@ -177,9 +164,14 @@ export const debtReliefCalculator: CalculatorDef = {
         // 선택지를 안 고른 경우와 "거의 없음"(0)을 구분해야 한다 —
         // 미입력이면 undefined 로 넘겨 '재산 0 가정' 경고가 붙게 한다.
         assets: raw.assets === undefined || raw.assets === "" ? undefined : manwonToWon(raw.assets),
-        securedDebt:
-          raw.securedDebt === undefined || raw.securedDebt === "" ? undefined : manwonToWon(raw.securedDebt),
-        minorChildren: toInt(raw.minorChildren),
+        // 담보채무는 1번 질문에서 이미 제외하고 받았으므로 0 을 **명시**한다.
+        // undefined 로 두면 "담보 대출을 분리하지 않았다" 경고가 늘 붙어 거짓 안내가 된다.
+        securedDebt: 0,
+        // 자녀 교육비(추가생계비)는 묻지 않는다 — 주거비 지역별 표를 못 구한 상태에서 작은 항목만
+        // 반영하면 어중간해진다. 추가생계비를 일관되게 0 으로 두면 탕감액이 **낮게** 나오고(안전한 방향)
+        // 결과의 EXTRA_LIVING_COST_OMITTED 경고가 그대로 상담 훅이 된다.
+        // 계산 함수는 minorChildren·extraLivingCost 를 계속 지원한다 — 표를 구하면 되살린다.
+        minorChildren: 0,
       }),
     );
   },
