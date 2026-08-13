@@ -15,6 +15,7 @@ import landingCss from "../styles/features/landing.css?inline";
 import publicCss from "../styles/features/public.css?inline";
 import leadsCss from "../styles/features/leads.css?inline";
 import advertiserCss from "../styles/features/advertiser.css?inline";
+import calculatorCss from "../styles/features/calculator.css?inline";
 
 /**
  * 외부 사이트 임베드(M6) 진입점 — 자립 스크립트로 빌드된다(vite.embed.config.ts, IIFE).
@@ -41,6 +42,7 @@ const SHADOW_CSS = [
   publicCss,
   leadsCss,
   advertiserCss,
+  calculatorCss,
   `.lp-embed{display:block;width:100%;font-family:var(--sans);color:var(--text);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;}
    .lp-embed .public-form-card{min-height:0;max-width:100%;}`,
 ].join("\n");

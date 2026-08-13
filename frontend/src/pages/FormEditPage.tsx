@@ -30,6 +30,8 @@ import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
+import { CALCULATORS, findCalculator } from "../lib/calculators/registry";
+import type { CalculatorDef } from "../lib/calculators/types";
 
 /**
  * 광고주 접수 알림 수신 상태 안내(V28).
@@ -140,7 +142,13 @@ interface StepData {
   answerType: string;
   placeholder: string;
   required: boolean;
-  options: { label: string; desc: string }[];
+  options: { label: string; desc: string; value?: string }[];
+  /**
+   * 이 단계의 답이 계산기의 어느 입력인지(`totalDebt` 등). 계산기를 고르면 자동으로 붙는다.
+   * 값이 계산에 들어가므로 **마케터가 답변 방식·선택지 값을 함부로 바꾸면 결과가 틀린다** →
+   * 편집 화면에서 배지로 표시하고 답변 방식은 잠근다.
+   */
+  calcInput?: string | null;
   /** 기본 선택 — options 의 인덱스. null 이면 미리 선택하지 않는다. */
   defaultIndex?: number | null;
   /**
@@ -167,6 +175,59 @@ function blockLabel(b: FormBlock): string {
   return (b.label || "").trim() || "(이름 없음)";
 }
 
+/**
+ * 새 스텝형 리드폼의 씨앗 질문. **자리채우기 예시**이므로 마케터의 작업물로 보지 않는다
+ * ({@link isPristineSteps} 참고) — 계산기로 바꿀 때 굳이 "지워도 되나요?"를 묻지 않는다.
+ */
+function defaultSteps(): StepData[] {
+  return [
+    {
+      question: "현재 가장 어려운 점은 무엇인가요?",
+      description: "",
+      answerType: "single",
+      placeholder: "",
+      required: true,
+      options: [
+        { label: "선택지 1", desc: "" },
+        { label: "선택지 2", desc: "" },
+      ],
+    },
+  ];
+}
+
+/** 손대지 않은 씨앗 질문 그대로인가. 계산기로 바꿀 때 확인창을 띄울지 판단한다. */
+function isPristineSteps(steps: StepData[]): boolean {
+  const seed = defaultSteps();
+  if (steps.length !== seed.length) return false;
+  return steps.every((s, i) => {
+    const d = seed[i];
+    return (
+      s.question === d.question &&
+      s.description === d.description &&
+      s.answerType === d.answerType &&
+      s.options.length === d.options.length &&
+      s.options.every((o, oi) => o.label === d.options[oi].label)
+    );
+  });
+}
+
+/**
+ * 계산기 정의 → 질문 단계 자동 생성 (사용자 결정 2026-08-13: 수동 매핑이 아니라 자동 생성).
+ * 오매핑으로 결과가 조용히 틀리는 것을 원천 차단한다 — 틀린 결과의 책임은 리드팟으로 온다.
+ */
+function stepsFromCalculator(def: CalculatorDef): StepData[] {
+  return def.inputs.map((it) => ({
+    question: it.question,
+    description: it.description ?? "",
+    answerType: it.answerType,
+    placeholder: it.placeholder ?? "",
+    required: it.required,
+    options: (it.options ?? []).map((o) => ({ label: o.label, desc: o.desc ?? "", value: o.value })),
+    defaultIndex: null,
+    calcInput: it.key,
+  }));
+}
+
 function defaultContactFields(): FormBlock[] {
   return [
     { sortOrder: 0, blockType: "FIELD", fieldType: "text", label: "이름", required: true, placeholder: "홍길동" },
@@ -191,21 +252,16 @@ export function FormEditPage() {
   ]);
 
   // STEP: 질문 단계 + 마지막 연락처 단계
-  const [steps, setSteps] = useState<StepData[]>([
-    {
-      question: "현재 가장 어려운 점은 무엇인가요?",
-      description: "",
-      answerType: "single",
-      placeholder: "",
-      required: true,
-      options: [
-        { label: "선택지 1", desc: "" },
-        { label: "선택지 2", desc: "" },
-      ],
-    },
-  ]);
+  const [steps, setSteps] = useState<StepData[]>(defaultSteps());
   const [contactFields, setContactFields] = useState<FormBlock[]>(defaultContactFields());
   const [contactMessage, setContactMessage] = useState("");
+  /**
+   * 붙어 있는 계산기(`null` = 없음). 마케터에게는 "리드폼 종류"로 보이지만
+   * 내부적으로는 STEP + CALC 블록이다 — formType 을 늘리면 BASIC/STEP 분기를 전부 3-way 로
+   * 고쳐야 하고 계산기가 늘 때마다 enum 이 늘어난다.
+   */
+  const [calcKey, setCalcKey] = useState<string | null>(null);
+  const calculator = findCalculator(calcKey);
 
   const [consentItems, setConsentItems] = useState<ConsentItem[]>(defaultConsentItems());
   const [consentDocs, setConsentDocs] = useState<ConsentDocumentSummary[]>([]);
@@ -357,13 +413,18 @@ export function FormEditPage() {
               answerType: (b.content?.answerType as string) || (b.content?.selectType as string) || "single",
               placeholder: (b.content?.placeholder as string) || "",
               required: b.content?.required === true,
-              options: ((b.content?.options as { label: string; desc: string }[]) || []).map((o) => ({
+              options: ((b.content?.options as { label: string; desc: string; value?: string }[]) || []).map((o) => ({
                 label: o.label ?? "",
                 desc: o.desc ?? "",
+                value: o.value,
               })),
               defaultIndex: typeof b.content?.defaultIndex === "number" ? (b.content.defaultIndex as number) : null,
+              calcInput: (b.content?.calcInput as string) || null,
             })),
           );
+          // 계산기 복원 — 정의가 사라진 키(계산기를 내린 경우)는 null 로 두어 일반 스텝형으로 열린다.
+          const savedCalcKey = sorted.find((b) => b.blockType === "CALC")?.content?.calcKey as string | undefined;
+          setCalcKey(findCalculator(savedCalcKey) ? savedCalcKey! : null);
           setContactFields(sorted.filter((b) => b.blockType === "FIELD"));
           setContactMessage((f.typeConfig?.contactMessage as string) || "");
         } else {
@@ -408,6 +469,41 @@ export function FormEditPage() {
   }
 
   // ---- STEP 편집 ----
+  /**
+   * 리드폼 종류 고르기. `kind` 는 "BASIC" | "STEP" | 계산기 key.
+   *
+   * 계산기를 고르면 질문 단계를 **덮어쓴다** — 이미 만들어둔 질문이 있으면 먼저 확인받는다.
+   * 계산기에서 빠져나갈 때는 질문을 지우지 않고 계산기 표시(calcInput)만 뗀다(작업물 보존).
+   */
+  function pickKind(kind: string) {
+    if (kind === "BASIC") {
+      setFormType("BASIC");
+      setCalcKey(null);
+      return;
+    }
+    if (kind === "STEP") {
+      setFormType("STEP");
+      if (calcKey) setSteps((prev) => prev.map((s) => ({ ...s, calcInput: null })));
+      setCalcKey(null);
+      return;
+    }
+    const def = findCalculator(kind);
+    if (!def) return;
+    if (calcKey === kind) return;
+    // 마케터가 직접 만든 질문이 남아 있으면 덮어쓰기 전에 묻는다.
+    // 손대지 않은 씨앗 질문은 작업물이 아니므로 조용히 갈아치운다(새 폼에서 확인창이 뜨면 성가시다).
+    const hasOwnSteps = !isPristineSteps(steps) && steps.some((s) => !s.calcInput && s.question.trim());
+    if (hasOwnSteps && !window.confirm(`'${def.name}'에 필요한 질문으로 바꿉니다. 지금 만들어둔 질문은 사라집니다. 계속할까요?`)) {
+      return;
+    }
+    setFormType("STEP");
+    setCalcKey(kind);
+    setSteps(stepsFromCalculator(def));
+    if (!contactMessage.trim()) {
+      setContactMessage("진단 결과를 전문 상담사가 자세히 설명해드립니다. 연락처를 남겨주세요.");
+    }
+  }
+
   function patchStep(i: number, patch: Partial<StepData>) {
     setSteps((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
@@ -423,7 +519,7 @@ export function FormEditPage() {
   function moveStep(i: number, dir: -1 | 1) {
     setSteps((prev) => swap(prev, i, i + dir));
   }
-  function patchOption(si: number, oi: number, patch: Partial<{ label: string; desc: string }>) {
+  function patchOption(si: number, oi: number, patch: Partial<{ label: string; desc: string; value: string }>) {
     setSteps((prev) =>
       prev.map((s, idx) =>
         idx === si ? { ...s, options: s.options.map((o, oidx) => (oidx === oi ? { ...o, ...patch } : o)) } : s,
@@ -477,9 +573,28 @@ export function FormEditPage() {
                   && s.options[s.defaultIndex] != null
                   ? s.defaultIndex
                   : null,
+              // 계산기 입력 표시 — 공개 폼이 이 키로 답을 모아 계산한다(단계 순서를 바꿔도 안 깨진다).
+              calcInput: s.calcInput ?? null,
             },
           })),
-          ...contactFields.map((f, j) => ({ ...f, stepNo: steps.length, sortOrder: steps.length + j })),
+          // 계산기 블록은 질문 뒤·연락처 앞에 온다(결과를 보여준 다음 연락처를 받는다).
+          // outputLabels 를 함께 저장하는 이유: 서버는 계산기 정의(프론트 TS)를 모르는데,
+          // CSV·엑셀 내보내기 열 목록은 서버가 블록에서 만든다 → 이게 없으면 계산 결과 열이 빠진다.
+          ...(calcKey
+            ? [
+                {
+                  sortOrder: steps.length,
+                  stepNo: steps.length,
+                  blockType: "CALC" as BlockType,
+                  content: { calcKey, outputLabels: calculator?.outputLabels ?? [] },
+                },
+              ]
+            : []),
+          ...contactFields.map((f, j) => ({
+            ...f,
+            stepNo: steps.length + (calcKey ? 1 : 0),
+            sortOrder: steps.length + (calcKey ? 1 : 0) + j,
+          })),
         ];
 
   // 문자 템플릿에 넣을 수 있는 변수 목록 — 서버가 변수키를 발급한(= 한 번 저장된) 답변 항목만 나온다.
@@ -599,10 +714,35 @@ export function FormEditPage() {
           </div>
         </div>
 
-        {/* 유형 선택 */}
-        <div className="type-seg">
-          <button className={formType === "BASIC" ? "on" : ""} onClick={() => setFormType("BASIC")}>기본형</button>
-          <button className={formType === "STEP" ? "on" : ""} onClick={() => setFormType("STEP")}>스텝형(선택)</button>
+        {/* 리드폼 종류 — 계산기도 하나의 종류로 보인다(내부적으로는 STEP + CALC 블록) */}
+        <div className="calc-kind-grid" style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            className={`calc-kind ${formType === "BASIC" ? "sel" : ""}`}
+            onClick={() => pickKind("BASIC")}
+          >
+            <span className="calc-kind-name">기본형</span>
+            <span className="calc-kind-desc">한 화면에 항목을 쭉 나열합니다. 가장 단순합니다.</span>
+          </button>
+          <button
+            type="button"
+            className={`calc-kind ${formType === "STEP" && !calcKey ? "sel" : ""}`}
+            onClick={() => pickKind("STEP")}
+          >
+            <span className="calc-kind-name">스텝형</span>
+            <span className="calc-kind-desc">질문을 한 번에 하나씩 물어보고 마지막에 연락처를 받습니다.</span>
+          </button>
+          {CALCULATORS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              className={`calc-kind ${calcKey === c.key ? "sel" : ""}`}
+              onClick={() => pickKind(c.key)}
+            >
+              <span className="calc-kind-name">🧮 {c.name}</span>
+              <span className="calc-kind-desc">{c.description}</span>
+            </button>
+          ))}
         </div>
 
         {error && <p className="auth-error">{error}</p>}
@@ -637,10 +777,23 @@ export function FormEditPage() {
               <>
                 <div className="card card-pad" {...sec("steps")}>
                   <SectionHead title="질문 단계" open={!collapsed.steps} onToggle={() => toggleSection("steps")} />
+                  {calculator && !collapsed.steps && (
+                    <div className="calc-info" style={{ marginBottom: 12 }}>
+                      <strong>{calculator.name}</strong>에 필요한 질문이 자동으로 만들어졌습니다.
+                      질문 문구·설명은 자유롭게 고쳐도 되지만, <strong>보라색 배지가 붙은 단계는 계산에 쓰이므로
+                      지우거나 답변 방식을 바꾸면 결과가 틀어집니다.</strong>
+                      <br />
+                      질문 뒤에 <strong>계산 결과 단계</strong>가 자동으로 붙고, 그 다음이 연락처 단계입니다.
+                      <br />
+                      계산 결과는 리드에 함께 저장되어 <strong>구글시트 열·문자/알림톡 변수</strong>(
+                      <code>{"{{예상 탕감액}}"}</code>)로 바로 쓸 수 있고, <strong>픽셀</strong>도 그대로 동작합니다.
+                    </div>
+                  )}
                   {steps.map((s, i) => (
                     <div className="block-editor" key={i}>
                       <div className="block-editor-head">
                         <span className="pill i">단계 {i + 1}</span>
+                        {s.calcInput && <span className="calc-input-badge">계산 입력</span>}
                         <div className="block-editor-ctrl">
                           <button className="btn btn-ghost btn-sm" onClick={() => moveStep(i, -1)} disabled={i === 0}>↑</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => moveStep(i, 1)} disabled={i === steps.length - 1}>↓</button>
@@ -657,11 +810,18 @@ export function FormEditPage() {
                       </div>
                       <div className="field">
                         <label>답변 방식</label>
-                        <select className="input" value={s.answerType} onChange={(e) => patchStep(i, { answerType: e.target.value })}>
+                        {/* 계산 입력은 답변 방식을 잠근다 — 숫자 입력을 장문으로 바꾸면 계산이 조용히 깨진다. */}
+                        <select
+                          className="input"
+                          value={s.answerType}
+                          disabled={!!s.calcInput}
+                          onChange={(e) => patchStep(i, { answerType: e.target.value })}
+                        >
                           {ANSWER_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label}</option>
                           ))}
                         </select>
+                        {s.calcInput && <span className="calc-lock-hint">계산에 쓰이는 단계라 답변 방식은 고정입니다.</span>}
                       </div>
                       <label className="fr-check" style={{ marginBottom: 10 }}>
                         <input type="checkbox" checked={s.required} onChange={(e) => patchStep(i, { required: e.target.checked })} /> 필수 (답해야 다음 단계로 진행)
@@ -674,6 +834,16 @@ export function FormEditPage() {
                               <input className="input" placeholder="선택지 제목" value={o.label} onChange={(e) => patchOption(i, oi, { label: e.target.value })} />
                               {s.answerType !== "select" && (
                                 <input className="input" placeholder="설명(선택)" value={o.desc} onChange={(e) => patchOption(i, oi, { desc: e.target.value })} />
+                              )}
+                              {/* 계산 입력의 선택지는 계산에 들어가는 숫자를 따로 갖는다 — 비면 계산이 0으로 처리된다. */}
+                              {s.calcInput && (
+                                <input
+                                  className="input"
+                                  style={{ maxWidth: 110 }}
+                                  placeholder="계산값"
+                                  value={o.value ?? ""}
+                                  onChange={(e) => patchOption(i, oi, { value: e.target.value })}
+                                />
                               )}
                               <button className="btn btn-ghost btn-sm danger" onClick={() => removeOption(i, oi)}>×</button>
                             </div>
@@ -1083,12 +1253,25 @@ export function FormEditPage() {
                             {blockLabel(b)}
                           </button>
                         ))}
+                        {/* 계산 결과 변수 — 변수키가 아니라 항목명으로 치환된다(TemplateRenderer 가 label 로도 색인한다). */}
+                        {calculator?.outputLabels.map((label) => (
+                          <button
+                            key={label}
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            disabled={smsBlocked}
+                            onClick={() => setSmsLeadBody((prev) => `${prev}{{${label}}}`)}
+                          >
+                            🧮 {label}
+                          </button>
+                        ))}
                         <button type="button" className="btn btn-ghost btn-sm" disabled={smsBlocked} onClick={() => setSmsLeadBody((prev) => `${prev}{{form.name}}`)}>
                           리드폼 이름
                         </button>
                       </div>
                       <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
                         항목명을 나중에 바꿔도 문자는 그대로 동작합니다. 단 <b>항목을 삭제하면</b> 그 변수는 빈칸으로 나갑니다.
+                        {calculator && <> 🧮 표시는 계산 결과입니다.</>}
                       </p>
                     </div>
                   )}
@@ -1187,7 +1370,7 @@ function swap<T>(arr: T[], i: number, j: number): T[] {
 }
 
 function blockTypeLabel(t: BlockType): string {
-  return { FIELD: "입력 항목", IMAGE: "이미지", HTML: "HTML", TEXT: "텍스트", DIVIDER: "구분선", SPACER: "여백", CHOICE: "선택지" }[t];
+  return { FIELD: "입력 항목", IMAGE: "이미지", HTML: "HTML", TEXT: "텍스트", DIVIDER: "구분선", SPACER: "여백", CHOICE: "선택지", CALC: "계산기" }[t];
 }
 
 const COLOR_PRESETS = ["#12b886", "#3a43c0", "#f04452", "#f5a524", "#0ea5e9", "#14172a"];

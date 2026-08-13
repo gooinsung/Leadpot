@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
       "port": 5173
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "backend\\gradlew.bat", "-p", "backend", "bootRun", "--args=--spring.profiles.active=local"],
+      "port": 8080
     }
   ]
 }

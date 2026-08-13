@@ -29,6 +29,116 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## 🧮 2026-08-13 진행중 — 리드팟 계산기 블록 (개인회생 탕감액 1호)
+>
+> 브랜치 `feature/debt-relief-calculator`. **1단계(계산 함수) 완료 · 2단계(위젯 아키텍처) 설계 승인 대기.**
+>
+> 목표: 계산기를 특정 랜딩에 박는 게 아니라 **리드팟 공용 기능**으로 만들어, 사용자가 자기 랜딩·리드폼에
+> 붙여 쓴다. 나중에 '인터넷 지원금 계산기' 등을 같은 틀로 추가한다. (장기: PRO 플랜 전용)
+>
+> ### ✅ 1단계 완료 — 계산 함수 (커밋 `3d50bb1`, vitest 33건 통과)
+>
+> | 파일 | 내용 |
+> |---|---|
+> | [standards.ts](../frontend/src/lib/calculators/debtRelief/standards.ts) | **2026 기준 중위소득**(복지부 고시, 4인 6.51%↑) + 법령 상수. **연도별 표로 분리** — 2027년엔 표만 추가 |
+> | [index.ts](../frontend/src/lib/calculators/debtRelief/index.ts) | `calcDebtRelief()` — 외부 의존 0 순수함수(임베드 번들에 그대로 들어간다) |
+> | [index.test.ts](../frontend/src/lib/calculators/debtRelief/index.test.ts) | 손계산 값을 박아둔 33건. 상수표가 잘못 바뀌면 여기서 먼저 깨진다 |
+>
+> **산식**: 가용소득 = 월 실수령소득 − 생계비(중위소득×60% + 추가생계비)
+> → 총변제액 = **max(가용소득×기간, 최저변제액, 청산가치)** → 탕감액 = 무담보채무 − 총변제액
+>
+> ⚠️ **놓치기 쉬운 것 3개** (시중 계산기들이 여기서 틀린다):
+> 1. **가용소득 ≤ 0 이면 개인회생 불가** → 개인파산 트랙(`NO_DISPOSABLE_INCOME`). 갚을 재원이 없는데
+>    최저변제액을 갚는다고 계산하는 블로그·계산기가 많다. 우리는 분기해서 파산 상담으로 보낸다.
+> 2. **하한을 36개월로 못 채우면 변제기간을 늘린다**(최대 60). 월변제금을 가용소득 위로 올리는 건 불가능.
+> 3. **재산 미입력 = 탕감액 과대추정**(위험한 방향) / 추가생계비 미입력 = 과소추정(안전한 방향).
+>    → `assumptions` 플래그로 전제를 화면에 반드시 노출한다.
+>
+> ⛔ **주거비 추가생계비 지역별 표는 아직 미확보** (서울 1인 최대 589,208원만 확인).
+> 지금은 `extraLivingCost` 로 직접 받는다. 서울회생법원 실무준칙 별표를 구하면 자동화 가능.
+>
+> ### 🔎 2단계 조사 결과 — **새로 만들 게 거의 없다**
+>
+> | 필요한 것 | 이미 있는 것 |
+> |---|---|
+> | 랜딩 버튼 → 클릭하면 계산기 올라옴 | 랜딩 `FORM` 블록의 `trigger:"overlay"`+`buttonLabel` — [LandingView.tsx:88](../frontend/src/components/LandingView.tsx#L88) |
+> | 단계별 질문 UX(참고사이트 방식) | `formType:"STEP"` — 카드선택·숫자·연락처·마지막 안내문구 |
+> | 계산 결과를 리드에 저장 | `answers` JSONB `{label,fieldType,value}` — **마이그레이션 불필요** ([Lead.java:38](../backend/src/main/java/com/leadpot/lead/Lead.java#L38)) |
+> | 외부 사이트 임베드 | `embed.js` Shadow DOM ([embed.tsx](../frontend/src/embed/embed.tsx)) |
+> | PRO 전용 잠금 | `Plan{FREE,PRO}` 이미 존재 ([Plan.java](../backend/src/main/java/com/leadpot/auth/Plan.java)) |
+>
+> **→ 결론: 계산기 = 리드폼의 새 블록 `CALC` 한 개.** "계산기 + 리드폼"이 아니라 **계산기가 리드폼이다**
+> (사용자 판단과 동일). 계산기 전용 페이지·전용 엔티티를 새로 만들지 말 것.
+>
+> ### ✅ 2단계 완료 — 계산기 블록 (커밋 `d117c21`, 테스트 49건)
+>
+> **사용자 결정 3건 확정(2026-08-13)**: ① 입력 매핑 = **질문 자동 생성**(수동 매핑 아님) /
+> ② 결과 표시 = **탕감액 + 산출 근거 함께**(접어서) / ③ 면책 문구 = **우리가 강제**(마케터가 못 지움)
+>
+> | 계층 | 파일 |
+> |---|---|
+> | 계산기 규격 | [types.ts](../frontend/src/lib/calculators/types.ts) — `CalculatorDef` |
+> | **계산기 등록소** | [registry.ts](../frontend/src/lib/calculators/registry.ts) — ⭐ **계산기 추가는 여기만 건드린다** |
+> | 탕감액 계산기 정의 | [debtRelief/definition.ts](../frontend/src/lib/calculators/debtRelief/definition.ts) — 질문 스펙·표시 문구·리드 저장 형태 |
+> | 결과 화면(범용) | [CalcResultView.tsx](../frontend/src/components/formRenderers/CalcResultView.tsx) — 계산기 종류와 무관 |
+> | 공개 폼 통합 | [PublicFormView.tsx](../frontend/src/components/PublicFormView.tsx) — 질문→**계산 결과**→연락처 |
+> | 빌더 | [FormEditPage.tsx](../frontend/src/pages/FormEditPage.tsx) — 종류 선택 카드 + 계산 입력 배지·잠금 |
+> | 블록타입 | [BlockType.java](../backend/src/main/java/com/leadpot/form/BlockType.java) `CALC` 추가 — **마이그레이션 없음**(block_type 은 varchar, 체크제약 없음) |
+>
+> **마케터 화면**: 리드폼 만들 때 종류를 고른다 — 기본형 / 스텝형 / 🧮 개인회생 탕감액 계산기.
+> 사용자 아이디어대로 독립된 종류로 보이지만 **`formType` 은 늘리지 않았다**(BASIC/STEP 분기를 전부
+> 3-way 로 고쳐야 하고 계산기가 늘 때마다 enum 이 늘어난다). 내부는 `STEP` + `CALC` 블록.
+>
+> ### 🔌 픽셀·문자·알림톡·시트 — **백엔드 변경 없이 그대로 동작한다** (실제 코드로 확인)
+>
+> | 기능 | 왜 되는가 |
+> |---|---|
+> | 픽셀 | 폼 `trackingConfig` → 제출 시 `firePixelLead()`. 계산기는 폼이라 그대로 |
+> | 문자·알림톡 | [TemplateRenderer:116](../backend/src/main/java/com/leadpot/sms/TemplateRenderer.java#L116) 이 답변을 **varKey 와 label 둘 다로** 색인 → `{{예상 탕감액}}` 이 치환된다 |
+> | 구글시트 | [NotificationService:365](../backend/src/main/java/com/leadpot/integration/NotificationService.java#L365) 가 헤더를 **리드의 실제 답변에서** 만든다 → 계산 결과가 자동으로 새 열 |
+> | 카톡·디스코드 | 같은 `answersMap` 사용 |
+>
+> ⚠️ **막은 구멍**: 빌더 변수 목록이 `varKey` 있는 블록만 보여줘서, `{{예상 탕감액}}` 이 **되는데도
+> 마케터가 알 수 없었다** → 계산 결과 변수 버튼(🧮)을 문자 편집기에 추가했다.
+>
+> ### ⚠️ 다음 세션이 알아야 할 함정
+>
+> 1. **`outputLabels` 와 `toAnswers()` 의 label 이 어긋나면** 마케터가 넣은 `{{변수}}` 가 빈칸으로
+>    나간다. 그리고 **이 label 이 곧 구글시트 열 이름**이라 바꾸면 이미 붙여둔 시트가 어긋난다.
+>    → `definition.test.ts` 가 이 일치를 검증한다. 이름을 바꿀 땐 테스트가 먼저 깨진다.
+> 2. **값 수집은 인덱스가 아니라 `content.calcInput` 키로** 한다 → 마케터가 단계 순서를 바꿔도 안 깨진다.
+> 3. **미선택과 0을 구분해서** 계산기에 넘긴다(`undefined` vs `0`) → '재산 없음 가정' 경고가 정확히 붙는다.
+> 4. 계산 입력 단계는 **답변 방식을 잠갔다**. 숫자를 장문으로 바꾸면 계산이 조용히 깨진다.
+>
+> ### ✅ 브라우저 실확인 완료 (2026-08-13, gooin PC · 로컬+Neon · 모바일 375px)
+>
+> 빌더에서 계산기 폼 생성 → 공개 폼 6단계 → 계산 결과 → 연락처 → 접수 → 리드 저장 → CSV 까지 통과.
+> 재편집 시 계산기 선택·"계산 입력" 배지 6개 복원도 확인. (테스트로 만든 폼·리드는 삭제했다.)
+>
+> | 케이스 | 결과 |
+> |---|---|
+> | 채무 8,000만 / 월소득 450만 / 3인 / 재산 1,000만 / 자녀 1명 | 탕감 **4,095만원(51.2%)** · 월 108만 × 36개월 — 손계산 일치 |
+> | 위에서 월소득만 300만으로 | 생계비(341만 = 321만+교육비 20만) 이하 → **개인파산 안내로 분기** |
+>
+> 리드 저장 확인: 질문 답변 8개(varKey `f1~f8`) + 계산 결과 5개(`fieldType:"calc"`).
+>
+> **🐞 이때 찾아 고친 버그 2개** (커밋 `b6fda5a`):
+> 1. **CSV·엑셀에 계산 결과 열이 빠졌다.** 내보내기 열은 서버가 **블록**에서 만드는데(FIELD·CHOICE)
+>    CALC 이 빠져 있었다. **구글시트는 리드의 실제 답변에서 헤더를 만들어 정상** — 두 경로가 다르다.
+>    → 저장 시 CALC content 에 `outputLabels` 를 심고 서버 `exportColumnLabels()` 가 그걸로 열을 붙인다.
+>    가져오기(`importRows`)에는 넣지 않는다(계산 결과는 사람이 채우는 값이 아니다).
+>    ⚠️ **기존 계산기 폼은 한 번 다시 저장해야** `outputLabels` 가 심긴다.
+> 2. 새 폼에서 계산기를 고를 때 불필요한 "질문이 사라집니다" 확인창 → `isPristineSteps()` 로 구분.
+>
+> ### 👉 남은 일
+>
+> - 폼 목록에서 계산기 폼이 그냥 **"스텝형"** 으로 보인다 → "계산기" 배지를 붙이면 좋겠다(미구현).
+> - 랜딩에 버튼으로 띄우기(`trigger:"overlay"`)는 코드가 이미 있으나 **계산기로는 확인 안 했다.**
+> - 구글시트 실연동·문자 변수(`{{예상 탕감액}}`) 실발송은 **코드로만 확인**했고 실제로 쏴보진 않았다.
+> - PRO 플랜 게이트는 아직 안 넣었다(`Plan{FREE,PRO}` 존재). 지금은 전원 사용 가능.
+> - 주거비 추가생계비 지역별 표(서울회생법원 실무준칙 별표) 확보되면 `extraLivingCost` 자동화.
+> - 랜딩에 버튼으로 띄우기는 기존 `trigger:"overlay"` 를 그대로 쓰면 된다(추가 개발 없음) — 확인만 필요.
+
 > ## 🔄 구글시트 열 밀림 사고 수정 — 코드·테스트 완료, 실시트 확인 남음 (2026-08-12)
 >
 > 브랜치 `fix/sheets-column-alignment`. **시트에 쌓이는 리드가 한 칸씩 왼쪽으로 밀리는 사고**를 고쳤다.

@@ -14,6 +14,39 @@ import { PhoneInput3 } from "./PhoneInput3";
 import { consentDocUrl } from "../lib/site";
 import { CompletionView } from "./formRenderers/CompletionView";
 import { firePixelLead } from "../lib/pixels";
+import { CalcResultView } from "./formRenderers/CalcResultView";
+import { findCalculator } from "../lib/calculators/registry";
+import type { CalcView } from "../lib/calculators/types";
+
+/**
+ * 계산기 입력값 모으기 — 질문(CHOICE) 블록 중 `content.calcInput` 이 붙은 것들의 답을
+ * `{계산기입력키: 값}` 으로 만든다.
+ *
+ * 인덱스가 아니라 블록에 박힌 키로 찾으므로 **마케터가 단계 순서를 바꿔도 안 깨진다**.
+ * 카드 선택지는 `value`(계산에 쓰는 숫자)를 우선하고 없으면 라벨을 쓴다.
+ */
+function collectCalcInputs(
+  choiceBlocks: FormBlock[],
+  values: Record<string, string>,
+  choices: Record<number, number[]>,
+): Record<string, string> {
+  const raw: Record<string, string> = {};
+  choiceBlocks.forEach((b, i) => {
+    const key = b.content?.calcInput as string | undefined;
+    if (!key) return;
+    const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
+    if (answerType === "single" || answerType === "multi") {
+      const opts = (b.content?.options as { label?: string; value?: string }[]) ?? [];
+      const picked = (choices[i] ?? []).map((oi) => opts[oi]?.value ?? opts[oi]?.label ?? "").filter(Boolean);
+      // 미선택은 키를 넣지 않는다 — 계산기가 '미입력'과 '0'을 구분해 전제 경고를 붙인다.
+      if (picked.length) raw[key] = picked.join(",");
+    } else {
+      const v = (values[`s${i}`] ?? "").trim();
+      if (v) raw[key] = v;
+    }
+  });
+  return raw;
+}
 
 function parseUtm(): Record<string, string> {
   const p = new URLSearchParams(window.location.search);
@@ -79,6 +112,18 @@ export function PublicFormView({
   const style = resolveStyle(form);
   const sorted = useMemo(() => [...form.blocks].sort((a, b) => a.sortOrder - b.sortOrder), [form]);
 
+  // ---- 계산기(CALC) ----
+  // 계산은 여기서(브라우저에서) 끝난다 — 서버 왕복이 없어 결과가 즉시 뜨고 임베드에서도 그대로 돈다.
+  const calculator = useMemo(() => {
+    const block = sorted.find((b) => b.blockType === "CALC");
+    return findCalculator(block?.content?.calcKey as string | undefined);
+  }, [sorted]);
+  const choiceBlocks = useMemo(() => sorted.filter((b) => b.blockType === "CHOICE"), [sorted]);
+  const calcView: CalcView | null = useMemo(
+    () => (calculator ? calculator.run(collectCalcInputs(choiceBlocks, values, choices)) : null),
+    [calculator, choiceBlocks, values, choices],
+  );
+
   /**
    * '기본 선택'(defaultIndex) 초기값 주입 — 선택박스·단일/다중 선택에 미리 골라둔 값을 채운다.
    * 이미 사용자가 만진 값(prev)이 항상 이긴다 → 지운 선택이 되살아나지 않는다.
@@ -137,6 +182,8 @@ export function PublicFormView({
       sorted.filter((b) => b.blockType === "FIELD").forEach((b, i) => {
         out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: values[`c${i}`] ?? "" });
       });
+      // 계산 결과를 답변으로 함께 저장 — 이 label 이 구글시트 열 이름이자 문자 변수({{예상 탕감액}})가 된다.
+      if (calculator && calcView) out.push(...calculator.toAnswers(calcView));
     }
     return out;
   }
@@ -234,6 +281,8 @@ export function PublicFormView({
           style={style} submitLabel={submitLabel}
           submitting={submitting} submitError={submitError}
           onSubmit={onSubmit}
+          calcView={calcView}
+          calcDisclaimer={calculator?.disclaimer ?? ""}
         />
       )}
     </>
@@ -324,12 +373,18 @@ function StepFlow(props: {
   submitting: boolean;
   submitError: string;
   onSubmit: () => void;
+  /** 계산기가 붙어 있으면 결과 단계가 질문과 연락처 사이에 하나 더 생긴다. null = 계산기 없음. */
+  calcView: CalcView | null;
+  calcDisclaimer: string;
 }) {
-  const { sorted, contactMessage, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit } = props;
+  const { sorted, contactMessage, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcDisclaimer } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
-  const total = choiceBlocks.length + 1;
-  const isContact = step >= choiceBlocks.length;
+  // 단계 구성: [질문 0..n-1] → (계산 결과) → [연락처]
+  const hasCalc = calcView != null;
+  const isCalc = hasCalc && step === choiceBlocks.length;
+  const total = choiceBlocks.length + (hasCalc ? 2 : 1);
+  const isContact = step >= choiceBlocks.length + (hasCalc ? 1 : 0);
   const [stepError, setStepError] = useState("");
 
   function toggle(si: number, oi: number, multi: boolean) {
@@ -344,6 +399,12 @@ function StepFlow(props: {
   // 필수 미응답·형식 오류 시 다음 단계로 진행 차단
   function goNext() {
     const b = choiceBlocks[step];
+    // 결과 단계에는 입력이 없다 — 검증 없이 연락처 단계로 넘긴다.
+    if (!b) {
+      setStepError("");
+      setStep((s) => s + 1);
+      return;
+    }
     const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
     const required = b.content?.required === true;
     const isChoice = answerType === "single" || answerType === "multi";
@@ -371,12 +432,14 @@ function StepFlow(props: {
   return (
     <div className="sfr">
       <div className="sfr-head">
-        <span>{isContact ? "마지막 단계" : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
+        <span>{isContact ? "마지막 단계" : isCalc ? "진단 결과" : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
         <span>SSL 보안연결</span>
       </div>
       <div className="sfr-progress"><i style={{ width: `${((step + 1) / total) * 100}%`, background: style.accentColor }} /></div>
 
-      {!isContact ? (
+      {isCalc ? (
+        <CalcResultView view={calcView!} disclaimer={calcDisclaimer} accentColor={style.accentColor} />
+      ) : !isContact ? (
         (() => {
           const b = choiceBlocks[step];
           const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
@@ -438,7 +501,9 @@ function StepFlow(props: {
             {submitting ? "제출 중…" : submitLabel}
           </button>
         ) : (
-          <button className="btn" type="button" style={{ flex: 1, background: style.accentColor, color: style.accentText }} onClick={goNext}>다음</button>
+          <button className="btn" type="button" style={{ flex: 1, background: isCalc ? style.buttonColor : style.accentColor, color: isCalc ? style.buttonText : style.accentText }} onClick={goNext}>
+            {isCalc ? "이 결과로 무료 상담받기" : "다음"}
+          </button>
         )}
       </div>
     </div>

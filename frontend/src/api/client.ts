@@ -215,7 +215,11 @@ export function updateSubdomain(subdomain: string): Promise<AuthUser> {
 
 // ---------- 리드폼(Form) ----------
 export type FormType = "BASIC" | "STEP";
-export type BlockType = "FIELD" | "IMAGE" | "HTML" | "TEXT" | "DIVIDER" | "SPACER" | "CHOICE";
+/**
+ * `CALC` = 계산기 블록(content.calcKey). 앞 단계 답변으로 값을 계산해 결과 단계를 만든다.
+ * 답변을 만드는 블록이 아니라 varKey 를 받지 않는다 — 계산 결과는 answers 에 fieldType="calc" 로 들어간다.
+ */
+export type BlockType = "FIELD" | "IMAGE" | "HTML" | "TEXT" | "DIVIDER" | "SPACER" | "CHOICE" | "CALC";
 
 export interface FormBlock {
   id?: number;
