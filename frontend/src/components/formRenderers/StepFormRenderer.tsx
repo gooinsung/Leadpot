@@ -3,6 +3,8 @@ import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
 import { PhoneInput3 } from "../PhoneInput3";
 import { resolveStyle } from "./formStyle";
+import { CalcGateView } from "./CalcResultView";
+import { findCalculator } from "../../lib/calculators/registry";
 
 interface ChoiceOption {
   label?: string;
@@ -28,8 +30,18 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
   const [selections, setSelections] = useState<Record<number, number[]>>({});
 
   const isContact = step >= choiceBlocks.length;
-  const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";
   const s = resolveStyle(form);
+  /**
+   * 계산기가 붙어 있으면 마지막 단계는 '결과 받기 위한 정보 입력' 화면이다.
+   * 공개 폼(PublicFormView)과 **같은 컴포넌트·같은 문구**를 써야 한다 —
+   * 미리보기와 실물이 다르면 마케터가 잘못된 화면을 보고 설계한다.
+   */
+  const calculator = useMemo(
+    () => findCalculator(sorted.find((b) => b.blockType === "CALC")?.content?.calcKey as string | undefined),
+    [sorted],
+  );
+  const submitLabel =
+    calculator?.gate.submitLabel || (form.submitButtonConfig?.label as string) || "제출하기";
 
   function toggleOption(stepIdx: number, optIdx: number, multi: boolean) {
     setSelections((prev) => {
@@ -48,7 +60,9 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
   return (
     <div className="sfr">
       <div className="sfr-head">
-        <span>{isContact ? "마지막 단계" : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
+        <span>
+          {isContact ? (calculator ? "진단 결과" : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}
+        </span>
         <span>SSL 보안연결</span>
       </div>
       <div className="sfr-progress">
@@ -65,9 +79,13 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
         />
       ) : (
         <div>
-          <h3 className="t-h3" style={{ marginBottom: 12 }}>
-            {(form.typeConfig?.contactMessage as string) || "연락처를 남겨주세요"}
-          </h3>
+          {calculator ? (
+            <CalcGateView gate={calculator.gate} accentColor={s.accentColor} />
+          ) : (
+            <h3 className="t-h3" style={{ marginBottom: 12 }}>
+              {(form.typeConfig?.contactMessage as string) || "연락처를 남겨주세요"}
+            </h3>
+          )}
           {contactBlocks.length === 0 && <p className="dash-sub">연락처 항목을 추가하세요.</p>}
           {contactBlocks.map((b, i) => (
             <div className="field" key={b.id ?? i}>

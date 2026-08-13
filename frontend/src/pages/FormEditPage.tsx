@@ -31,6 +31,7 @@ import { PixelFields } from "../components/PixelFields";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import { CALCULATORS, findCalculator } from "../lib/calculators/registry";
+import { CalcFollowUp, CalcResultView } from "../components/formRenderers/CalcResultView";
 import type { CalculatorDef } from "../lib/calculators/types";
 
 /**
@@ -1351,10 +1352,27 @@ export function FormEditPage() {
               {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
               <FormRenderer form={formData} />
             </div>
-            <div className="card-h" style={{ marginTop: 18 }}>완료 화면</div>
+            {/* 계산기 폼은 접수 후 '완료 안내' 대신 계산 결과가 나온다 — 미리보기도 그걸 보여준다. */}
+            <div className="card-h" style={{ marginTop: 18 }}>{calculator ? "접수 후 결과 화면" : "완료 화면"}</div>
             <div className="preview-frame">
-              <CompletionView config={formData.successConfig} accent={accentColor} />
+              {calculator ? (
+                <div className="calc-result-screen">
+                  <CalcResultView
+                    view={calculator.run(calculator.sampleInput)}
+                    disclaimer={calculator.disclaimer}
+                    accentColor={accentColor}
+                  />
+                  <CalcFollowUp text={calculator.followUp} />
+                </div>
+              ) : (
+                <CompletionView config={formData.successConfig} accent={accentColor} />
+              )}
             </div>
+            {calculator && (
+              <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
+                * 예시 값으로 그린 화면입니다. 실제 숫자는 방문자가 입력한 답변으로 계산됩니다.
+              </p>
+            )}
           </div>
         </div>
       </main>

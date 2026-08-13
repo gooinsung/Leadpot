@@ -139,6 +139,19 @@ describe("결과 화면 재료", () => {
     expect(def.followUp).toContain("무료 상담 전화");
   });
 
+  it("게이트에 탕감액이 무엇인지 설명이 있다", () => {
+    // 용어를 모르는 사람에게는 숫자만 커도 와닿지 않는다.
+    expect(def.gate.explain.title).toContain("탕감액");
+    expect(def.gate.explain.body).toContain("갚지 않아도 되는 금액");
+  });
+
+  it("빌더 미리보기 예시는 정상 계산되는 값이어야 한다", () => {
+    // 여기서 '계산 불가'가 나오면 마케터가 파산 안내 화면을 예시로 보게 된다.
+    const view = def.run(def.sampleInput);
+    expect(view.ok).toBe(true);
+    expect(view.headline).toMatch(/^\d/);
+  });
+
   it("'AI' 라는 표현을 쓰지 않는다(법정 산식 계산이다 · 2026-08-13 결정)", () => {
     const text = [def.name, def.description, def.gate.title, def.gate.highlight, def.gate.submitLabel, def.followUp]
       .concat(def.gate.bullets)

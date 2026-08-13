@@ -79,6 +79,11 @@ export interface CalculatorDef {
     highlight: string;
     /** 체크 목록 — 정보를 넣으면 무엇을 받는지. `(괄호)` 안은 붉게 강조된다. */
     bullets: string[];
+    /**
+     * 이 계산기가 내는 값이 **무엇인지** 설명. 예: "탕감액이란 갚지 않아도 되는 금액".
+     * 용어를 모르는 사람에게는 숫자만 커도 와닿지 않는다. `**강조**`·줄바꿈(`\n`) 지원.
+     */
+    explain: { title: string; body: string };
     /** 제출 버튼 문구. 예: "결과 바로 받기" */
     submitLabel: string;
   };
@@ -91,6 +96,12 @@ export interface CalculatorDef {
    * {@link toAnswers} 와 어긋나면 마케터가 넣은 변수가 빈칸으로 나가므로 함께 고쳐야 한다.
    */
   outputLabels: string[];
+  /**
+   * 빌더 미리보기에 쓰는 예시 답변. 실제 방문자 입력 대신 이 값으로 결과 화면을 그린다 —
+   * 마케터가 "접수 후 어떤 화면이 나가는지"를 저장 전에 볼 수 있어야 한다.
+   * 계산기마다 입력 키가 달라 정의가 직접 들고 있는다.
+   */
+  sampleInput: Record<string, string>;
   /** 원시 답변(문자열) → 화면 재료. 계산 함수 호출은 정의 내부에서 한다. */
   run(raw: Record<string, string>): CalcView;
   /**
