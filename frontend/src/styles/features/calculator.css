@@ -193,6 +193,37 @@
   font-weight: 700;
 }
 
+/* 용어 설명 — 숫자를 보기 전에 그 숫자가 무엇인지 알려준다 */
+.calc-explain {
+  margin-top: 18px;
+  padding: 15px 17px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  color: var(--muted);
+  word-break: keep-all;
+}
+
+.calc-explain-t {
+  margin: 0 0 6px;
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  color: var(--text);
+}
+
+.calc-explain p {
+  margin: 0;
+}
+
+.calc-explain p + p {
+  margin-top: 8px;
+}
+
+.calc-explain strong {
+  color: var(--text);
+}
+
 /* ---------- 결과 화면(접수 후) ---------- */
 
 .calc-result-screen {

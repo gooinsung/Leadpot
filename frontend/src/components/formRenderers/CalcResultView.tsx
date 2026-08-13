@@ -74,7 +74,12 @@ export function CalcGateView({
   gate,
   accentColor,
 }: {
-  gate: { title: string; highlight: string; bullets: string[] };
+  gate: {
+    title: string;
+    highlight: string;
+    bullets: string[];
+    explain: { title: string; body: string };
+  };
   accentColor: string;
 }) {
   return (
@@ -93,6 +98,12 @@ export function CalcGateView({
           </li>
         ))}
       </ul>
+
+      {/* 용어 설명 — 숫자를 보기 전에 그 숫자가 무엇인지 알아야 와닿는다. */}
+      <div className="calc-explain">
+        <p className="calc-explain-t">{gate.explain.title}</p>
+        {renderNotice(gate.explain.body)}
+      </div>
     </div>
   );
 }
