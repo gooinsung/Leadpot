@@ -616,7 +616,7 @@ public class LeadService {
     @Transactional(readOnly = true)
     public List<String> exportColumns(Long ownerId, Long formId) {
         FormResponse form = formService.get(ownerId, formId); // 소유권 확인
-        return concat(META_HEAD, answerColumnLabels(form), META_TAIL);
+        return concat(META_HEAD, exportColumnLabels(form), META_TAIL);
     }
 
     /**
@@ -626,7 +626,7 @@ public class LeadService {
     @Transactional(readOnly = true)
     public List<List<String>> exportMatrix(Long ownerId, Long formId, List<String> selected, List<Long> ids) {
         FormResponse form = formService.get(ownerId, formId); // 소유권 확인
-        List<String> answerCols = answerColumnLabels(form);
+        List<String> answerCols = exportColumnLabels(form);
         List<String> all = concat(META_HEAD, answerCols, META_TAIL);
         List<String> cols = (selected == null || selected.isEmpty())
                 ? all
@@ -700,7 +700,7 @@ public class LeadService {
         return answerColumnLabels(formService.get(ownerId, formId));
     }
 
-    /** FIELD 라벨 / CHOICE 질문을 순서대로(중복 제거). */
+    /** FIELD 라벨 / CHOICE 질문을 순서대로(중복 제거). 가져오기 양식도 이걸 쓴다(계산 결과는 제외). */
     private static List<String> answerColumnLabels(FormResponse form) {
         return form.blocks().stream()
                 .filter(b -> b.blockType() == com.leadpot.form.BlockType.FIELD
@@ -709,6 +709,35 @@ public class LeadService {
                 .filter(s -> !s.isBlank())
                 .distinct()
                 .toList();
+    }
+
+    /**
+     * 내보내기용 답변 컬럼 = 입력 항목 + <b>계산기 결과</b>.
+     *
+     * <p>계산기(CALC) 블록은 입력 항목이 아니지만 리드 answers 에 결과를 남긴다
+     * (`예상 탕감액` 등, fieldType=calc). 그 항목명은 계산기 정의가 프론트에 있어 서버가 알 수 없으므로
+     * 저장 시 블록 content 의 {@code outputLabels} 로 함께 받아 둔다.
+     *
+     * <p>가져오기(importRows)에는 넣지 않는다 — 계산 결과는 사람이 채워 넣는 값이 아니다.
+     */
+    private static List<String> exportColumnLabels(FormResponse form) {
+        List<String> out = new ArrayList<>(answerColumnLabels(form));
+        for (FormBlockDto b : form.blocks()) {
+            if (b.blockType() != com.leadpot.form.BlockType.CALC || b.content() == null) {
+                continue;
+            }
+            Object labels = b.content().get("outputLabels");
+            if (!(labels instanceof List<?> list)) {
+                continue;
+            }
+            for (Object o : list) {
+                String label = str(o);
+                if (!label.isBlank() && !out.contains(label)) {
+                    out.add(label);
+                }
+            }
+        }
+        return out;
     }
 
     /** 엑셀/CSV 행 목록을 리드로 일괄 등록(본인 리드폼만 K5). 행별 검증 실패는 건너뛰고 사유 수집. */

@@ -176,6 +176,42 @@ function blockLabel(b: FormBlock): string {
 }
 
 /**
+ * 새 스텝형 리드폼의 씨앗 질문. **자리채우기 예시**이므로 마케터의 작업물로 보지 않는다
+ * ({@link isPristineSteps} 참고) — 계산기로 바꿀 때 굳이 "지워도 되나요?"를 묻지 않는다.
+ */
+function defaultSteps(): StepData[] {
+  return [
+    {
+      question: "현재 가장 어려운 점은 무엇인가요?",
+      description: "",
+      answerType: "single",
+      placeholder: "",
+      required: true,
+      options: [
+        { label: "선택지 1", desc: "" },
+        { label: "선택지 2", desc: "" },
+      ],
+    },
+  ];
+}
+
+/** 손대지 않은 씨앗 질문 그대로인가. 계산기로 바꿀 때 확인창을 띄울지 판단한다. */
+function isPristineSteps(steps: StepData[]): boolean {
+  const seed = defaultSteps();
+  if (steps.length !== seed.length) return false;
+  return steps.every((s, i) => {
+    const d = seed[i];
+    return (
+      s.question === d.question &&
+      s.description === d.description &&
+      s.answerType === d.answerType &&
+      s.options.length === d.options.length &&
+      s.options.every((o, oi) => o.label === d.options[oi].label)
+    );
+  });
+}
+
+/**
  * 계산기 정의 → 질문 단계 자동 생성 (사용자 결정 2026-08-13: 수동 매핑이 아니라 자동 생성).
  * 오매핑으로 결과가 조용히 틀리는 것을 원천 차단한다 — 틀린 결과의 책임은 리드팟으로 온다.
  */
@@ -216,19 +252,7 @@ export function FormEditPage() {
   ]);
 
   // STEP: 질문 단계 + 마지막 연락처 단계
-  const [steps, setSteps] = useState<StepData[]>([
-    {
-      question: "현재 가장 어려운 점은 무엇인가요?",
-      description: "",
-      answerType: "single",
-      placeholder: "",
-      required: true,
-      options: [
-        { label: "선택지 1", desc: "" },
-        { label: "선택지 2", desc: "" },
-      ],
-    },
-  ]);
+  const [steps, setSteps] = useState<StepData[]>(defaultSteps());
   const [contactFields, setContactFields] = useState<FormBlock[]>(defaultContactFields());
   const [contactMessage, setContactMessage] = useState("");
   /**
@@ -466,8 +490,9 @@ export function FormEditPage() {
     const def = findCalculator(kind);
     if (!def) return;
     if (calcKey === kind) return;
-    // 계산기가 아닌 내가 만든 질문이 남아 있으면 덮어쓰기 전에 묻는다.
-    const hasOwnSteps = steps.some((s) => !s.calcInput && s.question.trim());
+    // 마케터가 직접 만든 질문이 남아 있으면 덮어쓰기 전에 묻는다.
+    // 손대지 않은 씨앗 질문은 작업물이 아니므로 조용히 갈아치운다(새 폼에서 확인창이 뜨면 성가시다).
+    const hasOwnSteps = !isPristineSteps(steps) && steps.some((s) => !s.calcInput && s.question.trim());
     if (hasOwnSteps && !window.confirm(`'${def.name}'에 필요한 질문으로 바꿉니다. 지금 만들어둔 질문은 사라집니다. 계속할까요?`)) {
       return;
     }
@@ -553,8 +578,17 @@ export function FormEditPage() {
             },
           })),
           // 계산기 블록은 질문 뒤·연락처 앞에 온다(결과를 보여준 다음 연락처를 받는다).
+          // outputLabels 를 함께 저장하는 이유: 서버는 계산기 정의(프론트 TS)를 모르는데,
+          // CSV·엑셀 내보내기 열 목록은 서버가 블록에서 만든다 → 이게 없으면 계산 결과 열이 빠진다.
           ...(calcKey
-            ? [{ sortOrder: steps.length, stepNo: steps.length, blockType: "CALC" as BlockType, content: { calcKey } }]
+            ? [
+                {
+                  sortOrder: steps.length,
+                  stepNo: steps.length,
+                  blockType: "CALC" as BlockType,
+                  content: { calcKey, outputLabels: calculator?.outputLabels ?? [] },
+                },
+              ]
             : []),
           ...contactFields.map((f, j) => ({
             ...f,
