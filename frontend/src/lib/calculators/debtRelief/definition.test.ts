@@ -95,33 +95,55 @@ describe("미입력과 0을 구분한다", () => {
 });
 
 describe("계산 불가도 상담으로 이어진다", () => {
-  // 월소득 150만 / 1인 → 생계비(153만) 이하 → 개인회생 불가
-  const view = def.run({ totalDebt: "3000", monthlyIncome: "150", dependents: "0", assets: "0" });
+  // 월소득 70만 / 1인 → 생계급여 하한(82만)까지 줄여도 못 갚는다 → 개인회생 불가
+  const view = def.run({ totalDebt: "3000", monthlyIncome: "70", dependents: "0", assets: "0" });
 
-  it("ok=false 이고 파산을 안내한다", () => {
+  it("ok=false 이고 파산이 유리할 수 있다고 안내한다", () => {
     expect(view.ok).toBe(false);
-    expect(view.notice).toContain("개인파산");
+    expect(view.notice).toContain("개인파산이 유리할 수 있습니다");
+  });
+
+  it("안내가 '안 됩니다'로 끝나지 않고 무료 상담으로 이어진다", () => {
+    expect(view.notice).toContain("무료 상담");
   });
 
   it("왜 안 되는지 근거를 보여준다", () => {
-    expect(view.breakdown.map((b) => b.label)).toContain("갚을 수 있는 여유 금액");
+    const labels = view.breakdown.map((b) => b.label);
+    expect(labels).toContain("월 소득");
+    expect(labels).toContain("법정 최소 변제금액");
   });
 
   it("계산 불가일 때도 답변은 저장된다(리드는 살린다)", () => {
     const answers = def.toAnswers(view);
-    expect(answers.find((a) => a.label === "예상 탕감액")?.value).toBe("계산 불가");
+    expect(answers.find((a) => a.label === "예상 탕감액")?.value).toBe("개인회생 불가");
+    expect(answers.find((a) => a.label === "예상 탕감률")?.value).toBe("개인파산 검토 대상");
     // 저장 값에는 화면용 강조 표시(**)가 남지 않아야 한다 — 시트·문자에 그대로 나간다.
     expect(answers.some((a) => a.value.includes("**"))).toBe(false);
   });
 });
 
 describe("결과 화면 재료", () => {
-  it("탕감액·탕감률·월변제금이 한 줄 요약에 들어간다", () => {
+  it("탕감률을 가장 크게, 금액을 그 아래에 둔다", () => {
     const view = def.run(OK_RAW);
     expect(view.ok).toBe(true);
-    expect(view.headline).toBe("1,538만원");
-    expect(view.headlineSub).toContain("탕감률 30.8%");
-    expect(view.headlineSub).toContain("36개월");
+    // headline = 탕감률(가장 큰 숫자), headlineSub = 금액
+    expect(view.headline).toBe("30.8%");
+    expect(view.headlineLabel).toBe("나의 예상 탕감액은?");
+    expect(view.headlineSub).toBe("예상 탕감액 1,538만원");
+    expect(view.headlineNote).toContain("36개월");
+  });
+
+  it("게이트·후속안내 문구가 채워져 있다", () => {
+    expect(def.gate.bullets.length).toBeGreaterThan(0);
+    expect(def.gate.submitLabel).toContain("무료상담");
+    expect(def.followUp).toContain("무료 상담 전화");
+  });
+
+  it("'AI' 라는 표현을 쓰지 않는다(법정 산식 계산이다 · 2026-08-13 결정)", () => {
+    const text = [def.name, def.description, def.gate.title, def.gate.highlight, def.gate.submitLabel, def.followUp]
+      .concat(def.gate.bullets)
+      .join(" ");
+    expect(text).not.toMatch(/\bAI\b/i);
   });
 
   it("총 변제금액에 '왜 이 금액인지' 근거가 붙는다", () => {

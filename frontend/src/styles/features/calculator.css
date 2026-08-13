@@ -28,34 +28,195 @@
   margin-bottom: 6px;
 }
 
-.calc-headline-value {
+/* 탕감률 — 화면에서 가장 큰 숫자. 금액보다 비율이 강하게 꽂힌다. */
+.calc-headline-rate {
   display: block;
-  /* 모바일 375px 에서 "1억 2,300만원" 이 한 줄에 들어가야 한다 */
-  font-size: clamp(30px, 9vw, 42px);
+  font-size: clamp(58px, 18vw, 88px);
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+/* 금액 — 비율 아래에서 두 번째로 강한 값 */
+.calc-headline-amount {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(18px, 5.4vw, 23px);
+  font-weight: 700;
+  color: var(--text);
   word-break: keep-all;
 }
 
-.calc-headline-sub {
+.calc-headline-note {
   display: block;
-  margin-top: 8px;
-  font-size: var(--fs-lg);
+  margin-top: 6px;
+  font-size: var(--fs-md);
   color: var(--muted);
   word-break: keep-all;
 }
 
 /* 계산 불가(자격 미달) 안내 — 그래도 상담으로 이어지는 자리다 */
 .calc-notice {
-  margin: 0;
-  padding: 14px 16px;
+  padding: 16px 18px;
   border-radius: var(--radius-sm);
   background: var(--amber-soft);
   color: var(--amber-ink);
   font-size: var(--fs-lg);
-  line-height: 1.6;
+  line-height: 1.65;
   word-break: keep-all;
+}
+
+.calc-notice-p {
+  margin: 0;
+}
+
+.calc-notice-p + .calc-notice-p {
+  margin-top: 10px;
+}
+
+/* ---------- 계산 중 로딩 ---------- */
+
+.calc-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: clamp(52px, 15vw, 76px) 16px;
+  text-align: center;
+}
+
+.calc-spinner {
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+  border: 4px solid var(--surface-2);
+  border-top-color: var(--indigo);
+  border-radius: 50%;
+  animation: calc-spin 0.85s linear infinite;
+}
+
+@keyframes calc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.calc-loading-t {
+  margin: 0;
+  font-size: clamp(17px, 5vw, 20px);
+  font-weight: 700;
+  color: var(--text);
+  word-break: keep-all;
+}
+
+.calc-loading-d {
+  margin: 0;
+  font-size: var(--fs-md);
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calc-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* ---------- 게이트: 결과를 보려면 정보를 입력 ---------- */
+
+.calc-gate {
+  margin-bottom: 20px;
+}
+
+.calc-gate-t {
+  margin: 0;
+  font-size: clamp(21px, 6.2vw, 26px);
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.35;
+  letter-spacing: -0.03em;
+  word-break: keep-all;
+}
+
+.calc-gate-h {
+  margin: 8px 0 0;
+  font-size: clamp(15px, 4.4vw, 18px);
+  font-weight: 700;
+  color: var(--rose-ink);
+  word-break: keep-all;
+}
+
+.calc-gate-list {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.calc-gate-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.calc-gate-ck {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calc-gate-ck svg {
+  width: 62%;
+  height: 62%;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.calc-gate-em {
+  font-style: normal;
+  color: var(--rose-ink);
+  font-weight: 700;
+}
+
+/* ---------- 결과 화면(접수 후) ---------- */
+
+.calc-result-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.calc-followup {
+  padding: 16px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--green-soft);
+  color: var(--green-ink);
+  font-size: var(--fs-lg);
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.calc-followup p {
+  margin: 0;
+}
+
+.calc-followup p + p {
+  margin-top: 8px;
 }
 
 /* 전제·주의 (재산 0 가정 등) */
