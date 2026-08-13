@@ -1325,10 +1325,14 @@ export interface AdvertiserNotifyStatus {
   /** 이 리드폼에 광고주 계정이 연결돼 있는지 */
   linked: boolean;
   advertiserName: string | null;
-  /** 광고주가 수신번호를 등록했는지 — true 여야 실제로 발송된다 */
+  /** 지금 실제로 발송되는 상태인지 — 번호가 있고 이 폼이 꺼져 있지 않아야 true */
   registered: boolean;
-  /** 뒤 4자리를 가린 값. 미등록이면 null */
+  /** 실제 발송 번호의 뒤 4자리를 가린 값. 발송 불가면 null */
   phoneMasked: string | null;
+  /** 번호 출처(V33): FORM=이 폼 전용, ACCOUNT=광고주 계정 기본, NONE=없음 */
+  source: "FORM" | "ACCOUNT" | "NONE";
+  /** 광고주가 이 폼만 알림을 끈 상태인지. 미등록과 조치가 다르므로 구분해 안내한다. */
+  disabledByAdvertiser: boolean;
 }
 export function getAdvertiserNotifyStatus(formId: number): Promise<AdvertiserNotifyStatus> {
   return request<AdvertiserNotifyStatus>(`/api/advertisers/notify-status/${formId}`);
@@ -1433,6 +1437,11 @@ export interface AdvertiserMe {
   marketerCompany: string | null;
   brandLogoUrl: string | null;
   brandColor: string | null;
+  /**
+   * 내가 등록한 **계정 기본** 접수 알림 수신번호(V33). 비어 있으면 미등록.
+   * 배정된 모든 리드폼에 적용되고, 폼 전용 번호가 있는 폼만 그 값이 우선한다.
+   */
+  notifyPhone: string;
 }
 
 export interface AdvertiserForm {
@@ -1446,8 +1455,12 @@ export interface AdvertiserForm {
   canExport: boolean;
   /** 마케터가 이 리드폼의 접수 알림을 켰는지. 꺼져 있으면 번호를 넣어도 발송되지 않는다. */
   notifyEnabled: boolean;
-  /** 내가 등록한 수신번호(숫자만). 비어 있으면 발송되지 않는다. */
+  /** 이 리드폼에만 지정한 전용 번호. 비어 있으면 계정 기본 번호를 따라간다(V33). */
   notifyPhone: string;
+  /** true 면 이 리드폼만 알림을 끈 상태(계정 기본 번호가 있어도 안 간다). */
+  notifyDisabled: boolean;
+  /** 실제로 발송될 번호(폼 전용 → 계정 기본 순). 끄거나 둘 다 없으면 빈 문자열. */
+  effectiveNotifyPhone: string;
 }
 
 /** 광고주에게 내려오는 리드 — IP·UTM·태그는 서버에서 제외된다. 상태는 공유 축(V29). */
@@ -1504,8 +1517,28 @@ export function listAdvertiserForms(): Promise<AdvertiserForm[]> {
   return request<AdvertiserForm[]>("/api/advertiser/forms");
 }
 /**
- * 이 리드폼의 접수 알림을 받을 **내** 번호를 등록·변경한다. 빈 문자열이면 해제되고 발송이 멈춘다.
- * 마케터는 이 번호를 대신 넣을 수 없다 — 본인이 넣는 행위가 수신 동의 근거다(MESSAGING-PLAN §9).
+ * 접수 알림을 받을 **내 기본 번호**를 등록·변경한다 — 배정된 **모든** 리드폼에 적용된다(V33).
+ * 빈 문자열이면 해제된다. 마케터는 이 번호를 대신 넣을 수 없다 —
+ * 본인이 넣는 행위가 수신 동의 근거다(MESSAGING-PLAN §9).
+ */
+export function updateAdvertiserDefaultNotifyPhone(phone: string): Promise<{ notifyPhone: string }> {
+  return request<{ notifyPhone: string }>("/api/advertiser/notify-phone", {
+    method: "PUT",
+    body: { phone },
+  });
+}
+
+/** 이 리드폼만 알림을 끄거나 다시 켠다. 번호를 비우는 것과 다르다(비우면 기본 번호를 따라간다). */
+export function updateAdvertiserNotifyDisabled(formId: number, disabled: boolean): Promise<AdvertiserForm> {
+  return request<AdvertiserForm>(`/api/advertiser/forms/${formId}/notify-disabled`, {
+    method: "PUT",
+    body: { disabled },
+  });
+}
+
+/**
+ * **이 리드폼에만** 적용할 번호를 등록·변경한다. 빈 문자열이면 덮어쓰기가 해제되고
+ * 계정 기본 번호를 따라간다(V33) — 발송이 멈추는 게 아니다.
  */
 export function updateAdvertiserNotifyPhone(formId: number, phone: string): Promise<AdvertiserForm> {
   return request<AdvertiserForm>(`/api/advertiser/forms/${formId}/notify-phone`, {

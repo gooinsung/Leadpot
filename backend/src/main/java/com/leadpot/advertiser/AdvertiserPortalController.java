@@ -26,6 +26,7 @@ import com.leadpot.advertiser.dto.AdvertiserLeadResponse;
 import com.leadpot.advertiser.dto.AdvertiserMeResponse;
 import com.leadpot.advertiser.dto.AdvertiserNoteResponse;
 import com.leadpot.advertiser.dto.AdvertiserReportResponse;
+import com.leadpot.advertiser.dto.NotifyDisabledRequest;
 import com.leadpot.advertiser.dto.NotifyPhoneRequest;
 import com.leadpot.common.ClientIp;
 import com.leadpot.integration.IntegrationService;
@@ -78,15 +79,33 @@ public class AdvertiserPortalController {
     }
 
     /**
-     * 이 리드폼의 접수 알림을 받을 <b>내</b> 번호를 등록·변경한다. 빈 값이면 지워지고 발송이 멈춘다(V28).
+     * 접수 알림을 받을 <b>내 기본 번호</b>를 등록·변경한다 — 배정된 <b>모든</b> 리드폼에 적용된다(V33).
+     * 빈 값이면 지워진다.
      *
      * <p>마케터는 이 번호를 대신 넣을 수 없다 — 광고주 본인이 넣는 행위가 수신 동의 근거다
      * (docs/MESSAGING-PLAN.md §9).
+     */
+    @PutMapping("/notify-phone")
+    public Map<String, String> updateDefaultNotifyPhone(@AuthenticationPrincipal Jwt jwt,
+            @RequestBody NotifyPhoneRequest request) {
+        return Map.of("notifyPhone", leadService.updateDefaultNotifyPhone(userId(jwt), request.phone()));
+    }
+
+    /**
+     * <b>이 리드폼에만</b> 적용할 번호를 등록·변경한다. 빈 값이면 덮어쓰기가 해제되고
+     * 계정 기본 번호를 따라간다(V33) — 발송이 멈추는 게 아니다. 멈추려면 {@code notify-disabled} 를 쓴다.
      */
     @PutMapping("/forms/{formId}/notify-phone")
     public AdvertiserFormResponse updateNotifyPhone(@AuthenticationPrincipal Jwt jwt,
             @PathVariable Long formId, @RequestBody NotifyPhoneRequest request) {
         return leadService.updateNotifyPhone(userId(jwt), formId, request.phone());
+    }
+
+    /** 이 리드폼만 접수 알림을 끄거나 다시 켠다(계정 기본 번호가 있어도 끈 폼은 안 보낸다). */
+    @PutMapping("/forms/{formId}/notify-disabled")
+    public AdvertiserFormResponse updateNotifyDisabled(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long formId, @RequestBody NotifyDisabledRequest request) {
+        return leadService.updateNotifyDisabled(userId(jwt), formId, request.disabled());
     }
 
     /** 대시보드 요약(미확인 건수·오늘 접수·상태 분포). */

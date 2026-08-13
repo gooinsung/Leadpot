@@ -48,6 +48,22 @@ public class User {
     @Column
     private String phone;
 
+    /**
+     * 광고주가 <b>직접 등록한</b> 접수 알림 수신번호(숫자만) — 배정된 <b>모든 리드폼의 기본값</b>(V33).
+     *
+     * <p>가입 때 받은 {@link #phone} 과 별개다. 가입 연락처는 계정 식별용이고 이건 <b>수신 동의의 근거</b>다
+     * — 등록하는 행위 자체가 동의라서, 폴백으로 {@link #phone} 을 쓰면 안 된다(V28 원칙, MESSAGING-PLAN §9).
+     *
+     * <p>리드폼별로 다른 번호를 쓰려면 {@code advertiser_form_grants.notify_phone} 으로 덮어쓴다.
+     * 마케터는 이 값을 넣을 수 없다(마스킹된 값만 조회 가능).
+     */
+    @Column(name = "notify_phone", length = 20)
+    private String notifyPhone;
+
+    /** 계정 기본 수신번호를 등록·변경한 시각 = 수신 동의 시점. 분쟁·재심사 때 근거로 쓴다. */
+    @Column(name = "notify_phone_at")
+    private Instant notifyPhoneAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role = Role.USER;
@@ -168,6 +184,26 @@ public class User {
 
     public String getPhone() {
         return phone;
+    }
+
+    public String getNotifyPhone() {
+        return notifyPhone;
+    }
+
+    public Instant getNotifyPhoneAt() {
+        return notifyPhoneAt;
+    }
+
+    /** 계정 기본 수신번호를 등록·변경·삭제한다(광고주 본인만). 빈 값이면 지운다 — 폴백은 없다. */
+    public void setNotifyPhone(String phone, Instant at) {
+        boolean blank = phone == null || phone.isBlank();
+        this.notifyPhone = blank ? null : phone;
+        this.notifyPhoneAt = blank ? null : at;
+    }
+
+    /** 계정 기본 수신번호가 등록돼 있는지. */
+    public boolean hasNotifyPhone() {
+        return notifyPhone != null && !notifyPhone.isBlank();
     }
 
     public void setPhone(String phone) {

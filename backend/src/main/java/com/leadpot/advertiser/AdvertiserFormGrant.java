@@ -48,10 +48,11 @@ public class AdvertiserFormGrant {
     private boolean canExport = true;
 
     /**
-     * 광고주가 <b>직접 등록한</b> 접수 알림 수신번호(숫자만). 비어 있으면 발송하지 않는다.
+     * <b>이 리드폼에만</b> 적용할 수신번호(숫자만). 비어 있으면 광고주 계정 기본값
+     * ({@code users.notify_phone})을 쓴다(V33).
      * <p>
      * 마케터가 대신 넣을 수 없다 — 광고주 본인이 넣는 행위가 곧 수신 동의 근거다(V28, MESSAGING-PLAN §9).
-     * 채널 중립 이름이다: 지금은 문자, 이후 알림톡으로 옮겨도 그대로 쓴다.
+     * 채널 중립 이름이다: 지금은 알림톡, 채널이 바뀌어도 그대로 쓴다.
      */
     @Column(name = "notify_phone", length = 20)
     private String notifyPhone;
@@ -59,6 +60,15 @@ public class AdvertiserFormGrant {
     /** 번호를 등록·변경한 시각 = 수신 동의 시점. 분쟁·재심사 때 근거로 쓴다. */
     @Column(name = "notify_phone_at")
     private Instant notifyPhoneAt;
+
+    /**
+     * true 면 <b>이 리드폼만</b> 광고주 알림을 보내지 않는다(계정 기본 번호가 있어도).
+     *
+     * <p>계정 기본값이 생기면서 "번호를 비우면 중단"이 성립하지 않게 됐다 — 비우면 기본값으로 나간다.
+     * 그래서 '미설정(=기본값 사용)' 과 '이 폼은 끔' 을 구분하는 값이 따로 필요하다(V33).
+     */
+    @Column(name = "notify_disabled", nullable = false)
+    private boolean notifyDisabled;
 
     // ---------- 선입금 과금(V31) ----------
 
@@ -116,7 +126,9 @@ public class AdvertiserFormGrant {
     }
 
     /**
-     * 광고주가 자기 수신번호를 등록·변경·삭제한다. 빈 값이면 지우고 발송을 멈춘다.
+     * 이 리드폼 전용 수신번호를 등록·변경·삭제한다(광고주 본인만).
+     * 빈 값이면 덮어쓰기를 해제해 <b>계정 기본 번호를 따라간다</b>(V33) — 발송을 멈추는 게 아니다.
+     * 이 폼만 끄려면 {@link #setNotifyDisabled} 를 쓴다.
      *
      * @param phone 정규화된 번호(숫자만) 또는 null/빈 값
      */
@@ -126,9 +138,35 @@ public class AdvertiserFormGrant {
         this.notifyPhoneAt = blank ? null : at;
     }
 
-    /** 이 리드폼으로 광고주 알림을 실제로 보낼 수 있는 상태인지(= 광고주가 번호를 등록했는지). */
+    /** 이 리드폼 전용 번호가 지정돼 있는지(= 계정 기본값을 덮어쓰는 중인지). */
     public boolean hasNotifyPhone() {
         return notifyPhone != null && !notifyPhone.isBlank();
+    }
+
+    public boolean isNotifyDisabled() {
+        return notifyDisabled;
+    }
+
+    /** 이 리드폼만 알림을 끄거나 다시 켠다(광고주 본인만). */
+    public void setNotifyDisabled(boolean disabled) {
+        this.notifyDisabled = disabled;
+    }
+
+    /**
+     * 이 리드폼의 실제 수신번호를 정한다: <b>폼 전용 번호 → 계정 기본 번호</b> 순.
+     * 이 폼이 꺼져 있으면 번호가 있어도 보내지 않는다.
+     *
+     * @param accountDefault 광고주 계정 기본 번호({@code users.notify_phone})
+     * @return 보낼 번호, 없거나 꺼져 있으면 null
+     */
+    public String resolveNotifyPhone(String accountDefault) {
+        if (notifyDisabled) {
+            return null;
+        }
+        if (hasNotifyPhone()) {
+            return notifyPhone;
+        }
+        return (accountDefault == null || accountDefault.isBlank()) ? null : accountDefault;
     }
 
     public void apply(String displayName, Instant expiresAt, boolean canStatus, boolean canMemo, boolean canExport) {

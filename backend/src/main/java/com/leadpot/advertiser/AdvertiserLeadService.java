@@ -134,7 +134,7 @@ public class AdvertiserLeadService {
                 .orElseThrow(() -> new NotFoundException("담당 마케터를 찾을 수 없습니다."));
         return new AdvertiserMeResponse(advertiser.getId(), advertiser.getEmail(), advertiser.getName(),
                 advertiser.getCompany(), marketer.getName(), marketer.getCompany(),
-                marketer.getBrandLogoUrl(), marketer.getBrandColor());
+                marketer.getBrandLogoUrl(), marketer.getBrandColor(), nn(advertiser.getNotifyPhone()));
     }
 
     /** 권한 받은 리드폼 목록(+접수 건수·미확인 건수). 만료된 권한은 제외된다. */
@@ -152,17 +152,25 @@ public class AdvertiserLeadService {
             if (form == null) {
                 continue;
             }
-            List<Lead> leads = leadRepository
-                    .findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(grant.getFormId());
-            long unseen = leads.stream().filter(l -> l.getAdvertiserSeenAt() == null).count();
-            String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
-                    ? grant.getDisplayName()
-                    : form.getName();
-            out.add(new AdvertiserFormResponse(form.getId(), name, leads.size(), unseen,
-                    grant.isCanStatus(), grant.isCanMemo(), grant.isCanExport(),
-                    notifyEnabled(form), nn(grant.getNotifyPhone())));
+            out.add(toFormResponse(grant, form, advertiser));
         }
         return out;
+    }
+
+    /**
+     * 광고주 화면용 리드폼 항목 조립. 수신번호는 <b>폼 전용 → 계정 기본</b> 순으로 정해지므로
+     * (V33) 화면이 그 판단을 다시 하지 않게 실제 발송 번호까지 계산해 내려준다.
+     */
+    private AdvertiserFormResponse toFormResponse(AdvertiserFormGrant grant, Form form, User advertiser) {
+        List<Lead> leads = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(grant.getFormId());
+        long unseen = leads.stream().filter(l -> l.getAdvertiserSeenAt() == null).count();
+        String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
+                ? grant.getDisplayName()
+                : form.getName();
+        return new AdvertiserFormResponse(form.getId(), name, leads.size(), unseen,
+                grant.isCanStatus(), grant.isCanMemo(), grant.isCanExport(),
+                notifyEnabled(form), nn(grant.getNotifyPhone()), grant.isNotifyDisabled(),
+                nn(grant.resolveNotifyPhone(advertiser.getNotifyPhone())));
     }
 
     /** 마케터가 이 리드폼의 광고주 접수 알림을 켰는지. */
@@ -202,15 +210,53 @@ public class AdvertiserLeadService {
             grant.setNotifyPhone(normalized, Instant.now());
         }
         grantRepository.save(grant);
+        return toFormResponse(grant, form, advertiser);
+    }
 
-        List<Lead> leads = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId);
-        long unseen = leads.stream().filter(l -> l.getAdvertiserSeenAt() == null).count();
-        String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
-                ? grant.getDisplayName()
-                : form.getName();
-        return new AdvertiserFormResponse(formId, name, leads.size(), unseen,
-                grant.isCanStatus(), grant.isCanMemo(), grant.isCanExport(),
-                notifyEnabled(form), nn(grant.getNotifyPhone()));
+    /**
+     * 광고주가 <b>계정 기본</b> 수신번호를 등록·변경·삭제한다(V33).
+     * 배정된 모든 리드폼에 적용되고, 폼 전용 번호가 지정된 폼만 그 값이 우선한다.
+     *
+     * <p>V28 원칙은 그대로다 — 넣는 사람은 <b>광고주 본인</b>이고, 그 행위가 수신 동의 근거다.
+     * 가입 연락처({@code users.phone})로 폴백하지 않는다: 그건 계정 식별용이고 동의가 아니다.
+     *
+     * @param phone 사용자가 입력한 원본 번호(하이픈 허용). 빈 값이면 지운다. 형식이 아니면 400.
+     */
+    @Transactional
+    public String updateDefaultNotifyPhone(Long advertiserId, String phone) {
+        User advertiser = loadActiveAdvertiser(advertiserId);
+        String raw = phone == null ? "" : phone.trim();
+        if (raw.isBlank()) {
+            advertiser.setNotifyPhone(null, null);
+        } else {
+            String normalized = PhoneNumbers.normalize(raw);
+            if (normalized == null) {
+                throw new InvalidSubmissionException("연락처 형식이 올바르지 않습니다.");
+            }
+            advertiser.setNotifyPhone(normalized, Instant.now());
+        }
+        userRepository.save(advertiser);
+        return nn(advertiser.getNotifyPhone());
+    }
+
+    /**
+     * 광고주가 <b>이 리드폼만</b> 알림을 끄거나 다시 켠다(V33).
+     *
+     * <p>계정 기본 번호가 생기면서 "번호를 비우면 중단"이 성립하지 않게 됐다 — 비우면 기본값으로 나간다.
+     * 그래서 끄는 뜻을 별도 상태로 저장한다. 수신 거부는 즉시 반영돼야 하는 권리라 별도 확인을 두지 않는다.
+     */
+    @Transactional
+    public AdvertiserFormResponse updateNotifyDisabled(Long advertiserId, Long formId, boolean disabled) {
+        User advertiser = loadActiveAdvertiser(advertiserId);
+        AdvertiserFormGrant grant = grantRepository.findByFormId(formId)
+                .filter(g -> g.getAdvertiserId().equals(advertiserId))
+                .filter(g -> g.isEffective(Instant.now()))
+                .orElseThrow(() -> new NotFoundException("권한이 없는 리드폼입니다."));
+        Form form = formRepository.findByIdAndOwnerId(formId, advertiser.getParentUserId())
+                .orElseThrow(() -> new NotFoundException("리드폼을 찾을 수 없습니다."));
+        grant.setNotifyDisabled(disabled);
+        grantRepository.save(grant);
+        return toFormResponse(grant, form, advertiser);
     }
 
     /** 대시보드 요약: 전체 미확인 건수 + 오늘 접수 + 상태 분포. */

@@ -12,5 +12,10 @@ public record AdvertiserMeResponse(
         String marketerName,
         String marketerCompany,
         String brandLogoUrl,
-        String brandColor) {
+        String brandColor,
+        /**
+         * 내가 등록한 <b>계정 기본</b> 접수 알림 수신번호(V33). 없으면 빈 문자열.
+         * 배정된 모든 리드폼에 적용되고, 폼 전용 번호가 있는 폼만 그 값이 우선한다.
+         */
+        String notifyPhone) {
 }

@@ -52,18 +52,31 @@ function AdvertiserNotifyNotice({ status }: { status: AdvertiserNotifyStatus | n
       </p>
     );
   }
+  // 광고주가 '이 폼만 끔' 과 '번호 미등록' 은 마케터가 할 수 있는 조치가 다르다 — 구분해서 안내한다.
+  if (status.disabledByAdvertiser) {
+    return (
+      <p className="dash-sub" style={{ marginTop: 10 }}>
+        🔇 <b>{status.advertiserName}</b> 님이 <b>이 리드폼만 알림을 끈 상태</b>라 발송되지 않습니다.
+        다른 리드폼은 정상 발송될 수 있습니다. 다시 받으려면 광고주가 직접 켜야 합니다.
+      </p>
+    );
+  }
   if (!status.registered) {
     return (
       <p className="dash-sub" style={{ marginTop: 10 }}>
         ⚠️ <b>{status.advertiserName}</b> 님이 아직 받을 번호를 등록하지 않아 <b>발송되지 않습니다.</b>{" "}
-        광고주가 광고주 페이지 &gt; 알림 설정에서 본인 번호를 넣으면 그때부터 발송됩니다.
+        광고주가 광고주 페이지 &gt; 알림 설정에서 <b>기본 수신번호</b>를 한 번 넣으면
+        이 리드폼을 포함해 배정된 모든 리드폼의 알림이 시작됩니다.
       </p>
     );
   }
   return (
     <p className="dash-sub" style={{ marginTop: 10 }}>
-      ✅ <b>{status.advertiserName}</b> 님이 등록한 번호(<code>{status.phoneMasked}</code>)로 발송됩니다.
-      번호 변경·해제는 광고주 본인만 할 수 있습니다.
+      ✅ <b>{status.advertiserName}</b> 님의{" "}
+      {status.source === "FORM" ? "이 리드폼 전용 번호" : "기본 수신번호"}(
+      <code>{status.phoneMasked}</code>)로 발송됩니다.
+      {status.source === "ACCOUNT" && " 광고주가 배정된 모든 리드폼에 쓰는 번호입니다."}
+      {" "}번호 변경·해제는 광고주 본인만 할 수 있습니다.
     </p>
   );
 }
@@ -1317,6 +1330,20 @@ export function FormEditPage() {
                     />
                   </label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    {/*
+                      시트로 이동 — 저장된 ID 가 아니라 지금 입력칸의 값으로 연다.
+                      저장 전에도 "이 시트가 맞나"를 바로 확인할 수 있어야 한다(오타·다른 시트 붙여넣기 방지).
+                    */}
+                    {extractSpreadsheetId(sheetsSpreadsheetId) && (
+                      <a
+                        className="btn btn-ghost btn-sm"
+                        href={`https://docs.google.com/spreadsheets/d/${extractSpreadsheetId(sheetsSpreadsheetId)}/edit`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        시트로 이동 ↗
+                      </a>
+                    )}
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"

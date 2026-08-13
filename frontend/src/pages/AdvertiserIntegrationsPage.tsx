@@ -6,10 +6,13 @@ import {
   deleteAdvertiserCustomStatus,
   getAdvertiserIntegration,
   listAdvertiserCustomStatuses,
+  getAdvertiserMe,
   listAdvertiserForms,
   testAdvertiserIntegration,
   updateAdvertiserCustomStatus,
+  updateAdvertiserDefaultNotifyPhone,
   updateAdvertiserIntegration,
+  updateAdvertiserNotifyDisabled,
   updateAdvertiserNotifyPhone,
   type AdvertiserForm,
   type IntegrationSettings,
@@ -155,32 +158,61 @@ const EMPTY: IntegrationSettings = {
 };
 
 /**
- * 리드폼별 접수 알림 수신번호 카드(V28).
+ * 접수 알림 수신번호 카드(V28 → V33).
  *
  * <b>광고주 본인이 자기 번호를 직접 등록한다.</b> 예전에는 마케터가 리드폼 편집에서 광고주 번호를
  * 대신 넣었는데, 번호 주인은 동의한 적도 끌 수도 없었다. 발신 채널이 리드팟 명의 하나라
  * 신고 한 번에 전 고객 알림이 막힌다(docs/MESSAGING-PLAN.md §9).
  * 여기서 번호를 넣는 행위 자체가 수신 동의 근거가 되고, 언제든 비워서 끌 수 있다.
+ *
+ * <b>V33 — 기본 번호 하나로 전부 커버한다.</b> 예전엔 리드폼마다 따로 등록해야 해서 새 리드폼이
+ * 배정되면 알림이 조용히 끊겼다(2026-08-13 실제 발생). 이제 계정 기본 번호를 한 번 넣으면
+ * 배정된 모든 리드폼에 적용되고, 특정 폼만 다르게 받거나 끄고 싶을 때만 아래에서 조정한다.
  */
 function NotifyPhoneCard() {
   const [forms, setForms] = useState<AdvertiserForm[] | null>(null);
+  const [defaultPhone, setDefaultPhone] = useState("");
+  const [defaultDraft, setDefaultDraft] = useState("");
+  const [defaultBusy, setDefaultBusy] = useState(false);
+  const [defaultDone, setDefaultDone] = useState(false);
   const [draft, setDraft] = useState<Record<number, string>>({});
+  const [openForm, setOpenForm] = useState<number | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   const [done, setDone] = useState<number | null>(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    listAdvertiserForms()
-      .then((list) => {
+    Promise.all([listAdvertiserForms(), getAdvertiserMe()])
+      .then(([list, me]) => {
         setForms(list);
         setDraft(Object.fromEntries(list.map((f) => [f.formId, f.notifyPhone])));
+        setDefaultPhone(me.notifyPhone);
+        setDefaultDraft(me.notifyPhone);
       })
       .catch(() => {
         // 빈 목록으로 두면 "배정받은 리드폼이 없습니다"라고 거짓 안내를 하게 된다 — 사유를 밝힌다.
         setForms([]);
-        setErr("리드폼 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+        setErr("정보를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
       });
   }, []);
+
+  /** 계정 기본 번호 저장. 저장 후 폼 목록을 다시 불러와 "실제 발송 번호" 표시를 갱신한다. */
+  async function saveDefault() {
+    setDefaultBusy(true);
+    setErr("");
+    setDefaultDone(false);
+    try {
+      const r = await updateAdvertiserDefaultNotifyPhone(defaultDraft);
+      setDefaultPhone(r.notifyPhone);
+      setDefaultDraft(r.notifyPhone);
+      setDefaultDone(true);
+      setForms(await listAdvertiserForms());
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "저장에 실패했습니다.");
+    } finally {
+      setDefaultBusy(false);
+    }
+  }
 
   async function save(formId: number) {
     setBusy(formId);
@@ -198,6 +230,19 @@ function NotifyPhoneCard() {
     }
   }
 
+  async function toggleDisabled(formId: number, disabled: boolean) {
+    setBusy(formId);
+    setErr("");
+    try {
+      const updated = await updateAdvertiserNotifyDisabled(formId, disabled);
+      setForms((prev) => (prev ?? []).map((f) => (f.formId === formId ? updated : f)));
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "저장에 실패했습니다.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   // 번호를 등록할 수 있는 건 마케터가 접수 알림을 켠 리드폼뿐이다. 다만 켠 폼이 없다고 카드를 통째로
   // 숨기면 안 된다 — 광고주는 "번호 넣는 곳이 아예 없다"만 보고 이유를 알 수 없다(2026-08-08 사용자 제보).
   // 마케터는 광고주가 등록하기를 기다리고 광고주는 입력란을 못 찾는 교착이 된다. 그래서 항상 렌더하고
@@ -208,46 +253,108 @@ function NotifyPhoneCard() {
 
   return (
     <div className="card card-pad" style={{ marginBottom: 20 }}>
-      <div className="card-h">접수 알림 문자 받기</div>
+      <div className="card-h">접수 알림 받기</div>
       <p className="dash-sub" style={{ marginTop: 0 }}>
-        새 리드가 접수되면 <b>여기 등록한 내 번호</b>로 문자가 옵니다. 개인정보는 넣지 않고{" "}
+        새 리드가 접수되면 <b>여기 등록한 내 번호</b>로 알림톡이 옵니다. 개인정보는 넣지 않고{" "}
         <b>접수 사실과 리드폼 이름만</b> 보냅니다. <b>번호를 비우고 저장하면 즉시 중단</b>됩니다.
       </p>
 
+      {/* 계정 기본 번호 — 여기 하나만 넣으면 배정된 모든 리드폼에 적용된다(V33) */}
+      <label className="field" style={{ maxWidth: 620, marginTop: 16 }}>
+        <span className="field-label">내 기본 수신번호 (모든 리드폼에 적용)</span>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            className="input"
+            style={{ flex: "1 1 200px", fontSize: 16 }}
+            inputMode="tel"
+            value={defaultDraft}
+            onChange={(e) => setDefaultDraft(e.target.value)}
+            placeholder="010-0000-0000 (비우면 알림을 받지 않습니다)"
+          />
+          <button
+            className="btn btn-primary"
+            onClick={saveDefault}
+            disabled={defaultBusy || defaultDraft === defaultPhone}
+          >
+            {defaultBusy ? "저장 중…" : defaultDone ? "저장됨!" : "저장"}
+          </button>
+        </div>
+        <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
+          {defaultPhone
+            ? "이 번호로 알림을 받는 중입니다. 새로 배정되는 리드폼에도 자동으로 적용됩니다."
+            : "아직 등록 전이라 알림이 오지 않습니다. 번호를 넣으면 배정된 모든 리드폼의 알림이 시작됩니다."}
+        </span>
+      </label>
+
       {forms.length === 0 && !err && (
-        <p className="dash-sub" style={{ marginBottom: 0 }}>
+        <p className="dash-sub" style={{ marginTop: 16, marginBottom: 0 }}>
           아직 배정받은 리드폼이 없습니다. 담당 마케터가 리드폼을 배정하면 여기에 표시됩니다.
         </p>
       )}
 
       {targets.length > 0 && (
-      <div style={{ display: "grid", gap: 14, maxWidth: 620, marginTop: 14 }}>
-        {targets.map((f) => (
-          <label className="field" key={f.formId}>
-            <span className="field-label">{f.name}</span>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                className="input"
-                style={{ flex: "1 1 200px", fontSize: 16 }}
-                inputMode="tel"
-                value={draft[f.formId] ?? ""}
-                onChange={(e) => setDraft((p) => ({ ...p, [f.formId]: e.target.value }))}
-                placeholder="비우면 알림을 받지 않습니다"
-              />
-              <button
-                className="btn btn-primary"
-                onClick={() => save(f.formId)}
-                disabled={busy === f.formId || (draft[f.formId] ?? "") === f.notifyPhone}
-              >
-                {busy === f.formId ? "저장 중…" : done === f.formId ? "저장됨!" : "저장"}
-              </button>
-            </div>
-            <span className="dash-sub" style={{ fontSize: 12, marginTop: 4 }}>
-              {f.notifyPhone ? "현재 알림을 받는 중입니다." : "아직 등록 전이라 알림이 오지 않습니다."}
-            </span>
-          </label>
-        ))}
-      </div>
+        <div style={{ maxWidth: 620, marginTop: 22 }}>
+          <div className="card-h" style={{ fontSize: 15 }}>리드폼별로 다르게 받기 (선택)</div>
+          <p className="dash-sub" style={{ marginTop: 0 }}>
+            특정 리드폼만 <b>다른 번호</b>로 받거나 <b>알림을 끄고</b> 싶을 때만 조정하세요.
+            건드리지 않으면 위 기본 번호로 갑니다.
+          </p>
+          <div style={{ display: "grid", gap: 12 }}>
+            {targets.map((f) => (
+              <div className="notify-form-row" key={f.formId}>
+                <div className="notify-form-head">
+                  <b>{f.name}</b>
+                  <span className={`notify-badge ${f.notifyDisabled ? "off" : f.effectiveNotifyPhone ? "on" : "none"}`}>
+                    {f.notifyDisabled
+                      ? "알림 끔"
+                      : f.effectiveNotifyPhone
+                        ? f.notifyPhone
+                          ? `이 폼 전용 번호로 받는 중`
+                          : `기본 번호로 받는 중`
+                        : "받을 번호 없음"}
+                  </span>
+                </div>
+                <div className="notify-form-ctrl">
+                  <label className="fr-check" style={{ margin: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={f.notifyDisabled}
+                      disabled={busy === f.formId}
+                      onChange={(e) => toggleDisabled(f.formId, e.target.checked)}
+                    />{" "}
+                    이 리드폼은 알림 받지 않기
+                  </label>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    type="button"
+                    onClick={() => setOpenForm((p) => (p === f.formId ? null : f.formId))}
+                  >
+                    {openForm === f.formId ? "닫기" : f.notifyPhone ? "전용 번호 수정" : "다른 번호 쓰기"}
+                  </button>
+                </div>
+                {openForm === f.formId && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                    <input
+                      className="input"
+                      style={{ flex: "1 1 200px", fontSize: 16 }}
+                      inputMode="tel"
+                      value={draft[f.formId] ?? ""}
+                      onChange={(e) => setDraft((p) => ({ ...p, [f.formId]: e.target.value }))}
+                      placeholder="비우면 기본 번호를 따라갑니다"
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => save(f.formId)}
+                      disabled={busy === f.formId || (draft[f.formId] ?? "") === f.notifyPhone}
+                    >
+                      {busy === f.formId ? "저장 중…" : done === f.formId ? "저장됨!" : "저장"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {blocked.length > 0 && (
