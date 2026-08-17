@@ -1,6 +1,23 @@
 # docs/DB-MIGRATION-RAILWAY.md — DB 이전 런북 (Neon → Railway Postgres)
 
-> **작성 2026-08-17 (gooin PC). 상태: ⬜ 착수 전 — 사용자 결제·프로비저닝 대기 중.**
+> **작성 2026-08-17 (gooin PC). 상태: 🔄 진행 중 — 서비스는 복구됨. Railway Postgres 프로비저닝 대기 중.**
+>
+> ### ✅ 2026-08-17 14:51 KST — 서비스 복구 (사용자가 Neon Launch 로 전환)
+>
+> | | 장애 중 | 복구 후 |
+> |---|---|---|
+> | `/actuator/health` | DOWN | **UP** |
+> | 로그인 API | **10.4초 뒤 실패** | **0.385초** 정상 응답(`INVALID_CREDENTIALS`) |
+> | Neon 직접 접속 | `53000` 쿼터 초과 거절 | **886ms 접속 성공** |
+>
+> 데이터도 온전하다 — Flyway **V33 / 33건 / 실패 0건**, 행 수·시퀀스 스냅샷은 §6-1·6-2.
+>
+> ⏱️ **다만 미터가 돌고 있다.** Launch 는 $0.106/CU-hour 이고 우리 keepalive 설정이 DB 를
+> 24시간 깨워두므로 **0.25 CU × 24h = 6 CU-hr = 약 $0.64/일(약 900원/일)** 이 계속 나간다.
+> 급하진 않지만 미루면 그만큼 낸다 — 1주일 = 약 $4.5.
+>
+> 🎯 **다음 행동: Neon 이 살아있는 지금 백업 덤프부터 떠 둔다**(Step 4). 이전 시점과 무관하게
+> 데이터를 손에 쥐고 있으면 이후 모든 단계가 안전해진다. Docker Desktop 실행이 필요하다.
 > 계기: **Neon 무료 한도(월 100 CU-hrs) 초과로 DB 컴퓨트가 정지**해 서비스가 다운됐다(2026-08-17).
 > 이 이전은 원래 [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) 남은 일 **6번**에 있던 항목이다
 > (*"DB → Railway Postgres 교체 검토(Neon 무료 100 CU-h/월 한도 → keepalive 24시간이면 초과 가능)"* — 2026-08-09 조사 결론).
@@ -241,10 +258,53 @@ Railway → **백엔드 서비스** → Variables. 3개를 교체한다 (Railway
 - [ ] `curl https://api.lead-pot.com/api/health` → `UP`
 - [ ] `curl https://api.lead-pot.com/actuator/health` → **`UP`** ⭐ 이게 DOWN이면 DB 연결 실패
 - [ ] **Flyway 검증 통과** — Railway 백엔드 Deploy Logs에 `Successfully validated 33 migrations` 류 로그, `ddl-auto=validate`라 스키마가 어긋나면 **기동 자체가 실패**한다 (= 좋은 안전망)
-- [ ] **행 수 대조** — 핵심 테이블을 Neon과 Railway에서 각각 세어 일치 확인:
+- [ ] **행 수 대조** — 아래 §6-1 기준값과 대조 (덤프 직전에 한 번 더 떠서 최신값으로 갱신할 것)
+
+### 6-1. 기준값 스냅샷 (2026-08-17 14:51 KST · Neon 복구 직후 실측)
+
+> Neon `PostgreSQL 18.4` · DB 크기 **11MB** · Flyway **V33 / 33건 적용 / 실패 0건** · public 테이블 **26개**(= 25 + `flyway_schema_history`)
+
+| 테이블 | 행 수 | 테이블 | 행 수 |
+|---|---:|---|---:|
+| admin_audit_logs | 31 | ip_blocks | 1 |
+| advertiser_access_logs | 58 | landing_pages | 22 |
+| advertiser_form_grants | 3 | lead_as_requests | 1 |
+| advertiser_invites | 6 | lead_notes | 37 |
+| advertiser_ledger | 4 | lead_statuses | 4 |
+| advertiser_password_resets | 4 | **leads** | **76** |
+| consent_documents | 3 | message_logs | 83 |
+| flyway_schema_history | 33 | notification_logs | 37 |
+| form_blocks | 55 | site_ip_block_hits | 0 |
+| forms | 30 | site_ip_blocks | 0 |
+| html_components | 1 | **users** | **44** |
+| integration_settings | 3 | visits | 1063 |
+| interaction_events | 679 | ip_block_hits | 0 |
+
+### 6-2. ⭐ 시퀀스 대조 (여기가 가장 깨지기 쉽다)
+
+**시퀀스 값이 행 수보다 큰 테이블이 여러 개다** — 삭제된 행이 있었다는 뜻이고 정상이다.
+문제는 **복원 시 시퀀스를 안 옮기면 다음 INSERT 가 기존 PK 와 충돌**한다는 것이다.
+예: `leads` 는 76행인데 시퀀스는 **169** → 시퀀스를 놓치면 다음 리드가 77번을 받아 터진다.
+
+| 시퀀스 | 값 | 시퀀스 | 값 |
+|---|---:|---|---:|
+| admin_audit_logs_id_seq | 31 | landing_pages_id_seq | 23 |
+| advertiser_access_logs_id_seq | 58 | lead_as_requests_id_seq | 1 |
+| advertiser_form_grants_id_seq | 7 | lead_notes_id_seq | 56 |
+| advertiser_invites_id_seq | 7 | lead_statuses_id_seq | 4 |
+| advertiser_ledger_id_seq | 4 | **leads_id_seq** | **169** ⭐ |
+| advertiser_password_resets_id_seq | 4 | message_logs_id_seq | 83 |
+| consent_documents_id_seq | 3 | notification_logs_id_seq | 37 |
+| **form_blocks_id_seq** | **383** ⭐ | site_ip_block_hits_id_seq | (미사용) |
+| forms_id_seq | 35 | site_ip_blocks_id_seq | 1 |
+| html_components_id_seq | 3 | users_id_seq | 45 |
+| interaction_events_id_seq | 679 | visits_id_seq | 1063 |
+| ip_block_hits_id_seq | 2 | | |
+
+복원 후 이 쿼리로 대조한다:
 
 ```sql
-SELECT 'users' t, count(*) FROM users UNION ALL SELECT 'leads', count(*) FROM leads UNION ALL SELECT 'forms', count(*) FROM forms UNION ALL SELECT 'landing_pages', count(*) FROM landing_pages UNION ALL SELECT 'message_logs', count(*) FROM message_logs ORDER BY 1;
+SELECT sequencename, last_value FROM pg_sequences WHERE schemaname='public' ORDER BY sequencename;
 ```
 
 - [ ] **로그인** — 기존 계정으로 성공 (users·비밀번호 해시 정상)
