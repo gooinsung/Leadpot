@@ -29,6 +29,41 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-08-18 01:15 — **DB 이전 완료: Neon → Railway Postgres** (관찰 기간 중)
+>
+> **상세·롤백·검증 수치는 [DB-MIGRATION-RAILWAY.md](DB-MIGRATION-RAILWAY.md) 상단.**
+>
+> | | 결과 |
+> |---|---|
+> | 데이터 일치 | CUTOFF 시점 `users=44 leads=78 visits=1110` **양쪽 완전 일치** · Flyway V33 실패 0 |
+> | 유실 | **리드·메시지·사용자 0건.** `visits` 1건(익명 페이지뷰)만 Neon 에 남음 — 이전 안 함 |
+> | 전환 증거 | Neon 마지막 visit 16:00:44 **멈춤** / Railway 16:05:02 **계속 유입** |
+> | 접속 | `jdbc:postgresql://postgres.railway.internal:5432/railway` (내부망, 공개 노출 없음) |
+> | **DB 왕복** | **426ms(VM+Neon) → 100ms(Railway+Neon) → 약 20ms** ⭐ P1 해결 |
+> | 비용 | Postgres 추가분 ~$1~2/월 (Neon Launch 유지 시 ~$19 였다) |
+>
+> ### ⭐ 이번에 바뀐 운영 사실 (기억할 것)
+>
+> - **VM 백엔드는 정지됐다**(`docker compose -f docker-compose.prod.yml down`).
+>   그래서 **자동 승인을 Railway 가 인수**했다 — `APP_LEAD_AUTO_APPROVE_ENABLED` `false`→**`true`**.
+> - ⚠️ **Oracle VM 을 지우면 안 된다.** `app.lead-pot.com` 이 아직 이 VM 의 nginx 에서 서비스된다
+>   (HTTP 200 확인). 프론트를 Cloudflare Pages 로 옮긴 뒤에만 VM 종료 가능(Phase B).
+> - **Neon 은 아직 살려둔다.** keepalive 가 사라져 scale-to-zero 로 잠들므로 월 약 20원뿐이다.
+>   살아있는 롤백 대상이라 관찰 뒤 삭제한다.
+> - 백업·롤백 파일: `C:\Users\gooin\leadpot-backup\` (덤프 4개 + `ROLLBACK-leadpot-env-20260818.txt`). git 금지.
+>
+> ### 남은 일
+>
+> - [ ] **매시 10분 자동 승인 배치**가 Railway 에서 실제로 도는지 첫 사이클 확인 ⭐
+> - [ ] 문자·알림톡·구글시트 정상 동작 확인
+> - [ ] Railway **Usage Limit** 설정 — Soft **$15** / Hard **$40** (실측 월 ~$7 기준)
+> - [ ] **Public Access 제거** — 복원용으로 켰던 TCP 프록시(`caboose.proxy.rlwy.net:12377`)
+> - [ ] 보안(§6-3): **로컬 개발을 프로덕션 DB 에서 분리**(가장 중요) · 앱 전용 최소권한 계정 · 비번 회전
+> - [ ] 관찰 뒤 **Neon 프로젝트 삭제**
+> - [ ] `application.properties` 의 Neon 전제 주석(20~26·64행) 갱신 · CLAUDE.md §2·§6 갱신
+>
+> ---
+>
 > ## 🚨 2026-08-17 — **서비스 다운: Neon 무료 한도 초과** · DB → Railway Postgres 이전 착수
 >
 > **런북: [DB-MIGRATION-RAILWAY.md](DB-MIGRATION-RAILWAY.md) — 이어받는 세션은 이 파일을 보고 그대로 실행한다.**

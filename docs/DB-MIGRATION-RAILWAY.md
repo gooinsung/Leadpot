@@ -1,6 +1,92 @@
 # docs/DB-MIGRATION-RAILWAY.md — DB 이전 런북 (Neon → Railway Postgres)
 
-> **작성 2026-08-17 (gooin PC). 상태: 🔄 진행 중 — 서비스는 복구됨. Railway Postgres 프로비저닝 대기 중.**
+> **작성 2026-08-17 (gooin PC). 상태: ✅ 전환 완료 2026-08-18 01:10 KST — 관찰 기간 중.**
+>
+> ## ✅ 전환 완료 (2026-08-18 01:00~01:15 KST)
+>
+> **프로덕션 DB 가 Neon → Railway Postgres 로 넘어갔다.** 실행 순서와 결과:
+>
+> | # | 단계 | 결과 |
+> |---|---|---|
+> | 1 | VM 백엔드 정지(쓰기 동결) | `docker compose down` 성공. VM `/api/health` → **502**(nginx 만 살아있음) |
+> | 2 | Neon 최종 덤프 | `leadpot-neon-FINAL-20260818-0100.dump` · **CUTOFF `2026-08-17 16:00:20.860766+00`** |
+> | 3 | Railway DB 초기화 + 복원 | `--single-transaction` **에러 0건** |
+> | 4 | 환경변수 3개 교체 | Railway 변수 참조로 설정(비번 회전 시 자동 추종) |
+> | 5 | 델타 확인 | **리드·메시지·사용자 유실 0건** (아래) |
+> | 6 | 자동 승인 인수 | `APP_LEAD_AUTO_APPROVE_ENABLED` `false` → **`true`** ⭐ |
+>
+> ### 데이터 일치 검증
+>
+> ```
+> CUTOFF 시점  Neon : users=44 leads=78 visits=1110  msg=84 notif=38 events=679
+> 복원 결과 Railway : users=44 leads=78 visits=1110  Flyway=V33  실패=0   ✅ 완전 일치
+> ```
+>
+> **전환이 실제로 일어났다는 결정적 증거** (전환 8분 후 실측):
+>
+> | | Neon(구) | Railway(신) |
+> |---|---|---|
+> | visits | 1,111 | **1,115** |
+> | 마지막 visit | 16:00:44 (**멈춤**) | **16:05:02** (계속 유입) |
+>
+> 해석된 접속 문자열: `jdbc:postgresql://postgres.railway.internal:5432/railway` (내부망)
+>
+> ### 델타 (CUTOFF 이후 Neon 에 남은 것)
+>
+> `created_at` 있는 **23개 테이블 전수 조회 결과 `visits` 1건만**, 나머지 전부 0.
+> `updated_at` 있는 5개 테이블도 전부 0 → **UPDATE 유실도 없다.**
+>
+> 그 1건: `id=1111` / `landing_page_id=17` / **`form_id`=NULL(폼 제출 아닌 단순 페이지뷰)**.
+> ⚠️ Railway 는 이미 `id=1111` 을 다른 방문에 사용했으므로 그대로 이전할 수 없다.
+> **익명 조회 1건이라 이전하지 않고 종결한다**(사용자 확인).
+>
+> ### ⭐ 지연 개선 실측 — P1 해결
+>
+> [HOSTING-MIGRATION-PLAN.md:13-25](HOSTING-MIGRATION-PLAN.md:13) 의 *"응답시간 74%가 Neon 왕복,
+> DB 이전이 유일한 해법"* 이 목표였다.
+>
+> | 경로 | 응답시간(gooin PC 기준) |
+> |---|---|
+> | `api/health`(DB 안 탐) | 0.368~0.375s |
+> | `landing/17/live`(DB 탐) | 0.388~0.403s |
+> | `public/forms/24`(DB 탐) | 0.386~0.403s |
+>
+> ⚠️ 절대값은 한국 PC→Cloudflare→싱가포르 왕복이 포함돼 서버 성능이 아니다. **차이값**이 지표다:
+>
+> | 구간 | DB 왕복 기여분 |
+> |---|---|
+> | VM + Neon | **426ms** |
+> | Railway + Neon | 약 100ms |
+> | **Railway + Railway Postgres** | **약 20ms** |
+>
+> → **DB 왕복 약 5배 감소.** 목표 달성.
+>
+> ### 관찰 기간 중 확인할 것
+>
+> - [ ] **매시 10분 자동 승인 배치**가 Railway 에서 도는지 (VM 에서 인수한 직후라 첫 사이클 확인 필요)
+> - [ ] 문자·알림톡 발송 정상 · 구글시트 연동 정상
+> - [ ] Railway 요금 실측(Postgres 추가분이 예상대로 $1~2/월 수준인지)
+>
+> ### 🔒 Neon 은 아직 지우지 않는다 (판단 근거가 바뀌었다)
+>
+> 할당량을 태운 keepalive 가 이제 Neon 을 안 찌른다 → **5분 뒤 scale-to-zero** →
+> 남는 건 스토리지 0.04GB × $0.35 = **월 약 $0.014(20원)**.
+> **20원 아끼려고 살아있는 롤백 대상을 버릴 이유가 없다.** 관찰이 끝난 뒤 삭제한다.
+>
+> ### ⚠️ Oracle VM 은 지우면 안 된다 (2026-08-18 확인)
+>
+> `app.lead-pot.com` → **HTTP 200**. **프론트엔드가 아직 이 VM 의 nginx 에서 서비스된다.**
+> 백엔드 컨테이너만 껐고 nginx 는 프론트 서빙용으로 계속 돈다.
+> VM 을 없애려면 먼저 **프론트를 Cloudflare Pages 로** 옮겨야 한다([HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) Phase B).
+>
+> ### 롤백 방법
+>
+> `C:\Users\gooin\leadpot-backup\ROLLBACK-leadpot-env-20260818.txt` 의 값 3개를
+> Railway `Leadpot` 서비스에 되돌리면 즉시 Neon 으로 복귀한다(롤링 재배포).
+>
+> ---
+>
+> ### (이하 이전 계획·경과 기록)
 >
 > ### ✅ 2026-08-17 14:51 KST — 서비스 복구 (사용자가 Neon Launch 로 전환)
 >
