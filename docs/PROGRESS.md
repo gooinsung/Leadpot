@@ -29,6 +29,56 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## 🚨 2026-08-17 — **서비스 다운: Neon 무료 한도 초과** · DB → Railway Postgres 이전 착수
+>
+> **런북: [DB-MIGRATION-RAILWAY.md](DB-MIGRATION-RAILWAY.md) — 이어받는 세션은 이 파일을 보고 그대로 실행한다.**
+>
+> ### 무슨 일이 났나
+>
+> 사용자가 "서버 접속이 안 된다"고 해서 확인한 결과 **Neon 컴퓨트가 정지**돼 있었다.
+> Neon 대시보드: **Compute 110.6 / 100 CU-hrs** (8/1부터) → 무료 한도 초과로 컴퓨트 suspend.
+>
+> | 확인 | 결과 | 의미 |
+> |---|---|---|
+> | `/api/health` | UP (0.7초) | 앱은 정상 — **DB를 안 타는 경로** |
+> | `/actuator/health` | **DOWN** | DB 포함 헬스 실패 |
+> | DB 타는 엔드포인트(로그인·공개폼) | **10.4초 뒤 실패** | `connection-timeout=10000ms`와 초 단위 일치 → 커넥션 자체를 못 맺음 |
+>
+> **데이터는 안전하다**(Storage 0.04GB로 정상 표시).
+>
+> ### 원인 — 예측했던 리스크가 그대로 터졌다
+>
+> 이 파일 아래쪽 2026-08-09 항목 6번에 이미 적혀 있다:
+> *"DB → Railway Postgres 교체 검토(Neon 무료 100 CU-h/월 한도 → **keepalive 24시간이면 초과 가능**, 콘솔 Usage 확인 필요)"*
+> → **그 Usage 확인을 넘기지 않은 채 한도를 넘겼다.**
+>
+> 산수가 정확히 맞는다: 최소 크기 **0.25 CU × 24h × 17일 = 102 CU-hrs** ≈ 실측 110.6.
+> **DB가 17일간 한 번도 잠들지 않았다**는 뜻이고, 범인은 지연을 줄이려 넣은
+> [application.properties:29-31](../backend/src/main/resources/application.properties:29)의
+> keepalive(120초)·`minimum-idle=3`이다. Neon 자동 절전이 영원히 안 걸린다.
+> ⚠️ 그 리스크는 [application.properties:25-26](../backend/src/main/resources/application.properties:25) 주석에
+> 이미 경고로 적혀 있었다 — *"요금 페이지에서 한 번 확인할 것"*.
+>
+> ### 결정 (사용자, 2026-08-17)
+>
+> **Neon Launch 일회성 결제($19)로 즉시 복구 → 그 사이 Railway Postgres로 이전 → Neon 해지.**
+> 근거: Neon 유료 유지($19/월)보다 **월 $15 이상 싸고**(Railway Postgres 추가분 약 $2~4/월),
+> Railway Postgres는 **컴퓨트 시간 과금이 아니라 이 사고가 구조적으로 재발 불가능**해진다.
+> 덤으로 [HOSTING-MIGRATION-PLAN.md:13-25](HOSTING-MIGRATION-PLAN.md:13)의 P1(응답시간 74%가 외부 DB 왕복)도 같이 풀린다.
+>
+> ### ⚠️ 이전 전 반드시 알아야 할 것 2개
+>
+> 1. **Neon 컴퓨트가 정지된 상태에서는 `pg_dump`도 안 된다.** 그래서 결제가 먼저다(또는 9/1 리셋 대기 = 2주 다운).
+> 2. **VM 백엔드가 아직 살아있다** — `https://129.225.198.2/api/health` → UP (2026-08-17 확인).
+>    Railway와 VM **두 백엔드가 같은 Neon DB를 동시에 보고 있고**, VM 쪽은 `APP_LEAD_AUTO_APPROVE_ENABLED=true`로
+>    매시 배치를 돌린다. **덤프 후 VM이 쓰면 그 데이터는 유실된다** → 런북 Step 3에서 먼저 정지.
+>
+> ### 다음 행동 (막힌 지점)
+>
+> - [ ] **사용자**: Neon Launch 결제 · Railway에 PostgreSQL 추가(리전 싱가포르, **버전 확인** → 런북 경로 A/B 분기)
+> - [ ] 그 후 런북 Step 3~7 실행 (VM 정지 → 덤프 → 복원 → 환경변수 교체) → Step 6 검증
+> - [ ] 검증 통과 후: Neon 해지 · `application.properties` Neon 전제 주석 갱신 · CLAUDE.md §2·§6 갱신
+>
 > ## 📞 2026-08-13 밤 — 광고주 알림 수신번호 구조 변경 (V33) · 배포됨
 >
 > **실제로 알림이 끊기고 있었다.** 사용자가 "알림톡 발송 설정이 안 된 것 같다"고 해서 조사했더니

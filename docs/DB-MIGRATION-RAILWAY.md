@@ -1,0 +1,245 @@
+# docs/DB-MIGRATION-RAILWAY.md — DB 이전 런북 (Neon → Railway Postgres)
+
+> **작성 2026-08-17 (gooin PC). 상태: ⬜ 착수 전 — 사용자 결제·프로비저닝 대기 중.**
+> 계기: **Neon 무료 한도(월 100 CU-hrs) 초과로 DB 컴퓨트가 정지**해 서비스가 다운됐다(2026-08-17).
+> 이 이전은 원래 [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) 남은 일 **6번**에 있던 항목이다
+> (*"DB → Railway Postgres 교체 검토(Neon 무료 100 CU-h/월 한도 → keepalive 24시간이면 초과 가능)"* — 2026-08-09 조사 결론).
+> **예측했던 리스크가 그대로 터진 것이므로, 검토가 아니라 실행으로 승격한다.**
+> 관련: [CLAUDE.md](../CLAUDE.md) §6 · [PROGRESS.md](PROGRESS.md)
+
+---
+
+## 0. 왜 옮기는가 (2줄)
+
+1. **Neon 무료 플랜은 우리 사용 패턴과 구조적으로 안 맞는다.** 컴퓨트 시간(CU-hrs) 과금인데 우리는 DB를 24시간 깨워둔다.
+2. **응답시간의 대부분이 여전히 외부 DB 왕복이다.** Railway 내부망으로 붙이면 이게 거의 0이 된다.
+
+Railway Postgres에는 **컴퓨트 시간 개념이 없다** → 상시 가동이 정상이고, 월 한도 초과로 DB가 멈추는 사고가 **구조적으로 불가능**해진다.
+
+---
+
+## 1. 현재 상태 (2026-08-17 실측)
+
+| 항목 | 값 | 확인 방법 |
+|---|---|---|
+| Neon 컴퓨트 | **110.6 / 100 CU-hrs → 정지** | Neon 대시보드 |
+| Neon Postgres 버전 | **18** | Neon 대시보드 Project settings |
+| Neon 리전 | AWS ap-southeast-1 (싱가포르) | 동상 |
+| **데이터 크기** | **0.04 GB** ⭐ 매우 작다 | Neon 대시보드 Storage |
+| Flyway 최신 | **V33** (`V33__advertiser_default_notify_phone.sql`, 총 33개) | `backend/src/main/resources/db/migration/` |
+| 스키마 소유자 | **Flyway** (`spring.flyway.enabled=true`, `ddl-auto=validate`) | [application.properties:69-74](../backend/src/main/resources/application.properties:69) |
+| 테이블 수 | 25개 | 마이그레이션 파일 |
+| 로컬 개발 DB | postgres:**16** | [docker-compose.yml:7](../docker-compose.yml) |
+| Railway 플랜 | Hobby ($5/월, 크레딧 $5 포함) | [HOSTING-MIGRATION-PLAN.md:222](HOSTING-MIGRATION-PLAN.md:222) |
+
+### 증상 (원인 진단 근거)
+
+| 확인 | 결과 | 의미 |
+|---|---|---|
+| `/api/health` | UP (0.7초) | 앱은 정상. DB를 안 탄다 |
+| `/actuator/health` | **DOWN** | DB 포함 헬스 실패 |
+| DB 타는 엔드포인트 | **10.4초 뒤 실패** | `connection-timeout=10000ms`와 초 단위 일치 → 커넥션 자체를 못 맺음 |
+
+### ⚠️ 백엔드가 2개 살아있다 (이전의 최대 위험)
+
+```
+api.lead-pot.com  ──▶ Railway (싱가포르)  ─┐
+                                           ├──▶ 같은 Neon DB
+https://129.225.198.2  ──▶ Oracle VM      ─┘   ← 아직 UP! (2026-08-17 확인)
+```
+
+VM 백엔드는 `APP_LEAD_AUTO_APPROVE_ENABLED=true`로 **매시 10분 자동 승인 배치**를 돌린다
+([application.properties:62-65](../backend/src/main/java/../resources/application.properties:62)).
+→ **덤프를 뜬 뒤 VM이 Neon에 쓰면 그 데이터는 유실된다.** Step 3에서 반드시 먼저 멈춘다.
+
+---
+
+## 2. 넘을 수 없는 제약 (순서가 여기서 결정된다)
+
+> **Neon 컴퓨트가 정지된 상태에서는 `pg_dump`도 안 된다.**
+> 데이터를 빼내려면 먼저 컴퓨트를 켜야 하고, 방법은 둘 중 하나다:
+> - **(선택됨)** Neon Launch 결제 → 즉시 복구 → 이전 후 해지 = **일회성 $19**
+> - 9월 1일 한도 리셋 대기 = $0, 대신 약 2주 다운
+>
+> 데이터 자체는 안전하게 남아 있다(Storage 0.04GB로 표시됨).
+
+---
+
+## 3. 비용 (이전 후)
+
+| 항목 | 월 비용 |
+|---|---|
+| Railway 백엔드 | 계획 문서 추정 $12~17 — **실측은 Railway Usage 화면에서 확인 필요** |
+| **Railway Postgres (추가분)** | **약 $2~4** (RAM 100~250MB 가정 · 아래 근거) |
+| Neon | **$0** (해지) |
+| 합계 | 약 $15~21 |
+
+Railway 단가: **RAM $10/GB·월 + CPU $20/vCPU·월(실사용분) + 볼륨 ~$0.15/GB·월 + 내부망 트래픽 $0**
+([HOSTING-MIGRATION-PLAN.md:95](HOSTING-MIGRATION-PLAN.md:95)).
+
+Postgres가 100~250MB로 예상되는 근거: 데이터가 0.04GB뿐이고, 메모리는 기본 `shared_buffers` 128MB +
+커넥션 몇 개가 거의 전부다(`maximum-pool-size=10`, `minimum-idle=3`).
+
+⚠️ **Hobby $5 크레딧은 백엔드가 이미 다 쓰고 초과한 상태**라, Postgres 비용은 크레딧에 흡수되지 않고 전액 추가된다.
+⚠️ **Usage Limit 하드 캡을 걸어둘 것** (권장 $25 — [HOSTING-MIGRATION-PLAN.md:228](HOSTING-MIGRATION-PLAN.md:228)).
+
+---
+
+## 4. 사용자가 직접 해야 하는 것 (2개)
+
+결제·계정 작업은 대신 할 수 없다.
+
+- [ ] **S1. Neon Launch 결제** — Neon 콘솔 → Billing → Launch. 결제되면 컴퓨트가 다시 깨어난다
+- [ ] **S2. Railway에 Postgres 추가** — Railway 프로젝트 → `+ New` → Database → **PostgreSQL**
+  - [ ] 리전이 기존 백엔드와 **같은 싱가포르**인지 확인
+  - [ ] ⭐ **Postgres 버전 확인** — 아래 경로 분기의 기준이다
+
+### 버전에 따른 경로 분기
+
+| Railway Postgres 버전 | 경로 | 이유 |
+|---|---|---|
+| **18** (Neon과 동일) | **경로 A — 전체 덤프** (권장) | 완전 복제. flyway 이력·시퀀스까지 그대로 |
+| 16 또는 17 | **경로 B — Flyway 스키마 + 데이터만** | PG18 덤프를 하위 버전에 복원하면 깨질 수 있다 |
+
+---
+
+## 5. 절차
+
+### Step 1. 백업 먼저 (되돌릴 수 있게)
+
+현재 Railway 환경변수 3개를 적어둔다. 롤백은 이 값을 되돌리는 것으로 끝난다.
+
+```
+SPRING_DATASOURCE_URL
+SPRING_DATASOURCE_USERNAME
+SPRING_DATASOURCE_PASSWORD
+```
+
+기존 시크릿 백업 위치: `C:\Users\gooinsung\leadpot-backup\` (`railway-env` — [PROGRESS.md:604](PROGRESS.md:604))
+
+### Step 2. Neon 접속 정보 확보
+
+Neon 콘솔 → Connection string. 형태:
+`postgresql://neondb_owner:PASS@ep-xxx.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`
+
+### Step 3. ⚠️ 쓰기를 멈춘다 (VM 백엔드 정지)
+
+**이 단계를 빼먹으면 데이터가 유실된다.**
+
+```bash
+ssh -i "G:\내 드라이브\오라클\instance key\leadpot-dev\ssh-key-2026-07-28.key" ubuntu@129.225.198.2
+```
+
+```bash
+cd ~/Leadpot && docker compose -f docker-compose.prod.yml down
+```
+
+- [ ] `https://129.225.198.2/api/health` 가 이제 실패하는지 확인
+- Railway 백엔드는 이 시점부터 잠시 리드를 못 받는다(공개 폼 다운). **데이터가 0.04GB라 복원은 수 분이면 끝난다.**
+
+### Step 4. 덤프 (Docker로 — 아무것도 설치하지 않는다)
+
+로컬에 `pg_dump`를 깔지 않는다. **Neon과 같은 버전(18) 이미지**로 돌려서 버전 불일치를 원천 차단한다.
+
+**경로 A (Railway가 PG18)** — 전체 덤프:
+
+```bash
+docker run --rm -v "${PWD}:/backup" postgres:18 pg_dump "<NEON_CONNECTION_STRING>" --no-owner --no-privileges -Fc -f /backup/leadpot-neon.dump
+```
+
+**경로 B (Railway가 PG16/17)** — 데이터만 (스키마는 Flyway가 만든다):
+
+```bash
+docker run --rm -v "${PWD}:/backup" postgres:18 pg_dump "<NEON_CONNECTION_STRING>" --data-only --exclude-table=flyway_schema_history --no-owner --no-privileges -Fc -f /backup/leadpot-data.dump
+```
+
+- [ ] 덤프 파일이 생겼고 크기가 0이 아닌지 확인 (수십 MB 예상)
+- PowerShell은 `${PWD}`, Git Bash는 `$(pwd)`
+
+### Step 5. Railway Postgres 접속 정보 확보
+
+Railway → Postgres 서비스 → **Variables** 탭. 두 종류를 구분한다:
+
+| 용도 | 변수 | 비고 |
+|---|---|---|
+| **복원용**(내 PC에서 붙음) | `DATABASE_PUBLIC_URL` | 공개 TCP 프록시. 내부 도메인은 내 PC에서 안 열린다 |
+| **앱 연결용**(Railway 내부) | `RAILWAY_PRIVATE_DOMAIN` · `PGDATABASE` · `PGUSER` · 비밀번호 변수 | 내부망 = 무과금·저지연 |
+
+### Step 6. 복원
+
+**경로 A** — 앱이 한 번도 붙지 않은 빈 DB에 그대로 복원 (flyway 이력이 같이 들어가서 Flyway가 no-op 처리):
+
+```bash
+docker run --rm -v "${PWD}:/backup" postgres:18 pg_restore -d "<RAILWAY_DATABASE_PUBLIC_URL>" --no-owner --no-privileges /backup/leadpot-neon.dump
+```
+
+**경로 B** — 먼저 Step 7로 앱을 붙여 Flyway가 V1~V33을 적용하게 하고(스키마 생성), 그 다음 데이터만 넣는다:
+
+```bash
+docker run --rm -v "${PWD}:/backup" postgres:18 pg_restore -d "<RAILWAY_DATABASE_PUBLIC_URL>" --data-only --disable-triggers --no-owner --no-privileges /backup/leadpot-data.dump
+```
+
+> `--disable-triggers`는 FK 순서 문제를 피하려는 것이다. Railway 기본 유저는 권한이 충분하다.
+
+### Step 7. 백엔드를 새 DB로 전환
+
+Railway → **백엔드 서비스** → Variables. 3개를 교체한다 (Railway 변수 참조 문법 `${{Postgres.VAR}}` 사용 권장):
+
+| 변수 | 값 |
+|---|---|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/${{Postgres.PGDATABASE}}` |
+| `SPRING_DATASOURCE_USERNAME` | `${{Postgres.PGUSER}}` |
+| `SPRING_DATASOURCE_PASSWORD` | Postgres 서비스의 비밀번호 변수 참조 |
+
+- ⚠️ **`?sslmode=require`를 붙이지 않는다.** Neon 때문에 필요했던 것이고, 내부망에서는 불필요하다
+- ⚠️ 서비스명이 `Postgres`가 아니면 참조 이름을 맞춘다
+- 저장하면 **롤링 재배포**된다(다운타임 없음)
+
+---
+
+## 6. 검증
+
+- [ ] `curl https://api.lead-pot.com/api/health` → `UP`
+- [ ] `curl https://api.lead-pot.com/actuator/health` → **`UP`** ⭐ 이게 DOWN이면 DB 연결 실패
+- [ ] **Flyway 검증 통과** — Railway 백엔드 Deploy Logs에 `Successfully validated 33 migrations` 류 로그, `ddl-auto=validate`라 스키마가 어긋나면 **기동 자체가 실패**한다 (= 좋은 안전망)
+- [ ] **행 수 대조** — 핵심 테이블을 Neon과 Railway에서 각각 세어 일치 확인:
+
+```sql
+SELECT 'users' t, count(*) FROM users UNION ALL SELECT 'leads', count(*) FROM leads UNION ALL SELECT 'forms', count(*) FROM forms UNION ALL SELECT 'landing_pages', count(*) FROM landing_pages UNION ALL SELECT 'message_logs', count(*) FROM message_logs ORDER BY 1;
+```
+
+- [ ] **로그인** — 기존 계정으로 성공 (users·비밀번호 해시 정상)
+- [ ] **공개 폼 제출** → 리드 1건 생성 확인 (⭐ **시퀀스가 제대로 넘어왔는지**를 보는 테스트. 여기서 PK 충돌이 나면 시퀀스 문제)
+- [ ] 알림(문자·텔레그램) 정상 발송
+- [ ] 리드 목록·엑셀 내보내기 정상
+- [ ] **응답시간 실측** — 랜딩 API가 220~246ms에서 얼마로 줄었는지 기록 (이전의 핵심 목적)
+
+### 롤백
+
+환경변수 3개를 Neon 값으로 되돌리고 롤링 재배포. Neon은 검증이 끝날 때까지 **해지하지 않는다.**
+
+---
+
+## 7. 이후 정리 (검증 통과 후)
+
+- [ ] 2~3일 관찰 (리드 유실·알림·**Railway 요금 실측**)
+- [ ] **Neon 해지** — 관찰 끝난 뒤에만
+- [ ] [application.properties:20-26](../backend/src/main/resources/application.properties:20) Neon 전제 주석 갱신
+      — "Neon 싱가포르 왕복이 비싸다", "keepalive가 무료 컴퓨트를 태운다" 전제가 전부 사라진다
+- [ ] `APP_DB_KEEPALIVE_MS`·`APP_DB_MIN_IDLE` 재검토 — 내부망은 재수립 비용이 거의 없어 단순화 가능(급하지 않음)
+- [ ] ⭐ **VM을 완전히 내리는 날 Railway에서 `APP_LEAD_AUTO_APPROVE_ENABLED=true`** (Step 3에서 VM을 껐으므로 **자동 승인이 지금 아무데서도 안 돈다**)
+- [ ] 문서 갱신: 이 파일 상태 · [PROGRESS.md](PROGRESS.md) · [CLAUDE.md](../CLAUDE.md) §2·§6(DB=Neon → Railway) · [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) 남은 일 6번 완료 처리
+
+---
+
+## 8. 위험 요약
+
+| 위험 | 대응 |
+|---|---|
+| **VM이 덤프 후에도 Neon에 쓴다 → 유실** | Step 3에서 먼저 정지 (필수) |
+| PG18 덤프를 하위 버전에 복원 실패 | Step 4의 경로 A/B 분기 |
+| 시퀀스가 안 넘어와 PK 충돌 | Step 6 "공개 폼 제출" 테스트로 검출 |
+| 스키마 불일치 | `ddl-auto=validate`가 기동 시 자동 차단 |
+| 복원 실패 / 성능 악화 | Neon 유지 상태로 환경변수만 롤백 |
+| Railway 요금 폭주 | Usage Limit 하드 캡 $25 |
+| ⚠️ Step 3~6 사이 공개 폼 다운 | 데이터 0.04GB라 수 분. 광고 트래픽 적은 시간대에 진행 |
