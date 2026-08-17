@@ -52,15 +52,56 @@
 >   살아있는 롤백 대상이라 관찰 뒤 삭제한다.
 > - 백업·롤백 파일: `C:\Users\gooin\leadpot-backup\` (덤프 4개 + `ROLLBACK-leadpot-env-20260818.txt`). git 금지.
 >
-> ### 남은 일
+> ### 2026-08-18 01:40 시점 최종 상태 점검 (전부 정상)
 >
-> - [ ] **매시 10분 자동 승인 배치**가 Railway 에서 실제로 도는지 첫 사이클 확인 ⭐
-> - [ ] 문자·알림톡·구글시트 정상 동작 확인
-> - [ ] Railway **Usage Limit** 설정 — Soft **$15** / Hard **$40** (실측 월 ~$7 기준)
-> - [ ] **Public Access 제거** — 복원용으로 켰던 TCP 프록시(`caboose.proxy.rlwy.net:12377`)
-> - [ ] 보안(§6-3): **로컬 개발을 프로덕션 DB 에서 분리**(가장 중요) · 앱 전용 최소권한 계정 · 비번 회전
-> - [ ] 관찰 뒤 **Neon 프로젝트 삭제**
-> - [ ] `application.properties` 의 Neon 전제 주석(20~26·64행) 갱신 · CLAUDE.md §2·§6 갱신
+> | 항목 | 결과 |
+> |---|---|
+> | `api/health` · `/actuator/health` | 200 · **UP** |
+> | `app.lead-pot.com`(프론트) | **200** (0.17s) |
+> | `landing/17/live` · `public/forms/24` (DB 읽기) | **200** (0.39s) |
+> | `auth/login`(users 읽기) | 401 = 정상 동작 |
+> | VM 백엔드 | **502 = 정지 유지** (의도된 상태) |
+> | Railway 서비스 | `Leadpot` **Online** · `Postgres` **Online** |
+> | DB 접속 | `postgres.railway.internal:5432/railway` (내부망) |
+> | DB 공개 노출 | **없음** — Public Access 제거됨 ✅ |
+> | 자동승인·예열·저장소 | `true` · `true` · `r2` |
+>
+> ### ✅ 끝난 일
+>
+> - [x] DB 이전 + 검증 + 델타 확인 (업무 데이터 유실 0건)
+> - [x] **Public Access 제거** — 복원용으로 켰던 TCP 프록시. DB 는 내부망 전용
+> - [x] 자동 승인을 Railway 가 인수 (`APP_LEAD_AUTO_APPROVE_ENABLED=true`)
+> - [x] **로컬 개발을 프로덕션 DB 에서 분리** (커밋 `0f9b932`) — 로컬은 docker-compose 의
+>       `postgres:18` 을 본다. `application-local.properties.example` 템플릿 추가.
+>       ⚠️ postgres:18 함정 2개를 주석으로 남겼다: 마운트가 `/var/lib/postgresql` 로 바뀜 ·
+>       16→18 은 볼륨 재사용 불가(옛 `leadpot_pgdata` 는 보존)
+>
+> ### ⬜ 내일 할 일 (사용자: "남은거는 내일 진행")
+>
+> - [ ] ⭐ **매시 10분 자동 승인 배치 첫 사이클 확인** — 설정은 켰지만 **실제로 도는 것은 아직 미확인**.
+>       실패하면 리드 상태가 **조용히** 멈춘다. Railway `Leadpot` → Deploy Logs 에서
+>       `LeadAutoApproveRunner` 관련 로그 확인
+> - [ ] **문자·알림톡·구글시트 정상 동작 확인** — 전환 후 아직 이 경로가 밟히지 않았다.
+>       ⚠️ DB 가 내부망 전용이 되어 **외부에서 직접 조회할 수 없다** → 관리자 UI 나 Railway 로그로 확인
+> - [ ] Railway **Usage Limit** — 워크스페이스 이름 → Settings → Usage → Soft **$15** / Hard **$40**
+>       (⚠️ Hard 는 초과 시 서비스를 정지시킨다. 실측 월 ~$7 이므로 넉넉히)
+> - [ ] 관찰 뒤 **Neon 프로젝트 삭제** (지금은 scale-to-zero 로 월 약 20원, 살아있는 롤백 대상)
+> - [ ] 남은 보안(§6-3): 앱 전용 최소권한 계정 · DB 비번 회전 ·
+>       **로컬 R2 설정이 아직 프로덕션 버킷·키를 가리킨다**(업로드 만질 때만 위험)
+> - [ ] 문서: `application.properties` 의 Neon 전제 주석(20~26·64행) · **CLAUDE.md §2·§6**(DB=Neon 으로 적혀 있음)
+> - [ ] (별건) **Phase B — 프론트 → Cloudflare Pages.** 실작업 약 40분 + Phase C 30분.
+>       `_redirects` 가 이미 있어 SPA 폴백 작업은 없고, `*.pages.dev` 로 먼저 검증하므로 다운타임 0.
+>       ⚠️ 이걸 해야 **Oracle VM 을 끌 수 있다**(지금 프론트가 VM nginx 에서 서비스 중)
+>
+> ### 참고: 지금 무엇이 어디서 도는가 (2026-08-18)
+>
+> | 구성 | 위치 |
+> |---|---|
+> | 백엔드 `api.lead-pot.com` | **Railway**(싱가포르) |
+> | **DB** | **Railway Postgres**(같은 프로젝트, 내부망 전용) ⭐ 이번에 이전 |
+> | 프론트 `app.lead-pot.com` | **Oracle VM 의 nginx** (Cloudflare 는 DNS·SSL 프록시일 뿐) |
+> | 업로드 파일 | **Cloudflare R2** (`leadpot-uploads`) |
+> | 옛 DB | Neon (잠든 상태, 삭제 예정) |
 >
 > ---
 >
