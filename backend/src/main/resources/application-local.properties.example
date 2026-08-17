@@ -1,0 +1,44 @@
+# application-local.properties 템플릿 (프로필 local)
+#
+# 사용법: 이 파일을 같은 폴더에 `application-local.properties` 로 복사해서 쓴다.
+#   cp application-local.properties.example application-local.properties
+# 그 복사본은 .gitignore 처리되어 커밋되지 않는다.
+#
+# 실행: cd backend ; $env:SPRING_PROFILES_ACTIVE="local"; ./gradlew bootRun
+#
+# ⚠️ 원칙 (2026-08-18 확립): **로컬 개발은 프로덕션 DB 에 붙지 않는다.**
+#    예전에는 모든 환경이 Neon 한 대를 공유해서 모든 개발 PC 에 프로덕션 DB
+#    비밀번호가 있었다. PC 한 대가 털리면 실 고객 리드가 전부 노출되고, 로컬에서
+#    실수로 DELETE 한 번이면 프로덕션 데이터가 날아가는 구조였다.
+#    프로덕션 DB 는 Railway Postgres(내부망 전용)이며 외부에서 접근할 수 없다.
+#    상세: docs/DB-MIGRATION-RAILWAY.md §6-3
+
+# --- 로컬 PostgreSQL ---
+# 저장소 루트에서 먼저 컨테이너를 띄운다:  docker compose up -d db
+# 스키마는 Flyway 가 빈 DB 에 V1 부터 전부 자동 적용한다 — 덤프를 받아올 필요가 없다.
+# 아래 값은 docker-compose.yml 의 db 서비스 설정과 일치한다(그대로 쓰면 된다).
+spring.datasource.url=jdbc:postgresql://localhost:5432/leadpot
+spring.datasource.username=leadpot
+spring.datasource.password=leadpot
+
+
+# --- 업로드 저장소 ---
+# 기본값(아무것도 안 적으면): app.storage.type=local, 저장 위치 ./data/uploads
+# 로컬 디스크로 충분하면 이 절은 비워둔다. ⭐ 권장.
+#
+# R2(Cloudflare) 를 직접 붙여 테스트해야 할 때만 아래를 채운다.
+# ⚠️ 프로덕션 버킷 키를 쓰면 로컬 업로드가 실서비스 버킷에 쓰인다.
+#    가능하면 테스트용 별도 버킷을 만들어 쓸 것.
+#app.storage.type=r2
+#app.storage.r2.endpoint=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+#app.storage.r2.bucket=<BUCKET>
+#app.storage.r2.public-base-url=https://<PUBLIC_HOST>
+#app.storage.r2.access-key=<ACCESS_KEY>
+#app.storage.r2.secret-key=<SECRET_KEY>
+
+
+# --- 그 밖에 필요할 때만 ---
+# 문자 발송을 로컬에서 실제로 보내볼 때 (안 적으면 발송만 건너뛰고 서버는 정상 기동)
+#app.sms.solapi.api-key=
+#app.sms.solapi.api-secret=
+#app.sms.solapi.sender-phone=
