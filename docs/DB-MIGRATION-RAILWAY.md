@@ -352,6 +352,93 @@ SELECT sequencename, last_value FROM pg_sequences WHERE schemaname='public' ORDE
 
 ---
 
+## 6-3. 🔒 보안 조이기 (사용자 요청 2026-08-18)
+
+> ⚠️ **먼저 용어 정리: Railway 에는 AWS 식 "보안그룹"이 없다.** IP 단위 방화벽 규칙을 쓰는 구조가 아니다.
+> Neon 의 `IP Allow` 도 **Scale 플랜 전용**이었다(Change plan 화면 확인). 그래서 Railway 에서 실제로
+> 조일 수 있는 수단은 **① 공개 엔드포인트 자체를 없애기 ② Postgres 권한 ③ 자격증명 관리** 세 가지다.
+
+### 🔴 필수 1 — 복원이 끝나면 **공개 엔드포인트(TCP Proxy)를 제거**한다 ⭐ 가장 큰 효과
+
+Railway Postgres 는 기본으로 **공개 TCP Proxy** 가 붙어 인터넷에서 접근 가능하다
+(`DATABASE_PUBLIC_URL` 이 그것이다). 이게 사실상 유일한 외부 공격면이다.
+
+- 복원할 때는 **필요하다**(내 PC 에서 붙어야 하므로)
+- **복원·검증이 끝나면 즉시 제거**: Postgres 서비스 → Settings → Networking → TCP Proxy 삭제
+- 그러면 DB 는 **내부망(`*.railway.internal`)에서만** 접근 가능해진다 = 보안그룹을 닫는 것과 동일한 효과
+- ⚠️ 앱은 내부 주소로 붙으므로 **영향 없다**(§5 Step 7 에서 이미 내부 주소로 설정)
+
+**이후 관리 접근이 필요할 때**는 공개 프록시를 다시 열지 말고 CLI 터널을 쓴다:
+
+```bash
+railway connect
+```
+
+### 🔴 필수 2 — **로컬 개발이 프로덕션 DB 를 공유하는 구조를 끝낸다** ⭐ 실질적으로 가장 위험
+
+현재 구조([PROGRESS.md:12](PROGRESS.md:12)): *"모든 환경 공유 DB 한 대"*
+→ **모든 개발 PC 의 `application-local.properties` 에 실 프로덕션 DB 비밀번호가 있다.**
+
+| 위험 | 결과 |
+|---|---|
+| 개발 PC 한 대가 털린다 | **실 고객 리드 전체 노출**(개인정보) |
+| 로컬에서 실수로 `DELETE`·`TRUNCATE` | **프로덕션 데이터 소실** |
+| 마이그레이션 실험 | 프로덕션 스키마에 바로 반영 |
+
+공개 엔드포인트를 닫아도 **이건 그대로 남는다.** 네트워크가 아니라 자격증명 배포 문제이기 때문이다.
+
+**해결책은 이미 레포에 있다** — [docker-compose.yml](../docker-compose.yml) 에 `postgres:16` 컨테이너가 있다.
+이전을 계기로 **로컬 개발은 로컬 컨테이너를 쓰고, 프로덕션 자격증명은 어느 PC 에도 두지 않는다.**
+Flyway 가 스키마를 소유하므로 빈 로컬 DB 에서 `V1~V33` 이 자동 적용된다 — 준비 비용이 거의 없다.
+
+- [ ] 로컬 `postgres:18` 로 버전 통일(운영과 맞춤) 후 `docker compose up` 으로 개발
+- [ ] `application-local.properties` 에서 프로덕션 접속정보 제거 → 로컬 컨테이너 주소로
+- [ ] 각 PC 의 기존 파일에 남은 프로덕션 비번 삭제
+- [ ] [PROGRESS.md:12](PROGRESS.md:12) 의 "모든 환경 공유 DB 한 대" 전제를 폐기 기록
+
+### 🟡 권장 3 — 앱 전용 **최소 권한 계정**
+
+Railway 가 주는 기본 유저는 **superuser** 다. 앱은 superuser 가 필요 없다.
+Flyway 가 DDL 을 하므로 **스키마 소유권은 필요**하지만, superuser 는 아니어도 된다.
+
+복원을 끝낸 뒤 `postgres` 로 접속해 실행한다:
+
+```sql
+CREATE ROLE leadpot_app LOGIN PASSWORD '<강한 비밀번호>' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+ALTER SCHEMA public OWNER TO leadpot_app;
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO leadpot_app', r.tablename); END LOOP;
+  FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname='public' LOOP
+    EXECUTE format('ALTER SEQUENCE public.%I OWNER TO leadpot_app', r.sequencename); END LOOP;
+END $$;
+```
+
+그 뒤 `SPRING_DATASOURCE_USERNAME`·`PASSWORD` 를 이 계정으로 바꾼다.
+superuser 비번은 관리용으로만 보관한다.
+
+> ⚠️ **트레이드오프**: 나중에 `--data-only` 복원(경로 B)을 할 일이 생기면 `--disable-triggers` 가
+> superuser 를 요구한다. 그때는 관리용 `postgres` 계정으로 하면 된다.
+
+### 🟡 권장 4 — 이전 후 **비밀번호 회전**
+
+복원 과정에서 공개 URL 을 노트북에서 사용했다. 이전·검증이 끝나면 회전한다.
+Railway 는 변수만 바꾸면 **롤링 재배포**라 다운타임이 없다.
+
+### 🟡 권장 5 — **Neon 프로젝트 완전 삭제**
+
+Neon 비번은 여러 PC 의 로컬 파일·백업에 남아 있다. 프로젝트를 삭제하면 그 자격증명이 전부 무의미해진다.
+플랜만 Free 로 내리면 계정은 살아 있다 → **프로젝트 자체를 삭제**한다(스토리지 과금도 함께 끊긴다).
+
+### 이미 잘 되어 있는 것 (확인함)
+
+- `application-local.properties` 가 [.gitignore:43](../.gitignore) 에 등록돼 커밋되지 않는다 ✅
+- 백업·덤프 파일을 레포 밖(`C:\Users\gooin\leadpot-backup\`)에 둔다 ✅
+- Postgres 18 기본 인증이 `scram-sha-256` 이다 ✅
+- 내부망 통신은 공개 인터넷을 타지 않는다(egress 과금도 없음) ✅
+
+---
+
 ## 7. 이후 정리 (검증 통과 후)
 
 - [ ] 2~3일 관찰 (리드 유실·알림·**Railway 요금 실측**)
