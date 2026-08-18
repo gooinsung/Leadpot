@@ -19,6 +19,7 @@ import {
   type LeadStatusOption,
 } from "../api/client";
 import { leadStatusClass, pickName, pickPhone } from "../lib/leadDisplay";
+import { trackingKeyLabel } from "../lib/tracking";
 
 /** 확신 등급 배지 문구(V33). 등급 정의는 api/client.ts 의 AdvertiserActivityLevel 참고. */
 const ADV_LEVEL_LABEL: Record<string, string> = {
@@ -244,8 +245,8 @@ export function LeadSidePanel({
       )}
       {lead.utm && Object.keys(lead.utm).length > 0 && (
         <div className="ip-answer">
-          <span className="ip-k">UTM</span>
-          <span className="ip-v">{Object.entries(lead.utm).map(([k, v]) => `${k}=${v}`).join(" · ")}</span>
+          <span className="ip-k">출처</span>
+          <span className="ip-v">{Object.entries(lead.utm).map(([k, v]) => `${trackingKeyLabel(k)} ${v}`).join(" · ")}</span>
         </div>
       )}
     </div>

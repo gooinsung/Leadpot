@@ -27,6 +27,7 @@ import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
 import { leadStatusClass, leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
+import { buildUtmFacets, leadSource, matchesUtm, trackingKeyLabel } from "../lib/tracking";
 import { useSelection } from "../lib/useSelection";
 import { toast } from "../lib/toast";
 
@@ -55,6 +56,9 @@ export function LeadsListPage() {
   const [dupOnly, setDupOnly] = useState(false); // 중복만 보기
   const [advUnseenOnly, setAdvUnseenOnly] = useState(false); // 광고주 미확인만 보기
   const [tagFilter, setTagFilter] = useState(""); // "" = 전체 태그
+  // 유입 파라미터(출처) 필터 — "이름 선택 → 값 드롭다운" (faceted). '태그'와 별개 축.
+  const [utmKeyFilter, setUtmKeyFilter] = useState("");
+  const [utmValueFilter, setUtmValueFilter] = useState("");
   const [detailId, setDetailId] = useState<number | null>(null); // 상세 사이드 패널 대상(U2: 모달 → 패널)
   const fileRef = useRef<HTMLInputElement>(null);
   // 내보내기 모달(형식·컬럼 선택)
@@ -167,7 +171,10 @@ export function LeadsListPage() {
     return Array.from(set).sort();
   }, [leads]);
 
-  // 상태·검색·중복·태그·날짜는 클라이언트 필터(즉시 반응)
+  // 유입 파라미터 facet(드롭다운 옵션) — 필터 전 전체 목록으로 만든다(값을 골라도 다른 값이 남게)
+  const utmFacets = useMemo(() => buildUtmFacets(leads), [leads]);
+
+  // 상태·검색·중복·태그·유입·날짜는 클라이언트 필터(즉시 반응)
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter(
@@ -176,6 +183,7 @@ export function LeadsListPage() {
         (!dupOnly || dupIds.has(l.id)) &&
         (!advUnseenOnly || !l.advertiserSeenAt) &&
         (!tagFilter || (l.tags ?? []).includes(tagFilter)) &&
+        (!utmKeyFilter || !utmValueFilter || matchesUtm(l.utm, utmKeyFilter, utmValueFilter)) &&
         (!dateFrom || kstDate(l.createdAt) >= dateFrom) &&
         (!dateTo || kstDate(l.createdAt) <= dateTo) &&
         (!needle ||
@@ -183,9 +191,11 @@ export function LeadsListPage() {
             (a) =>
               (a.value || "").toLowerCase().includes(needle) ||
               (a.label || "").toLowerCase().includes(needle),
-          )),
+          ) ||
+          // 검색이 유입 파라미터 값도 본다 — "danggun" 검색이 당근 유입을 찾게(백엔드 matchesQuery 와 동일)
+          Object.values(l.utm ?? {}).some((v) => String(v ?? "").toLowerCase().includes(needle))),
     );
-  }, [leads, q, statusFilter, dupOnly, advUnseenOnly, dupIds, tagFilter, dateFrom, dateTo]);
+  }, [leads, q, statusFilter, dupOnly, advUnseenOnly, dupIds, tagFilter, utmKeyFilter, utmValueFilter, dateFrom, dateTo]);
 
   const paging = usePaging(filtered, 25); // 컴팩트 행이라 한 화면에 더 많이(U3)
 
@@ -428,6 +438,37 @@ export function LeadsListPage() {
               ))}
             </select>
           )}
+          {/* 유입(출처) 필터 — 광고 URL 빌더가 붙인 파라미터로 거른다. 없으면 통째로 숨김 */}
+          {utmFacets.length > 0 && (
+            <>
+              <select
+                className="input"
+                style={{ width: 140 }}
+                value={utmKeyFilter}
+                onChange={(e) => { setUtmKeyFilter(e.target.value); setUtmValueFilter(""); }}
+                aria-label="유입 파라미터 선택"
+              >
+                <option value="">모든 유입</option>
+                {utmFacets.map((f) => (
+                  <option key={f.key} value={f.key}>{trackingKeyLabel(f.key)}</option>
+                ))}
+              </select>
+              {utmKeyFilter && (
+                <select
+                  className="input"
+                  style={{ width: 150 }}
+                  value={utmValueFilter}
+                  onChange={(e) => setUtmValueFilter(e.target.value)}
+                  aria-label="유입 값 선택"
+                >
+                  <option value="">모든 값</option>
+                  {(utmFacets.find((f) => f.key === utmKeyFilter)?.values ?? []).map((v) => (
+                    <option key={v.value} value={v.value}>{v.value} ({v.count})</option>
+                  ))}
+                </select>
+              )}
+            </>
+          )}
           {!trashed && uniqueFieldLabels.length > 0 && (
             <button
               className={`btn btn-sm ${dupOnly ? "btn-primary" : "btn-ghost"}`}
@@ -446,8 +487,8 @@ export function LeadsListPage() {
               광고주 미확인만
             </button>
           )}
-          {(q || statusFilter || dupOnly || advUnseenOnly || tagFilter || dateFrom || dateTo) && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); setAdvUnseenOnly(false); setTagFilter(""); setDateFrom(""); setDateTo(""); }}>필터 초기화</button>
+          {(q || statusFilter || dupOnly || advUnseenOnly || tagFilter || utmKeyFilter || dateFrom || dateTo) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setStatusFilter(""); setDupOnly(false); setAdvUnseenOnly(false); setTagFilter(""); setUtmKeyFilter(""); setUtmValueFilter(""); setDateFrom(""); setDateTo(""); }}>필터 초기화</button>
           )}
           {!trashed && (
             <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -534,6 +575,7 @@ export function LeadsListPage() {
               <span>이름</span>
               <span>연락처</span>
               <span>답변 요약</span>
+              <span>출처</span>
               <span>상태</span>
               <span>접수일시</span>
               <span />
@@ -542,6 +584,9 @@ export function LeadsListPage() {
               const name = pickName(l.answers);
               const phone = pickPhone(l.answers);
               const summary = summarizeAnswers(l.answers, [name, phone]);
+              // 출처 칩 — media_from(자체) 우선, 없으면 utm source. 클릭하면 그 값으로 필터.
+              const source = leadSource(l.utm);
+              const sourceKey = l.utm?.media_from != null ? "media_from" : "source";
               return (
                 <div
                   role="listitem"
@@ -591,6 +636,20 @@ export function LeadsListPage() {
                           </button>
                         ))}
                       </span>
+                    )}
+                  </span>
+                  <span className="fl-src" onClick={(e) => e.stopPropagation()}>
+                    {source && (
+                      <button
+                        className="fl-src-chip"
+                        title={`이 출처로 필터 — ${Object.entries(l.utm ?? {}).map(([k, v]) => `${trackingKeyLabel(k)}=${v}`).join(" · ")}`}
+                        onClick={() => {
+                          setUtmKeyFilter(sourceKey);
+                          setUtmValueFilter(source);
+                        }}
+                      >
+                        {source}
+                      </button>
                     )}
                   </span>
                   <span className="fl-status" onClick={(e) => e.stopPropagation()}>

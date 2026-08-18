@@ -7,9 +7,11 @@ import {
   bulkUpdateLeadStatus,
   markLeadsSeen,
   getInbox,
+  getUtmFacets,
   type InboxItem,
   type InboxResponse,
 } from "../api/client";
+import { leadSource, sortUtmFacets, trackingKeyLabel, type UtmFacet } from "../lib/tracking";
 import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import {
@@ -55,6 +57,10 @@ export function LeadInboxPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [formFilter, setFormFilter] = useState<number | null>(null);
   const [range, setRange] = useState<"all" | "7d" | "30d">("all");
+  // 유입 파라미터(출처) 필터 — "이름 선택 → 그 이름의 값 드롭다운" (faceted). '태그'와 별개 축.
+  const [utmKey, setUtmKey] = useState("");
+  const [utmValue, setUtmValue] = useState("");
+  const [utmFacets, setUtmFacets] = useState<UtmFacet[]>([]);
   const [q, setQ] = useState("");
   const [qInput, setQInput] = useState("");
   const [page, setPage] = useState(1);
@@ -88,6 +94,8 @@ export function LeadInboxPage() {
         to: view === "today" ? today : range === "all" ? undefined : today,
         status: statusFilter || undefined,
         formId: formFilter ?? undefined,
+        utmKey: utmKey || undefined,
+        utmValue: utmValue || undefined,
         q: q.trim() || undefined,
         page: page - 1,
         size: PAGE_SIZE,
@@ -99,16 +107,31 @@ export function LeadInboxPage() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, statusFilter, formFilter, range, q, page]);
+  }, [view, statusFilter, formFilter, range, utmKey, utmValue, q, page]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // 유입 파라미터 facet(드롭다운 옵션) — 필터와 무관하게 폼 기준 전체라 폼이 바뀔 때만 다시 부른다.
+  useEffect(() => {
+    let alive = true;
+    getUtmFacets(formFilter ?? undefined)
+      .then((f) => { if (alive) setUtmFacets(sortUtmFacets(f)); })
+      .catch(() => { if (alive) setUtmFacets([]); }); // 옵션 로드 실패는 조용히 — 목록은 그대로 쓴다
+    return () => { alive = false; };
+  }, [formFilter]);
+
+  // 폼이 바뀌면 고른 유입 값이 그 폼에 없을 수 있다 → 유입 필터만 초기화
+  useEffect(() => {
+    setUtmKey("");
+    setUtmValue("");
+  }, [formFilter]);
+
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [view, statusFilter, formFilter, range, q]);
+  }, [view, statusFilter, formFilter, range, utmKey, utmValue, q]);
 
   const counts = data?.counts;
   const items = data?.items ?? [];
@@ -129,6 +152,8 @@ export function LeadInboxPage() {
     setStatusFilter("");
     setFormFilter(null);
     setRange("all");
+    setUtmKey("");
+    setUtmValue("");
     setQ("");
     setQInput("");
     setPage(1);
@@ -258,6 +283,36 @@ export function LeadInboxPage() {
                 <option value="7d">최근 7일</option>
                 <option value="30d">최근 30일</option>
               </select>
+              {/* 유입(출처) 필터 — 파라미터 이름을 고르면 그 이름의 값 드롭다운이 열린다.
+                  유입 파라미터가 붙은 리드가 하나도 없으면 통째로 숨긴다. */}
+              {utmFacets.length > 0 && (
+                <>
+                  <select
+                    className="input"
+                    value={utmKey}
+                    onChange={(e) => { setUtmKey(e.target.value); setUtmValue(""); }}
+                    aria-label="유입 파라미터 선택"
+                  >
+                    <option value="">모든 유입</option>
+                    {utmFacets.map((f) => (
+                      <option key={f.key} value={f.key}>{trackingKeyLabel(f.key)}</option>
+                    ))}
+                  </select>
+                  {utmKey && (
+                    <select
+                      className="input"
+                      value={utmValue}
+                      onChange={(e) => setUtmValue(e.target.value)}
+                      aria-label="유입 값 선택"
+                    >
+                      <option value="">모든 값</option>
+                      {(utmFacets.find((f) => f.key === utmKey)?.values ?? []).map((v) => (
+                        <option key={v.value} value={v.value}>{v.value} ({v.count})</option>
+                      ))}
+                    </select>
+                  )}
+                </>
+              )}
             </div>
             <div className="il-seg" role="tablist" aria-label="보기">
               {(
@@ -420,6 +475,8 @@ function InboxCard({
   onToggle: () => void;
 }) {
   const phone = pickPhone(item.answers);
+  // 출처 칩 — media_from(자체) 우선, 없으면 utm source. 없으면 안 그린다.
+  const source = leadSource(item.utm);
   // 미확인 = 내가 아직 안 연 리드(V32). 예전엔 status === "NEW" 였는데
   // 상태는 광고주도 바꾸는 축이라 '내가 봤는지'와 섞이면 안 된다.
   const unread = !item.seenAt;
@@ -444,6 +501,14 @@ function InboxCard({
       </div>
       <div className="il-row-sub">
         <span className="tnum" style={{ flex: "none" }}>{phone ? maskPhone(phone) : "—"}</span>
+        {source && (
+          <span
+            className="il-src"
+            title={Object.entries(item.utm ?? {}).map(([k, v]) => `${trackingKeyLabel(k)}=${v}`).join(" · ")}
+          >
+            {source}
+          </span>
+        )}
         <span className="il-summary">{summarizeAnswers(item.answers, [pickName(item.answers), phone])}</span>
       </div>
     </div>
