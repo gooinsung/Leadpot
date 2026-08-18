@@ -743,7 +743,7 @@ export function FormEditPage() {
                 placeholder="예: 개인회생"
                 maxLength={50}
                 list="form-category-options"
-                title="업종 구분(개인회생·장기렌트 등). 리드 인박스에서 이 분야로 걸러 볼 수 있습니다"
+                title="업종 구분(개인회생·장기렌트 등). 지정한 이후 접수되는 리드부터 새겨지며, 인박스에서 이 분야로 걸러 볼 수 있습니다. 기존 리드는 인박스에서 체크해 일괄 지정하세요"
               />
               <datalist id="form-category-options">
                 {categoryOptions.map((c) => <option key={c} value={c} />)}

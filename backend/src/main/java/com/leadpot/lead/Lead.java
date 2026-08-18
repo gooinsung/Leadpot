@@ -92,6 +92,14 @@ public class Lead {
     @Column
     private List<String> tags;
 
+    /**
+     * 분야(업종 구분, V35) — <b>접수 순간</b> 폼의 분야(forms.category)를 복사해 새긴다.
+     * 폼에서 상속하지 않는 이유: 분야를 지정/변경하면 과거 리드까지 소급되는데, 운영 요구는
+     * "지정 이후 접수분부터만 집계"다. 과거 리드는 인박스 일괄 지정으로만 바꾼다.
+     */
+    @Column(length = 50)
+    private String category;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -270,6 +278,15 @@ public class Lead {
 
     public void setUtm(Map<String, Object> utm) {
         this.utm = utm;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    /** 빈 문자열은 null 로(분야 드롭다운에 빈 항목 방지). */
+    public void setCategory(String category) {
+        this.category = category == null || category.isBlank() ? null : category.trim();
     }
 
     public List<String> getTags() {

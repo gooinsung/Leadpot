@@ -87,6 +87,8 @@ public class LeadService {
         lead.setConsents(req.consentsOrEmpty());
         // 공개 엔드포인트라 임의 키가 올 수 있다 — 허용 키만 남기고 길이를 자른다.
         lead.setUtm(TrackingParams.sanitize(req.utm()));
+        // 분야 도장(V35) — 접수 순간 폼의 분야를 새긴다. 이후 폼 분야를 바꿔도 이 리드는 안 바뀐다.
+        lead.setCategory(form.getCategory());
         lead.setGroupTag(req.groupTag());
         // 상태는 엔티티 기본값(NEW). 변경은 LeadStatusService 단일 관문으로만 한다(V29).
         lead.setPhoneVerified(false); // 본인인증 연동 전까지 false
@@ -208,14 +210,10 @@ public class LeadService {
     public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
             String from, String to, String utmKey, String utmValue,
             boolean unseen, Integer page, Integer size) {
-        // 1) 내 폼(formId → 이름·분야)
+        // 1) 내 폼(formId → 이름)
         Map<Long, String> nameById = new LinkedHashMap<>();
-        Map<Long, String> categoryById = new LinkedHashMap<>(); // 분야(V34) — 리드는 폼을 통해 물려받는다
         for (FormSummary f : formService.list(ownerId)) {
             nameById.put(f.id(), f.name());
-            if (f.category() != null) {
-                categoryById.put(f.id(), f.category());
-            }
         }
         int pageSize = size == null || size <= 0 ? INBOX_DEFAULT_SIZE : Math.min(size, INBOX_MAX_SIZE);
         if (nameById.isEmpty()) {
@@ -253,12 +251,11 @@ public class LeadService {
             }
             perForm.merge(l.getFormId(), 1L, Long::sum);
         }
-        // 분야별 카운트(전체 기준) — 분야 있는 폼의 리드만. 드롭다운 옵션 + 건수 표기.
+        // 분야별 카운트(전체 기준, V35) — 리드에 새겨진 분야만 센다(접수 시점 도장 + 일괄 지정분).
         Map<String, Long> perCategory = new LinkedHashMap<>();
         for (Lead l : all) {
-            String cat = categoryById.get(l.getFormId());
-            if (cat != null) {
-                perCategory.merge(cat, 1L, Long::sum);
+            if (l.getCategory() != null) {
+                perCategory.merge(l.getCategory(), 1L, Long::sum);
             }
         }
         List<InboxResponse.CategoryCount> byCategory = perCategory.entrySet().stream()
@@ -288,14 +285,14 @@ public class LeadService {
         String uk = utmKey == null ? "" : utmKey.trim();
         String uv = utmValue == null ? "" : utmValue.trim();
         boolean byUtm = !uk.isEmpty() && !uv.isEmpty();
-        // 분야 필터(V34) — 리드는 폼을 통해 분야를 물려받는다.
+        // 분야 필터(V35) — 리드에 새겨진 분야 기준. 지정 이전 접수분(null)은 잡히지 않는다.
         String cat = category == null ? "" : category.trim();
         List<Lead> filtered = new ArrayList<>();
         for (Lead l : all) {
             if (formId != null && !formId.equals(l.getFormId())) {
                 continue;
             }
-            if (!cat.isEmpty() && !cat.equals(categoryById.get(l.getFormId()))) {
+            if (!cat.isEmpty() && !cat.equals(l.getCategory())) {
                 continue;
             }
             if (unseen && l.getSeenAt() != null) {
@@ -325,7 +322,7 @@ public class LeadService {
         int end = Math.min(start + pageSize, filtered.size());
         List<InboxResponse.Item> items = filtered.subList(start, end).stream()
                 .map(l -> new InboxResponse.Item(l.getId(), l.getFormId(), nameById.get(l.getFormId()),
-                        categoryById.get(l.getFormId()),
+                        l.getCategory(),
                         l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getUtm(),
                         l.getCreatedAt(), l.getSeenAt()))
                 .toList();
@@ -600,6 +597,29 @@ public class LeadService {
                 n++;
             } catch (NotFoundException ignored) {
                 // 내 리드가 아니면 건너뛴다.
+            }
+        }
+        return n;
+    }
+
+    /**
+     * 일괄 분야 지정/해제(V35). category 가 비어 있으면 해제(null).
+     * 과거 리드에 분야를 소급하는 유일한 경로다 — 접수 도장은 접수 이후분에만 찍히므로,
+     * 옛 리드는 마케터가 인박스에서 골라 명시적으로 지정한다. 내 것이 아닌 id 는 건너뛴다.
+     */
+    @Transactional
+    public int bulkUpdateCategory(Long ownerId, List<Long> ids, String category) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (Long id : ids) {
+            try {
+                Lead lead = requireOwnedLead(ownerId, id);
+                lead.setCategory(category); // setter 가 빈 값 → null 처리
+                n++;
+            } catch (NotFoundException ignored) {
+                // 내 리드가 아니면 건너뛴다(K5).
             }
         }
         return n;
@@ -900,6 +920,7 @@ public class LeadService {
                 lead.setAnswers(answers);
                 // 상태는 엔티티 기본값(NEW)
                 lead.setPhoneVerified(false);
+                lead.setCategory(form.category()); // 분야 도장(V35) — 접수와 같은 규칙
                 lead.setGroupTag("import");
                 leadRepository.save(lead);
                 created++;

@@ -223,26 +223,62 @@ class InboxTest {
                 .containsExactly("meta");
     }
 
-    // ---------- 분야(V34) 필터 · 카운트 ----------
+    // ---------- 분야(V35) — 접수 도장 · 필터 · 일괄 지정 ----------
 
     @Test
-    @DisplayName("분야 필터: 그 분야 폼의 리드만 + 항목에 formCategory + 분야별 카운트")
-    void filtersByCategory() {
+    @DisplayName("분야는 접수 시점 도장 — 폼에 분야를 지정해도 기존 리드는 잡히지 않는다")
+    void categoryStampsOnlyNewLeads() {
+        // 기존 리드 4건이 있는 상태에서 폼에 분야 지정 (setUp 의 리드들 = 지정 '이전' 접수분)
         formA.setCategory("개인회생");
-        formRepository.save(formA); // formB 는 분야 미지정
+        formRepository.save(formA);
+
+        // 지정 이후 접수분에만 도장이 찍힌다(submit 경로를 흉내내 직접 새김)
+        Lead after = new Lead();
+        after.setFormId(formA.getId());
+        after.setAnswers(List.of(Map.of("label", "이름", "value", "지정후접수")));
+        after.setCategory(formA.getCategory());
+        leadRepository.save(after);
 
         InboxResponse r = leadService.inbox(owner.getId(), null, null, null, "개인회생",
                 null, null, null, null, false, 0, 25);
-        assertThat(r.total()).isEqualTo(3); // formA 리드 3건만
-        assertThat(r.items()).allSatisfy(i -> assertThat(i.formCategory()).isEqualTo("개인회생"));
+        assertThat(r.total()).isEqualTo(1); // 기존 4건은 제외, 지정 후 1건만
+        assertThat(r.items().get(0).category()).isEqualTo("개인회생");
 
-        // 분야별 카운트(전체 기준) — 분야 없는 formB 리드는 어디에도 안 세어진다
+        // 분야별 카운트도 리드 기준 — 기존 리드는 세어지지 않는다
         InboxResponse allR = leadService.inbox(owner.getId(), null, null, null, null,
                 null, null, null, null, false, 0, 25);
         assertThat(allR.counts().byCategory()).hasSize(1);
-        assertThat(allR.counts().byCategory().get(0).name()).isEqualTo("개인회생");
-        assertThat(allR.counts().byCategory().get(0).count()).isEqualTo(3);
-        // 분야 미지정 폼의 리드 항목은 formCategory = null
-        assertThat(allR.items()).anySatisfy(i -> assertThat(i.formCategory()).isNull());
+        assertThat(allR.counts().byCategory().get(0).count()).isEqualTo(1);
+        assertThat(allR.items()).anySatisfy(i -> assertThat(i.category()).isNull());
+    }
+
+    @Test
+    @DisplayName("일괄 분야 지정/해제 — 과거 리드 소급은 이 경로로만. 남의 리드는 건너뛴다(K5)")
+    void bulkCategory() {
+        List<Long> myIds = leadService.inbox(owner.getId(), null, null, null, null,
+                null, null, null, null, false, 0, 25).items().stream().map(InboxResponse.Item::id).toList();
+        // 남의 리드 하나
+        User other = userRepository.save(marketer("bulk-cat@test.local", "bulk-cat"));
+        Form otherForm = formRepository.save(new Form(other.getId(), "남의 폼", FormType.BASIC));
+        saveLead(otherForm, LeadStatuses.NEW, "남의리드");
+        Long otherId = leadService.inbox(other.getId(), null, null, null, null,
+                null, null, null, null, false, 0, 25).items().get(0).id();
+
+        List<Long> ids = new java.util.ArrayList<>(myIds);
+        ids.add(otherId);
+        int updated = leadService.bulkUpdateCategory(owner.getId(), ids, "장기렌트");
+        assertThat(updated).isEqualTo(myIds.size()); // 남의 리드는 건너뜀
+
+        InboxResponse r = leadService.inbox(owner.getId(), null, null, null, "장기렌트",
+                null, null, null, null, false, 0, 25);
+        assertThat(r.total()).isEqualTo(myIds.size());
+        // 남의 리드는 그대로
+        assertThat(leadService.inbox(other.getId(), null, null, null, null,
+                null, null, null, null, false, 0, 25).items().get(0).category()).isNull();
+
+        // 해제(빈 값)
+        leadService.bulkUpdateCategory(owner.getId(), myIds, "");
+        assertThat(leadService.inbox(owner.getId(), null, null, null, "장기렌트",
+                null, null, null, null, false, 0, 25).total()).isZero();
     }
 }
