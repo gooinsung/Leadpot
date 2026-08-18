@@ -422,6 +422,8 @@ export interface Lead {
   referer: string | null;
   utm: Record<string, unknown> | null;
   tags: string[] | null;
+  /** 분야(V35) — 접수 시점 도장 또는 일괄 지정. null = 없음. */
+  category: string | null;
   createdAt: string;
   /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 통합 상태 축(V29). */
   statusKey: string;
@@ -484,8 +486,8 @@ export interface InboxItem {
   id: number;
   formId: number;
   formName: string;
-  /** 폼의 분야(V34). 리드가 폼을 통해 물려받는다. null = 미지정. */
-  formCategory: string | null;
+  /** 리드에 새겨진 분야(V35) — 접수 시점 도장 또는 일괄 지정. null = 없음. */
+  category: string | null;
   answers: LeadAnswer[];
   status: string;
   /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
@@ -552,6 +554,10 @@ export function markLeadsSeen(ids: number[]): Promise<{ updated: number }> {
 /** 다시 '미확인'으로 되돌리기. */
 export function markLeadsUnseen(ids: number[]): Promise<{ updated: number }> {
   return request<{ updated: number }>("/api/leads/bulk/unseen", { method: "POST", body: { ids } });
+}
+/** 일괄 분야 지정/해제(V35). category 빈 값 = 해제. 과거 리드 소급은 이 경로로만. { updated } 반환. */
+export function bulkUpdateLeadCategory(ids: number[], category: string): Promise<{ updated: number }> {
+  return request<{ updated: number }>("/api/leads/bulk/category", { method: "PATCH", body: { ids, category } });
 }
 /** 일괄 휴지통 이동(U2). { trashed } 반환. */
 export function bulkTrashLeads(ids: number[]): Promise<{ trashed: number }> {

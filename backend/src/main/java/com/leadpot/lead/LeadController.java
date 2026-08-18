@@ -201,6 +201,12 @@ public class LeadController {
      * <p>'미확인'은 리드 상태가 아니라 <b>내가 이 리드를 봤는지</b>다 — 상태는 광고주도 바꾸므로
      * 열람 여부의 근거가 될 수 없다. 상태는 전혀 건드리지 않는다.
      */
+    /** 일괄 분야 지정/해제(V35) — category 가 비어 있으면 해제. 과거 리드 소급은 이 경로로만. */
+    @PatchMapping("/bulk/category")
+    public Map<String, Integer> bulkCategory(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
+        return Map.of("updated", leadService.bulkUpdateCategory(userId(jwt), req.ids(), req.category()));
+    }
+
     @PostMapping("/bulk/seen")
     public Map<String, Integer> bulkSeen(@AuthenticationPrincipal Jwt jwt, @RequestBody BulkLeadRequest req) {
         return Map.of("updated", leadService.markSeen(userId(jwt), req.ids(), true));

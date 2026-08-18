@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   ApiError,
   bulkTrashLeads,
+  bulkUpdateLeadCategory,
   bulkUpdateLeadStatus,
   markLeadsSeen,
   getInbox,
@@ -219,6 +220,29 @@ export function LeadInboxPage() {
       setBulkBusy(false);
     }
   }
+  /** 일괄 분야 지정/해제(V35). choice: 분야명 | "__new__"(직접 입력) | "__clear__"(해제). */
+  async function onBulkCategory(choice: string) {
+    if (selected.size === 0 || bulkBusy) return;
+    let category = choice;
+    if (choice === "__new__") {
+      const input = window.prompt("지정할 분야 이름을 입력하세요 (예: 개인회생)");
+      if (!input || !input.trim()) return;
+      category = input.trim().slice(0, 50);
+    } else if (choice === "__clear__") {
+      category = "";
+    }
+    setBulkBusy(true);
+    setError("");
+    try {
+      await bulkUpdateLeadCategory([...selected], category);
+      clearSelection();
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "분야 지정에 실패했습니다.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
   async function onBulkTrash() {
     if (selected.size === 0 || bulkBusy) return;
     if (!window.confirm(`${selected.size}건을 휴지통으로 이동할까요?`)) return;
@@ -376,6 +400,21 @@ export function LeadInboxPage() {
                           <option key={key} value={key}>{label}(으)로</option>
                         ))}
                     </select>
+                    {/* 일괄 분야 지정(V35) — 과거 리드에 분야를 소급하는 유일한 경로 */}
+                    <select
+                      className="input bulk-select"
+                      value=""
+                      disabled={bulkBusy}
+                      onChange={(e) => e.target.value && onBulkCategory(e.target.value)}
+                      aria-label="일괄 분야 지정"
+                    >
+                      <option value="">분야 지정…</option>
+                      {(counts?.byCategory ?? []).map((c) => (
+                        <option key={c.name} value={c.name}>{c.name}</option>
+                      ))}
+                      <option value="__new__">새 분야 입력…</option>
+                      <option value="__clear__">분야 해제</option>
+                    </select>
                     <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkSeen}>확인으로 변경</button>
                     <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={onBulkTrash}>휴지통</button>
                     <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={clearSelection}>해제</button>
@@ -519,8 +558,8 @@ function InboxCard({
       </div>
       <div className="il-row-sub">
         <span className="tnum" style={{ flex: "none" }}>{phone ? maskPhone(phone) : "—"}</span>
-        {item.formCategory && (
-          <span className="il-cat" title={`분야: ${item.formCategory} (${item.formName})`}>{item.formCategory}</span>
+        {item.category && (
+          <span className="il-cat" title={`분야: ${item.category}`}>{item.category}</span>
         )}
         {source && (
           <span

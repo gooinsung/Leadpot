@@ -22,6 +22,8 @@ public record LeadResponse(
         String referer,
         Map<String, Object> utm,
         List<String> tags,
+        /** 분야(V35) — 접수 시점 도장 또는 일괄 지정. null = 없음. */
+        String category,
         Instant createdAt,
         /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 통합 축 V29. */
         String statusKey,
@@ -47,6 +49,7 @@ public record LeadResponse(
                 l.getReferer(),
                 l.getUtm(),
                 l.getTags(),
+                l.getCategory(),
                 l.getCreatedAt(),
                 l.statusKey(),
                 l.getCustomStatusId(),
