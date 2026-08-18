@@ -309,4 +309,11 @@
   .report-section { break-inside: avoid; }
   /* 인쇄는 흰 배경 고정 — 다크 모드 변수가 섞여도 문서는 종이 기준 */
   .report-page { background: #fff; color: #111; }
+  /* ⭐ 그래프 막대는 CSS 배경색인데, 브라우저 인쇄가 배경색을 기본으로 제거한다
+     ("배경 그래픽" 꺼짐) → 색 유지를 강제해야 PDF 에 막대가 나온다 */
+  .report-page,
+  .report-page * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
