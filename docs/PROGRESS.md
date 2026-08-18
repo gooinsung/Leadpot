@@ -29,6 +29,121 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## 🔄 2026-08-18 17:40 — **광고 유입 파라미터(광고 URL 빌더) 작업 중단 지점**
+>
+> **브랜치 `feature/ad-url-params` (main 에 아직 병합 안 함). 커밋 3개.**
+> 이어받는 세션은 이 항목만 읽으면 그대로 계속할 수 있다.
+>
+> ### 왜 하는 작업인가
+>
+> 랜딩 하나를 메타·구글·당근 등 여러 매체에 쓰는데 **어디서 접수된 리드인지 구분이 안 됐다.**
+> 매체별로 랜딩을 복제하지 않고, **URL 뒤에 파라미터를 붙여** 구분한다.
+> 사용자가 정한 파라미터 이름 3개(2026-08-18 결정):
+>
+> | 키 | 뜻 | 예 |
+> |---|---|---|
+> | `media_from` | 광고 매체 이름 | `danggun` · `meta` · `google` |
+> | `campaign_name` | 캠페인 이름 | `summer-sale` |
+> | `ads_name` | 광고(소재) 이름 | `banner-a` |
+>
+> ⚠️ **`?from=` 이나 `?campaign=` 으로 짓지 않은 이유**: 기존 `utm_campaign` 은 JSONB 에
+> 접두어를 뗀 **`campaign`** 키로 저장된다 → `?campaign=` 을 쓰면 같은 칸을 덮어써 하나가 사라진다.
+> 위 3개는 표준 UTM 저장 키(`source`·`medium`·`campaign`·`term`·`content`)와 겹치지 않게 고른 이름이다.
+> **표준 UTM 도 그대로 함께 수집한다**(GA·광고 플랫폼 리포트와 대조하려면 필요하다).
+>
+> ### ⭐ 파라미터 이름은 세 곳이 일치해야 한다 (가장 중요)
+>
+> 키를 늘리거나 바꿀 때 **아래 세 파일을 함께** 고친다. 한 곳만 고치면 조용히 어긋난다
+> (URL 에는 붙는데 저장이 안 되거나, 저장 경로는 열렸는데 아무도 안 보낸다):
+>
+> 1. `frontend/src/lib/adUrl.ts` → `AD_PARAM_KEYS` (빌더가 URL 에 붙일 키)
+> 2. `frontend/src/lib/utm.ts` → `AD_KEYS` (공개 화면이 URL 에서 읽을 키)
+> 3. `backend/.../common/TrackingParams.java` → `ALLOWED_KEYS` (저장 최종 관문)
+>
+> `frontend/src/lib/adUrl.test.ts` 의 **"빌더 → 수집 왕복"** 테스트가 1·2 의 불일치를 잡아준다.
+>
+> ### ✅ 끝난 일 (커밋 3개)
+>
+> | 커밋 | 내용 |
+> |---|---|
+> | `bf5a76d` | **백엔드 화이트리스트 관문** `common/TrackingParams.java` — 허용 키만 통과 + 값 200자 컷. `LeadService.submit` 과 `VisitService.record` 양쪽에 적용. 테스트 `TrackingParamsTest` 6개 |
+> | `300f021` | **프론트 수집** — `lib/utm.ts` 에 3개 키 추가 / `PublicFormView` 의 `parseUtm` **복사본 제거**(한쪽만 고치면 리드·방문 값이 어긋난다) / `embed.tsx` 방문 기록 utm 누락 수정 |
+> | `b900993` | **광고 URL 빌더** — 랜딩 목록 '공개 열기' 옆 '광고 URL' 버튼 → 모달. `lib/adUrl.ts`(순수 함수 `buildAdUrl`) + `components/AdUrlBuilder.tsx` + `styles/features/landing.css` 의 `adurl-*`. 테스트 11개 |
+>
+> **왜 백엔드 관문까지 넣었나**: 제출·방문 기록은 공개 엔드포인트라 예전엔 `lead.setUtm(req.utm())` 이
+> 받은 map 을 **그대로** JSONB 에 넣었다 — 키 개수·값 길이 제한이 없어 curl 로 임의 키를 무제한 넣을 수 있었다.
+> 그러면 앞으로 만들 **출처 필터 드롭다운이 쓰레기 키로 오염돼 기능 자체를 못 쓴다.**
+> 같은 함수에서 `referer`·`userAgent` 는 `cut(..,1024)` 로 잘랐는데 `utm` 만 빠져 있던 일관성도 맞췄다.
+>
+> ### 🔬 검증 상태 — 무엇이 확인됐고 무엇이 **안** 됐는지
+>
+> | 항목 | 결과 |
+> |---|---|
+> | 백엔드 전체 테스트 (`gradlew test`) | ✅ 통과 |
+> | 프론트 테스트 (`npx vitest run`) | ✅ **72개 통과** (신규 17개 = TrackingParams 6 + adUrl 11) |
+> | 프론트 타입체크·빌드 (`npm run build`) | ✅ 통과 |
+> | ❌ **화면(브라우저) 검증** | **안 했다.** Docker 가 안 떠서 로컬 백엔드·DB 를 못 띄웠다 → 로그인·랜딩 데이터가 필요한 모달을 실제로 열어보지 못했다. **URL 조립 로직은 순수 함수로 빼서 테스트로 검증**했지만, **모달의 CSS·레이아웃·복사 버튼 동작은 눈으로 확인되지 않았다** |
+>
+> ⚠️ 이 PC 는 `docker ps` 가 실패한다(Docker Desktop 미기동). 로컬은 `docker-compose` 의
+> `postgres:18` 을 보게 바뀌어 있어(커밋 `0f9b932`) **DB 를 띄우려면 Docker 가 필요하다.**
+> ⚠️ 이 PC 는 `npm run build` 가 `vitest` 타입을 못 찾아 실패할 수 있다 → **`npm install` 로 해결**된다
+> (package.json 에는 있는데 node_modules 가 낡아 빠져 있었다. `package-lock.json` 은 안 바뀜).
+>
+> ### ⬜ 다음에 할 일 (순서대로)
+>
+> 1. ⭐ **화면 검증부터** — Docker Desktop 켜고 `docker compose up` → 백엔드 `bootRun`(profile `local`)
+>    → 프론트 `npm run dev` → 로그인 → 랜딩 목록에서 **'광고 URL' 버튼 → 모달** 확인.
+>    볼 것: 모달 레이아웃·매체 칩 선택·주소 실시간 갱신·복사 버튼(토스트)·바깥 클릭으로 닫힘.
+>    그다음 **만든 주소로 공개 폼을 실제 제출**해서 리드 상세 패널에 `media_from=... · campaign_name=...`
+>    이 뜨는지, CSV 내보내기 `UTM` 열에 나오는지 확인한다. **여기까지가 이번 작업의 완료 조건이다.**
+> 2. **main 병합** — 이 PC 에 `gh` CLI 가 없다. PR 없이 `main` 체크아웃 → `git merge feature/ad-url-params`
+>    → push 한다(기존 방식).
+>    ⚠️ **push 하면 백엔드가 배포되면서 약 1분 끊긴다**(`backend/**` 변경이 있다, CLAUDE.md §6).
+>    한가한 시간에 하는 게 좋다.
+> 3. ⬜ **리드 목록의 출처 열 + 파라미터 필터** ← **사용자가 원래 원했던 핵심 기능이고 아직 안 됐다.**
+>    지금은 값이 저장되지만 **리드를 하나하나 열어야 보인다** — 목록에서 "당근에서 온 리드만" 을 못 거른다.
+>    설계는 사용자와 합의됨: **"파라미터 이름 선택 → 그 이름의 값들이 드롭다운" (faceted filter)**.
+>    - 현재 검색(`q`)은 **답변 값/라벨만** 본다 (`LeadService.matchesQuery`, 326행) → UTM 은 검색 안 됨
+>    - `LeadFilter` 는 `status`·`q`·`trashed` 뿐 (`frontend/src/api/client.ts:463`)
+>    - ⚠️ 지금 목록 필터는 **DB 가 아니라 Java 메모리**에서 돈다(`LeadService.list` 190행이 전부 가져와
+>      `.filter()`). 리드 78건이라 지금은 괜찮지만 값 집계까지 메모리에서 하면 수천 건부터 느려진다
+>      → **JSONB GIN 인덱스 + DB 쿼리로 갈지 이때 결정해야 한다**
+>    - ⚠️ **'태그'라는 이름을 쓰지 말 것.** `leads.tags`(V16)가 이미 있다 — 마케터가 손으로 붙이는
+>      VIP 같은 태그이고 `PUT /api/leads/{id}/tags` 로 수정한다. 같은 단어를 쓰면 섞인다.
+>      → **'유입 파라미터' 또는 '출처'** 로 부른다
+> 4. ⬜ (선택) 통계 페이지에 자체 파라미터 3개 카드 추가 — 지금은 표준 UTM 3개만 카드가 있다
+>    (`StatsResponse.byUtmSource/Medium/Campaign`)
+> 5. ⬜ (선택) 리드폼 단독 주소(`/f/{id}`)에도 같은 빌더 붙이기 — `AdUrlBuilder` 는 `baseUrl` 만 받으므로
+>    그대로 재사용된다. 붙일 자리는 `LeadsListPage.tsx:220` 근처(공개 URL 복사 버튼)
+>
+> ### 결정된 사항 (다시 논의하지 말 것)
+>
+> - 빌더 **입력값은 DB 에 저장하지 않는다** — 만들어서 복사만 하는 도구다(사용자 결정)
+> - 표준 `utm_*` 은 **삭제하지 않고 병행**한다(사용자 결정)
+> - 매체 이름 **빠른 선택 칩**을 둔다 — 손으로 적으면 `danggun`/`dangn`/`당근` 으로 갈려 통계가 쪼개지고,
+>   이미 접수된 리드에 박힌 값은 되돌릴 수 없다. 자유 입력도 계속 가능하다
+> - 커스텀 파라미터를 **계정별로 등록**하는 화이트리스트 화면은 **만들지 않는다** — 키를 3개로 못 박아
+>   코드 상수로 관리하는 쪽을 택했다(등록 화면·마이그레이션 없이 끝난다)
+>
+> ### 참고: 광고 플랫폼 동적 파라미터 (조사 완료, 2026-08-18)
+>
+> 매체가 캠페인·소재 이름을 **자동으로 치환**해준다 → 소재별로 URL 을 따로 만들 필요가 없다.
+>
+> | 매체 | 동적 파라미터 | 주의 |
+> |---|---|---|
+> | 메타 | `{{site_source_name}}`(fb/ig/msg/an) · `{{campaign.name}}` · `{{adset.name}}` · `{{ad.name}}` | 광고 설정에 'URL 매개변수' 칸이 따로 있다 |
+> | 구글 | ValueTrack `{campaignid}` · `{adgroupid}` · `{creative}` · `{keyword}` · `{network}` · `{device}` | '최종 URL 서픽스'에 넣는 게 정석. `gclid` 자동 |
+> | 당근 | `{{campaign_id}}` · `{{adgroup_id}}` · `{{material_id}}` · `{{click_id}}` · `{{keyword}}` | ⚠️ **이름이 아니라 ID** 만 준다 → 통계에 숫자로 찍힌다 |
+> | 틱톡 | `__CAMPAIGN_NAME__` · `__AID_NAME__` · `__CID_NAME__` · `__PLACEMENT__` | 이름을 준다 |
+> | 네이버 GFA | `{campaign}` · `{ad_group}` · `{ad}` | |
+> | 카카오 | 동적 매크로 빈약 → 캠페인별로 URL 을 직접 나눈다 | ⚠️ **키워드광고는 'URL 파라미터 자동 추가'가 기본 ON** → 우리 값이 덮이니 **해제**해야 한다 |
+>
+> ⬜ 아직 안 한 것: `gclid`/`fbclid`/`ttclid` 클릭ID 저장(플랫폼 리포트와 1:1 대조·전환 API 용).
+> 지금은 저장하지 않는다 — 전환 귀속은 플랫폼에 맡기는 설계다(`frontend/src/lib/pixels.ts:7` 주석).
+>
+> ---
+>
+
 > ## ✅ 2026-08-18 01:15 — **DB 이전 완료: Neon → Railway Postgres** (관찰 기간 중)
 >
 > **상세·롤백·검증 수치는 [DB-MIGRATION-RAILWAY.md](DB-MIGRATION-RAILWAY.md) 상단.**
