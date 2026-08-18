@@ -14,6 +14,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.common.TrackingParams;
 import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.Form;
@@ -83,7 +84,8 @@ public class LeadService {
         lead.setLandingPageId(req.landingPageId());
         lead.setAnswers(stampVarKeys(form, req.answersOrEmpty()));
         lead.setConsents(req.consentsOrEmpty());
-        lead.setUtm(req.utm());
+        // 공개 엔드포인트라 임의 키가 올 수 있다 — 허용 키만 남기고 길이를 자른다.
+        lead.setUtm(TrackingParams.sanitize(req.utm()));
         lead.setGroupTag(req.groupTag());
         // 상태는 엔티티 기본값(NEW). 변경은 LeadStatusService 단일 관문으로만 한다(V29).
         lead.setPhoneVerified(false); // 본인인증 연동 전까지 false

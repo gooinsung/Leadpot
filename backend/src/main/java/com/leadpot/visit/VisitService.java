@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leadpot.common.TrackingParams;
 import com.leadpot.form.FormRepository;
 import com.leadpot.landing.LandingPageRepository;
 import com.leadpot.lead.UserAgentParser;
@@ -51,7 +52,8 @@ public class VisitService {
         v.setBrowser(UserAgentParser.browser(visitor.userAgent()));
         v.setLanguage(cut(visitor.language(), 40));
         v.setReferer(cut(visitor.referer(), 1024));
-        v.setUtm(utm == null || utm.isEmpty() ? null : utm);
+        // 공개 엔드포인트라 임의 키가 올 수 있다 — 허용 키만 남긴다(비면 null).
+        v.setUtm(TrackingParams.sanitize(utm));
         v.setIpHash(hashIp(visitor.ip()));
         visitRepository.save(v);
     }

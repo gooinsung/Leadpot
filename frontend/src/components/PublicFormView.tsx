@@ -12,6 +12,7 @@ import {
 import { resolveStyle } from "./formRenderers/formStyle";
 import { PhoneInput3 } from "./PhoneInput3";
 import { consentDocUrl } from "../lib/site";
+import { parseUtm } from "../lib/utm";
 import { CompletionView } from "./formRenderers/CompletionView";
 import { firePixelLead } from "../lib/pixels";
 import { CalcFollowUp, CalcGateView, CalcLoadingView, CalcResultView } from "./formRenderers/CalcResultView";
@@ -46,16 +47,6 @@ function collectCalcInputs(
     }
   });
   return raw;
-}
-
-function parseUtm(): Record<string, string> {
-  const p = new URLSearchParams(window.location.search);
-  const utm: Record<string, string> = {};
-  for (const k of ["source", "medium", "campaign", "term", "content"]) {
-    const v = p.get(`utm_${k}`);
-    if (v) utm[k] = v;
-  }
-  return utm;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

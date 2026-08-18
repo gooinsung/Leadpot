@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { getPublicForm, recordVisit } from "../api/client";
 import { PublicFormView } from "../components/PublicFormView";
 import { initPixels } from "../lib/pixels";
+import { parseUtm } from "../lib/utm";
 // 스타일 레이어를 개별 인라인으로 가져온다(구조: styles/README.md).
 // tokens 만 :root→:host 로 치환하므로 따로 두고, 나머지는 그대로 이어붙인다.
 import tokensCss from "../styles/tokens.css?inline";
@@ -62,7 +63,8 @@ function mountOne(el: HTMLElement) {
 
   getPublicForm(formId)
     .then((form) => {
-      recordVisit({ formId: form.id });
+      // 임베드는 iframe 이 아니라 Shadow DOM 이라 location 이 고객 사이트 URL 이다 → 파라미터가 잡힌다.
+      recordVisit({ formId: form.id, utm: parseUtm() });
       initPixels(form.trackingConfig);
       createRoot(root).render(
         <div className="public-form-card">
