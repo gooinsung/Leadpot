@@ -1117,6 +1117,10 @@ export interface StatsOverview {
   byUtmSource: StatCount[];
   byUtmMedium: StatCount[];
   byUtmCampaign: StatCount[];
+  /** 자체 광고 파라미터(광고 URL 빌더 3종) — 표준 UTM 과 병행 수집 */
+  byMediaFrom: StatCount[];
+  byCampaignName: StatCount[];
+  byAdsName: StatCount[];
   byReferer: StatCount[];
   byStatus: StatCount[];
   byLanding: StatEntityCount[];

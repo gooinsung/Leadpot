@@ -24,6 +24,7 @@ import {
   type LeadStatusOption,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { AdUrlBuilder } from "../components/AdUrlBuilder";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { Pagination, usePaging } from "../components/Pagination";
 import { leadStatusClass, leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
@@ -59,6 +60,8 @@ export function LeadsListPage() {
   // 유입 파라미터(출처) 필터 — "이름 선택 → 값 드롭다운" (faceted). '태그'와 별개 축.
   const [utmKeyFilter, setUtmKeyFilter] = useState("");
   const [utmValueFilter, setUtmValueFilter] = useState("");
+  // 광고 URL 빌더(랜딩 목록과 같은 모달) — 리드폼 단독 주소(/f/{id})에 파라미터를 붙인다.
+  const [adUrlOpen, setAdUrlOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null); // 상세 사이드 패널 대상(U2: 모달 → 패널)
   const fileRef = useRef<HTMLInputElement>(null);
   // 내보내기 모달(형식·컬럼 선택)
@@ -323,6 +326,7 @@ export function LeadsListPage() {
                 <button className="btn btn-ghost" onClick={() => navigate(`/forms/${formId}/ip-blocks`)}>IP 차단</button>
                 <button className="btn btn-ghost" onClick={() => setShowEmbed((v) => !v)}>{showEmbed ? "임베드 닫기" : "임베드 코드"}</button>
                 <button className="btn btn-ghost" onClick={copyLink}>{copied ? "복사됨!" : "공개 링크 복사"}</button>
+                <button className="btn btn-ghost" onClick={() => setAdUrlOpen(true)} title="매체·캠페인·광고 이름을 붙인 주소를 만듭니다">광고 URL</button>
                 <button className="btn btn-ghost" onClick={openExport}>내보내기</button>
                 <button className="btn btn-primary" onClick={() => window.open(publicUrl, "_blank")}>공개 리드폼 열기</button>
               </>
@@ -701,6 +705,14 @@ export function LeadsListPage() {
           variant="drawer"
           onClose={() => setDetailId(null)}
           onChanged={(updated) => setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)))}
+        />
+      )}
+      {/* 광고 URL 빌더 — 리드폼 단독 주소(/f/{id})용. 랜딩 목록과 같은 모달 재사용. */}
+      {adUrlOpen && (
+        <AdUrlBuilder
+          baseUrl={publicUrl}
+          title={form?.name || "리드폼"}
+          onClose={() => setAdUrlOpen(false)}
         />
       )}
     </div>
