@@ -82,7 +82,24 @@
 > | 백엔드 전체 테스트 (`gradlew test`) | ✅ 통과 |
 > | 프론트 테스트 (`npx vitest run`) | ✅ **72개 통과** (신규 17개 = TrackingParams 6 + adUrl 11) |
 > | 프론트 타입체크·빌드 (`npm run build`) | ✅ 통과 |
-> | ❌ **화면(브라우저) 검증** | **안 했다.** Docker 가 안 떠서 로컬 백엔드·DB 를 못 띄웠다 → 로그인·랜딩 데이터가 필요한 모달을 실제로 열어보지 못했다. **URL 조립 로직은 순수 함수로 빼서 테스트로 검증**했지만, **모달의 CSS·레이아웃·복사 버튼 동작은 눈으로 확인되지 않았다** |
+> | ✅ **화면(브라우저) 검증** | **완료 (2026-08-18, gooin PC).** 로컬 스택(docker `postgres:18` + bootRun `local` + `npm run dev`)에서 전 항목 통과 — 아래 표 |
+>
+> #### ✅ 화면 검증 결과 (2026-08-18 gooin PC, 전 항목 통과)
+>
+> | 확인 항목 | 결과 |
+> |---|---|
+> | '광고 URL' 버튼 노출 | ✅ **공개 상태 + 서브도메인 보유** 조건 확인 — 서브도메인 없는 계정은 버튼이 안 뜬다(의도된 조건, `LandingsListPage.tsx:112`) |
+> | 모달 레이아웃·매체 칩 | ✅ 칩 6개(meta·google·danggun·kakao·naver·tiktok) 렌더·선택 하이라이트 정상 |
+> | 주소 실시간 갱신 | ✅ `?media_from=danggun&campaign_name=summer-sale&ads_name=banner-a` 즉시 조립 |
+> | 복사 버튼 · 바깥 클릭 닫힘 | ✅ 클립보드 복사 동작 · 오버레이 클릭 시 닫힘 |
+> | 만든 주소로 공개 폼 제출 | ✅ 제출 완료 → **리드 상세 패널 UTM 줄에 3개 파라미터 전부 표시** |
+> | DB 저장 (`leads.utm`·`visits.utm`) | ✅ 양쪽 모두 `{ads_name, media_from, campaign_name}` JSONB 저장 |
+> | CSV 내보내기 `UTM` 열 | ✅ `ads_name=banner-a media_from=danggun campaign_name=summer-sale` |
+> | 화이트리스트 관문 (curl 공격 재현) | ✅ `junk_key`·초장문 키를 섞어 제출 → **허용 키(`media_from`·표준 `source`)만 저장**, 나머지 폐기 |
+>
+> 로컬 검증 환경 만드는 법(새 DB 라 계정·데이터가 없다): 가입이 잠겨 있으므로(`app.auth.signup-enabled=false`)
+> pgcrypto 로 직접 넣는다 — `INSERT INTO users (..., password_hash) VALUES (..., '{bcrypt}' || crypt('비번', gen_salt('bf', 10)))`.
+> ⚠️ **`{bcrypt}` 접두어 필수**(DelegatingPasswordEncoder). '광고 URL' 버튼을 보려면 `users.subdomain` 도 채워야 한다.
 >
 > ⚠️ 이 PC 는 `docker ps` 가 실패한다(Docker Desktop 미기동). 로컬은 `docker-compose` 의
 > `postgres:18` 을 보게 바뀌어 있어(커밋 `0f9b932`) **DB 를 띄우려면 Docker 가 필요하다.**
@@ -91,15 +108,8 @@
 >
 > ### ⬜ 다음에 할 일 (순서대로)
 >
-> 1. ⭐ **화면 검증부터** — Docker Desktop 켜고 `docker compose up` → 백엔드 `bootRun`(profile `local`)
->    → 프론트 `npm run dev` → 로그인 → 랜딩 목록에서 **'광고 URL' 버튼 → 모달** 확인.
->    볼 것: 모달 레이아웃·매체 칩 선택·주소 실시간 갱신·복사 버튼(토스트)·바깥 클릭으로 닫힘.
->    그다음 **만든 주소로 공개 폼을 실제 제출**해서 리드 상세 패널에 `media_from=... · campaign_name=...`
->    이 뜨는지, CSV 내보내기 `UTM` 열에 나오는지 확인한다. **여기까지가 이번 작업의 완료 조건이다.**
-> 2. **main 병합** — 이 PC 에 `gh` CLI 가 없다. PR 없이 `main` 체크아웃 → `git merge feature/ad-url-params`
->    → push 한다(기존 방식).
->    ⚠️ **push 하면 백엔드가 배포되면서 약 1분 끊긴다**(`backend/**` 변경이 있다, CLAUDE.md §6).
->    한가한 시간에 하는 게 좋다.
+> 1. ~~⭐ 화면 검증~~ → ✅ **완료 (2026-08-18, 위 표)**
+> 2. ~~main 병합~~ → ✅ **완료 (2026-08-18)** — merge 후 push, Railway 자동 배포
 > 3. ⬜ **리드 목록의 출처 열 + 파라미터 필터** ← **사용자가 원래 원했던 핵심 기능이고 아직 안 됐다.**
 >    지금은 값이 저장되지만 **리드를 하나하나 열어야 보인다** — 목록에서 "당근에서 온 리드만" 을 못 거른다.
 >    설계는 사용자와 합의됨: **"파라미터 이름 선택 → 그 이름의 값들이 드롭다운" (faceted filter)**.
