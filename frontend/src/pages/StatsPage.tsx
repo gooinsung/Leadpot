@@ -227,6 +227,10 @@ export function StatsPage() {
               <BarCard title="OS" data={stats.byOs} />
               <BarCard title="브라우저" data={stats.byBrowser} />
               <BarCard title="상태" data={stats.byStatus} />
+              {/* 자체 광고 파라미터(광고 URL 빌더 3종) — 표준 UTM 카드보다 앞에(우리 도구가 만든 축이 주 지표) */}
+              <BarCard title="광고 매체 (media_from)" data={stats.byMediaFrom} />
+              <BarCard title="캠페인 이름 (campaign_name)" data={stats.byCampaignName} />
+              <BarCard title="광고 이름 (ads_name)" data={stats.byAdsName} />
               <BarCard title="UTM 소스" data={stats.byUtmSource} />
               <BarCard title="UTM 매체" data={stats.byUtmMedium} />
               <BarCard title="UTM 캠페인" data={stats.byUtmCampaign} />

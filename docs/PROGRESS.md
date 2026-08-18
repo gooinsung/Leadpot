@@ -129,10 +129,15 @@
 >    - '태그'와 별개 축 유지 — 문구 '유입/출처', 칩 모양도 다르게(회색 알약 vs #파랑).
 >    - ⚠️ **여전히 메모리 필터·집계다**(기존 목록·인박스와 일관). 리드 수천 건부터는
 >      JSONB GIN 인덱스 + DB 쿼리로 옮긴다 — `LeadService.utmFacets` 주석에도 남김.
-> 4. ⬜ (선택) 통계 페이지에 자체 파라미터 3개 카드 추가 — 지금은 표준 UTM 3개만 카드가 있다
->    (`StatsResponse.byUtmSource/Medium/Campaign`)
-> 5. ⬜ (선택) 리드폼 단독 주소(`/f/{id}`)에도 같은 빌더 붙이기 — `AdUrlBuilder` 는 `baseUrl` 만 받으므로
->    그대로 재사용된다. 붙일 자리는 `LeadsListPage.tsx:220` 근처(공개 URL 복사 버튼)
+> 4. ~~통계 페이지에 자체 파라미터 3개 카드~~ → ✅ **완료 (2026-08-18, 브랜치 `feature/adurl-form-and-stats`)**
+>    `/stats` 상세에 [광고 매체 (media_from)]·[캠페인 이름 (campaign_name)]·[광고 이름 (ads_name)]
+>    카드 3개 — 표준 UTM 카드보다 **앞에** 배치(우리 도구가 만든 축이 주 지표).
+>    `StatsResponse.byMediaFrom/byCampaignName/byAdsName` + `StatsService` 집계(기존 `utm()` 재사용,
+>    값 없는 리드는 기존 UTM 카드와 똑같이 `(없음)`).
+> 5. ~~리드폼 단독 주소(`/f/{id}`)에도 빌더 붙이기~~ → ✅ **완료 (같은 브랜치)**
+>    폼별 리드 목록(`/forms/{id}/leads`) 상단 '공개 링크 복사' 옆 **'광고 URL' 버튼** →
+>    `AdUrlBuilder` 재사용(baseUrl=`/f/{id}`). 브라우저 검증: 모달 열림 + 만든 주소
+>    (`/f/1?media_from=tiktok&...`)로 실제 제출 → `leads.utm`·`visits.utm` 3종 저장 확인.
 >
 > 💡 **네이버 QR(단축주소) 주의 (2026-08-18 실측)**: `m.site.naver.com/xxxx?media_from=...` 처럼
 > **단축주소 뒤에 붙인 파라미터는 버려진다**(등록된 원본 URL 로만 리다이렉트, 308 Location 실측).
