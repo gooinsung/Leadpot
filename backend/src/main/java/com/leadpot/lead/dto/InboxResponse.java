@@ -27,6 +27,8 @@ public record InboxResponse(
             /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
             String statusKey,
             List<String> tags,
+            /** 유입 파라미터(media_from 등, 화이트리스트 통과분). 목록의 '출처' 칩이 그린다. null 가능. */
+            Map<String, Object> utm,
             Instant createdAt,
             /** 마케터가 열어본 시각. null 이면 '미확인'(V32). 상태와 무관하다. */
             Instant seenAt) {

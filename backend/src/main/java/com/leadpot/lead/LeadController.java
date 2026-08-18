@@ -28,6 +28,7 @@ import com.leadpot.lead.dto.InboxResponse;
 import com.leadpot.lead.dto.LeadExportRequest;
 import com.leadpot.lead.dto.LeadNoteResponse;
 import com.leadpot.lead.dto.LeadResponse;
+import com.leadpot.lead.dto.UtmFacet;
 
 /** 리드 조회·관리 API (로그인 필요, 본인 리드폼의 리드만 K5). */
 @RestController
@@ -76,10 +77,12 @@ public class LeadController {
             @RequestParam(required = false) Long formId,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
+            @RequestParam(required = false) String utmKey,
+            @RequestParam(required = false) String utmValue,
             @RequestParam(required = false, defaultValue = "false") boolean unseen,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        return leadService.inbox(userId(jwt), status, q, formId, from, to, unseen, page, size);
+        return leadService.inbox(userId(jwt), status, q, formId, from, to, utmKey, utmValue, unseen, page, size);
     }
 
     /** 리드 단건 상세(본인 리드폼만). */
@@ -251,6 +254,16 @@ public class LeadController {
     @GetMapping("/columns")
     public List<String> exportColumns(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId) {
         return leadService.exportColumns(userId(jwt), formId);
+    }
+
+    /**
+     * 유입 파라미터 facet(필터 드롭다운 옵션) — 키별 값·건수. formId 없으면 내 모든 폼.
+     * 옵션은 필터와 무관하게 전체 기준이다(값을 고른 뒤에도 다른 값이 드롭다운에 남게).
+     */
+    @GetMapping("/utm-facets")
+    public List<UtmFacet> utmFacets(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) Long formId) {
+        return leadService.utmFacets(userId(jwt), formId);
     }
 
     /**
