@@ -11,6 +11,8 @@ import com.leadpot.form.FormType;
 public record FormResponse(
         Long id,
         String name,
+        /** 분야(업종 구분, V34). null 가능. */
+        String category,
         FormType formType,
         boolean requirePhoneVerification,
         Map<String, Object> consentConfig,
@@ -48,6 +50,7 @@ public record FormResponse(
         return new FormResponse(
                 form.getId(),
                 form.getName(),
+                form.getCategory(),
                 form.getFormType(),
                 form.isRequirePhoneVerification(),
                 form.getConsentConfig(),

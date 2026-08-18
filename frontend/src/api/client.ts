@@ -242,6 +242,8 @@ export interface FormBlock {
 
 export interface FormInput {
   name: string;
+  /** 분야(업종 구분: 개인회생·장기렌트 등, V34). 빈 값 = 미지정. ⚠️ 리드 '태그'와 별개 축 */
+  category?: string | null;
   formType: FormType;
   requirePhoneVerification?: boolean;
   consentConfig?: Record<string, unknown> | null;
@@ -264,6 +266,8 @@ export interface FormDetail extends FormInput {
 export interface FormSummary {
   id: number;
   name: string;
+  /** 분야(V34). null = 미지정. */
+  category: string | null;
   formType: FormType;
   blockCount: number;
   updatedAt: string;
@@ -480,6 +484,8 @@ export interface InboxItem {
   id: number;
   formId: number;
   formName: string;
+  /** 폼의 분야(V34). 리드가 폼을 통해 물려받는다. null = 미지정. */
+  formCategory: string | null;
   answers: LeadAnswer[];
   status: string;
   /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
@@ -496,6 +502,8 @@ export interface InboxCounts {
   unseen: number;
   today: number;
   byForm: { formId: number; formName: string; count: number }[];
+  /** 분야별 리드 수(V34) — 분야 드롭다운 옵션. 분야 있는 폼의 리드만. */
+  byCategory: { name: string; count: number }[];
   /** 키 = statusKey */
   byStatus: Record<string, number>;
   /** statusKey → 라벨(커스텀 상태 이름 포함) */
@@ -512,6 +520,8 @@ export interface InboxFilter {
   status?: string;
   q?: string;
   formId?: number;
+  /** 분야 필터(V34) — 그 분야 폼의 리드만. */
+  category?: string;
   from?: string;
   to?: string;
   /** 유입 파라미터 필터 — 키·값을 둘 다 줘야 적용된다(예: media_from + danggun). */
@@ -562,6 +572,7 @@ export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {
   if (filter.status) p.set("status", filter.status);
   if (filter.q) p.set("q", filter.q);
   if (filter.formId != null) p.set("formId", String(filter.formId));
+  if (filter.category) p.set("category", filter.category);
   if (filter.from) p.set("from", filter.from);
   if (filter.to) p.set("to", filter.to);
   if (filter.utmKey && filter.utmValue) {

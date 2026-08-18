@@ -8,6 +8,7 @@ import {
   getForm,
   getSmsStatus,
   listConsentDocs,
+  listForms,
   testFormSheets,
   updateForm,
   uploadSmsAttachment,
@@ -257,6 +258,9 @@ export function FormEditPage() {
   const { user } = useAuth();
 
   const [name, setName] = useState("새 리드폼");
+  // 분야(업종 구분: 개인회생·장기렌트 등, V34) — 인박스에서 분야로 거른다. '태그'(리드 손태그)와 별개.
+  const [category, setCategory] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]); // 내 폼들의 기존 분야(datalist)
   const [formType, setFormType] = useState<FormType>("BASIC");
 
   // BASIC: 평면 블록 배열
@@ -350,6 +354,14 @@ export function FormEditPage() {
     getSmsStatus().then(setSmsStatus).catch(() => {});
   }, []);
 
+  // 분야 자동완성 — 내 폼들의 기존 분야를 datalist 로. 손으로 치면 '개인회생'/'개인 회생'으로
+  // 갈려 필터가 쪼개지므로, 같은 이름을 다시 고르기 쉽게 한다. 실패해도 입력 자체는 된다.
+  useEffect(() => {
+    listForms()
+      .then((fs) => setCategoryOptions([...new Set(fs.map((f) => f.category).filter((c): c is string => !!c))]))
+      .catch(() => {});
+  }, []);
+
   // 광고주 접수 알림 수신 상태(V28). 새 리드폼은 아직 광고주를 붙일 수 없으므로 건너뛴다.
   // 실패해도 화면을 막지 않는다 — 안내가 안 뜰 뿐이다.
   useEffect(() => {
@@ -376,6 +388,7 @@ export function FormEditPage() {
     getForm(Number(id))
       .then((f) => {
         setName(f.name);
+        setCategory(f.category ?? "");
         setFormType(f.formType);
         const items = f.consentConfig?.items as ConsentItem[] | undefined;
         setConsentItems(items && items.length ? items : defaultConsentItems());
@@ -640,6 +653,7 @@ export function FormEditPage() {
 
   const formData: FormInput = {
     name,
+    category: category.trim() || null,
     formType,
     requirePhoneVerification: requirePhone,
     consentConfig: { items: consentItems },
@@ -719,6 +733,22 @@ export function FormEditPage() {
           <div>
             <p className="eyebrow">{isNew ? "새 리드폼" : "리드폼 편집"}</p>
             <input className="input form-name" value={name} onChange={(e) => setName(e.target.value)} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+              <span className="dash-sub" style={{ fontSize: 12.5, flex: "none" }}>분야</span>
+              <input
+                className="input"
+                style={{ width: 180, fontSize: 13.5, padding: "6px 10px" }}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="예: 개인회생"
+                maxLength={50}
+                list="form-category-options"
+                title="업종 구분(개인회생·장기렌트 등). 리드 인박스에서 이 분야로 걸러 볼 수 있습니다"
+              />
+              <datalist id="form-category-options">
+                {categoryOptions.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </div>
           </div>
           <div className="edit-actions">
             <button className="btn btn-ghost" onClick={() => navigate("/forms")}>취소</button>

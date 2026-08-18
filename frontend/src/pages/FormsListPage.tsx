@@ -99,6 +99,7 @@ export function FormsListPage() {
                     <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
                   </th>
                   <th>이름</th>
+                  <th>분야</th>
                   <th>유형</th>
                   <th>항목 수</th>
                   <th>수정일</th>
@@ -112,6 +113,7 @@ export function FormsListPage() {
                       <input type="checkbox" checked={sel.selected.has(f.id)} onChange={() => sel.toggle(f.id)} aria-label="선택" />
                     </td>
                     <td>{f.name}</td>
+                    <td>{f.category ? <span className="pill">{f.category}</span> : <span className="dash-sub">—</span>}</td>
                     <td>
                       {/* 리디자인 §6: 기본형=인디고 soft · 스텝형=그린 soft */}
                       <span className={f.formType === "BASIC" ? "pill i" : "pill gr"}>

@@ -205,18 +205,22 @@ public class LeadService {
      * 왼쪽 rail 카운트는 <b>필터와 무관하게 전체 기준</b>으로 계산한다. "미확인" = 상태 {@code NEW}(신규).
      */
     @Transactional(readOnly = true)
-    public InboxResponse inbox(Long ownerId, String status, String q, Long formId,
+    public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
             String from, String to, String utmKey, String utmValue,
             boolean unseen, Integer page, Integer size) {
-        // 1) 내 폼(formId → 이름)
+        // 1) 내 폼(formId → 이름·분야)
         Map<Long, String> nameById = new LinkedHashMap<>();
+        Map<Long, String> categoryById = new LinkedHashMap<>(); // 분야(V34) — 리드는 폼을 통해 물려받는다
         for (FormSummary f : formService.list(ownerId)) {
             nameById.put(f.id(), f.name());
+            if (f.category() != null) {
+                categoryById.put(f.id(), f.category());
+            }
         }
         int pageSize = size == null || size <= 0 ? INBOX_DEFAULT_SIZE : Math.min(size, INBOX_MAX_SIZE);
         if (nameById.isEmpty()) {
             return new InboxResponse(List.of(), 0, 0, pageSize,
-                    new InboxResponse.Counts(0, 0, 0, List.of(), Map.of(), Map.of()));
+                    new InboxResponse.Counts(0, 0, 0, List.of(), List.of(), Map.of(), Map.of()));
         }
         List<Long> formIds = new ArrayList<>(nameById.keySet());
 
@@ -249,6 +253,18 @@ public class LeadService {
             }
             perForm.merge(l.getFormId(), 1L, Long::sum);
         }
+        // 분야별 카운트(전체 기준) — 분야 있는 폼의 리드만. 드롭다운 옵션 + 건수 표기.
+        Map<String, Long> perCategory = new LinkedHashMap<>();
+        for (Lead l : all) {
+            String cat = categoryById.get(l.getFormId());
+            if (cat != null) {
+                perCategory.merge(cat, 1L, Long::sum);
+            }
+        }
+        List<InboxResponse.CategoryCount> byCategory = perCategory.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .map(e -> new InboxResponse.CategoryCount(e.getKey(), e.getValue()))
+                .toList();
         // 커스텀 상태 이름 붙이기 — 등장한 C{id} 키만 조회한다(광고주별 정의가 흩어져 있어도 id 로 정확).
         for (String key : byStatus.keySet()) {
             if (key.startsWith("C") && !statusNames.containsKey(key)) {
@@ -272,9 +288,14 @@ public class LeadService {
         String uk = utmKey == null ? "" : utmKey.trim();
         String uv = utmValue == null ? "" : utmValue.trim();
         boolean byUtm = !uk.isEmpty() && !uv.isEmpty();
+        // 분야 필터(V34) — 리드는 폼을 통해 분야를 물려받는다.
+        String cat = category == null ? "" : category.trim();
         List<Lead> filtered = new ArrayList<>();
         for (Lead l : all) {
             if (formId != null && !formId.equals(l.getFormId())) {
+                continue;
+            }
+            if (!cat.isEmpty() && !cat.equals(categoryById.get(l.getFormId()))) {
                 continue;
             }
             if (unseen && l.getSeenAt() != null) {
@@ -304,12 +325,13 @@ public class LeadService {
         int end = Math.min(start + pageSize, filtered.size());
         List<InboxResponse.Item> items = filtered.subList(start, end).stream()
                 .map(l -> new InboxResponse.Item(l.getId(), l.getFormId(), nameById.get(l.getFormId()),
+                        categoryById.get(l.getFormId()),
                         l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getUtm(),
                         l.getCreatedAt(), l.getSeenAt()))
                 .toList();
 
         return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
-                new InboxResponse.Counts(all.size(), unseenCount, todayCount, byForm, byStatus, statusNames));
+                new InboxResponse.Counts(all.size(), unseenCount, todayCount, byForm, byCategory, byStatus, statusNames));
     }
 
     /** "C{id}" → id. 형식이 아니면 null. */

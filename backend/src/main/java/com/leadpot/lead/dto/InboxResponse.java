@@ -22,6 +22,8 @@ public record InboxResponse(
             Long id,
             Long formId,
             String formName,
+            /** 폼의 분야(개인회생 등, V34). 리드가 폼을 통해 물려받는다. null = 미지정. */
+            String formCategory,
             List<Map<String, Object>> answers,
             String status,
             /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
@@ -40,6 +42,8 @@ public record InboxResponse(
             long unseen,
             long today,
             List<FormCount> byForm,
+            /** 분야별 리드 수(V34) — 분야 드롭다운 옵션. 분야 있는 폼의 리드만, 많은 순. */
+            List<CategoryCount> byCategory,
             /** 키 = statusKey(고정 코드 또는 C{id}). */
             Map<String, Long> byStatus,
             /** statusKey → 화면 라벨(커스텀 상태 이름 포함). rail·목록이 이 맵으로 그린다. */
@@ -47,5 +51,8 @@ public record InboxResponse(
     }
 
     public record FormCount(Long formId, String formName, long count) {
+    }
+
+    public record CategoryCount(String name, long count) {
     }
 }

@@ -140,6 +140,7 @@ public class FormService {
 
     /** 요청의 설정을 리드폼에 반영(블록은 별도 — create/update 가 각자 처리한다). */
     private void applySettings(Form form, FormRequest req) {
+        form.setCategory(req.category()); // 분야(V34) — 빈 값은 setter 가 null 로
         form.setRequirePhoneVerification(Boolean.TRUE.equals(req.requirePhoneVerification()));
         form.setConsentConfig(req.consentConfig());
         form.setSubmitButtonConfig(req.submitButtonConfig());
