@@ -1,75 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loading } from "../components/Loading";
 import {
+  downloadStatsReport,
   getStats,
   listForms,
   listLandings,
   type FormSummary,
   type LandingSummary,
-  type StatCount,
-  type StatDayPoint,
-  type StatEntityCount,
   type StatFunnel,
   type StatsOverview,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
+import { BarCard, EntityTable, TrendChart, UtmValueTable, bucketize, type Grain } from "../components/StatsCharts";
+import { trackingKeyLabel } from "../lib/tracking";
+import { toast } from "../lib/toast";
 
 type Preset = "today" | "7d" | "30d" | "custom";
-type Grain = "day" | "week" | "month";
 
-interface Bucket {
-  key: string;
-  label: string;
-  tip: string;
-  visits: number;
-  leads: number;
-}
+/** 유입별 비교 표의 축(자체 파라미터 3종) — 백엔드 byUtmTables 와 같은 키. */
+const UTM_TABLE_KEYS = ["media_from", "campaign_name", "ads_name"] as const;
 
-const MMDD = (iso: string) => iso.slice(5).replace("-", "/");
-
-/** 일별 데이터를 granularity(일/주/월)로 묶는다. byDay 는 날짜 오름차순·연속. */
-function bucketize(byDay: StatDayPoint[], grain: Grain): Bucket[] {
-  if (grain === "day") {
-    return byDay.map((d) => ({
-      key: d.date,
-      label: MMDD(d.date),
-      tip: `${d.date}\n트래픽 ${d.visits} · 리드 ${d.leads}`,
-      visits: d.visits,
-      leads: d.leads,
-    }));
-  }
-  const map = new Map<string, Bucket & { first: string; last: string }>();
-  const order: string[] = [];
-  for (const d of byDay) {
-    const [y, m, day] = d.date.split("-").map(Number);
-    const dt = new Date(y, m - 1, day);
-    let key: string;
-    let label: string;
-    if (grain === "week") {
-      const monday = new Date(dt);
-      monday.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); // 월요일 시작
-      key = `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`;
-      label = `${monday.getMonth() + 1}/${monday.getDate()}`;
-    } else {
-      key = `${y}-${String(m).padStart(2, "0")}`;
-      label = `${m}월`;
-    }
-    let b = map.get(key);
-    if (!b) {
-      b = { key, label, tip: "", visits: 0, leads: 0, first: d.date, last: d.date };
-      map.set(key, b);
-      order.push(key);
-    }
-    b.visits += d.visits;
-    b.leads += d.leads;
-    b.last = d.date;
-  }
-  return order.map((k) => {
-    const b = map.get(k)!;
-    const range = grain === "week" ? `${MMDD(b.first)} ~ ${MMDD(b.last)}` : b.key;
-    return { key: b.key, label: b.label, tip: `${range}\n트래픽 ${b.visits} · 리드 ${b.leads}`, visits: b.visits, leads: b.leads };
-  });
-}
+/**
+ * 보고서 섹션 — 키는 백엔드 StatsExportService·보고서 화면(StatsReportPage)과 계약이다.
+ * 나중 '광고주 리포트 발송'도 같은 정의(기간+필터+섹션)를 재사용한다.
+ */
+const REPORT_SECTIONS: { key: string; label: string }[] = [
+  { key: "summary", label: "요약(방문·리드·전환율)" },
+  { key: "trend", label: "일별 추이" },
+  { key: "utm", label: "유입별(매체·캠페인·광고)" },
+  { key: "landing", label: "랜딩페이지별" },
+  { key: "form", label: "리드폼별" },
+  { key: "device", label: "기기·환경" },
+  { key: "status", label: "리드 상태" },
+  { key: "referer", label: "유입 경로" },
+];
 
 /** YYYY-MM-DD (로컬 기준). */
 function ymd(d: Date): string {
@@ -81,6 +45,21 @@ function daysAgo(n: number): string {
   d.setDate(d.getDate() - n);
   return ymd(d);
 }
+/** 이번 달 1일. */
+function monthStart(): string {
+  const d = new Date();
+  return ymd(new Date(d.getFullYear(), d.getMonth(), 1));
+}
+
+/** 보고서 기간 단위 → 기간·이름. current 는 화면 필터 기간 그대로. */
+type ReportUnit = "current" | "daily" | "weekly" | "monthly";
+function reportRange(unit: ReportUnit, current: { from: string; to: string }): { from: string; to: string; name: string } {
+  const today = ymd(new Date());
+  if (unit === "daily") return { from: today, to: today, name: "일간보고서" };
+  if (unit === "weekly") return { from: daysAgo(6), to: today, name: "주간보고서" };
+  if (unit === "monthly") return { from: monthStart(), to: today, name: "월간보고서" };
+  return { from: current.from, to: current.to, name: "통계보고서" };
+}
 
 export function StatsPage() {
   const [preset, setPreset] = useState<Preset>("30d");
@@ -88,11 +67,20 @@ export function StatsPage() {
   const [to, setTo] = useState(ymd(new Date()));
   const [target, setTarget] = useState("all"); // all | landing:{id} | form:{id}
   const [grain, setGrain] = useState<Grain>("day");
+  // 유입 필터 — 유입별 표 행 클릭으로 걸린다. 걸리면 페이지 전체가 그 유입만으로 재계산.
+  const [utmSel, setUtmSel] = useState<{ key: string; value: string } | null>(null);
+  const [utmTab, setUtmTab] = useState<(typeof UTM_TABLE_KEYS)[number]>("media_from");
 
   const [landings, setLandings] = useState<LandingSummary[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 보고서(엑셀·인쇄 화면) 모달
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportUnit, setReportUnit] = useState<ReportUnit>("current");
+  const [reportSections, setReportSections] = useState<string[]>(REPORT_SECTIONS.map((s) => s.key));
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     listLandings().then(setLandings).catch(() => {});
@@ -107,11 +95,12 @@ export function StatsPage() {
   }, [preset]);
 
   const filter = useMemo(() => {
-    const f: { from: string; to: string; landingId?: number; formId?: number } = { from, to };
+    const f: { from: string; to: string; landingId?: number; formId?: number; utmKey?: string; utmValue?: string } = { from, to };
     if (target.startsWith("landing:")) f.landingId = Number(target.slice(8));
     else if (target.startsWith("form:")) f.formId = Number(target.slice(5));
+    if (utmSel) { f.utmKey = utmSel.key; f.utmValue = utmSel.value; }
     return f;
-  }, [from, to, target]);
+  }, [from, to, target, utmSel]);
 
   useEffect(() => {
     if (!from || !to) return;
@@ -124,6 +113,41 @@ export function StatsPage() {
 
   const empty = stats && stats.summary.totalVisits === 0 && stats.summary.leads === 0;
   const buckets = useMemo(() => (stats ? bucketize(stats.byDay, grain) : []), [stats, grain]);
+  // 유입별 표 — 값이 "(없음)"뿐인 축은 굳이 보여줄 게 없다(전부 오가닉). 탭에서 흐리게 표시.
+  const utmTables = stats?.byUtmTables ?? [];
+  const currentUtmRows = utmTables.find((t) => t.key === utmTab)?.rows ?? [];
+
+  function toggleSection(key: string) {
+    setReportSections((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  }
+
+  async function onExportExcel() {
+    if (exporting || reportSections.length === 0) return;
+    setExporting(true);
+    try {
+      const r = reportRange(reportUnit, { from, to });
+      await downloadStatsReport(
+        { ...filter, from: r.from, to: r.to },
+        reportSections,
+        `리드팟_${r.name}_${r.from}_${r.to}`,
+      );
+      toast.success("엑셀 보고서를 내려받았습니다.");
+    } catch {
+      toast.error("보고서 생성에 실패했습니다.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function onOpenReportView() {
+    if (reportSections.length === 0) return;
+    const r = reportRange(reportUnit, { from, to });
+    const p = new URLSearchParams({ from: r.from, to: r.to, name: r.name, sections: reportSections.join(",") });
+    if (filter.landingId != null) p.set("landingId", String(filter.landingId));
+    if (filter.formId != null) p.set("formId", String(filter.formId));
+    if (utmSel) { p.set("utmKey", utmSel.key); p.set("utmValue", utmSel.value); }
+    window.open(`/stats/report?${p.toString()}`, "_blank");
+  }
 
   return (
     <div className="app-shell">
@@ -134,6 +158,11 @@ export function StatsPage() {
             <p className="eyebrow">통계</p>
             <h1 className="dash-title">수집 통계</h1>
             <p className="dash-sub">유입(방문) · 접수(리드) · 전환율 — 기간/대상별 분석</p>
+          </div>
+          <div className="edit-actions">
+            <button className="btn btn-primary" onClick={() => setReportOpen(true)} title="현재 필터 기반으로 엑셀·인쇄용 보고서를 만듭니다">
+              보고서·엑셀
+            </button>
           </div>
         </div>
 
@@ -170,6 +199,15 @@ export function StatsPage() {
               )}
             </select>
           </div>
+          {utmSel && (
+            <div className="sf-group">
+              <span className="sf-label">유입</span>
+              <button className="btn btn-sm btn-primary" onClick={() => setUtmSel(null)}
+                title="클릭하면 유입 필터를 해제합니다">
+                {trackingKeyLabel(utmSel.key)} = {utmSel.value} ✕
+              </button>
+            </div>
+          )}
         </div>
 
         {loading && !stats ? (
@@ -214,6 +252,28 @@ export function StatsPage() {
               <BarCard title="요소 클릭 (폼 열기 등)" data={stats.byEvent} />
             </div>
 
+            {/* 유입별 비교 표 — 매체/캠페인/광고 축 전환, 행 클릭 → 그 유입만 보기 */}
+            <section className="card card-pad">
+              <div className="card-h" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span>유입별 (광고 URL 파라미터)</span>
+                <span className="seg seg-sm">
+                  {UTM_TABLE_KEYS.map((k) => (
+                    <button key={k} type="button" className={utmTab === k ? "on" : ""} onClick={() => setUtmTab(k)}>
+                      {trackingKeyLabel(k)}
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <UtmValueTable
+                rows={currentUtmRows}
+                activeValue={utmSel?.key === utmTab ? utmSel.value : null}
+                onPick={(value) => setUtmSel(utmSel?.key === utmTab && utmSel.value === value ? null : { key: utmTab, value })}
+              />
+              <p className="dash-sub" style={{ marginTop: 10, fontSize: 12 }}>
+                행을 클릭하면 페이지 전체가 그 유입만으로 다시 계산됩니다. "(없음)" = 파라미터 없이 들어온 방문·리드(직접 유입 등).
+              </p>
+            </section>
+
             {/* 랜딩별 / 리드폼별 */}
             <div className="stats-grid">
               <EntityTable title="랜딩페이지별" rows={stats.byLanding} onPick={(id) => setTarget(id == null ? "all" : `landing:${id}`)} />
@@ -238,40 +298,58 @@ export function StatsPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
-  );
-}
 
-function TrendChart({ buckets }: { buckets: Bucket[] }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(1, ...buckets.map((b) => Math.max(b.visits, b.leads)));
-  // 라벨은 막대가 많을 때 일부만 노출(과밀 방지)
-  const step = Math.ceil(buckets.length / 12) || 1;
-  return (
-    <div className="trend">
-      <div className="day-chart" onMouseLeave={() => setHover(null)}>
-        {buckets.map((b, i) => (
+        {/* 보고서 모달 — 기간 단위 + 섹션 선택 → 엑셀 다운로드 / 인쇄용 화면 */}
+        {reportOpen && (
           <div
-            className={`day-bar-wrap${hover === i ? " on" : ""}`}
-            key={b.key}
-            onMouseEnter={() => setHover(i)}
+            onClick={() => !exporting && setReportOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}
           >
-            {hover === i && (
-              <div className="day-tip">
-                {b.tip.split("\n").map((line, j) => <div key={j} className={j === 0 ? "day-tip-t" : ""}>{line}</div>)}
+            <div className="card card-pad" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, maxHeight: "85vh", overflowY: "auto" }}>
+              <div className="card-h">통계 보고서 만들기</div>
+              <p className="dash-sub" style={{ marginTop: 0 }}>
+                현재 필터(대상{utmSel ? " · 유입" : ""})가 그대로 적용됩니다. 기간만 아래에서 고르세요.
+              </p>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "6px 0 14px" }}>
+                <span className="dash-sub" style={{ fontSize: 13 }}>기간</span>
+                <span className="seg seg-sm">
+                  {([["current", "화면 기간"], ["daily", "일간(오늘)"], ["weekly", "주간(7일)"], ["monthly", "월간(이번 달)"]] as [ReportUnit, string][]).map(([u, l]) => (
+                    <button key={u} type="button" className={reportUnit === u ? "on" : ""} onClick={() => setReportUnit(u)}>{l}</button>
+                  ))}
+                </span>
+                <span className="dash-sub" style={{ fontSize: 12 }}>
+                  {(() => { const r = reportRange(reportUnit, { from, to }); return `${r.from} ~ ${r.to}`; })()}
+                </span>
               </div>
-            )}
-            <div className="day-bar day-bar-v" style={{ height: `${(b.visits / max) * 100}%` }} />
-            <div className="day-bar day-bar-l" style={{ height: `${(b.leads / max) * 100}%` }} />
+
+              <div className="dash-sub" style={{ fontSize: 13, marginBottom: 6 }}>보고서에 넣을 내용</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 16 }}>
+                {REPORT_SECTIONS.map((s) => (
+                  <label key={s.key} style={{ display: "flex", gap: 7, alignItems: "center", fontSize: 13.5, cursor: "pointer" }}>
+                    <input type="checkbox" checked={reportSections.includes(s.key)} onChange={() => toggleSection(s.key)} />
+                    {s.label}
+                  </label>
+                ))}
+              </div>
+              {reportSections.length === 0 && (
+                <p className="auth-error" style={{ fontSize: 13 }}>내용을 하나 이상 선택하세요.</p>
+              )}
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                <button className="btn btn-ghost" disabled={exporting} onClick={() => setReportOpen(false)}>닫기</button>
+                <button className="btn btn-ghost" disabled={exporting || reportSections.length === 0} onClick={onOpenReportView}
+                  title="인쇄/PDF 저장용 보고서 화면을 새 탭으로 엽니다">
+                  보고서 화면 열기
+                </button>
+                <button className="btn btn-primary" disabled={exporting || reportSections.length === 0} onClick={onExportExcel}>
+                  {exporting ? "만드는 중…" : "엑셀 다운로드"}
+                </button>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
-      <div className="day-axis">
-        {buckets.map((b, i) => (
-          <span key={b.key} className="day-axis-l">{i % step === 0 ? b.label : ""}</span>
-        ))}
-      </div>
+        )}
+      </main>
     </div>
   );
 }
@@ -305,59 +383,6 @@ function FunnelCard({ funnel }: { funnel: StatFunnel }) {
       <p className="dash-sub" style={{ marginTop: 12, fontSize: 12 }}>
         '폼 열기'는 오버레이 CTA(버튼→폼) 클릭만 집계됩니다. 인라인 폼·단독 리드폼은 방문→접수로 봅니다.
       </p>
-    </section>
-  );
-}
-
-function BarCard({ title, data }: { title: string; data: StatCount[] }) {
-  const total = data.reduce((s, d) => s + d.count, 0);
-  const max = Math.max(1, ...data.map((d) => d.count));
-  return (
-    <section className="card card-pad">
-      <div className="card-h">{title}</div>
-      {data.length === 0 ? (
-        <p className="dash-sub">데이터 없음</p>
-      ) : (
-        <div className="bar-list">
-          {data.slice(0, 8).map((d) => (
-            <div className="bar-row" key={d.key}>
-              <span className="bar-label" title={d.key}>{d.key}</span>
-              <span className="bar-track"><span className="bar-fill" style={{ width: `${(d.count / max) * 100}%` }} /></span>
-              <span className="bar-count">{d.count}<span className="bar-pct"> · {total ? Math.round((d.count / total) * 100) : 0}%</span></span>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function EntityTable({ title, rows, onPick }: { title: string; rows: StatEntityCount[]; onPick: (id: number | null) => void }) {
-  return (
-    <section className="card card-pad">
-      <div className="card-h">{title}</div>
-      {rows.length === 0 ? (
-        <p className="dash-sub">데이터 없음</p>
-      ) : (
-        <div className="stats-table-scroll">
-          <table className="stats-table">
-            <thead>
-              <tr><th>이름</th><th className="num">순 방문</th><th className="num">트래픽</th><th className="num">리드</th><th className="num">전환율</th></tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.id ?? `none-${i}`} className="row-click" onClick={() => onPick(r.id)}>
-                  <td className="et-name" title={r.name}>{r.name}</td>
-                  <td className="num">{r.uniqueVisits}</td>
-                  <td className="num">{r.totalVisits}</td>
-                  <td className="num">{r.leads}</td>
-                  <td className="num">{r.conversionRate}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </section>
   );
 }

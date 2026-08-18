@@ -255,3 +255,58 @@
   }
 }
 
+
+/* ── 유입별 표: 선택된 행(유입 필터가 걸린 값) 강조 ── */
+.stats-table tr.active { background: var(--indigo-soft); }
+.stats-table tr.active .et-name { font-weight: 800; color: var(--indigo-ink); }
+
+/* ============================================================
+   통계 보고서 화면 (/stats/report) — 인쇄/PDF 저장용.
+   화면에서는 좁은 문서 폭으로, 인쇄에서는 도구줄을 감추고 카드 그림자 제거.
+   ============================================================ */
+.report-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  background: var(--surface);
+  min-height: 100vh;
+}
+.report-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.report-head { margin-bottom: 24px; }
+.report-head h1 { font-size: 26px; font-weight: 800; margin: 2px 0 6px; }
+.report-meta { color: var(--muted); font-size: 13px; }
+.report-section { margin-bottom: 26px; }
+.report-section h2 {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+}
+.report-foot {
+  margin-top: 36px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .report-page { max-width: none; padding: 0; }
+  .report-page .card { box-shadow: none; border: 1px solid #ddd; }
+  .report-section { break-inside: avoid; }
+  /* 인쇄는 흰 배경 고정 — 다크 모드 변수가 섞여도 문서는 종이 기준 */
+  .report-page { background: #fff; color: #111; }
+}
