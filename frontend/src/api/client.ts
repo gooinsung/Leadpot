@@ -1125,8 +1125,14 @@ export interface StatsOverview {
   byStatus: StatCount[];
   byLanding: StatEntityCount[];
   byForm: StatEntityCount[];
+  /** 유입별 비교 표(자체 파라미터 3키) — 값별 방문·리드·전환율. 행 클릭 → 유입 필터 */
+  byUtmTables: StatUtmTable[];
   funnel: StatFunnel;
   byEvent: StatCount[];
+}
+export interface StatUtmTable {
+  key: string; // media_from | campaign_name | ads_name
+  rows: { value: string; uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number }[];
 }
 export interface StatFunnel {
   visits: number; // 순방문
@@ -1140,6 +1146,9 @@ export interface StatsFilter {
   to?: string;
   landingId?: number | null;
   formId?: number | null;
+  /** 유입 필터 — 키·값 둘 다 있어야 적용. 걸면 요약·추이·카드 전부 그 유입만으로 재계산 */
+  utmKey?: string;
+  utmValue?: string;
 }
 export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
   const p = new URLSearchParams();
@@ -1147,8 +1156,43 @@ export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
   if (filter.to) p.set("to", filter.to);
   if (filter.landingId != null) p.set("landingId", String(filter.landingId));
   if (filter.formId != null) p.set("formId", String(filter.formId));
+  if (filter.utmKey && filter.utmValue) {
+    p.set("utmKey", filter.utmKey);
+    p.set("utmValue", filter.utmValue);
+  }
   const qs = p.toString();
   return request<StatsOverview>(`/api/stats/overview${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * 통계 보고서 엑셀 다운로드 — 화면 필터(기간·대상·유입) 그대로 + 섹션 선택.
+ * 섹션 키: summary·trend·utm·landing·form·device·status·referer (비우면 전체).
+ * "보고서 정의 = 기간 + 필터 + 섹션"은 나중 '광고주 리포트 발송'과 공유하는 모양이다.
+ */
+export async function downloadStatsReport(filter: StatsFilter, sections: string[], filename: string): Promise<void> {
+  const res = await authedFetch("/api/stats/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: filter.from ?? null,
+      to: filter.to ?? null,
+      landingId: filter.landingId ?? null,
+      formId: filter.formId ?? null,
+      utmKey: filter.utmKey && filter.utmValue ? filter.utmKey : null,
+      utmValue: filter.utmKey && filter.utmValue ? filter.utmValue : null,
+      sections,
+    }),
+  });
+  if (!res.ok) throw await parseError(res);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 /** 공개 방문 기록(비로그인, best-effort). 공개 랜딩/리드폼 진입 시 1회 호출. */

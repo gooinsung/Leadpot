@@ -23,6 +23,7 @@ import { LandingEditPage } from "./pages/LandingEditPage";
 import { PublicLandingPage } from "./pages/PublicLandingPage";
 import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
+import { StatsReportPage } from "./pages/StatsReportPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
@@ -220,6 +221,15 @@ function App() {
         element={
           <ProtectedRoute>
             <StatsPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 인쇄/PDF 저장용 보고서 화면 — 통계 페이지의 [보고서·엑셀] 모달이 새 탭으로 연다 */}
+      <Route
+        path="/stats/report"
+        element={
+          <ProtectedRoute>
+            <StatsReportPage />
           </ProtectedRoute>
         }
       />

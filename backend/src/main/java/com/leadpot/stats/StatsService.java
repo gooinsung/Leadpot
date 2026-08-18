@@ -53,6 +53,16 @@ public class StatsService {
 
     @Transactional(readOnly = true)
     public StatsResponse overview(Long ownerId, LocalDate from, LocalDate to, Long landingId, Long formId) {
+        return overview(ownerId, from, to, landingId, formId, null, null);
+    }
+
+    /**
+     * 통계 집계. utmKey+utmValue 를 주면 그 유입만으로 전체(요약·추이·카드·표)를 재계산한다.
+     * "(없음)" 값은 유입 파라미터가 없는(오가닉/직접) 방문·리드를 뜻한다.
+     */
+    @Transactional(readOnly = true)
+    public StatsResponse overview(Long ownerId, LocalDate from, LocalDate to, Long landingId, Long formId,
+            String utmKey, String utmValue) {
         // 기간 정규화(KST). 미지정 시 최근 30일. 최대 366일로 제한.
         LocalDate today = LocalDate.now(KST);
         if (to == null) to = today;
@@ -83,6 +93,28 @@ public class StatsService {
                 .filter(e -> fLanding == null || fLanding.equals(e.getLandingPageId()))
                 .filter(e -> fForm == null || fForm.equals(e.getFormId()))
                 .toList();
+
+        // 유입별 비교 표는 유입 필터가 걸리기 전 데이터로 만든다 — 한 값을 골라도 표에서 다른 값과 비교할 수 있게.
+        List<StatsResponse.UtmTable> utmTables = List.of(
+                utmTable("media_from", leads, visits),
+                utmTable("campaign_name", leads, visits),
+                utmTable("ads_name", leads, visits));
+
+        // 유입 필터 — 그 유입의 리드·방문만 남긴다. "(없음)" 은 파라미터 없는(오가닉) 것.
+        if (utmKey != null && !utmKey.isBlank() && utmValue != null && !utmValue.isBlank()) {
+            final String uk = utmKey.trim();
+            final String uv = utmValue.trim();
+            leads = leads.stream().filter(l -> uv.equals(utm(l.getUtm(), uk))).toList();
+            visits = visits.stream().filter(v -> uv.equals(utm(v.getUtm(), uk))).toList();
+            // 이벤트(요소 클릭)에는 utm 이 없다 → 남은 방문의 방문자(IP 해시)로 귀속시킨다(근사).
+            java.util.Set<String> ipHashes = new java.util.HashSet<>();
+            for (Visit v : visits) {
+                if (v.getIpHash() != null && !v.getIpHash().isBlank()) ipHashes.add(v.getIpHash());
+            }
+            events = events.stream()
+                    .filter(e -> e.getIpHash() != null && ipHashes.contains(e.getIpHash()))
+                    .toList();
+        }
 
         Map<Long, String> formNames = new LinkedHashMap<>();
         for (Form f : formRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId)) {
@@ -116,6 +148,7 @@ public class StatsService {
                 leadCounts(leads, statusLabeler(leads)),
                 byLanding(leads, visits, landingNames),
                 byForm(leads, visits, formNames),
+                utmTables,
                 funnel(uniqueVisits, events, totalLeads),
                 byEvent(events));
     }
@@ -228,6 +261,35 @@ public class StatsService {
                 })
                 .sorted((a, b) -> Long.compare(b.leads() + b.totalVisits(), a.leads() + a.totalVisits()))
                 .toList();
+    }
+
+    /**
+     * 유입 파라미터 한 키의 값별 성과 표. 방문·리드 양쪽에 같은 키가 저장돼 있어
+     * 값별 방문·전환율이 실제로 계산된다. 정렬은 리드 많은 순 → 방문 많은 순.
+     */
+    private StatsResponse.UtmTable utmTable(String key, List<Lead> leads, List<Visit> visits) {
+        Map<String, List<Visit>> visitsByValue = new LinkedHashMap<>();
+        Map<String, Long> leadsByValue = new LinkedHashMap<>();
+        for (Visit v : visits) visitsByValue.computeIfAbsent(utm(v.getUtm(), key), k -> new ArrayList<>()).add(v);
+        for (Lead l : leads) leadsByValue.merge(utm(l.getUtm(), key), 1L, Long::sum);
+
+        java.util.Set<String> values = new java.util.LinkedHashSet<>();
+        values.addAll(visitsByValue.keySet());
+        values.addAll(leadsByValue.keySet());
+
+        List<StatsResponse.UtmRow> rows = values.stream()
+                .map(value -> {
+                    List<Visit> vs = visitsByValue.getOrDefault(value, List.of());
+                    long total = vs.size();
+                    long unique = uniqueCount(vs);
+                    long le = leadsByValue.getOrDefault(value, 0L);
+                    return new StatsResponse.UtmRow(value, unique, total, le, rate(le, unique));
+                })
+                .sorted((a, b) -> a.leads() == b.leads()
+                        ? Long.compare(b.totalVisits(), a.totalVisits())
+                        : Long.compare(b.leads(), a.leads()))
+                .toList();
+        return new StatsResponse.UtmTable(key, rows);
     }
 
     /** 고유 방문 수 = IP 해시 distinct(해시 없는 방문은 식별 불가라 제외). */

@@ -22,6 +22,8 @@ public record StatsResponse(
         List<Count> byStatus,      // 리드 상태 분포(신규/상담중/완료/불량)
         List<EntityCount> byLanding,
         List<EntityCount> byForm,
+        /** 유입별 비교 표(자체 파라미터 3키) — 값별 방문·리드·전환율. 행 클릭 → 유입 필터. */
+        List<UtmTable> byUtmTables,
         Funnel funnel,             // 전환 퍼널: 방문 → 폼 열기 → 접수 (I4)
         List<Count> byEvent) {     // 요소 클릭 집계(대상별 총 클릭 수) (I5)
 
@@ -42,6 +44,17 @@ public record StatsResponse(
 
     public record EntityCount(Long id, String name, long uniqueVisits, long totalVisits, long leads,
             double conversionRate) {
+    }
+
+    /**
+     * 유입 파라미터 한 키의 비교 표. key = media_from 등, rows = 값별 성과.
+     * 방문(visits)에도 같은 파라미터가 저장되므로 값별 방문·전환율이 실제로 계산된다.
+     * 파라미터 없이 들어온 것은 "(없음)" 행(오가닉/직접 유입 비교용).
+     */
+    public record UtmTable(String key, List<UtmRow> rows) {
+    }
+
+    public record UtmRow(String value, long uniqueVisits, long totalVisits, long leads, double conversionRate) {
     }
 
     /**

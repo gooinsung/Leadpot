@@ -33,8 +33,17 @@ public class LeadExcelService {
      * 자동 변환(서식 깨짐)하지 않도록 한다. 헤더는 굵게.
      */
     public byte[] dataXlsx(String sheetName, List<List<String>> matrix) {
+        java.util.LinkedHashMap<String, List<List<String>>> one = new java.util.LinkedHashMap<>();
+        one.put(sheetName == null || sheetName.isBlank() ? "리드" : sheetName, matrix);
+        return dataXlsxSheets(one);
+    }
+
+    /**
+     * 여러 표를 시트 하나씩으로 담은 .xlsx (통계 보고서 등). 시트 순서 = map 순서.
+     * 셀 서식 규칙은 {@link #dataXlsx} 와 동일(전체 텍스트 서식, 헤더 굵게).
+     */
+    public byte[] dataXlsxSheets(java.util.LinkedHashMap<String, List<List<String>>> sheets) {
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = wb.createSheet(sheetName == null || sheetName.isBlank() ? "리드" : sheetName);
             DataFormat df = wb.createDataFormat();
             short textFmt = df.getFormat("@"); // 텍스트 서식
 
@@ -47,26 +56,36 @@ public class LeadExcelService {
             bold.setBold(true);
             headStyle.setFont(bold);
 
-            int maxCols = 0;
-            for (int r = 0; r < matrix.size(); r++) {
-                List<String> cells = matrix.get(r);
-                Row row = sheet.createRow(r);
-                maxCols = Math.max(maxCols, cells.size());
-                for (int c = 0; c < cells.size(); c++) {
-                    Cell cell = row.createCell(c, CellType.STRING);
-                    cell.setCellStyle(r == 0 ? headStyle : textStyle);
-                    String v = cells.get(c);
-                    cell.setCellValue(v == null ? "" : v);
+            for (Map.Entry<String, List<List<String>>> e : sheets.entrySet()) {
+                Sheet sheet = wb.createSheet(safeSheetName(e.getKey()));
+                List<List<String>> matrix = e.getValue();
+                int maxCols = 0;
+                for (int r = 0; r < matrix.size(); r++) {
+                    List<String> cells = matrix.get(r);
+                    Row row = sheet.createRow(r);
+                    maxCols = Math.max(maxCols, cells.size());
+                    for (int c = 0; c < cells.size(); c++) {
+                        Cell cell = row.createCell(c, CellType.STRING);
+                        cell.setCellStyle(r == 0 ? headStyle : textStyle);
+                        String v = cells.get(c);
+                        cell.setCellValue(v == null ? "" : v);
+                    }
                 }
-            }
-            for (int c = 0; c < maxCols; c++) {
-                sheet.setColumnWidth(c, 22 * 256);
+                for (int c = 0; c < maxCols; c++) {
+                    sheet.setColumnWidth(c, 22 * 256);
+                }
             }
             wb.write(out);
             return out.toByteArray();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** 엑셀 시트 이름 제약(31자, 금지문자) 처리. */
+    private static String safeSheetName(String name) {
+        String s = name == null || name.isBlank() ? "Sheet" : name.replaceAll("[\\\\/*?\\[\\]:]", " ");
+        return s.length() > 31 ? s.substring(0, 31) : s;
     }
 
     /** 헤더(컬럼 라벨)만 있는 .xlsx 양식. */
