@@ -32,6 +32,7 @@ import com.leadpot.lead.dto.InboxResponse;
 import com.leadpot.lead.dto.LeadNoteResponse;
 import com.leadpot.lead.dto.LeadResponse;
 import com.leadpot.lead.dto.LeadSubmitRequest;
+import com.leadpot.lead.dto.UtmFacet;
 
 /** 리드 수집(공개 제출) + 조회(본인 리드폼만 K5). */
 @Service
@@ -205,7 +206,8 @@ public class LeadService {
      */
     @Transactional(readOnly = true)
     public InboxResponse inbox(Long ownerId, String status, String q, Long formId,
-            String from, String to, boolean unseen, Integer page, Integer size) {
+            String from, String to, String utmKey, String utmValue,
+            boolean unseen, Integer page, Integer size) {
         // 1) 내 폼(formId → 이름)
         Map<Long, String> nameById = new LinkedHashMap<>();
         for (FormSummary f : formService.list(ownerId)) {
@@ -266,6 +268,10 @@ public class LeadService {
         Instant toAt = endOfDay(to);
         String st = status == null ? "" : status.trim();
         String needle = q == null ? "" : q.trim().toLowerCase();
+        // 유입 파라미터 필터 — 키·값이 둘 다 있어야 켜진다(키만 고른 상태는 아직 필터가 아니다).
+        String uk = utmKey == null ? "" : utmKey.trim();
+        String uv = utmValue == null ? "" : utmValue.trim();
+        boolean byUtm = !uk.isEmpty() && !uv.isEmpty();
         List<Lead> filtered = new ArrayList<>();
         for (Lead l : all) {
             if (formId != null && !formId.equals(l.getFormId())) {
@@ -283,6 +289,9 @@ public class LeadService {
             if (toAt != null && l.getCreatedAt() != null && !l.getCreatedAt().isBefore(toAt)) {
                 continue;
             }
+            if (byUtm && !matchesUtm(l, uk, uv)) {
+                continue;
+            }
             if (!needle.isEmpty() && !matchesQuery(l, needle)) {
                 continue;
             }
@@ -295,7 +304,8 @@ public class LeadService {
         int end = Math.min(start + pageSize, filtered.size());
         List<InboxResponse.Item> items = filtered.subList(start, end).stream()
                 .map(l -> new InboxResponse.Item(l.getId(), l.getFormId(), nameById.get(l.getFormId()),
-                        l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getCreatedAt(), l.getSeenAt()))
+                        l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getUtm(),
+                        l.getCreatedAt(), l.getSeenAt()))
                 .toList();
 
         return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
@@ -325,16 +335,82 @@ public class LeadService {
         return LocalDate.parse(date.trim()).plusDays(1).atStartOfDay(KST).toInstant();
     }
 
-    /** 답변 값/라벨에 검색어(소문자)가 포함되는지. */
+    /** 답변 값/라벨 또는 유입 파라미터 값에 검색어(소문자)가 포함되는지. */
     private static boolean matchesQuery(Lead l, String needle) {
-        if (l.getAnswers() == null) return false;
-        for (Map<String, Object> a : l.getAnswers()) {
-            if (str(a.get("value")).toLowerCase().contains(needle)
-                    || str(a.get("label")).toLowerCase().contains(needle)) {
-                return true;
+        if (l.getAnswers() != null) {
+            for (Map<String, Object> a : l.getAnswers()) {
+                if (str(a.get("value")).toLowerCase().contains(needle)
+                        || str(a.get("label")).toLowerCase().contains(needle)) {
+                    return true;
+                }
+            }
+        }
+        // "danggun" 을 검색창에 쳐도 당근 유입 리드가 나오게 — 유입 파라미터 값도 검색 대상이다.
+        if (l.getUtm() != null) {
+            for (Object v : l.getUtm().values()) {
+                if (str(v).toLowerCase().contains(needle)) {
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    /** 유입 파라미터가 정확히 key=value 인지(부분검색 아님 — 드롭다운에서 고른 값 그대로). */
+    private static boolean matchesUtm(Lead l, String key, String value) {
+        Map<String, Object> utm = l.getUtm();
+        return utm != null && utm.get(key) != null && value.equals(utm.get(key).toString());
+    }
+
+    /**
+     * 유입 파라미터 facet — 내 활성 리드의 유입 파라미터 키별 값·건수.
+     * formId 를 주면 그 폼만(폼별 목록), 없으면 내 모든 폼(통합 인박스).
+     *
+     * <p>키는 {@link TrackingParams#ALLOWED_KEYS} 로 한정된다(저장 관문과 같은 축) —
+     * 옛 데이터에 다른 키가 남아 있어도 드롭다운을 오염시키지 않는다.
+     * ⚠️ 지금은 목록·인박스와 같은 메모리 집계다. 리드가 수천 건이 되면
+     * JSONB GIN 인덱스 + DB 집계로 옮긴다(목록 필터 전체와 함께).
+     */
+    @Transactional(readOnly = true)
+    public List<UtmFacet> utmFacets(Long ownerId, Long formId) {
+        List<Lead> leads;
+        if (formId != null) {
+            formService.get(ownerId, formId); // 소유권 확인(아니면 404)
+            leads = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId);
+        } else {
+            List<Long> formIds = formService.list(ownerId).stream().map(FormSummary::id).toList();
+            leads = formIds.isEmpty() ? List.of()
+                    : leadRepository.findByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(formIds);
+        }
+        // 키 순서는 ALLOWED_KEYS 고정(자체 3개가 화면에서 항상 같은 자리) — LinkedHashMap 으로 유지.
+        Map<String, Map<String, Long>> agg = new LinkedHashMap<>();
+        for (String key : TrackingParams.ALLOWED_KEYS) {
+            agg.put(key, new LinkedHashMap<>());
+        }
+        for (Lead l : leads) {
+            Map<String, Object> utm = l.getUtm();
+            if (utm == null) {
+                continue;
+            }
+            for (String key : TrackingParams.ALLOWED_KEYS) {
+                String v = str(utm.get(key));
+                if (!v.isBlank()) {
+                    agg.get(key).merge(v, 1L, Long::sum);
+                }
+            }
+        }
+        List<UtmFacet> out = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Long>> e : agg.entrySet()) {
+            if (e.getValue().isEmpty()) {
+                continue; // 등장한 키만 — 빈 드롭다운을 만들지 않는다
+            }
+            List<UtmFacet.Value> values = e.getValue().entrySet().stream()
+                    .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                    .map(v -> new UtmFacet.Value(v.getKey(), v.getValue()))
+                    .toList();
+            out.add(new UtmFacet(e.getKey(), values));
+        }
+        return out;
     }
 
     /** 휴지통으로 이동(soft delete). 본인 리드폼의 리드만 K5. */

@@ -485,6 +485,8 @@ export interface InboxItem {
   /** 필터·라벨 키(고정=코드, 커스텀=C{id}). 라벨은 counts.statusNames[statusKey]. */
   statusKey: string;
   tags: string[] | null;
+  /** 유입 파라미터(media_from 등). 목록의 '출처' 칩용. null 가능. */
+  utm: Record<string, unknown> | null;
   createdAt: string;
   /** 내(마케터)가 열어본 시각. null = '미확인'(V32). 상태와 무관하다. */
   seenAt: string | null;
@@ -512,6 +514,9 @@ export interface InboxFilter {
   formId?: number;
   from?: string;
   to?: string;
+  /** 유입 파라미터 필터 — 키·값을 둘 다 줘야 적용된다(예: media_from + danggun). */
+  utmKey?: string;
+  utmValue?: string;
   unseen?: boolean;
   page?: number;
   size?: number;
@@ -559,11 +564,24 @@ export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {
   if (filter.formId != null) p.set("formId", String(filter.formId));
   if (filter.from) p.set("from", filter.from);
   if (filter.to) p.set("to", filter.to);
+  if (filter.utmKey && filter.utmValue) {
+    p.set("utmKey", filter.utmKey);
+    p.set("utmValue", filter.utmValue);
+  }
   if (filter.unseen) p.set("unseen", "true");
   if (filter.page != null) p.set("page", String(filter.page));
   if (filter.size != null) p.set("size", String(filter.size));
   const qs = p.toString();
   return request<InboxResponse>(`/api/leads/inbox${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * 유입 파라미터 facet(필터 드롭다운 옵션) — 키별 값·건수. formId 없으면 내 모든 폼.
+ * 응답 모양은 lib/tracking.ts 의 UtmFacet 과 같다(폼별 목록은 클라이언트에서 직접 만든다).
+ */
+export function getUtmFacets(formId?: number): Promise<{ key: string; values: { value: string; count: number }[] }[]> {
+  const qs = formId != null ? `?formId=${formId}` : "";
+  return request(`/api/leads/utm-facets${qs}`);
 }
 
 /** 리드를 휴지통으로 이동(soft delete). */

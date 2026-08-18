@@ -193,8 +193,22 @@
 .il-row.unread .il-name { font-weight: 800; }
 .il-st { flex: none; font-size: 11px; padding: 2px 9px; }
 .il-time { margin-left: auto; flex: none; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.il-row-sub { display: flex; gap: 8px; margin-top: 3px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+.il-row-sub { display: flex; gap: 8px; margin-top: 3px; font-size: 12.5px; color: var(--muted); min-width: 0; align-items: center; }
 .il-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 출처(유입) 칩 — media_from/utm source. '태그'(#파랑)와 다른 축이라 모양도 다르게(회색 알약) */
+.il-src {
+  flex: none;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
 /* 체크박스는 hover/선택 시에만 드러난다(가이드 §4) — 자리는 항상 차지해 행이 흔들리지 않는다 */
 .il-check { display: flex; align-items: center; flex: none; width: 16px; opacity: 0; transition: opacity 0.12s ease; }
 .il-row:hover .il-check,
@@ -258,7 +272,7 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
 .flead-rows.trash { --fl-act: 140px; }
 /* 전체선택(2026-08-08): 체크 열 28px 가 맨 앞에 붙는다(.sel-on) */
 .flead-row,
-.flead-head { grid-template-columns: 28px minmax(110px, 1.15fr) minmax(105px, 0.85fr) minmax(0, 2fr) 132px 128px var(--fl-act); }
+.flead-head { grid-template-columns: 28px minmax(110px, 1.15fr) minmax(105px, 0.85fr) minmax(0, 2fr) 96px 132px 128px var(--fl-act); }
 .fl-check { display: flex; align-items: center; }
 .fl-check input { width: 16px; height: 16px; accent-color: var(--indigo); cursor: pointer; }
 .flead-row.selected { background: color-mix(in srgb, var(--indigo-soft) 70%, var(--surface)); }
@@ -267,6 +281,17 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
 .fl-phone { font-size: var(--fs-md); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 나머지 답변을 " · " 로 이어 붙인 한 줄 요약 — 넘치면 말줄임 */
 .fl-summary { font-size: var(--fs-sm); color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 출처(유입) 열 — 인박스의 .il-src 와 같은 회색 알약. 클릭하면 그 값으로 필터. */
+.fl-src { min-width: 0; }
+.fl-src-chip {
+  display: inline-block; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--muted); font-size: 11.5px; font-weight: 600; line-height: 1.6;
+  cursor: pointer; font-family: inherit;
+}
+.fl-src-chip:hover { background: var(--indigo-soft); color: var(--indigo-ink); border-color: transparent; }
 .fl-time { font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
 .fl-actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
 .fl-status { min-width: 0; }
@@ -303,8 +328,10 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
   .fl-status { grid-area: 1 / 2; justify-self: end; }
   .fl-phone { grid-area: 2 / 1; }
   .fl-time { grid-area: 2 / 2; text-align: right; white-space: nowrap; }
-  .fl-summary { grid-area: 3 / 1 / 3 / -1; }
-  .fl-actions { grid-area: 4 / 1 / 4 / -1; justify-content: flex-start; margin-top: 4px; }
+  /* 출처 칩은 자기 줄을 차지한다 — 칩이 없는 리드는 span 을 안 그리므로 빈 줄도 없다 */
+  .fl-src { grid-area: 3 / 1 / 3 / -1; }
+  .fl-summary { grid-area: 4 / 1 / 4 / -1; }
+  .fl-actions { grid-area: 5 / 1 / 5 / -1; justify-content: flex-start; margin-top: 4px; }
 }
 
 /* ── 상세 패널 공통(스플릿 pane · 서랍 drawer) ──
