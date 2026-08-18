@@ -13,6 +13,8 @@ import jakarta.validation.constraints.Size;
 /** 리드폼 생성/수정 요청. */
 public record FormRequest(
         @NotBlank @Size(max = 255) String name,
+        /** 분야(업종 구분, V34). 빈 값이면 미지정(null 저장). */
+        @Size(max = 50) String category,
         @NotNull FormType formType,
         Boolean requirePhoneVerification,
         Map<String, Object> consentConfig,

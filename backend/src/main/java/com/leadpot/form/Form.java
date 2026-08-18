@@ -46,6 +46,13 @@ public class Form {
     @Column(nullable = false)
     private String name;
 
+    /**
+     * 분야(업종 구분: 개인회생·장기렌트·임플란트 등, V34). 마케터가 폼별로 지정하고
+     * 인박스에서 분야로 거른다. ⚠️ 손태그(leads.tags)와 별개 축 — 화면 문구도 '분야'.
+     */
+    @Column(length = 50)
+    private String category;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "form_type", nullable = false, length = 30)
     private FormType formType;
@@ -185,6 +192,15 @@ public class Form {
 
     public String getName() {
         return name;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    /** 빈 문자열은 null 로 — 분야 드롭다운에 빈 항목이 생기지 않게. */
+    public void setCategory(String category) {
+        this.category = category == null || category.isBlank() ? null : category.trim();
     }
 
     public void setName(String name) {

@@ -9,6 +9,8 @@ import com.leadpot.form.FormType;
 public record FormSummary(
         Long id,
         String name,
+        /** 분야(업종 구분, V34). null 가능. 목록 표시·분야 datalist 재료. */
+        String category,
         FormType formType,
         int blockCount,
         Instant updatedAt) {
@@ -17,6 +19,7 @@ public record FormSummary(
         return new FormSummary(
                 form.getId(),
                 form.getName(),
+                form.getCategory(),
                 form.getFormType(),
                 form.getBlocks().size(),
                 form.getUpdatedAt());

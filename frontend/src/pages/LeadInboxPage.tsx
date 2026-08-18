@@ -56,6 +56,8 @@ export function LeadInboxPage() {
   const [view, setView] = useState<"all" | "today" | "unseen">("all");
   const [statusFilter, setStatusFilter] = useState("");
   const [formFilter, setFormFilter] = useState<number | null>(null);
+  // 분야 필터(V34) — 폼에 지정한 업종 구분(개인회생 등)으로 거른다. "오늘 개인회생 전반" 용.
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [range, setRange] = useState<"all" | "7d" | "30d">("all");
   // 유입 파라미터(출처) 필터 — "이름 선택 → 그 이름의 값 드롭다운" (faceted). '태그'와 별개 축.
   const [utmKey, setUtmKey] = useState("");
@@ -94,6 +96,7 @@ export function LeadInboxPage() {
         to: view === "today" ? today : range === "all" ? undefined : today,
         status: statusFilter || undefined,
         formId: formFilter ?? undefined,
+        category: categoryFilter || undefined,
         utmKey: utmKey || undefined,
         utmValue: utmValue || undefined,
         q: q.trim() || undefined,
@@ -107,7 +110,7 @@ export function LeadInboxPage() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, statusFilter, formFilter, range, utmKey, utmValue, q, page]);
+  }, [view, statusFilter, formFilter, categoryFilter, range, utmKey, utmValue, q, page]);
 
   useEffect(() => {
     load();
@@ -131,7 +134,7 @@ export function LeadInboxPage() {
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [view, statusFilter, formFilter, range, utmKey, utmValue, q]);
+  }, [view, statusFilter, formFilter, categoryFilter, range, utmKey, utmValue, q]);
 
   const counts = data?.counts;
   const items = data?.items ?? [];
@@ -151,6 +154,7 @@ export function LeadInboxPage() {
     setView("all");
     setStatusFilter("");
     setFormFilter(null);
+    setCategoryFilter("");
     setRange("all");
     setUtmKey("");
     setUtmValue("");
@@ -273,6 +277,20 @@ export function LeadInboxPage() {
                   </option>
                 ))}
               </select>
+              {/* 분야 필터(V34) — 분야 지정된 폼이 하나도 없으면 숨긴다 */}
+              {(counts?.byCategory?.length ?? 0) > 0 && (
+                <select
+                  className="input"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  aria-label="분야 필터"
+                >
+                  <option value="">모든 분야</option>
+                  {(counts?.byCategory ?? []).map((c) => (
+                    <option key={c.name} value={c.name}>{c.name} {c.count}</option>
+                  ))}
+                </select>
+              )}
               <select
                 className="input"
                 value={range}
@@ -501,6 +519,9 @@ function InboxCard({
       </div>
       <div className="il-row-sub">
         <span className="tnum" style={{ flex: "none" }}>{phone ? maskPhone(phone) : "—"}</span>
+        {item.formCategory && (
+          <span className="il-cat" title={`분야: ${item.formCategory} (${item.formName})`}>{item.formCategory}</span>
+        )}
         {source && (
           <span
             className="il-src"

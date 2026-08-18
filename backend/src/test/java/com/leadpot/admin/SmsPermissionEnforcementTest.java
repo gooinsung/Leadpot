@@ -225,7 +225,7 @@ class SmsPermissionEnforcementTest {
 
     /** 설정만 바꾸는 최소 저장 요청. */
     private static FormRequest request(Map<String, Object> settings) {
-        return new FormRequest("권한 테스트 폼", FormType.BASIC, false,
+        return new FormRequest("권한 테스트 폼", null, FormType.BASIC, false,
                 null, null, null, null, null, settings, null, List.of());
     }
 }
