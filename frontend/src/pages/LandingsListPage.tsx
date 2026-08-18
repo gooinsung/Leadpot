@@ -8,12 +8,15 @@ import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
 import { runBulk, useSelection } from "../lib/useSelection";
+import { AdUrlBuilder } from "../components/AdUrlBuilder";
 
 export function LandingsListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const sub = user?.subdomain ?? "";
   const [items, setItems] = useState<LandingSummary[]>([]);
+  // 광고 URL 빌더 대상 랜딩(null = 닫힘). 입력값은 저장하지 않아 서버 상태가 없다.
+  const [adUrlTarget, setAdUrlTarget] = useState<LandingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const paging = usePaging(items, 10);
 
@@ -106,7 +109,10 @@ export function LandingsListPage() {
                     <td className="num">{new Date(l.updatedAt).toLocaleString("ko-KR")}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {l.status === "published" && sub && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => window.open(publicSiteUrl(sub, l.id), "_blank")}>공개 열기</button>
+                        <>
+                          <button className="btn btn-ghost btn-sm" onClick={() => window.open(publicSiteUrl(sub, l.id), "_blank")}>공개 열기</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setAdUrlTarget(l)} title="매체·캠페인·광고 이름을 붙인 주소를 만듭니다">광고 URL</button>
+                        </>
                       )}
                       <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/p/${l.slug}`, "_blank")}>미리보기</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/landings/${l.id}/edit`)}>편집</button>
@@ -121,6 +127,15 @@ export function LandingsListPage() {
           </>
         )}
       </main>
+
+      {/* 광고 URL 빌더 — 공개 상태 + 서브도메인이 있을 때만 버튼이 뜨므로 sub 은 항상 있다. */}
+      {adUrlTarget && (
+        <AdUrlBuilder
+          baseUrl={publicSiteUrl(sub, adUrlTarget.id)}
+          title={adUrlTarget.title}
+          onClose={() => setAdUrlTarget(null)}
+        />
+      )}
     </div>
   );
 }
