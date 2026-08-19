@@ -149,6 +149,34 @@ public class SmsService {
     }
 
     /**
+     * 계정 본인확인 문자(비밀번호 재설정 인증번호, V36). <b>V25 계정 권한 검사를 일부러 타지 않는다</b> —
+     * 그 검사는 마케팅 발송 비용 통제가 목적인데, 이건 계정 보안 절차라서 발송 권한이 없는
+     * (기본값) 계정도 비밀번호는 찾을 수 있어야 한다. 월 사용량 집계에서도 빠진다
+     * ({@link MessageLogRepository#countSystemSentSince} 가 AUTH 를 제외한다).
+     *
+     * <p>발송량 자체는 호출부({@code PasswordResetService})가 쿨다운·일일 상한으로 조인다.
+     * 이력은 똑같이 남는다 — 본인확인 문자도 우리 비용이므로 추적이 필요하다.
+     */
+    public MessageLog sendVerification(Long userId, String to, String text) {
+        SmsRequest req = SmsRequest.to(userId, to, text, MessageLog.TO_AUTH);
+        String channel = SolapiSmsSender.channelOf(text, null);
+        SmsCredentials cred = resolveCredentials(userId, null);
+        if (cred == null || !cred.usable()) {
+            return skip(req, channel, "문자 발송 설정이 없습니다. 발신번호·API 키를 확인해주세요.");
+        }
+        if (PhoneNumbers.normalize(to) == null) {
+            return skip(req, channel, "수신번호가 없거나 형식이 올바르지 않습니다.");
+        }
+        SmsSender.SmsResult result = sender.send(cred, to, text);
+        MessageLog entry = base(req, result.channel(),
+                result.ok() ? MessageLog.STATUS_SENT : MessageLog.STATUS_FAILED, cred.system());
+        entry.setProviderMessageId(result.providerMessageId());
+        entry.setError(cut(result.error(), 500));
+        logWriter.record(entry);
+        return entry;
+    }
+
+    /**
      * 첨부 이미지를 대행사에 올리고 참조용 id 를 돌려준다. 규격 변환({@link SmsImages})은 호출부에서 끝낸 뒤 넘긴다.
      * 발송 때마다 올리면 느리고 비용도 낭비라 <b>리드폼 편집 중 한 번</b>만 올린다.
      */

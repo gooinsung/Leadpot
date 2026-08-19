@@ -15,12 +15,15 @@ public interface MessageLogRepository extends JpaRepository<MessageLog, Long> {
     /**
      * 이번 달 사용량 — 리드팟 키로 실제 발송된 건수만 센다.
      * 마케터가 자기 키로 쏜 건은 우리 비용이 아니라 한도 대상이 아니다(§11).
+     * 본인확인 문자(AUTH, 비밀번호 재설정 V36)는 마케팅 발송이 아니라서 뺀다 —
+     * 세면 비밀번호 찾기가 그 달 발송 한도를 깎는다.
      */
     @Query("""
             select count(m) from MessageLog m
             where m.ownerId = :ownerId
               and m.systemCredential = true
               and m.status = 'SENT'
+              and m.recipientType <> 'AUTH'
               and m.createdAt >= :from
             """)
     long countSystemSentSince(@Param("ownerId") Long ownerId, @Param("from") Instant from);

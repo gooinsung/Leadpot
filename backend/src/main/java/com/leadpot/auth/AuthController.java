@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.leadpot.auth.dto.LoginRequest;
+import com.leadpot.auth.dto.PasswordResetConfirmBody;
+import com.leadpot.auth.dto.PasswordResetRequestBody;
 import com.leadpot.auth.dto.RefreshRequest;
 import com.leadpot.auth.dto.SignupRequest;
 import com.leadpot.auth.dto.SubdomainRequest;
@@ -28,9 +30,11 @@ import jakarta.validation.Valid;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
         this.authService = authService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/signup")
@@ -47,6 +51,24 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         return ResponseEntity.ok(authService.refresh(request.refreshToken()));
+    }
+
+    /**
+     * 비밀번호 재설정 인증번호 발송(공개). 계정 존재 여부와 무관하게 <b>항상 204</b> —
+     * 응답을 구분하면 가입 이메일을 하나씩 확인할 수 있다({@link PasswordResetService} 주석).
+     */
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequestBody request) {
+        passwordResetService.request(request.email());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 인증번호 확인 + 새 비밀번호 설정(공개). 성공하면 자동 로그인 토큰을 준다. */
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<TokenResponse> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmBody request) {
+        return ResponseEntity.ok(passwordResetService.confirm(
+                request.email(), request.code(), request.password()));
     }
 
     @GetMapping("/me")
