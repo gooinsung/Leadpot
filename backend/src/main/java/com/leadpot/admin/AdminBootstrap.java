@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.auth.Role;
 import com.leadpot.auth.User;
@@ -56,7 +55,13 @@ public class AdminBootstrap implements ApplicationListener<ApplicationReadyEvent
         }
     }
 
-    @Transactional
+    /**
+     * ⚠️ {@code @Transactional} 을 붙여도 소용없다 — {@code onApplicationEvent} 에서의 <b>자기호출</b>은
+     * 프록시를 타지 않는다. 실제로 dirty checking 이 안 돼 <b>승격 로그만 남고 role 은 USER 로 남는 버그</b>가
+     * 있었다(2026-08-19 발견). 그래서 변경을 {@code save()} 로 명시 저장한다(리포지토리 메서드는 각자
+     * 트랜잭션을 연다). role 저장과 감사 로그가 한 트랜잭션이 아니게 되지만, 둘 다 멱등이고
+     * 실패 시 재기동하면 다시 시도되므로 감수한다.
+     */
     void promote() {
         User user = userRepository.findByEmail(bootstrapEmail).orElse(null);
         if (user == null) {
@@ -75,6 +80,7 @@ public class AdminBootstrap implements ApplicationListener<ApplicationReadyEvent
         }
         Role before = user.getRole();
         user.setRole(Role.ADMIN);
+        userRepository.save(user);
         auditRepository.save(new AdminAuditLog(user.getId(), user.getId(),
                 AdminAuditLog.ACTION_ADMIN_BOOTSTRAP,
                 "환경변수 승격: " + before + " → " + Role.ADMIN));

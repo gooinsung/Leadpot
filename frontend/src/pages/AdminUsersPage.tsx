@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ApiError,
   listAdminAudit,
@@ -13,13 +14,15 @@ import { Loading } from "../components/Loading";
 import { toast } from "../lib/toast";
 
 /**
- * 운영자 계정 관리 — 지금은 **문자 발송 권한 통제**가 전부다.
+ * 운영자 계정 관리 — 문자 발송 권한 통제 + 계정 상세(읽기 전용 열람) 진입.
  *
  * 왜 필요한가: 문자는 리드팟 솔라피 계정 하나로 나가고 **비용을 우리가 부담**한다.
  * 예전에는 모든 마케터가 리드폼에서 자유롭게 켤 수 있었다.
  *
- * ⚠️ 이 화면에 **리드(고객 개인정보) 열람을 넣지 않는다.** 우리는 리드에 대해 수탁자 위치이고,
- * 규모 파악은 건수로 충분하다. 목적은 계정·권한 관리다.
+ * **정책 변경(2026-08-19, 사용자 결정)**: 원래 이 화면에 리드(고객 개인정보) 열람을 넣지
+ * 않는 것이 원칙이었으나, 운영 지원을 위해 **읽기 전용 열람**을 허용했다. 계정을 클릭하면
+ * 상세(`/admin/users/:id`)에서 리드폼·랜딩·리드를 조회할 수 있고, **리드 열람은 감사 이력에
+ * 남는다**(서버 AdminService 주석 참고). 수정·삭제는 여전히 불가(서버에 API 자체가 없다).
  *
  * ⚠️ 화면 가드는 편의일 뿐이고 실제 차단은 서버가 한다(`/api/admin/**` → ROLE_ADMIN).
  *
@@ -145,7 +148,10 @@ export function AdminUsersPage() {
                   return (
                     <tr key={r.id}>
                       <td>
-                        <div style={{ fontWeight: 600 }}>{r.email}</div>
+                        {/* 계정 클릭 → 읽기 전용 상세(리드폼·랜딩·리드) */}
+                        <Link to={`/admin/users/${r.id}`} style={{ fontWeight: 600 }}>
+                          {r.email}
+                        </Link>
                         <div className="lnb-link-desc">
                           {r.name}
                           {r.subdomain ? ` · ${r.subdomain}` : ""}
