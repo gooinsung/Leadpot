@@ -90,6 +90,15 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
             + "and l.deletedAt is null")
     List<Lead> findAllByOwner(@Param("ownerId") Long ownerId);
 
+    // 계정 소유 활성 리드 최신순 + 페이지 — 운영자 열람용(2026-08-19 정책 변경, AdminService 주석 참고).
+    // findAllByOwner 는 전량을 가져와 큰 계정에서 응답이 폭발한다 → 열람은 상한을 걸어 자른다.
+    @Query("select l from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
+            + "and l.deletedAt is null order by l.createdAt desc")
+    List<Lead> findByOwnerRecent(@Param("ownerId") Long ownerId, org.springframework.data.domain.Pageable pageable);
+
+    // 폼 단위 활성 리드 최신순 + 페이지 (운영자 열람의 폼 필터)
+    List<Lead> findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long formId, org.springframework.data.domain.Pageable pageable);
+
     // 본인 소유 활성 리드 + 기간(반열림 [from, to)) — 통계 필터용
     @Query("select l from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
             + "and l.deletedAt is null and l.createdAt >= :from and l.createdAt < :to")

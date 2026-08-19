@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.leadpot.admin.dto.AdminAuditRow;
 import com.leadpot.admin.dto.AdminUserRow;
 import com.leadpot.admin.dto.SmsPermissionRequest;
+import com.leadpot.form.dto.FormSummary;
+import com.leadpot.landing.dto.LandingSummary;
+import com.leadpot.lead.dto.LeadResponse;
 
 /**
  * 운영자 전용 API.
@@ -23,8 +26,9 @@ import com.leadpot.admin.dto.SmsPermissionRequest;
  * {@code ROLE_ADMIN} 만 통과한다. 화이트리스트 방식이라 이 컨트롤러에 메서드를 추가해도
  * 자동으로 보호된다(반대로 컨트롤러마다 검사를 넣는 방식은 빠뜨리면 구멍이 된다).
  *
- * <p>지금 범위는 계정 조회 + 문자 발송 권한뿐이다. 리드(고객 개인정보) 열람은 <b>일부러 넣지 않았다</b>
- * ({@link AdminService} 주석 참고).
+ * <p>범위: 계정 조회 + 문자 발송 권한 + <b>계정 자산(리드폼/랜딩/리드) 읽기 전용 열람</b>
+ * (2026-08-19 정책 변경 — 조건과 이유는 {@link AdminService} 클래스 주석 참고).
+ * 열람은 GET 뿐이다 — 운영자가 남의 자산을 고치는 엔드포인트는 만들지 않는다.
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -47,6 +51,25 @@ public class AdminController {
     public AdminUserRow updateSms(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestBody SmsPermissionRequest request) {
         return adminService.updateSmsPermissions(adminId(jwt), id, request);
+    }
+
+    /** 계정의 리드폼 목록(읽기 전용). */
+    @GetMapping("/users/{id}/forms")
+    public List<FormSummary> forms(@PathVariable Long id) {
+        return adminService.forms(id);
+    }
+
+    /** 계정의 랜딩 목록(읽기 전용). */
+    @GetMapping("/users/{id}/landings")
+    public List<LandingSummary> landings(@PathVariable Long id) {
+        return adminService.landings(id);
+    }
+
+    /** 계정의 리드 목록(읽기 전용, 최신순 최대 200건). 호출마다 감사 로그가 남는다. */
+    @GetMapping("/users/{id}/leads")
+    public List<LeadResponse> leads(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestParam(required = false) Long formId) {
+        return adminService.leads(adminId(jwt), id, formId);
     }
 
     /** 변경 이력(최신순). targetId 를 주면 그 계정 것만. */

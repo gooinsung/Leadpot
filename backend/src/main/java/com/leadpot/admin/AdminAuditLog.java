@@ -25,6 +25,11 @@ public class AdminAuditLog {
     public static final String ACTION_SMS_PERMISSIONS = "SMS_PERMISSIONS_UPDATE";
     /** 기동 시 환경변수로 운영자 승격. */
     public static final String ACTION_ADMIN_BOOTSTRAP = "ADMIN_BOOTSTRAP";
+    /**
+     * 운영자가 계정의 리드 목록을 열람(2026-08-19 정책 변경). 리드는 고객 개인정보라
+     * <b>열람 자체가 기록 대상</b>이다. detail 에는 폼 id·건수만 남긴다(개인정보 금지 원칙 유지).
+     */
+    public static final String ACTION_LEADS_VIEW = "LEADS_VIEW";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
