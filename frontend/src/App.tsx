@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 // SignupPage 는 회원가입을 닫으면서 라우트에서 뺐다(아래 /signup 주석). 파일은 남아 있다.
 import { AboutPage } from "./pages/AboutPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -65,6 +66,8 @@ function App() {
       {/* 루트는 역할에 따라 분기(마케터→대시보드 / 광고주→/client) */}
       <Route path="/" element={<RoleHomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      {/* 마케터 비밀번호 재설정(V36) — 비로그인 공개, 가입 휴대폰 인증번호로 본인 확인 */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       {/*
         공개 회원가입 닫힘 (2026-08-06 사용자 결정 — 운영자가 계정을 직접 관리).
         pages/SignupPage.tsx 는 지우지 않고 남겨둔다 — 다시 열 때 import 와 이 줄만 되돌리면 된다.

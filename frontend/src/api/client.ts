@@ -213,6 +213,32 @@ export function updateSubdomain(subdomain: string): Promise<AuthUser> {
   return request<AuthUser>("/api/auth/subdomain", { method: "PATCH", body: { subdomain } });
 }
 
+/**
+ * 비밀번호 재설정 인증번호 요청(V36). 가입 휴대폰으로 문자가 간다.
+ * 서버는 계정 존재 여부와 무관하게 **항상 204** 를 준다(이메일 존재 노출 방지) —
+ * 화면도 "등록된 계정이면 발송됐다"는 안내만 해야 한다.
+ */
+export function requestPasswordReset(email: string): Promise<void> {
+  return request<void>("/api/auth/password-reset/request", {
+    method: "POST",
+    body: { email },
+    auth: false,
+  });
+}
+
+/** 인증번호 확인 + 새 비밀번호 설정. 성공하면 자동 로그인 토큰을 준다. */
+export function confirmPasswordReset(
+  email: string,
+  code: string,
+  password: string,
+): Promise<TokenResponse> {
+  return request<TokenResponse>("/api/auth/password-reset/confirm", {
+    method: "POST",
+    body: { email, code, password },
+    auth: false,
+  });
+}
+
 // ---------- 리드폼(Form) ----------
 export type FormType = "BASIC" | "STEP";
 /**

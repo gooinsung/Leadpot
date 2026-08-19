@@ -94,6 +94,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh").permitAll()
+                        // 비밀번호 재설정(V36) — 비로그인 상태에서 쓰는 흐름이라 공개.
+                        // 남용 방어는 서비스가 한다(쿨다운·일일 상한, PasswordResetService).
+                        .requestMatchers("/api/auth/password-reset/request", "/api/auth/password-reset/confirm")
+                        .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()

@@ -28,6 +28,8 @@ public class MessageLog {
     public static final String TO_ADVERTISER = "ADVERTISER";
     public static final String TO_LEAD = "LEAD";
     public static final String TO_TEST = "TEST";
+    /** 계정 본인확인(비밀번호 재설정 인증번호, V36). 마케팅 발송이 아니라 월 사용량 집계에서 뺀다. */
+    public static final String TO_AUTH = "AUTH";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
