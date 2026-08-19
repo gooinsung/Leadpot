@@ -122,18 +122,24 @@ export function initPixels(cfg: unknown): void {
     } catch { /* ignore */ }
   }
 
+  // 당근 공식 스니펫(스텁+큐 방식) — 실제 SDK 로드 전에도 init/track 호출을 큐에 쌓아뒀다가
+  // 로드 완료 후 처리한다. 2026-08 당근 요청으로 구버전(/0.2/karrot-pixel.umd.js, onload 대기)에서 교체.
   if (daangn) {
     try {
-      const s = d.createElement("script");
-      s.async = true;
-      s.src = "https://karrot-pixel.business.daangn.com/0.2/karrot-pixel.umd.js";
-      s.onload = function () {
-        try {
-          w.karrotPixel && w.karrotPixel.init && w.karrotPixel.init(daangn);
-          w.karrotPixel && w.karrotPixel.track && w.karrotPixel.track("ViewPage");
-        } catch { /* ignore */ }
-      };
-      d.head.appendChild(s);
+      if (!w.karrotPixel) {
+        const k: any = { stub: true, queue: [] };
+        k.init = function () { k.queue.push(["init", arguments, Date.now()]); };
+        k.track = function () { k.queue.push(["track", arguments, Date.now()]); };
+        w.karrotPixel = k;
+        const s = d.createElement("script");
+        s.async = true;
+        s.src = "https://karrot-pixel.business.daangn.com/karrot-pixel.js";
+        const f = d.getElementsByTagName("script")[0];
+        if (f && f.parentNode) f.parentNode.insertBefore(s, f);
+        else d.head.appendChild(s);
+      }
+      w.karrotPixel.init(daangn);
+      w.karrotPixel.track("ViewPage");
     } catch { /* ignore */ }
   }
 }
