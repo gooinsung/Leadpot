@@ -28,6 +28,7 @@ import { StatsReportPage } from "./pages/StatsReportPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { AdminUserDetailPage } from "./pages/AdminUserDetailPage";
 import { AdvertiserPreviewPage } from "./pages/AdvertiserPreviewPage";
 import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
 import { AdvertiserIntegrationsPage } from "./pages/AdvertiserIntegrationsPage";
@@ -284,6 +285,15 @@ function App() {
         element={
           <ProtectedRoute role="ADMIN">
             <AdminUsersPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 계정 상세 — 리드폼·랜딩·리드 읽기 전용 열람(2026-08-19 정책 변경). 리드 열람은 감사 이력에 남는다. */}
+      <Route
+        path="/admin/users/:id"
+        element={
+          <ProtectedRoute role="ADMIN">
+            <AdminUserDetailPage />
           </ProtectedRoute>
         }
       />

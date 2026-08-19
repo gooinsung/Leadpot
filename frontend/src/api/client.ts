@@ -1986,6 +1986,23 @@ export function updateAdminUserSms(
   return request<AdminUserRow>(`/api/admin/users/${id}/sms`, { method: "PATCH", body: input });
 }
 
+// ---------- 운영자 읽기 전용 열람 (2026-08-19 정책 변경) ----------
+// 조회 전용 — 운영자가 남의 자산을 고치는 API 는 서버에 없다. 리드 열람은 서버가 감사 로그에 남긴다.
+
+export function listAdminUserForms(userId: number): Promise<FormSummary[]> {
+  return request<FormSummary[]>(`/api/admin/users/${userId}/forms`);
+}
+
+export function listAdminUserLandings(userId: number): Promise<LandingSummary[]> {
+  return request<LandingSummary[]>(`/api/admin/users/${userId}/landings`);
+}
+
+/** 리드 열람(최신순 최대 200건). formId 를 주면 그 폼 것만. */
+export function listAdminUserLeads(userId: number, formId?: number): Promise<Lead[]> {
+  const query = formId ? `?formId=${formId}` : "";
+  return request<Lead[]>(`/api/admin/users/${userId}/leads${query}`);
+}
+
 export function listAdminAudit(targetId?: number): Promise<AdminAuditRow[]> {
   const query = targetId ? `?targetId=${targetId}` : "";
   return request<AdminAuditRow[]>(`/api/admin/audit${query}`);
