@@ -20,6 +20,15 @@ function fmtDuration(sec: number | null): string {
   return mm ? `${h}시간 ${mm}분` : `${h}시간`;
 }
 
+const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** "yyyy-MM-dd" → "8/14(목)". 요일 계산은 순수 날짜 연산이라 브라우저 시간대와 무관하다. */
+function fmtDay(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return `${m}/${d}(${DOW[dow]})`;
+}
+
 /**
  * 광고주 처리속도 리포트 `/client/report`.
  * 접수→열람/상태 평균 · 미확인율 · 상태 분포. 인쇄(브라우저 PDF 저장) 지원.
@@ -64,6 +73,9 @@ export function AdvertiserReportPage() {
   }, [load]);
 
   const maxCount = report ? Math.max(1, ...report.statusCounts.map((s) => s.count)) : 1;
+  const maxDaily = report ? Math.max(1, ...report.dailyCounts.map((d) => d.count)) : 1;
+  const asResolved = report ? report.asStats.accepted + report.asStats.rejected : 0;
+  const asAcceptRate = report && asResolved > 0 ? Math.round((report.asStats.accepted / asResolved) * 100) : null;
 
   return (
     <div className="app-shell">
@@ -140,9 +152,9 @@ export function AdvertiserReportPage() {
                 <div className="ck-val" style={{ fontSize: 26 }}>{report.total.toLocaleString()}</div>
               </div>
               <div className="card card-pad">
-                <span className="ck-label">전환율</span>
+                <span className="ck-label">유효율</span>
                 <div className="ck-val" style={{ fontSize: 26 }}>
-                  {Math.round(report.conversionRate * 100)}%
+                  {Math.round(report.validRate * 100)}%
                 </div>
                 <span className="dash-sub" style={{ fontSize: 12 }}>
                   접수 {report.total}건 중 유효 {report.converted}건
@@ -157,8 +169,28 @@ export function AdvertiserReportPage() {
               </div>
             </div>
 
+            {/* 일별 접수 추이 */}
+            {report.dailyCounts.length > 0 && (
+              <div className="card card-pad" style={{ marginBottom: 16 }}>
+                <div className="card-h">일별 접수 추이</div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {report.dailyCounts.map((d) => (
+                    <div key={d.date} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span className="dash-sub" style={{ minWidth: 56, textAlign: "center", fontSize: 13 }}>
+                        {fmtDay(d.date)}
+                      </span>
+                      <div style={{ flex: 1, background: "var(--surface-2, rgba(127,127,127,0.12))", borderRadius: 6, height: 20, overflow: "hidden" }}>
+                        <div style={{ width: `${(d.count / maxDaily) * 100}%`, height: "100%", background: "var(--accent, #4f46e5)", borderRadius: 6 }} />
+                      </div>
+                      <span className="num" style={{ minWidth: 40, textAlign: "right" }}>{d.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* 상태 분포 */}
-            <div className="card card-pad">
+            <div className="card card-pad" style={{ marginBottom: 16 }}>
               <div className="card-h">상태 분포</div>
               <div style={{ display: "grid", gap: 8 }}>
                 {report.statusCounts.map((s) => (
@@ -172,8 +204,42 @@ export function AdvertiserReportPage() {
                 ))}
               </div>
               <p className="dash-sub" style={{ fontSize: 12, marginTop: 12, marginBottom: 0 }}>
-                <b>전환율</b>은 접수한 리드 중 상태가 <b>'유효'</b>인 비율입니다.
+                <b>유효율</b>은 접수한 리드 중 상태가 <b>'유효'</b>인 비율입니다. 실제 계약·수임까지
+                이어졌는지가 아니라, 이 서비스 안에서 정산 기준이 되는 상태로 확정된 비율입니다.
               </p>
+            </div>
+
+            {/* AS 요청 통계 */}
+            <div className="card card-pad">
+              <div className="card-h">AS 요청 통계</div>
+              {report.asStats.total === 0 ? (
+                <p className="dash-sub" style={{ marginTop: 0, marginBottom: 0 }}>이 기간 AS 요청이 없습니다.</p>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: 12 }}>
+                    <div className="card card-pad">
+                      <span className="ck-label">전체</span>
+                      <div className="ck-val" style={{ fontSize: 20 }}>{report.asStats.total}건</div>
+                    </div>
+                    <div className="card card-pad">
+                      <span className="ck-label">대기</span>
+                      <div className="ck-val" style={{ fontSize: 20 }}>{report.asStats.open}건</div>
+                    </div>
+                    <div className="card card-pad">
+                      <span className="ck-label">인정</span>
+                      <div className="ck-val" style={{ fontSize: 20 }}>{report.asStats.accepted}건</div>
+                    </div>
+                    <div className="card card-pad">
+                      <span className="ck-label">거부</span>
+                      <div className="ck-val" style={{ fontSize: 20 }}>{report.asStats.rejected}건</div>
+                    </div>
+                  </div>
+                  <p className="dash-sub" style={{ fontSize: 12, marginTop: 12, marginBottom: 0 }}>
+                    <b>인정</b>되면 리드가 무효로 처리되고 정산이 환급됩니다.
+                    {asAcceptRate != null && ` 처리 완료된 ${asResolved}건 중 인정 ${asAcceptRate}%.`}
+                  </p>
+                </>
+              )}
             </div>
           </>
         )}

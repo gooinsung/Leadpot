@@ -37,6 +37,8 @@ import com.leadpot.common.error.PlanLimitExceededException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
 import com.leadpot.lead.Lead;
+import com.leadpot.lead.LeadAsRequest;
+import com.leadpot.lead.LeadAsRequestRepository;
 import com.leadpot.lead.LeadNoteRepository;
 import com.leadpot.lead.LeadRepository;
 import com.leadpot.sms.PhoneNumbers;
@@ -60,6 +62,7 @@ public class AdvertiserService {
     private final AdvertiserLeadService leadService;
     private final AdvertiserAuditService audit;
     private final com.leadpot.lead.CustomLeadStatusRepository customStatusRepository;
+    private final LeadAsRequestRepository asRequestRepository;
     private final int maxFree;
     private final int maxPro;
 
@@ -73,6 +76,7 @@ public class AdvertiserService {
             AdvertiserLeadService leadService,
             AdvertiserAuditService audit,
             com.leadpot.lead.CustomLeadStatusRepository customStatusRepository,
+            LeadAsRequestRepository asRequestRepository,
             @Value("${app.advertiser.max-free}") int maxFree,
             @Value("${app.advertiser.max-pro}") int maxPro) {
         this.userRepository = userRepository;
@@ -85,6 +89,7 @@ public class AdvertiserService {
         this.leadService = leadService;
         this.audit = audit;
         this.customStatusRepository = customStatusRepository;
+        this.asRequestRepository = asRequestRepository;
         this.maxFree = maxFree;
         this.maxPro = maxPro;
     }
@@ -181,7 +186,10 @@ public class AdvertiserService {
                 : customStatusRepository.findByAdvertiserIdOrderBySortOrderAscIdAsc(advertiserId)) {
             customNames.put(s.getId(), s.getName());
         }
-        return AdvertiserReportResponse.from(leads, null, name, from, to, customNames);
+        List<LeadAsRequest> asRequests = leads.isEmpty()
+                ? List.of()
+                : asRequestRepository.findByLeadIdIn(leads.stream().map(Lead::getId).toList());
+        return AdvertiserReportResponse.from(leads, asRequests, null, name, from, to, customNames);
     }
 
     // ---------- 광고주 화면 미리보기(A7, impersonate·읽기 전용) ----------

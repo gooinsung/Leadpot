@@ -22,8 +22,13 @@ import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
 import com.leadpot.form.FormType;
+import com.leadpot.lead.CustomLeadStatus;
+import com.leadpot.lead.CustomLeadStatusRepository;
 import com.leadpot.lead.Lead;
+import com.leadpot.lead.LeadAsRequestService;
 import com.leadpot.lead.LeadRepository;
+import com.leadpot.lead.LeadStatusService;
+import com.leadpot.lead.LeadStatuses;
 
 /**
  * A7 처리속도 리포트 검증. 접수→열람/상태 평균과 미확인율이 실제 타임스탬프로 정확히 계산되는지 본다.
@@ -44,6 +49,12 @@ class AdvertiserReportTest {
     private LeadRepository leadRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private CustomLeadStatusRepository customStatusRepository;
+    @Autowired
+    private LeadStatusService statusService;
+    @Autowired
+    private LeadAsRequestService asService;
 
     private User marketer;
     private User advertiser;
@@ -81,7 +92,7 @@ class AdvertiserReportTest {
         assertThat(r.avgSecondsToStatus()).isEqualTo(300L);
         // 전환 = 유효 상태. 2건 중 1건이 유효라 50%.
         assertThat(r.converted()).isEqualTo(1);
-        assertThat(r.conversionRate()).isEqualTo(0.5);
+        assertThat(r.validRate()).isEqualTo(0.5);
         // 상태 분포: 유효 1, 신규 1(미변경은 NEW)
         Map<String, Integer> byCode = r.statusCounts().stream()
                 .collect(java.util.stream.Collectors.toMap(
@@ -102,7 +113,7 @@ class AdvertiserReportTest {
         assertThat(r.avgSecondsToStatus()).isNull();
         assertThat(r.unseenRate()).isEqualTo(0);
         assertThat(r.converted()).isZero();
-        assertThat(r.conversionRate()).isEqualTo(0);
+        assertThat(r.validRate()).isEqualTo(0);
     }
 
     @Test
@@ -120,7 +131,7 @@ class AdvertiserReportTest {
 
         assertThat(r.total()).isEqualTo(5);
         assertThat(r.converted()).isEqualTo(2);
-        assertThat(r.conversionRate()).isEqualTo(0.4);
+        assertThat(r.validRate()).isEqualTo(0.4);
     }
 
     private void valid(Lead l) {
@@ -130,6 +141,57 @@ class AdvertiserReportTest {
     private void status(Lead l, String status) {
         l.changeStatus(status, null, l.getCreatedAt().plusSeconds(60));
         leadRepository.save(l);
+    }
+
+    @Test
+    @DisplayName("커스텀 상태로 넘어간 리드는 상태 분포에 정의된 이름으로 나온다")
+    void customStatusAppearsInStatusCounts() {
+        CustomLeadStatus firstCall = customStatusRepository.save(new CustomLeadStatus(advertiser.getId(), "1차콜", 0));
+        Lead l = saveLead();
+        statusService.changeByAdvertiser(advertiser.getId(), l, LeadStatuses.CUSTOM, firstCall.getId());
+
+        AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
+
+        AdvertiserReportResponse.StatusCount custom = r.statusCounts().stream()
+                .filter(s -> s.status().equals("C" + firstCall.getId()))
+                .findFirst().orElseThrow(() -> new AssertionError("커스텀 상태가 상태 분포에 없습니다: " + r.statusCounts()));
+        assertThat(custom.label()).isEqualTo("1차콜");
+        assertThat(custom.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("일별 접수 추이는 같은 날 접수를 하나로 묶는다")
+    void dailyCountsGroupSameDay() {
+        saveLead();
+        saveLead();
+        saveLead();
+
+        AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
+
+        assertThat(r.dailyCounts()).hasSize(1);
+        assertThat(r.dailyCounts().get(0).count()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("AS 요청 통계는 대기/인정/거부를 각각 센다")
+    void asStatsCountsByOutcome() {
+        Lead open = saveLead();
+        asService.request(advertiser.getId(), open, "확인 필요", List.of());
+
+        Lead accepted = saveLead();
+        asService.request(advertiser.getId(), accepted, "결번입니다", List.of());
+        asService.resolve(marketer.getId(), accepted, true, "결번 확인");
+
+        Lead rejected = saveLead();
+        asService.request(advertiser.getId(), rejected, "허위 같습니다", List.of());
+        asService.resolve(marketer.getId(), rejected, false, "정상 접수 확인");
+
+        AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
+
+        assertThat(r.asStats().total()).isEqualTo(3);
+        assertThat(r.asStats().open()).isEqualTo(1);
+        assertThat(r.asStats().accepted()).isEqualTo(1);
+        assertThat(r.asStats().rejected()).isEqualTo(1);
     }
 
     @Test

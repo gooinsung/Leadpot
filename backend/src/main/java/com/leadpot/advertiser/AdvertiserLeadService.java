@@ -29,6 +29,8 @@ import com.leadpot.common.error.PlanLimitExceededException;
 import com.leadpot.form.Form;
 import com.leadpot.form.FormRepository;
 import com.leadpot.lead.Lead;
+import com.leadpot.lead.LeadAsRequest;
+import com.leadpot.lead.LeadAsRequestRepository;
 import com.leadpot.lead.LeadNote;
 import com.leadpot.lead.LeadNoteRepository;
 import com.leadpot.lead.LeadRepository;
@@ -68,6 +70,7 @@ public class AdvertiserLeadService {
     private final com.leadpot.lead.LeadStatusService leadStatusService;
     private final com.leadpot.lead.CustomLeadStatusRepository customStatusRepository;
     private final com.leadpot.lead.LeadAsRequestService asRequestService;
+    private final LeadAsRequestRepository asRequestRepository;
     /** 광고주 리드 내보내기 일일 횟수 상한(유출 방어). 0 이하면 무제한. */
     private final int exportDailyMax;
 
@@ -81,6 +84,7 @@ public class AdvertiserLeadService {
             com.leadpot.lead.LeadStatusService leadStatusService,
             com.leadpot.lead.CustomLeadStatusRepository customStatusRepository,
             com.leadpot.lead.LeadAsRequestService asRequestService,
+            LeadAsRequestRepository asRequestRepository,
             @Value("${app.advertiser.export-daily-max:20}") int exportDailyMax) {
         this.userRepository = userRepository;
         this.formRepository = formRepository;
@@ -90,6 +94,7 @@ public class AdvertiserLeadService {
         this.audit = audit;
         this.accessLogRepository = accessLogRepository;
         this.leadStatusService = leadStatusService;
+        this.asRequestRepository = asRequestRepository;
         this.customStatusRepository = customStatusRepository;
         this.asRequestService = asRequestService;
         this.exportDailyMax = exportDailyMax;
@@ -364,7 +369,16 @@ public class AdvertiserLeadService {
         String name = grant.getDisplayName() != null && !grant.getDisplayName().isBlank()
                 ? grant.getDisplayName()
                 : formRepository.findById(formId).map(Form::getName).orElse("리드폼");
-        return AdvertiserReportResponse.from(leads, formId, name, from, to, customNames(advertiserId));
+        return AdvertiserReportResponse.from(leads, asRequestsFor(leads), formId, name, from, to,
+                customNames(advertiserId));
+    }
+
+    /** 리포트 범위의 리드들에 걸린 AS 요청 전부(리드 하나에 여러 건일 수 있다). */
+    private List<LeadAsRequest> asRequestsFor(List<Lead> leads) {
+        if (leads.isEmpty()) {
+            return List.of();
+        }
+        return asRequestRepository.findByLeadIdIn(leads.stream().map(Lead::getId).toList());
     }
 
     /** 이 광고주의 커스텀 상태 id → 이름(보관 포함 — 리포트는 과거 리드도 그린다). */

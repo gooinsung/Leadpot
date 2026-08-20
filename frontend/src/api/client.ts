@@ -1750,7 +1750,7 @@ export function getAdvertiserLeadUpdates(formId: number, since?: string): Promis
   return request<AdvertiserLeadUpdates>(`/api/advertiser/leads/updates?formId=${formId}${qs}`);
 }
 
-/** 처리속도 리포트(A7): 접수→열람/상태 평균, 미확인율, 전환율, 상태 분포. */
+/** 처리속도 리포트(A7): 접수→열람/상태 평균, 미확인율, 유효율, 상태 분포. */
 export interface AdvertiserReport {
   formId: number;
   formName: string;
@@ -1760,13 +1760,21 @@ export interface AdvertiserReport {
   seen: number;
   unseen: number;
   unseenRate: number;
-  /** 전환(=상태가 '유효'인 리드) 건수. */
+  /** 유효(상태가 '유효'인 리드) 건수. */
   converted: number;
-  /** 접수 대비 전환 비율(0~1). 방문수와 무관하다 — 광고주에게도 보여준다. */
-  conversionRate: number;
+  /**
+   * 접수 대비 유효 비율(0~1). 방문수와 무관하다 — 광고주에게도 보여준다.
+   * ⚠️ "전환율"이 아니다(2026-08-20) — 마케터 입장의 전환(신규→유효)일 뿐, 광고주 입장의
+   * 진짜 전환(수임 완료 등)은 이 서비스가 모르는 값이라 이름을 유효율로 분리했다.
+   */
+  validRate: number;
   avgSecondsToSeen: number | null;
   avgSecondsToStatus: number | null;
   statusCounts: { status: string; label: string; count: number }[];
+  /** 일별 접수 건수(날짜순, 접수 없는 날은 없음). */
+  dailyCounts: { date: string; count: number }[];
+  /** AS 요청 통계 — total 은 리드 수가 아니라 요청 건수(거부 후 재요청 시 리드 하나에 여러 건). */
+  asStats: { total: number; open: number; accepted: number; rejected: number };
 }
 export function getAdvertiserReport(formId: number, from?: string, to?: string): Promise<AdvertiserReport> {
   const p = new URLSearchParams({ formId: String(formId) });

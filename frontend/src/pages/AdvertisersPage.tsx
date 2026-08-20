@@ -643,8 +643,8 @@ export function AdvertisersPage() {
                       <div className="ck-val" style={{ fontSize: 22 }}>{report.total.toLocaleString()}</div>
                     </div>
                     <div className="card card-pad">
-                      <span className="ck-label">전환율</span>
-                      <div className="ck-val" style={{ fontSize: 22 }}>{Math.round(report.conversionRate * 100)}%</div>
+                      <span className="ck-label">유효율</span>
+                      <div className="ck-val" style={{ fontSize: 22 }}>{Math.round(report.validRate * 100)}%</div>
                       <span className="dash-sub" style={{ fontSize: 12 }}>유효 {report.converted}건</span>
                     </div>
                     <div className="card card-pad">
