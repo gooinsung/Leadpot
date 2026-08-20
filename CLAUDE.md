@@ -48,41 +48,48 @@
 
 ---
 
-## 2. 기술 스택 (확정)
+## 2. 기술 스택 (2026-08-20 기준 실제 구성)
 
-| 구성 | 선택 | 배포처(무료 시작) |
+> ⚠️ 아래 "배포처"는 **지금 실제로 도는 곳**이다. 최초 기획(§9 의사결정 로그)과는 다르다 —
+> 백엔드·DB는 이미 이전됐고, 프론트만 아직 과거 계획(Oracle VM)에 남아 있다. 상세·실측치는
+> [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C, 남은 이전 단계는 [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md).
+
+| 구성 | 선택 | 지금 배포처 |
 |---|---|---|
-| 프론트엔드 | **React + Vite (TypeScript) SPA** | ~~Cloudflare Pages~~ → **Oracle VM 의 Nginx** (GitHub Actions 가 rsync, §6) |
-| 백엔드 | **Spring Boot (REST API) + Docker** | Oracle Cloud "Always Free" VM |
-| DB | **PostgreSQL** | ~~Oracle VM 내 Docker 컨테이너~~ → **Neon**(외부 호스팅, 무료) |
+| 프론트엔드 | **React + Vite (TypeScript) SPA** | **Oracle VM 의 Nginx**(`app.lead-pot.com`, GitHub Actions 가 rsync, §6) — 추후 **Railway 또는 Cloudflare Pages**로 이전 예정(미정, 둘 중 하나) |
+| 백엔드 | **Spring Boot (REST API) + Docker** | **Railway**(싱가포르, `api.lead-pot.com`) — 2026-08-09 Oracle VM에서 컷오버 완료 |
+| DB | **PostgreSQL** | **Neon**(외부 호스팅, 무료) |
 | 파일 저장 | 초기: VM 디스크 → 후기: Cloudflare R2 / S3 | — |
 | 인증 | **JWT** (Spring Security + BCrypt) | — |
 | 결제(후기) | PortOne(아임포트) / 토스페이먼츠 | — |
 
 **이식성 원칙 (중요)**: 백엔드는 Docker 컨테이너로, DB는 표준 PostgreSQL로 유지한다.
 → 나중에 유료 VPS(Hetzner)·Google Cloud Run·AWS 등 어디로든 코드 수정 거의 없이 이전 가능해야 한다.
-특정 플랫폼 전용 기능(락인)에 의존하지 않는다.
+특정 플랫폼 전용 기능(락인)에 의존하지 않는다. (실제로 백엔드·DB가 Oracle VM → Railway/Neon 으로
+코드 거의 안 건드리고 옮겨간 것이 이 원칙 덕분이다.)
 
 ---
 
-## 3. 아키텍처
+## 3. 아키텍처 (2026-08-20 기준 실제 구성)
 
 ```
 [방문자 / 사용자]
-   │
-   ▼
-React SPA ───────────── Cloudflare Pages (정적 자산, 무료)
-   │  HTTPS API 호출 (api.도메인)
-   ▼
-Cloudflare DNS(프록시, 무료 SSL) ── Oracle VM
-                                     ├─ Nginx (리버스 프록시)
-                                     ├─ Spring Boot (Docker) :8080
-                                     └─ PostgreSQL (Docker)
+        │
+        ▼
+Cloudflare DNS(프록시, 무료 SSL)
+        │
+        ├─ app.lead-pot.com ─▶ Oracle VM Nginx ─▶ React SPA(정적 파일)
+        │                        (추후 Railway 또는 Cloudflare Pages로 이전 예정)
+        │
+        └─ api.lead-pot.com ─▶ Railway(싱가포르) ─▶ Spring Boot(Docker)
+                                                          │
+                                                          ▼
+                                              Neon(PostgreSQL, 외부 호스팅)
 ```
 
-- 프론트: `app.도메인` (Cloudflare Pages) / 백엔드: `api.도메인` (Oracle VM)
+- 프론트: `app.lead-pot.com` (Oracle VM Nginx) / 백엔드: `api.lead-pot.com` (Railway) / DB: Neon
 - 서로 다른 오리진 → **CORS 설정 필수** (허용 오리진을 환경변수로 관리)
-- 시크릿/키는 **절대 코드·git에 커밋하지 않는다.** `.env`(git 무시) 또는 배포 환경변수로만 관리.
+- 시크릿/키는 **절대 코드·git에 커밋하지 않는다.** 프론트·VM 은 `.env`(git 무시), 백엔드는 **Railway Variables**로만 관리(§6).
 
 ---
 
@@ -160,9 +167,11 @@ npm run dev
 > - **push 하면 VM(Actions)과 Railway 둘 다 배포된다**(이전 기간 의도). 실제 API 트래픽은 Railway 만 받는다.
 > - ⚠️ **시크릿을 SSH 로 고치지 말 것.** 백엔드 환경변수는 이제 **Railway Variables** 다.
 >   아래 §6 본문의 "VM `.env` 를 SSH 로 편집" 설명은 **프론트·VM 에만 해당**하는 옛 절차다.
-> - 남은 단계(A5~C: 프론트 → Cloudflare Pages, VM 종료)는 [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md).
+> - 남은 단계(프론트 → **Railway 또는 Cloudflare Pages**로 이전, 어느 쪽인지 미정 · VM 종료)는
+>   [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) — 이 문서는 아직 Cloudflare Pages 단독 기준으로
+>   쓰여 있어 이전 대상이 정해지면 함께 갱신해야 한다(2026-08-20 사용자: Railway 도 후보로 고려 중).
 >   **VM 을 내리는 날 Railway 에서 `APP_LEAD_AUTO_APPROVE_ENABLED=true` 로 켜는 것을 잊지 말 것** ⭐
->   전부 끝나면 이 §6 과 §2·§3 을 전면 갱신한다.
+>   §2·§3 은 2026-08-20 에 실제 구성으로 갱신 완료 — 프론트 이전이 끝나면 이 §6 표와 §2·§3 을 다시 갱신한다.
 
 **`main` 에 push 하면 아래 두 워크플로가 경로별로 자동 실행된다(+ Railway 가 백엔드를 따로 배포한다). 수동 배포는 필요 없다.**
 
