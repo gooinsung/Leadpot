@@ -16,6 +16,7 @@ export interface PixelConfig {
   kakao?: string; // Kakao 픽셀 트랙 ID
   daangn?: string; // 당근(Karrot) 픽셀 ID
   daangnEvent?: string; // 당근 전환 이벤트(Purchase | Lead | SubmitApplication), 기본 Purchase
+  toss?: string; // 토스애즈 전환 코드(픽셀 ID)
 }
 
 function val(cfg: unknown, key: string): string {
@@ -45,7 +46,8 @@ export function initPixels(cfg: unknown): void {
   const tiktok = val(cfg, "tiktok");
   const kakao = val(cfg, "kakao");
   const daangn = val(cfg, "daangn");
-  if (!(google || googleAds || meta || tiktok || kakao || daangn)) return;
+  const toss = val(cfg, "toss");
+  if (!(google || googleAds || meta || tiktok || kakao || daangn || toss)) return;
   initialized = true;
 
   const w = window as any;
@@ -142,6 +144,21 @@ export function initPixels(cfg: unknown): void {
       w.karrotPixel.track("ViewPage");
     } catch { /* ignore */ }
   }
+
+  // 토스애즈 픽셀. 사전 스텁 큐 없이 SDK 가 window.TossPixel 을 직접 정의하는 방식이라
+  // (카카오와 같은 패턴) onload 뒤에만 호출한다 — 그 전에 리드가 제출되면 firePixelLead 쪽에서
+  // 존재 여부만 확인하고 조용히 건너뛴다.
+  if (toss) {
+    try {
+      const s = d.createElement("script");
+      s.async = true;
+      s.src = "https://static.toss.im/lex/v1.js";
+      s.onload = function () {
+        try { w.TossPixel && w.TossPixel(toss).pageView(); } catch { /* ignore */ }
+      };
+      d.head.appendChild(s);
+    } catch { /* ignore */ }
+  }
 }
 
 /** 리드 제출 성공 시: 각 플랫폼 전환(Lead) 이벤트 발사. */
@@ -154,6 +171,7 @@ export function firePixelLead(cfg: unknown): void {
   const tiktok = val(cfg, "tiktok");
   const kakao = val(cfg, "kakao");
   const daangn = val(cfg, "daangn");
+  const toss = val(cfg, "toss");
   // 메타도 전환 이벤트를 리드폼별로 고를 수 있다(잠재고객/가입완료/신청서/문의/예약).
   // 미설정이면 Lead — components/PixelFields.tsx 의 META_EVENT_DEFAULT 와 같아야 한다.
   const metaEvent = val(cfg, "metaEvent") || "Lead";
@@ -167,4 +185,7 @@ export function firePixelLead(cfg: unknown): void {
   // 미설정이면 Purchase — components/PixelFields.tsx 의 DAANGN_EVENT_DEFAULT 와 같아야 한다.
   const daangnEvent = val(cfg, "daangnEvent") || "Purchase";
   try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track(daangnEvent); } catch { /* ignore */ }
+  // 토스는 이벤트 선택 없이 잠재고객 수집(LEAD_COLLECTION, 메서드명 lead())으로 고정 —
+  // 우리 리드폼 제출과 정확히 대응된다. (공식 문서: toss-ads.gitbook.io/guide/tracking/tosspixel)
+  try { if (toss && w.TossPixel) w.TossPixel(toss).lead(); } catch { /* ignore */ }
 }
