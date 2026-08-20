@@ -7,6 +7,7 @@ const PLATFORMS: { key: string; label: string; ph: string }[] = [
   { key: "tiktok", label: "틱톡 픽셀 ID", ph: "예: CXXXXXXXXXXXXXXXXXXX" },
   { key: "kakao", label: "카카오 픽셀 ID", ph: "예: 1234567890123456789" },
   { key: "daangn", label: "당근 픽셀 ID", ph: "당근 비즈니스 픽셀 ID" },
+  { key: "toss", label: "토스애즈 전환 코드", ph: "토스애즈 광고주센터에서 발급받은 전환 코드" },
 ];
 
 /** 칩에 쓸 짧은 이름 — 위 label 은 입력칸용이라 길다. */
@@ -17,6 +18,7 @@ const SHORT: Record<string, string> = {
   tiktok: "틱톡",
   kakao: "카카오",
   daangn: "당근",
+  toss: "토스",
 };
 
 /**
@@ -183,7 +185,7 @@ export function PixelFields({
       <p className="dash-sub" style={{ fontSize: 12, marginTop: 10 }}>
         선택한 픽셀은 공개 페이지에 삽입되어 <b>방문(PageView)</b>과 <b>리드 제출 시 전환</b>을 각 플랫폼에 전송합니다.
         전환 이벤트를 고를 수 있는 곳은 메타·당근뿐입니다 — 구글은 <code>generate_lead</code>(+Ads 전환라벨),
-        틱톡은 <code>SubmitForm</code>, 카카오는 가입완료로 고정 전송됩니다.
+        틱톡은 <code>SubmitForm</code>, 카카오는 가입완료, 토스는 잠재고객 수집(leadCollection)으로 고정 전송됩니다.
         <br />
         ⚠️ 미리보기 주소(<code>/p/…</code>)에서는 픽셀이 발사되지 않습니다. 테스트는 공개 URL에서 하세요.
       </p>
