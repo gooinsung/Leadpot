@@ -268,6 +268,15 @@ code {
 .field .req {
   color: var(--rose);
 }
+.field-desc {
+  color: var(--muted);
+  font-size: 13px;
+  margin: -2px 0 2px;
+}
+.field-desc.emphasis {
+  color: var(--rose);
+  font-weight: 700;
+}
 /* 리디자인(가이드 §2): 입력·셀렉트는 pill(라운드 999px), textarea 만 --radius-sm(여러 줄이라 pill 은 어색). */
 .input {
   font: inherit;

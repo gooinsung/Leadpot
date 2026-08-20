@@ -328,6 +328,9 @@ function LiveField({ block, idx, value, onChange }: { block: FormBlock; idx: num
       <label htmlFor={`fld-${idx}`}>
         {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
       </label>
+      {(block.content?.description as string) && (
+        <p className={`field-desc${block.content?.descriptionEmphasis ? " emphasis" : ""}`}>{block.content?.description as string}</p>
+      )}
       {type === "textarea" ? (
         <textarea id={`fld-${idx}`} className="input" rows={3} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       ) : type === "select" ? (

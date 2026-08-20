@@ -29,6 +29,29 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-08-20 — **BASIC 리드폼 항목별 설명 문구(C3) + 문서 정정**
+>
+> 클라우드 세션(웹). 사용자 요청 2건:
+>
+> 1. **BACKLOG.md H3(카카오 알림톡) 체크 정정** — 코드 주석(`NotificationService.notifyAsRequest`,
+>    2026-08-10 작성)만 보고 "미착수"로 잘못 안내했었다. 실제로는 하루 뒤(2026-08-11) 브랜치
+>    `feature/alimtalk-notify`(M7)에서 **마케터·광고주 접수 알림을 알림톡으로 전환 완료**됨
+>    (`SolapiSmsSender.sendAlimtalk`·`SmsService.useAlimtalk`). BACKLOG H3 `[x]`로 정정.
+>    ⚠️ **AS(이의) 요청 알림만은 아직 문자 채널**로 남아있을 수 있음(주석이 알림톡 전환 하루 전 것이라
+>    갱신 안 됐을 가능성) — 필요하면 별도 확인.
+> 2. **C3. 항목별 설명 문구(BASIC)** 신규 구현 — FIELD 블록에 라벨 밑에 붙는 설명(선택) 입력 +
+>    '강조하기' 체크박스(켜면 빨간 굵은 글씨). 완전히 프론트만의 변경(백엔드 `content` 컬럼이 이미
+>    JSONB 자유 형식이라 스키마 변경 없음):
+>    - `content.description`(문자열) · `content.descriptionEmphasis`(불리언)
+>    - 편집: `FormEditPage.tsx` `BlockFields` FIELD 케이스에 입력칸 추가
+>    - 렌더: `PublicFormView.tsx` `LiveField`에 `.field-desc`/`.field-desc.emphasis`(`styles/base.css` 신설)
+>    - STEP 폼의 연락처 블록도 같은 `LiveField`를 재사용하므로 자동으로 같이 적용됨
+>    - 검증: `npx tsc --noEmit` 통과 · `npx vitest run` 81개 전부 통과. **브라우저 실검증은 아직 안 함.**
+>
+> **다음 후보**: 브라우저에서 실제로 설명 입력→저장→공개 폼에 표시되는지 확인 · AS요청 알림톡 채널 확인.
+>
+> ---
+>
 > ## ✅ 2026-08-19 — **마케터 비밀번호 재설정 + 운영자 읽기 전용 열람 (정책 변경) + 부트스트랩 버그 수정**
 >
 > wincube PC 세션. 어드민 페이지 1차 범위(사용자 결정): ① 로그인 화면 비밀번호 재설정 ② 운영자가
