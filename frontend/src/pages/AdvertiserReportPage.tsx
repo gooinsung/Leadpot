@@ -29,6 +29,31 @@ function fmtDay(dateStr: string): string {
   return `${m}/${d}(${DOW[dow]})`;
 }
 
+const TREND_TITLE: Record<AdvertiserReport["trendGranularity"], string> = {
+  DAY: "일별 접수 추이",
+  WEEK: "주별 접수 추이",
+  MONTH: "월별 접수 추이",
+};
+
+/**
+ * 접수 추이 한 구간의 라벨. period 형식은 granularity를 따른다(서버가 기간 길이에 맞춰 자동으로
+ * 단위를 넓힌다 — 31일 이하 일별, 180일 이하 주별, 그 이상 월별. 2026-08-20).
+ */
+function fmtTrendPeriod(period: string, granularity: AdvertiserReport["trendGranularity"]): string {
+  if (granularity === "MONTH") {
+    const [y, m] = period.split("-").map(Number);
+    return `${y}.${m}`;
+  }
+  if (granularity === "WEEK") {
+    const [y, m, d] = period.split("-").map(Number);
+    const start = new Date(Date.UTC(y, m - 1, d));
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return `${m}/${d}~${end.getUTCMonth() + 1}/${end.getUTCDate()}`;
+  }
+  return fmtDay(period);
+}
+
 /**
  * 광고주 처리속도 리포트 `/client/report`.
  * 접수→열람/상태 평균 · 미확인율 · 상태 분포. 인쇄(브라우저 PDF 저장) 지원.
@@ -73,7 +98,7 @@ export function AdvertiserReportPage() {
   }, [load]);
 
   const maxCount = report ? Math.max(1, ...report.statusCounts.map((s) => s.count)) : 1;
-  const maxDaily = report ? Math.max(1, ...report.dailyCounts.map((d) => d.count)) : 1;
+  const maxTrend = report ? Math.max(1, ...report.trendCounts.map((d) => d.count)) : 1;
   const asResolved = report ? report.asStats.accepted + report.asStats.rejected : 0;
   const asAcceptRate = report && asResolved > 0 ? Math.round((report.asStats.accepted / asResolved) * 100) : null;
 
@@ -169,18 +194,18 @@ export function AdvertiserReportPage() {
               </div>
             </div>
 
-            {/* 일별 접수 추이 */}
-            {report.dailyCounts.length > 0 && (
+            {/* 접수 추이 — 기간이 길수록 서버가 일→주→월 단위로 자동으로 넓힌다 */}
+            {report.trendCounts.length > 0 && (
               <div className="card card-pad" style={{ marginBottom: 16 }}>
-                <div className="card-h">일별 접수 추이</div>
+                <div className="card-h">{TREND_TITLE[report.trendGranularity]}</div>
                 <div style={{ display: "grid", gap: 8 }}>
-                  {report.dailyCounts.map((d) => (
-                    <div key={d.date} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="dash-sub" style={{ minWidth: 56, textAlign: "center", fontSize: 13 }}>
-                        {fmtDay(d.date)}
+                  {report.trendCounts.map((d) => (
+                    <div key={d.period} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span className="dash-sub" style={{ minWidth: 72, textAlign: "center", fontSize: 13 }}>
+                        {fmtTrendPeriod(d.period, report.trendGranularity)}
                       </span>
                       <div style={{ flex: 1, background: "var(--surface-2, rgba(127,127,127,0.12))", borderRadius: 6, height: 20, overflow: "hidden" }}>
-                        <div style={{ width: `${(d.count / maxDaily) * 100}%`, height: "100%", background: "var(--accent, #4f46e5)", borderRadius: 6 }} />
+                        <div style={{ width: `${(d.count / maxTrend) * 100}%`, height: "100%", background: "var(--accent, #4f46e5)", borderRadius: 6 }} />
                       </div>
                       <span className="num" style={{ minWidth: 40, textAlign: "right" }}>{d.count}</span>
                     </div>

@@ -1,7 +1,9 @@
 package com.leadpot.advertiser.dto;
 
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -43,18 +45,30 @@ public record AdvertiserReportResponse(
         Long avgSecondsToSeen,
         Long avgSecondsToStatus,
         List<StatusCount> statusCounts,
-        List<DailyCount> dailyCounts,
+        List<TrendCount> trendCounts,
+        String trendGranularity,
         AsStats asStats) {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter DAY_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(KST);
+    private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM").withZone(KST);
+    /** 존(zone) 없는 포맷 — 이미 KST로 변환된 {@link LocalDate}(주 단위 버킷의 월요일)를 찍을 때 쓴다. */
+    private static final DateTimeFormatter LOCAL_DAY_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /** 기간이 길어지면 막대가 감당 안 되게 많아지므로 자동으로 단위를 넓힌다(2026-08-20 사용자 결정). */
+    public enum TrendGranularity {
+        DAY, WEEK, MONTH
+    }
 
     /** 상태별 건수(라벨·코드·건수). 화면 표·색상에 쓴다. */
     public record StatusCount(String status, String label, int count) {
     }
 
-    /** 일별 접수 건수(날짜순, KST 기준 yyyy-MM-dd). 접수가 없는 날은 만들지 않는다(빈 막대 X). */
-    public record DailyCount(String date, int count) {
+    /**
+     * 접수 추이 한 구간의 건수. {@code period} 의 형식은 {@link #trendGranularity} 를 따른다 —
+     * DAY="yyyy-MM-dd", WEEK="yyyy-MM-dd"(그 주 월요일), MONTH="yyyy-MM". 접수 없는 구간은 만들지 않는다.
+     */
+    public record TrendCount(String period, int count) {
     }
 
     /**
@@ -88,8 +102,9 @@ public record AdvertiserReportResponse(
             counts.put(e.getKey(), 0);
             labels.put(e.getKey(), e.getValue());
         }
-        // 날짜순 정렬을 위해 TreeMap(문자열 yyyy-MM-dd 는 사전순=날짜순).
-        Map<String, Integer> daily = new TreeMap<>();
+        TrendGranularity granularity = pickGranularity(leads);
+        // 구간순 정렬을 위해 TreeMap(yyyy-MM-dd·yyyy-MM 은 문자열 사전순=시간순).
+        Map<String, Integer> trend = new TreeMap<>();
         for (Lead l : leads) {
             String key = l.statusKey();
             counts.merge(key, 1, Integer::sum);
@@ -108,7 +123,7 @@ public record AdvertiserReportResponse(
                 statusN++;
             }
             if (created != null) {
-                daily.merge(DAY_FMT.format(created), 1, Integer::sum);
+                trend.merge(bucketKey(created, granularity), 1, Integer::sum);
             }
         }
         int seen = seenN;
@@ -121,13 +136,57 @@ public record AdvertiserReportResponse(
         List<StatusCount> statusCounts = counts.entrySet().stream()
                 .map(e -> new StatusCount(e.getKey(), labels.getOrDefault(e.getKey(), e.getKey()), e.getValue()))
                 .toList();
-        List<DailyCount> dailyCounts = daily.entrySet().stream()
-                .map(e -> new DailyCount(e.getKey(), e.getValue()))
+        List<TrendCount> trendCounts = trend.entrySet().stream()
+                .map(e -> new TrendCount(e.getKey(), e.getValue()))
                 .toList();
         AsStats asStats = asRequests.isEmpty() ? AsStats.EMPTY : summarizeAs(asRequests);
 
         return new AdvertiserReportResponse(formId, name, from, to, total, seen, unseen, unseenRate,
-                converted, validRate, avgSeen, avgStatus, statusCounts, dailyCounts, asStats);
+                converted, validRate, avgSeen, avgStatus, statusCounts, trendCounts, granularity.name(), asStats);
+    }
+
+    /**
+     * 기간이 길수록 막대 수가 감당 안 되게 늘어나므로 실제 리드가 걸친 기간(최초~최근 접수)을 보고
+     * 자동으로 단위를 넓힌다 — 31일 이하는 일별, 180일(약 6개월) 이하는 주별, 그보다 길면 월별.
+     */
+    private static TrendGranularity pickGranularity(List<Lead> leads) {
+        Instant min = null;
+        Instant max = null;
+        for (Lead l : leads) {
+            Instant c = l.getCreatedAt();
+            if (c == null) {
+                continue;
+            }
+            if (min == null || c.isBefore(min)) {
+                min = c;
+            }
+            if (max == null || c.isAfter(max)) {
+                max = c;
+            }
+        }
+        if (min == null) {
+            return TrendGranularity.DAY;
+        }
+        long spanDays = Duration.between(min, max).toDays();
+        if (spanDays > 180) {
+            return TrendGranularity.MONTH;
+        }
+        if (spanDays > 31) {
+            return TrendGranularity.WEEK;
+        }
+        return TrendGranularity.DAY;
+    }
+
+    /** 접수 시각을 단위에 맞는 구간 키로 변환한다. 주 단위는 그 주의 월요일(KST) 날짜를 키로 쓴다. */
+    private static String bucketKey(Instant created, TrendGranularity granularity) {
+        return switch (granularity) {
+            case MONTH -> MONTH_FMT.format(created);
+            case WEEK -> {
+                LocalDate monday = created.atZone(KST).toLocalDate().with(DayOfWeek.MONDAY);
+                yield LOCAL_DAY_FMT.format(monday);
+            }
+            case DAY -> DAY_FMT.format(created);
+        };
     }
 
     private static AsStats summarizeAs(List<LeadAsRequest> asRequests) {

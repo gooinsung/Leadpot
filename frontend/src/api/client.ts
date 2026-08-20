@@ -1771,8 +1771,13 @@ export interface AdvertiserReport {
   avgSecondsToSeen: number | null;
   avgSecondsToStatus: number | null;
   statusCounts: { status: string; label: string; count: number }[];
-  /** 일별 접수 건수(날짜순, 접수 없는 날은 없음). */
-  dailyCounts: { date: string; count: number }[];
+  /**
+   * 접수 추이(구간순, 접수 없는 구간은 없음). period 형식은 trendGranularity를 따른다 —
+   * DAY="yyyy-MM-dd", WEEK="yyyy-MM-dd"(그 주 월요일), MONTH="yyyy-MM".
+   * 기간이 길수록 막대가 안 늘어나게 서버가 자동으로 단위를 넓힌다(2026-08-20).
+   */
+  trendCounts: { period: string; count: number }[];
+  trendGranularity: "DAY" | "WEEK" | "MONTH";
   /** AS 요청 통계 — total 은 리드 수가 아니라 요청 건수(거부 후 재요청 시 리드 하나에 여러 건). */
   asStats: { total: number; open: number; accepted: number; rejected: number };
 }

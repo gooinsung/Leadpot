@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.Map;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.persistence.EntityManager;
 
 import com.leadpot.advertiser.dto.AdvertiserReportResponse;
 import com.leadpot.advertiser.dto.GrantUpdateRequest;
@@ -55,6 +59,8 @@ class AdvertiserReportTest {
     private LeadStatusService statusService;
     @Autowired
     private LeadAsRequestService asService;
+    @Autowired
+    private EntityManager em;
 
     private User marketer;
     private User advertiser;
@@ -160,16 +166,60 @@ class AdvertiserReportTest {
     }
 
     @Test
-    @DisplayName("일별 접수 추이는 같은 날 접수를 하나로 묶는다")
-    void dailyCountsGroupSameDay() {
+    @DisplayName("접수 기간이 짧으면(31일 이하) 일별로 묶고, 같은 날 접수는 하나로 합친다")
+    void trendIsDailyForShortSpan() {
         saveLead();
         saveLead();
         saveLead();
 
         AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
 
-        assertThat(r.dailyCounts()).hasSize(1);
-        assertThat(r.dailyCounts().get(0).count()).isEqualTo(3);
+        assertThat(r.trendGranularity()).isEqualTo("DAY");
+        assertThat(r.trendCounts()).hasSize(1);
+        assertThat(r.trendCounts().get(0).count()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("접수 기간이 31일을 넘으면 주별로 묶는다(그 주 월요일 기준)")
+    void trendIsWeeklyForMediumSpan() {
+        // 화요일 2건 + 40일 뒤 목요일 1건 → 스팬 40일이라 주별. 같은 주 화/목은 한 구간으로 합쳐진다.
+        backdatedLead(Instant.parse("2026-01-06T03:00:00Z")); // 화요일(KST 낮)
+        backdatedLead(Instant.parse("2026-01-06T05:00:00Z")); // 같은 화요일
+        backdatedLead(Instant.parse("2026-02-15T03:00:00Z")); // 40일 뒤 일요일
+
+        AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
+
+        assertThat(r.trendGranularity()).isEqualTo("WEEK");
+        assertThat(r.trendCounts()).hasSize(2);
+        assertThat(r.trendCounts().get(0).period()).isEqualTo("2026-01-05"); // 그 주 월요일
+        assertThat(r.trendCounts().get(0).count()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("접수 기간이 180일을 넘으면 월별로 묶는다")
+    void trendIsMonthlyForLongSpan() {
+        backdatedLead(Instant.parse("2026-01-10T03:00:00Z"));
+        backdatedLead(Instant.parse("2026-01-20T03:00:00Z")); // 같은 달
+        backdatedLead(Instant.parse("2026-08-10T03:00:00Z")); // 7개월 뒤
+
+        AdvertiserReportResponse r = leadService.report(advertiser.getId(), form.getId(), null, null);
+
+        assertThat(r.trendGranularity()).isEqualTo("MONTH");
+        assertThat(r.trendCounts()).hasSize(2);
+        assertThat(r.trendCounts().get(0).period()).isEqualTo("2026-01");
+        assertThat(r.trendCounts().get(0).count()).isEqualTo(2);
+    }
+
+    /** 접수시각을 강제로 과거로 되돌린 리드 — LeadAutoApproveTest 와 같은 패턴(JPQL 갱신 + 컨텍스트 비우기). */
+    private Lead backdatedLead(Instant createdAt) {
+        Lead l = saveLead();
+        em.flush();
+        em.createQuery("update Lead l set l.createdAt = :at where l.id = :id")
+                .setParameter("at", createdAt)
+                .setParameter("id", l.getId())
+                .executeUpdate();
+        em.clear();
+        return l;
     }
 
     @Test
