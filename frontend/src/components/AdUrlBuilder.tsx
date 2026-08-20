@@ -45,7 +45,7 @@ const LABELS: Record<AdParamKey, { label: string; placeholder: string; hint: str
  * 한 번 오타가 나면 나중에 되돌릴 방법이 없다(이미 접수된 리드에 그 값이 박힌다).
  * 자유 입력도 계속 가능하다 — 목록에 없는 매체를 쓸 수 있어야 하므로 강제하지 않는다.
  */
-const MEDIA_PRESETS = ["meta", "google", "danggun", "kakao", "naver", "tiktok"];
+const MEDIA_PRESETS = ["meta", "google", "danggun", "kakao", "naver", "tiktok", "toss"];
 
 type Values = Partial<Record<AdParamKey, string>>;
 
