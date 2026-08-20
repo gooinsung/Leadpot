@@ -173,6 +173,25 @@ class AdvertiserBillingTest {
     }
 
     @Test
+    @DisplayName("유효로 확정된 리드는 광고주가 직접 상태를 못 바꾼다 — AS 요청은 계속 가능하다(2026-08-20)")
+    void validLocksAdvertiserPlainChangeButAsRequestStillWorks() {
+        Lead l = lead();
+        statusService.changeByMarketer(marketer.getId(), l, LeadStatuses.VALID, null);
+
+        assertThatThrownBy(() -> statusService.changeByAdvertiser(advertiser.getId(), l, LeadStatuses.NEW, null))
+                .isInstanceOf(InvalidSubmissionException.class);
+
+        // 마케터는 그대로 바꿀 수 있다 — 잠기는 건 광고주 쪽뿐.
+        statusService.changeByMarketer(marketer.getId(), l, LeadStatuses.NEW, null);
+        assertThat(l.getStatus()).isEqualTo(LeadStatuses.NEW);
+        statusService.changeByMarketer(marketer.getId(), l, LeadStatuses.VALID, null);
+
+        // 직접 변경은 막히지만 AS 요청으로 마케터에게 넘기는 건 여전히 가능하다.
+        asService.request(advertiser.getId(), l, "결번입니다", List.of());
+        assertThat(l.getStatus()).isEqualTo(LeadStatuses.AS_REQUESTED);
+    }
+
+    @Test
     @DisplayName("AS 요청은 사유가 필수고, 처리 대기 중 중복 접수는 거부된다")
     void asRequestValidation() {
         Lead l = lead();

@@ -21,6 +21,10 @@
 }
 .lead-card {
   padding: 16px 18px;
+  cursor: pointer;
+}
+.lead-card:hover {
+  background: var(--surface-2);
 }
 .lead-head {
   display: flex;

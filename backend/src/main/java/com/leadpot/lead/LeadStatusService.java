@@ -55,7 +55,14 @@ public class LeadStatusService {
         apply(lead, status, customStatusId, marketerId, "상태 변경(마케터)");
     }
 
-    /** 광고주의 상태 변경. 무효는 넣지도 빼지도 못하고, AS 대기 중에도 잠긴다(사용자 확정). */
+    /**
+     * 광고주의 상태 변경. 무효는 넣지도 빼지도 못하고, AS 대기 중에도 잠긴다(사용자 확정).
+     *
+     * <p>⚠️ <b>유효로 확정된 뒤에는 광고주가 직접 상태를 바꿀 수 없다(2026-08-20 사용자 확정)</b> —
+     * 유효는 과금 기준이라 광고주가 마음대로 되돌리면(예: 유효 → 신규) 환급이 근거 없이 발생한다.
+     * 되돌리고 싶으면 AS 요청으로 마케터에게 넘긴다({@link LeadAsRequestService}) — 인정되면 무효+환급,
+     * 거부되면 유효 유지로 마케터가 판정한다.
+     */
     @Transactional
     public void changeByAdvertiser(Long advertiserId, Lead lead, String status, Long customStatusId) {
         if (!LeadStatuses.ADVERTISER_SETTABLE.contains(status)) {
@@ -68,6 +75,9 @@ public class LeadStatusService {
         }
         if (LeadStatuses.AS_REQUESTED.equals(lead.getStatus())) {
             throw new InvalidSubmissionException("AS 처리 대기 중인 리드입니다. 마케터의 처리 결과를 기다려주세요.");
+        }
+        if (LeadStatuses.VALID.equals(lead.getStatus())) {
+            throw new InvalidSubmissionException("이미 유효로 확정된 리드입니다. 상태를 바꾸려면 AS 요청을 이용해주세요.");
         }
         apply(lead, status, customStatusId, advertiserId, "상태 변경(광고주)");
     }

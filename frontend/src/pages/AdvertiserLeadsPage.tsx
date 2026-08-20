@@ -230,8 +230,11 @@ export function AdvertiserLeadsPage() {
   const currentForm = forms.find((f) => f.formId === formId) ?? null;
   const shown = leads;
 
-  // 전체선택 + 일괄 상태변경 (2026-08-08). 잠긴 리드(무효·AS대기)는 건너뛴다.
-  const changeable = shown.filter((l) => l.statusKey !== "INVALID" && l.statusKey !== "AS_REQUESTED");
+  // 전체선택 + 일괄 상태변경 (2026-08-08). 잠긴 리드(무효·AS대기·유효)는 건너뛴다.
+  // 유효는 2026-08-20 사용자 확정으로 광고주가 직접 못 바꾼다 — AS 요청으로만.
+  const changeable = shown.filter(
+    (l) => l.statusKey !== "INVALID" && l.statusKey !== "AS_REQUESTED" && l.statusKey !== "VALID",
+  );
   const sel = useSelection(changeable.map((l) => l.id));
   const [bulkBusy, setBulkBusy] = useState(false);
   async function onBulkStatus(statusKey: string) {
@@ -487,9 +490,15 @@ export function AdvertiserLeadsPage() {
             <div className="leads">
               {shown.map((lead) => {
                 const phone = phoneOf(lead);
-                const selectable = lead.statusKey !== "INVALID" && lead.statusKey !== "AS_REQUESTED";
+                const selectable =
+                  lead.statusKey !== "INVALID" && lead.statusKey !== "AS_REQUESTED" && lead.statusKey !== "VALID";
                 return (
-                  <div className="card card-pad lead-card" key={lead.id}>
+                  <div
+                    className="card card-pad lead-card"
+                    key={lead.id}
+                    onClick={() => setOpenId(lead.id)}
+                    title="클릭하면 상세가 열립니다"
+                  >
                     <div className="lead-head">
                       <span className="lead-time" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {currentForm?.canStatus && selectable && (
@@ -497,6 +506,7 @@ export function AdvertiserLeadsPage() {
                             type="checkbox"
                             checked={sel.selected.has(lead.id)}
                             onChange={() => sel.toggle(lead.id)}
+                            onClick={(e) => e.stopPropagation()}
                             aria-label="리드 선택"
                             style={{ width: 16, height: 16, accentColor: "var(--indigo)" }}
                           />
@@ -506,18 +516,23 @@ export function AdvertiserLeadsPage() {
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                         {/* 광고주의 첫 행동은 대부분 '전화 걸기' — 그린 soft pill + 번호 표시(리디자인 §9) */}
                         {phone && (
-                          <a className="btn btn-sm call-btn call-btn-soft" href={`tel:${phone}`}>
+                          <a
+                            className="btn btn-sm call-btn call-btn-soft"
+                            href={`tel:${phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             📞 {phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3")}
                           </a>
                         )}
-                        <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(lead.id)}>
-                          상세
-                        </button>
-                        {currentForm?.canStatus && lead.statusKey !== "AS_REQUESTED" && lead.statusKey !== "INVALID" ? (
+                        {currentForm?.canStatus &&
+                        lead.statusKey !== "AS_REQUESTED" &&
+                        lead.statusKey !== "INVALID" &&
+                        lead.statusKey !== "VALID" ? (
                           <select
                             className={`lead-status-select ${statusClass(lead.statusKey)}`}
                             value={lead.statusKey}
                             disabled={busyId === lead.id}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={(e) => onStatusChange(lead, e.target.value)}
                           >
                             {/* 무효·AS요청도 보이되 선택 불가(무효=마케터 전용, AS요청=상세의 접수로만) */}

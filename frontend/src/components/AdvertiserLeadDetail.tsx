@@ -83,8 +83,11 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
     .find((a) => /연락처|전화|휴대|폰|phone|tel/i.test(a.label ?? ""))
     ?.value?.replace(/[^0-9+]/g, "");
 
-  // 잠금 상태: AS 대기(마케터 처리 대기) 또는 무효(마케터 전용)
+  // 잠금 상태: AS 대기(마케터 처리 대기) 또는 무효(마케터 전용) — 이때는 AS 요청도 못 연다.
   const locked = lead?.statusKey === "AS_REQUESTED" || lead?.statusKey === "INVALID";
+  // 상태 선택칩만 잠그는 상태: 위 잠금 + 유효(과금 확정, 2026-08-20 사용자 확정).
+  // 유효는 AS 요청은 계속 열어둬야 하므로 locked 에는 포함하지 않는다(AS 섹션은 locked 기준).
+  const statusPickerLocked = locked || lead?.statusKey === "VALID";
 
   async function onStatus(opt: LeadStatusOption) {
     if (!lead || opt.key === lead.statusKey || busy) return;
@@ -209,9 +212,9 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
               <div className="status-picker">
                 {options.map((s) => {
                   const on = lead.statusKey === s.key;
-                  // 비활성: 무효(마케터 전용) · AS요청(AS 접수로만) · 잠긴 리드(무효/AS대기) · 권한 없음
+                  // 비활성: 무효(마케터 전용) · AS요청(AS 접수로만) · 잠긴 리드(무효/AS대기/유효) · 권한 없음
                   const disabled =
-                    busy || locked || !canStatus || s.status === "INVALID" || s.status === "AS_REQUESTED";
+                    busy || statusPickerLocked || !canStatus || s.status === "INVALID" || s.status === "AS_REQUESTED";
                   return (
                     <button
                       key={s.key}
@@ -223,9 +226,11 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
                           ? "무효 처리·해제는 담당 마케터만 할 수 있습니다 (AS 요청을 이용하세요)"
                           : s.status === "AS_REQUESTED"
                             ? "AS요청은 아래 'AS 요청하기'로만 접수됩니다"
-                            : s.status === "VALID"
-                              ? "유효로 확정하면 계약 정산에 반영됩니다"
-                              : undefined
+                            : lead.statusKey === "VALID"
+                              ? "유효로 확정된 리드는 상태를 바꿀 수 없습니다 — 바꾸려면 AS 요청을 이용하세요"
+                              : s.status === "VALID"
+                                ? "유효로 확정하면 계약 정산에 반영됩니다"
+                                : undefined
                       }
                       onClick={() => onStatus(s)}
                     >
@@ -242,6 +247,12 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
               {lead.statusKey === "INVALID" && (
                 <p className="dash-sub" style={{ marginTop: 6 }}>
                   <strong>무효</strong> 처리된 리드입니다 — 해제는 담당 마케터만 할 수 있습니다.
+                </p>
+              )}
+              {lead.statusKey === "VALID" && (
+                <p className="dash-sub" style={{ marginTop: 6 }}>
+                  <strong>유효</strong>로 확정된 리드입니다 — 상태를 바꾸려면 아래 <b>AS 요청하기</b>로 담당
+                  마케터에게 요청해주세요.
                 </p>
               )}
               {!canStatus && (
