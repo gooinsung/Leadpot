@@ -185,6 +185,7 @@ export function firePixelLead(cfg: unknown): void {
   // 미설정이면 Purchase — components/PixelFields.tsx 의 DAANGN_EVENT_DEFAULT 와 같아야 한다.
   const daangnEvent = val(cfg, "daangnEvent") || "Purchase";
   try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track(daangnEvent); } catch { /* ignore */ }
-  // 토스는 이벤트 선택 없이 잠재고객 수집(leadCollection)으로 고정 — 우리 리드폼 제출과 정확히 대응된다.
-  try { if (toss && w.TossPixel) w.TossPixel(toss).leadCollection(); } catch { /* ignore */ }
+  // 토스는 이벤트 선택 없이 잠재고객 수집(LEAD_COLLECTION, 메서드명 lead())으로 고정 —
+  // 우리 리드폼 제출과 정확히 대응된다. (공식 문서: toss-ads.gitbook.io/guide/tracking/tosspixel)
+  try { if (toss && w.TossPixel) w.TossPixel(toss).lead(); } catch { /* ignore */ }
 }
