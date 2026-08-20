@@ -4,6 +4,8 @@ import {
   ApiError,
   listAdminAudit,
   listAdminUsers,
+  loginAsAdminUser,
+  setTokens,
   updateAdminUserSms,
   type AdminAuditRow,
   type AdminUserRow,
@@ -47,6 +49,7 @@ export function AdminUsersPage() {
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [loggingInId, setLoggingInId] = useState<number | null>(null);
 
   function load() {
     setLoading(true);
@@ -70,6 +73,19 @@ export function AdminUsersPage() {
       toast.error(e instanceof Error ? e.message : "변경하지 못했습니다.");
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function onLoginAs(row: AdminUserRow) {
+    if (!window.confirm(`${row.email} 계정으로 바로 로그인할까요?`)) return;
+    setLoggingInId(row.id);
+    try {
+      const res = await loginAsAdminUser(row.id);
+      setTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+      window.location.replace("/");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "로그인하지 못했습니다.");
+      setLoggingInId(null);
     }
   }
 
@@ -157,6 +173,16 @@ export function AdminUsersPage() {
                           {r.subdomain ? ` · ${r.subdomain}` : ""}
                           {!r.active ? " · 정지됨" : ""}
                         </div>
+                        {r.role !== "ADMIN" && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ marginTop: 4 }}
+                            disabled={loggingInId === r.id}
+                            onClick={() => onLoginAs(r)}
+                          >
+                            {loggingInId === r.id ? "이동 중…" : "이 계정으로 로그인하기"}
+                          </button>
+                        )}
                       </td>
                       <td>
                         {r.role === "ADMIN" ? "운영자" : isAdvertiser ? "광고주" : "마케터"}

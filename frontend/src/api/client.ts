@@ -2003,6 +2003,11 @@ export function listAdminUserLeads(userId: number, formId?: number): Promise<Lea
   return request<Lead[]>(`/api/admin/users/${userId}/leads${query}`);
 }
 
+/** 계정 대신 로그인 — 비밀번호 없이 토큰 발급(무기록, 2026-08-20). */
+export function loginAsAdminUser(userId: number): Promise<TokenResponse> {
+  return request<TokenResponse>(`/api/admin/users/${userId}/login-as`, { method: "POST" });
+}
+
 export function listAdminAudit(targetId?: number): Promise<AdminAuditRow[]> {
   const query = targetId ? `?targetId=${targetId}` : "";
   return request<AdminAuditRow[]>(`/api/admin/audit${query}`);

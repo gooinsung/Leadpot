@@ -15,9 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.leadpot.admin.dto.AdminAuditRow;
 import com.leadpot.admin.dto.AdminUserRow;
 import com.leadpot.admin.dto.SmsPermissionRequest;
+import com.leadpot.auth.AuthService;
 import com.leadpot.auth.Role;
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
+import com.leadpot.auth.dto.TokenResponse;
 import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.form.Form;
@@ -58,17 +60,20 @@ public class AdminService {
     private final LandingPageRepository landingRepository;
     private final MessageLogRepository messageLogRepository;
     private final AdminAuditLogRepository auditRepository;
+    private final AuthService authService;
 
     public AdminService(UserRepository userRepository, FormRepository formRepository,
             LeadRepository leadRepository, LandingPageRepository landingRepository,
             MessageLogRepository messageLogRepository,
-            AdminAuditLogRepository auditRepository) {
+            AdminAuditLogRepository auditRepository,
+            AuthService authService) {
         this.userRepository = userRepository;
         this.formRepository = formRepository;
         this.leadRepository = leadRepository;
         this.landingRepository = landingRepository;
         this.messageLogRepository = messageLogRepository;
         this.auditRepository = auditRepository;
+        this.authService = authService;
     }
 
     /**
@@ -206,6 +211,21 @@ public class AdminService {
         auditRepository.save(new AdminAuditLog(adminId, targetId, AdminAuditLog.ACTION_LEADS_VIEW,
                 (formId == null ? "리드 열람(전체" : "리드 열람(폼 " + formId) + ", " + leads.size() + "건)"));
         return leads.stream().map(LeadResponse::from).toList();
+    }
+
+    /**
+     * 계정 대신 로그인 — 비밀번호 없이 해당 계정의 토큰을 바로 발급한다.
+     *
+     * <p>⚠️ <b>이 클래스 상단 정책(읽기 전용·감사 로그 필수)의 명시적 예외다</b> — 2026-08-20
+     * 사용자 요청으로 감사 로그 없이 추가했다. 호출 경로는 {@code /api/admin/**} 라
+     * {@code SecurityConfig} 가 ROLE_ADMIN 만 통과시키므로 접근 자체는 운영자로 제한되지만,
+     * 그 이상의 흔적(누가 언제 어느 계정으로 들어갔는지)은 남기지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public TokenResponse loginAs(Long targetId) {
+        User target = userRepository.findById(targetId)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다."));
+        return authService.issueTokens(target);
     }
 
     private void requireTarget(Long targetId) {

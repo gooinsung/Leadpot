@@ -7,6 +7,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.leadpot.admin.dto.AdminAuditRow;
 import com.leadpot.admin.dto.AdminUserRow;
 import com.leadpot.admin.dto.SmsPermissionRequest;
+import com.leadpot.auth.dto.TokenResponse;
 import com.leadpot.form.dto.FormSummary;
 import com.leadpot.landing.dto.LandingSummary;
 import com.leadpot.lead.dto.LeadResponse;
@@ -28,7 +30,10 @@ import com.leadpot.lead.dto.LeadResponse;
  *
  * <p>범위: 계정 조회 + 문자 발송 권한 + <b>계정 자산(리드폼/랜딩/리드) 읽기 전용 열람</b>
  * (2026-08-19 정책 변경 — 조건과 이유는 {@link AdminService} 클래스 주석 참고).
- * 열람은 GET 뿐이다 — 운영자가 남의 자산을 고치는 엔드포인트는 만들지 않는다.
+ * 자산 열람은 GET 뿐이다 — 운영자가 남의 자산을 고치는 엔드포인트는 만들지 않는다.
+ *
+ * <p>예외: {@code POST /users/{id}/login-as} 는 계정 대신 로그인(비밀번호 없이 토큰 발급)한다.
+ * 2026-08-20 사용자 요청으로 감사 로그 없이 추가됐다 — {@link AdminService#loginAs} 참고.
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -70,6 +75,12 @@ public class AdminController {
     public List<LeadResponse> leads(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestParam(required = false) Long formId) {
         return adminService.leads(adminId(jwt), id, formId);
+    }
+
+    /** 계정 대신 로그인 — 비밀번호 없이 토큰 발급(무기록, {@link com.leadpot.admin.AdminService#loginAs} 참고). */
+    @PostMapping("/users/{id}/login-as")
+    public TokenResponse loginAs(@PathVariable Long id) {
+        return adminService.loginAs(id);
     }
 
     /** 변경 이력(최신순). targetId 를 주면 그 계정 것만. */
