@@ -1586,6 +1586,18 @@ function BlockFields({
             <label>플레이스홀더</label>
             <input className="input" value={block.placeholder ?? ""} onChange={(e) => onPatch({ placeholder: e.target.value })} />
           </div>
+          <div className="field">
+            <label>설명(선택)</label>
+            <input className="input" value={(block.content?.description as string) ?? ""} onChange={(e) => onContent({ description: e.target.value })} />
+            <label className="fr-check" style={{ marginTop: 2 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(block.content?.descriptionEmphasis)}
+                onChange={(e) => onContent({ descriptionEmphasis: e.target.checked })}
+              />{" "}
+              강조하기 (빨간 굵은 글씨로 표시)
+            </label>
+          </div>
           {block.fieldType === "select" && <SelectChoicesEditor block={block} onPatch={onPatch} />}
           <DedupField block={block} onPatch={onPatch} />
         </div>
