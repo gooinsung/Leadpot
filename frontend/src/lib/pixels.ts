@@ -17,6 +17,7 @@ export interface PixelConfig {
   daangn?: string; // 당근(Karrot) 픽셀 ID
   daangnEvent?: string; // 당근 전환 이벤트(Purchase | Lead | SubmitApplication), 기본 Purchase
   toss?: string; // 토스애즈 전환 코드(픽셀 ID)
+  tossEvent?: string; // 토스 전환 이벤트 — 호출할 메서드명 그 자체(lead | signUp | subscribe | preRegister | viewLimit | applyScreening), 기본 lead
 }
 
 function val(cfg: unknown, key: string): string {
@@ -185,7 +186,9 @@ export function firePixelLead(cfg: unknown): void {
   // 미설정이면 Purchase — components/PixelFields.tsx 의 DAANGN_EVENT_DEFAULT 와 같아야 한다.
   const daangnEvent = val(cfg, "daangnEvent") || "Purchase";
   try { if (daangn && w.karrotPixel && w.karrotPixel.track) w.karrotPixel.track(daangnEvent); } catch { /* ignore */ }
-  // 토스는 이벤트 선택 없이 잠재고객 수집(LEAD_COLLECTION, 메서드명 lead())으로 고정 —
-  // 우리 리드폼 제출과 정확히 대응된다. (공식 문서: toss-ads.gitbook.io/guide/tracking/tosspixel)
-  try { if (toss && w.TossPixel) w.TossPixel(toss).lead(); } catch { /* ignore */ }
+  // 토스는 이벤트마다 메서드가 다르다(다른 플랫폼처럼 이벤트명을 인자로 넘기는 방식이 아님) —
+  // 리드폼별로 고른 메서드명을 그대로 호출한다. 미설정이면 lead(잠재고객 수집).
+  // components/PixelFields.tsx 의 TOSS_EVENT_DEFAULT 와 반드시 같아야 한다.
+  const tossEvent = val(cfg, "tossEvent") || "lead";
+  try { if (toss && w.TossPixel) (w.TossPixel(toss) as any)[tossEvent]?.(); } catch { /* ignore */ }
 }

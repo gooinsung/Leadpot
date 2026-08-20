@@ -57,6 +57,24 @@ export const DAANGN_EVENTS: { value: string; label: string }[] = [
 /** 미설정 리드폼의 기본 당근 전환 이벤트. pixels.ts 기본값과 반드시 같아야 한다. */
 export const DAANGN_EVENT_DEFAULT = "Purchase";
 
+/**
+ * 토스애즈 전환 이벤트 — 값은 토스 픽셀 SDK 가 실제로 호출하는 메서드명 그 자체다
+ * (다른 플랫폼과 달리 이벤트마다 메서드가 다르다 — `TossPixel(id).lead()`, `.signUp()` 등,
+ * 하나의 track() 함수에 이름을 실어 보내는 방식이 아니다). 공식 문서 전체 이벤트 중
+ * **리드폼 제출에 쓸 만한 것만** 담았다(구매·장바구니·앱 계열은 리드폼과 안 맞아 뺐다).
+ * 대출·보험 상담 랜딩이면 '한도 조회'·'가심사 조회'가 더 정확할 수 있다.
+ */
+export const TOSS_EVENTS: { value: string; label: string }[] = [
+  { value: "lead", label: "lead — 잠재고객 수집(상담 신청·양식 제출)" },
+  { value: "signUp", label: "signUp — 회원가입 완료" },
+  { value: "subscribe", label: "subscribe — 구독·알림 신청" },
+  { value: "preRegister", label: "preRegister — 사전예약" },
+  { value: "viewLimit", label: "viewLimit — 한도 조회(대출·보험료)" },
+  { value: "applyScreening", label: "applyScreening — 가심사 조회" },
+];
+/** 미설정 리드폼의 기본 토스 전환 이벤트. pixels.ts 기본값과 반드시 같아야 한다. */
+export const TOSS_EVENT_DEFAULT = "lead";
+
 /** 전환 이벤트를 고를 수 있는 플랫폼만 여기 둔다(나머지는 표준 이벤트가 하나로 고정). */
 const EVENT_PICKERS: Record<string, { field: string; label: string; options: typeof META_EVENTS; def: string; help: string }> = {
   meta: {
@@ -72,6 +90,13 @@ const EVENT_PICKERS: Record<string, { field: string; label: string; options: typ
     options: DAANGN_EVENTS,
     def: DAANGN_EVENT_DEFAULT,
     help: "리드 제출 시 당근에 보낼 전환 이벤트입니다. 당근 광고 관리자에서 설정한 전환 유형과 같아야 성과로 잡힙니다.",
+  },
+  toss: {
+    field: "tossEvent",
+    label: "토스 전환 이벤트",
+    options: TOSS_EVENTS,
+    def: TOSS_EVENT_DEFAULT,
+    help: "리드 제출 시 토스애즈에 보낼 전환 이벤트입니다. 앞의 영문이 실제 호출되는 메서드명(공식 문서 기준)입니다.",
   },
 };
 
@@ -184,8 +209,8 @@ export function PixelFields({
 
       <p className="dash-sub" style={{ fontSize: 12, marginTop: 10 }}>
         선택한 픽셀은 공개 페이지에 삽입되어 <b>방문(PageView)</b>과 <b>리드 제출 시 전환</b>을 각 플랫폼에 전송합니다.
-        전환 이벤트를 고를 수 있는 곳은 메타·당근뿐입니다 — 구글은 <code>generate_lead</code>(+Ads 전환라벨),
-        틱톡은 <code>SubmitForm</code>, 카카오는 가입완료, 토스는 잠재고객 수집(leadCollection)으로 고정 전송됩니다.
+        전환 이벤트를 고를 수 있는 곳은 메타·당근·토스입니다 — 구글은 <code>generate_lead</code>(+Ads 전환라벨),
+        틱톡은 <code>SubmitForm</code>, 카카오는 가입완료로 고정 전송됩니다.
         <br />
         ⚠️ 미리보기 주소(<code>/p/…</code>)에서는 픽셀이 발사되지 않습니다. 테스트는 공개 URL에서 하세요.
       </p>
