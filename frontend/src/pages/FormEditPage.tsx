@@ -263,10 +263,11 @@ export function FormEditPage() {
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]); // 내 폼들의 기존 분야(datalist)
   const [formType, setFormType] = useState<FormType>("BASIC");
 
-  // BASIC: 평면 블록 배열
+  // BASIC: 평면 블록 배열. 맨 위 설명 문구는 스텝형(각 단계 description)과 맞춘 기본 제공(2026-08-20).
   const [blocks, setBlocks] = useState<FormBlock[]>([
-    { sortOrder: 0, blockType: "FIELD", fieldType: "text", label: "이름", required: true, placeholder: "홍길동" },
-    { sortOrder: 1, blockType: "FIELD", fieldType: "tel", label: "연락처", required: true, placeholder: "010-0000-0000" },
+    { sortOrder: 0, blockType: "TEXT", content: { text: "여기에 리드폼 소개나 안내 문구를 입력해주세요." } },
+    { sortOrder: 1, blockType: "FIELD", fieldType: "text", label: "이름", required: true, placeholder: "홍길동" },
+    { sortOrder: 2, blockType: "FIELD", fieldType: "tel", label: "연락처", required: true, placeholder: "010-0000-0000" },
   ]);
 
   // STEP: 질문 단계 + 마지막 연락처 단계
