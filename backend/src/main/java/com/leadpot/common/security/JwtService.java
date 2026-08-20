@@ -39,6 +39,7 @@ public class JwtService {
     private final long accessTtlSeconds;
     private final long advertiserAccessTtlSeconds;
     private final long refreshTtlSeconds;
+    private final long advertiserRefreshTtlSeconds;
 
     public JwtService(
             JwtEncoder encoder,
@@ -46,12 +47,14 @@ public class JwtService {
             @Value("${app.jwt.issuer}") String issuer,
             @Value("${app.jwt.access-ttl-seconds}") long accessTtlSeconds,
             @Value("${app.jwt.advertiser-access-ttl-seconds}") long advertiserAccessTtlSeconds,
-            @Value("${app.jwt.refresh-ttl-seconds}") long refreshTtlSeconds) {
+            @Value("${app.jwt.refresh-ttl-seconds}") long refreshTtlSeconds,
+            @Value("${app.jwt.advertiser-refresh-ttl-seconds}") long advertiserRefreshTtlSeconds) {
         this.encoder = encoder;
         this.issuer = issuer;
         this.accessTtlSeconds = accessTtlSeconds;
         this.advertiserAccessTtlSeconds = advertiserAccessTtlSeconds;
         this.refreshTtlSeconds = refreshTtlSeconds;
+        this.advertiserRefreshTtlSeconds = advertiserRefreshTtlSeconds;
         // 리프레시 토큰 전용 디코더: 서명/만료 + token_type=refresh 검증
         this.refreshDecoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
@@ -72,9 +75,13 @@ public class JwtService {
         return issue(user, TYPE_ACCESS, getAccessTtlSeconds(user));
     }
 
-    /** 리프레시 토큰 발급. */
+    /**
+     * 리프레시 토큰 발급.
+     * 광고주는 더 길게 준다(2026-08-20 사용자 결정, 한 달) — 마케터/운영자는 14일 그대로.
+     */
     public String issueRefreshToken(User user) {
-        return issue(user, TYPE_REFRESH, refreshTtlSeconds);
+        long ttl = user != null && user.isAdvertiser() ? advertiserRefreshTtlSeconds : refreshTtlSeconds;
+        return issue(user, TYPE_REFRESH, ttl);
     }
 
     private String issue(User user, String tokenType, long ttlSeconds) {
