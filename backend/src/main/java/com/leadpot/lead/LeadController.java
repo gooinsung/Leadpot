@@ -330,6 +330,16 @@ public class LeadController {
         return leadService.importRows(userId(jwt), formId, rows);
     }
 
+    /**
+     * 수기 등록(K7): 리드 조회 화면에서 항목을 직접 입력해 리드 1건 추가. body: {"라벨":"값", ...}.
+     * 실제 폼 제출과 달리 마케터·광고주에게 알림이 가지 않는다.
+     */
+    @PostMapping("/manual")
+    public LeadResponse manualCreate(@AuthenticationPrincipal Jwt jwt, @RequestParam Long formId,
+            @RequestBody Map<String, String> answers) {
+        return leadService.manualCreate(userId(jwt), formId, answers);
+    }
+
     private Long userId(Jwt jwt) {
         return Long.valueOf(jwt.getSubject());
     }

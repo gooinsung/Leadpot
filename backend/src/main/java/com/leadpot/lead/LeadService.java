@@ -860,10 +860,12 @@ public class LeadService {
         return out;
     }
 
-    /** 엑셀/CSV 행 목록을 리드로 일괄 등록(본인 리드폼만 K5). 행별 검증 실패는 건너뛰고 사유 수집. */
-    @Transactional
-    public ImportResult importRows(Long ownerId, Long formId, List<Map<String, String>> rows) {
-        FormResponse form = formService.get(ownerId, formId); // 소유권 확인(아니면 404)
+    /** 가져오기/수기등록 공용: 리드폼 항목 라벨별 입력형·필수여부·varKey. */
+    private record ColumnMeta(List<String> cols, Map<String, String> typeByLabel,
+            Map<String, Boolean> requiredByLabel, Map<String, String> varKeyByLabel) {
+    }
+
+    private static ColumnMeta columnMeta(FormResponse form) {
         List<String> cols = answerColumnLabels(form);
         Map<String, String> typeByLabel = new LinkedHashMap<>();
         Map<String, Boolean> requiredByLabel = new LinkedHashMap<>();
@@ -888,33 +890,47 @@ public class LeadService {
                 requiredByLabel.put(label, b.content() != null && Boolean.TRUE.equals(b.content().get("required")));
             }
         }
+        return new ColumnMeta(cols, typeByLabel, requiredByLabel, varKeyByLabel);
+    }
+
+    /** 한 행(라벨→값)을 answers 목록으로 변환. 필수·형식 위반이면 {@link InvalidSubmissionException}. */
+    private List<Map<String, Object>> buildAnswers(ColumnMeta meta, Map<String, String> row) {
+        List<Map<String, Object>> answers = new java.util.ArrayList<>();
+        for (String c : meta.cols()) {
+            String v = str(row.get(c)).trim();
+            if (Boolean.TRUE.equals(meta.requiredByLabel().get(c)) && v.isBlank()) {
+                throw new InvalidSubmissionException("'" + c + "' 필수 항목이 비어 있습니다.");
+            }
+            checkFormat(meta.typeByLabel().getOrDefault(c, "text"), v, c);
+            Map<String, Object> a = new LinkedHashMap<>();
+            a.put("label", c);
+            a.put("fieldType", meta.typeByLabel().getOrDefault(c, "text"));
+            a.put("value", v);
+            if (meta.varKeyByLabel().get(c) != null) {
+                a.put("varKey", meta.varKeyByLabel().get(c));
+            }
+            answers.add(a);
+        }
+        return answers;
+    }
+
+    /** 엑셀/CSV 행 목록을 리드로 일괄 등록(본인 리드폼만 K5). 행별 검증 실패는 건너뛰고 사유 수집. */
+    @Transactional
+    public ImportResult importRows(Long ownerId, Long formId, List<Map<String, String>> rows) {
+        FormResponse form = formService.get(ownerId, formId); // 소유권 확인(아니면 404)
+        ColumnMeta meta = columnMeta(form);
 
         int created = 0;
         List<String> errors = new java.util.ArrayList<>();
         int rownum = 1; // 헤더가 1행, 데이터는 2행부터
         for (Map<String, String> row : rows) {
             rownum++;
-            boolean allEmpty = cols.stream().allMatch(c -> str(row.get(c)).isBlank());
+            boolean allEmpty = meta.cols().stream().allMatch(c -> str(row.get(c)).isBlank());
             if (allEmpty) {
                 continue;
             }
             try {
-                List<Map<String, Object>> answers = new java.util.ArrayList<>();
-                for (String c : cols) {
-                    String v = str(row.get(c)).trim();
-                    if (Boolean.TRUE.equals(requiredByLabel.get(c)) && v.isBlank()) {
-                        throw new InvalidSubmissionException("'" + c + "' 필수 항목이 비어 있습니다.");
-                    }
-                    checkFormat(typeByLabel.getOrDefault(c, "text"), v, c);
-                    Map<String, Object> a = new LinkedHashMap<>();
-                    a.put("label", c);
-                    a.put("fieldType", typeByLabel.getOrDefault(c, "text"));
-                    a.put("value", v);
-                    if (varKeyByLabel.get(c) != null) {
-                        a.put("varKey", varKeyByLabel.get(c));
-                    }
-                    answers.add(a);
-                }
+                List<Map<String, Object>> answers = buildAnswers(meta, row);
                 Lead lead = new Lead();
                 lead.setFormId(formId);
                 lead.setAnswers(answers);
@@ -929,6 +945,25 @@ public class LeadService {
             }
         }
         return new ImportResult(created, errors.size(), errors);
+    }
+
+    /**
+     * 수기 등록(K7) — 마케터가 리드 조회 화면에서 항목을 직접 입력해 리드 1건을 추가한다.
+     * 실제 접수({@link #submit})와 달리 <b>알림(마케터·광고주)을 보내지 않는다</b> — 사용자 요구사항.
+     */
+    @Transactional
+    public LeadResponse manualCreate(Long ownerId, Long formId, Map<String, String> answersByLabel) {
+        FormResponse form = formService.get(ownerId, formId); // 소유권 확인(아니면 404)
+        ColumnMeta meta = columnMeta(form);
+        List<Map<String, Object>> answers = buildAnswers(meta, answersByLabel == null ? Map.of() : answersByLabel);
+        Lead lead = new Lead();
+        lead.setFormId(formId);
+        lead.setAnswers(answers);
+        lead.setPhoneVerified(false);
+        lead.setCategory(form.category()); // 분야 도장(V35) — 접수와 같은 규칙
+        lead.setGroupTag("manual");
+        leadRepository.save(lead);
+        return LeadResponse.from(lead);
     }
 
     private static String columnLabel(FormBlockDto b) {

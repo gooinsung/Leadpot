@@ -8,6 +8,7 @@ import {
   bulkTrashLeads,
   markLeadsSeen,
   bulkUpdateLeadStatus,
+  createManualLead,
   deleteLead,
   downloadLeads,
   downloadLeadTemplate,
@@ -64,6 +65,10 @@ export function LeadsListPage() {
   const [adUrlOpen, setAdUrlOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null); // 상세 사이드 패널 대상(U2: 모달 → 패널)
   const fileRef = useRef<HTMLInputElement>(null);
+  // 수기 등록(K7) — 마케터가 화면에서 직접 값을 입력해 리드 1건 추가. 알림 없음.
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualValues, setManualValues] = useState<Record<string, string>>({});
+  const [manualBusy, setManualBusy] = useState(false);
   // 내보내기 모달(형식·컬럼 선택)
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"xlsx" | "csv">("xlsx");
@@ -139,6 +144,55 @@ export function LeadsListPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formId, trashed]);
+
+  // 수기 등록 입력칸 목록 — 리드폼의 FIELD·CHOICE 항목(라벨/질문)을 순서대로, 중복 제거.
+  // 백엔드 가져오기(importRows)와 같은 규칙(answerColumnLabels)을 프론트에서 그대로 따른다.
+  const manualColumns = useMemo(() => {
+    if (!form) return [] as { label: string; fieldType: string; required: boolean; placeholder?: string; choices?: string[] }[];
+    const seen = new Set<string>();
+    const out: { label: string; fieldType: string; required: boolean; placeholder?: string; choices?: string[] }[] = [];
+    for (const b of form.blocks) {
+      if (b.blockType === "FIELD" && b.label && !seen.has(b.label)) {
+        seen.add(b.label);
+        out.push({
+          label: b.label,
+          fieldType: b.fieldType || "text",
+          required: Boolean(b.required),
+          placeholder: b.placeholder || undefined,
+          choices: b.fieldType === "select" ? ((b.options?.choices as string[] | undefined) ?? []) : undefined,
+        });
+      } else if (b.blockType === "CHOICE") {
+        const q = (b.content?.question as string) || "";
+        if (q && !seen.has(q)) {
+          seen.add(q);
+          const at = (b.content?.answerType as string) || (b.content?.selectType as string) || "text";
+          out.push({ label: q, fieldType: at, required: Boolean(b.content?.required) });
+        }
+      }
+    }
+    return out;
+  }, [form]);
+
+  function openManual() {
+    setManualValues({});
+    setManualOpen(true);
+  }
+
+  async function submitManual() {
+    if (manualBusy) return;
+    setManualBusy(true);
+    try {
+      await createManualLead(formId, manualValues);
+      setManualOpen(false);
+      setManualValues({});
+      toast.success("리드를 등록했습니다.");
+      load();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "등록에 실패했습니다. 입력값을 확인해주세요.");
+    } finally {
+      setManualBusy(false);
+    }
+  }
 
   // 중복 판정 기준 항목: 리드폼에서 '중복 방지'(allowDuplicate=false)로 설정된 FIELD 라벨
   const uniqueFieldLabels = useMemo(() => {
@@ -412,6 +466,73 @@ export function LeadsListPage() {
           </div>
         )}
 
+        {/* 수기 등록 모달(K7) — 항목을 직접 입력해 리드 1건 추가. 마케터·광고주 알림 없음. */}
+        {manualOpen && (
+          <div
+            onClick={() => !manualBusy && setManualOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}
+          >
+            <div
+              className="card card-pad"
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", display: "flex", flexDirection: "column" }}
+            >
+              <div className="card-h">리드 수기 등록</div>
+              <p className="dash-sub" style={{ marginTop: 0, marginBottom: 12, fontSize: 12 }}>
+                항목을 직접 입력해 리드를 추가합니다. 실제 접수와 달리 마케터·광고주에게 알림이 가지 않습니다.
+              </p>
+              {manualColumns.length === 0 ? (
+                <Loading />
+              ) : (
+                <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+                  {manualColumns.map((c) => (
+                    <div key={c.label} className="field">
+                      <label>
+                        {c.label}
+                        {c.required && <span style={{ color: "var(--danger, #e53e3e)" }}> *</span>}
+                      </label>
+                      {c.fieldType === "select" && c.choices && c.choices.length > 0 ? (
+                        <select
+                          className="input"
+                          value={manualValues[c.label] ?? ""}
+                          onChange={(e) => setManualValues((v) => ({ ...v, [c.label]: e.target.value }))}
+                        >
+                          <option value="">선택 안 함</option>
+                          {c.choices.map((choice) => (
+                            <option key={choice} value={choice}>{choice}</option>
+                          ))}
+                        </select>
+                      ) : c.fieldType === "textarea" ? (
+                        <textarea
+                          className="input"
+                          rows={2}
+                          value={manualValues[c.label] ?? ""}
+                          placeholder={c.placeholder}
+                          onChange={(e) => setManualValues((v) => ({ ...v, [c.label]: e.target.value }))}
+                        />
+                      ) : (
+                        <input
+                          className="input"
+                          type={c.fieldType === "email" ? "email" : c.fieldType === "date" ? "date" : c.fieldType === "number" ? "number" : c.fieldType === "tel" ? "tel" : "text"}
+                          value={manualValues[c.label] ?? ""}
+                          placeholder={c.placeholder}
+                          onChange={(e) => setManualValues((v) => ({ ...v, [c.label]: e.target.value }))}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+                <button className="btn btn-ghost" onClick={() => setManualOpen(false)} disabled={manualBusy}>취소</button>
+                <button className="btn btn-primary" onClick={submitManual} disabled={manualBusy || manualColumns.length === 0}>
+                  {manualBusy ? "등록 중…" : "등록"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 검색·필터 */}
         {/* 스티키 필터바(U7 Cockpit) — 길게 스크롤해도 조건이 늘 손에 닿게 */}
         <div className="card card-pad filter-bar" style={{ marginBottom: 20, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -501,6 +622,7 @@ export function LeadsListPage() {
               <button className="btn btn-ghost btn-sm" onClick={() => downloadLeadTemplate(formId, "csv", form?.name || "lead")}>양식(CSV)</button>
               <button className="btn btn-primary btn-sm" onClick={() => fileRef.current?.click()}>파일 가져오기</button>
               <input ref={fileRef} type="file" accept=".xlsx,.csv" hidden onChange={onImportFile} />
+              <button className="btn btn-primary btn-sm" onClick={openManual} title="항목을 직접 입력해 리드 1건을 추가합니다 (알림 없음)">수기 등록</button>
             </div>
           )}
         </div>

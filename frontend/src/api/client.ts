@@ -672,6 +672,13 @@ export async function importLeads(formId: number, file: File): Promise<ImportRes
   return (await res.json()) as ImportResult;
 }
 
+/**
+ * 수기 등록(K7): 항목 라벨→값 을 직접 입력해 리드 1건 추가. 마케터·광고주 알림 없음.
+ */
+export function createManualLead(formId: number, answers: Record<string, string>): Promise<Lead> {
+  return request<Lead>(`/api/leads/manual?formId=${formId}`, { method: "POST", body: answers });
+}
+
 /** 대시보드 리드 수(total=전체, todayNew=오늘 접수 — '신규 리드' 카드). */
 export function leadsCount(): Promise<{ total: number; todayNew: number }> {
   return request<{ total: number; todayNew: number }>("/api/leads/count");

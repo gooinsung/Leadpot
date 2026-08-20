@@ -29,6 +29,31 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-08-20 밤 — **리드 조회 화면 '수기 등록'(K7)**
+>
+> 클라우드 세션. 사용자 요청: 마케터가 리드폼 상세(리드 조회) 화면에서 **수기로 DB(리드) 1건을 직접
+> 입력**할 수 있게 해달라 — 단, **마케터·광고주 알림은 가면 안 됨**.
+>
+> - 기존 엑셀/CSV 일괄 가져오기(`LeadService.importRows`)가 이미 `submit()`과 분리돼 있어 알림을
+>   호출하지 않는다는 걸 확인 → 같은 원칙으로 단건 등록 추가. 행 처리 로직(`ColumnMeta`/`buildAnswers`)을
+>   `importRows`에서 추출해 재사용.
+> - **백엔드**: `LeadService.manualCreate(ownerId, formId, Map<String,String> answers)` — 리드폼
+>   FIELD/CHOICE 라벨 기준 필수·형식 검증(가져오기와 동일 규칙), `groupTag="manual"`로 저장,
+>   `notificationService` 호출 없음(알림 없음 확정). `POST /api/leads/manual?formId=`
+>   (`LeadController`).
+> - **프론트**: `LeadsListPage.tsx`에 "수기 등록" 버튼(파일 가져오기 옆) + 모달 — 리드폼 항목을
+>   순서대로 입력칸으로 렌더(select 유형은 드롭다운, textarea 는 여러 줄, 그 외 타입별 input type).
+>   `createManualLead()`(`api/client.ts`) 호출 후 목록 새로고침.
+> - **검증**: 백엔드 전체 테스트 ✅ · 프론트 `tsc --noEmit`·`vitest`(81개)·`npm run build` 전부 ✅.
+>   **브라우저 실검증은 아직 안 함**(클라우드 세션이라 dev 서버 브라우저 확인 생략, 필요시 다음 세션에서).
+> - 사용자가 "배포까지 해버려"라고 요청 → `main` 에 병합해 배포 파이프라인(GitHub Actions 프론트 +
+>   Railway 백엔드) 발동시킴.
+>
+> **다음 후보**: 브라우저에서 수기 등록 모달 실제 확인(특히 select/필수값 에러 메시지) · STEP 폼의
+> CHOICE(카드 단일/다중) 항목도 수기 등록에서 더 나은 입력 UI(카드 선택 등)로 다듬을지 검토.
+>
+> ---
+>
 > ## ✅ 2026-08-20 — **BASIC 리드폼 항목별 설명 문구(C3) + 문서 정정**
 >
 > 클라우드 세션(웹). 사용자 요청 2건:
