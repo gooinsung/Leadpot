@@ -92,6 +92,9 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
               <label>
                 {b.label || "(제목 없음)"} {b.required && <span className="req">*</span>}
               </label>
+              {(b.content?.description as string) && (
+                <p className={`field-desc${b.content?.descriptionEmphasis ? " emphasis" : ""}`}>{b.content?.description as string}</p>
+              )}
               {b.fieldType === "tel" ? (
                 <PhoneInput3 value="" onChange={() => {}} readOnly />
               ) : (

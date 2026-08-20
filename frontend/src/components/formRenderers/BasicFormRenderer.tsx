@@ -70,6 +70,9 @@ function FieldView({ block }: { block: FormBlock }) {
       <label>
         {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
       </label>
+      {(block.content?.description as string) && (
+        <p className={`field-desc${block.content?.descriptionEmphasis ? " emphasis" : ""}`}>{block.content?.description as string}</p>
+      )}
       {type === "textarea" ? (
         <textarea className="input" placeholder={block.placeholder ?? ""} rows={3} readOnly />
       ) : type === "select" ? (
