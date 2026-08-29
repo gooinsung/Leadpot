@@ -41,6 +41,14 @@ public class InteractionEvent {
     @Column(name = "ip_hash", length = 64)
     private String ipHash;
 
+    /** 스크롤 도달 깊이(%, 0~100). eventType="scroll" 에서 임계값(25/50/75/100) 통과 시 기록. */
+    @Column(name = "scroll_depth")
+    private Integer scrollDepth;
+
+    /** 체류 시간(초). eventType="page_exit"(페이지 이탈)에서 기록. */
+    @Column(name = "duration_sec")
+    private Integer durationSec;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -95,6 +103,22 @@ public class InteractionEvent {
 
     public void setIpHash(String ipHash) {
         this.ipHash = ipHash;
+    }
+
+    public Integer getScrollDepth() {
+        return scrollDepth;
+    }
+
+    public void setScrollDepth(Integer scrollDepth) {
+        this.scrollDepth = scrollDepth;
+    }
+
+    public Integer getDurationSec() {
+        return durationSec;
+    }
+
+    public void setDurationSec(Integer durationSec) {
+        this.durationSec = durationSec;
     }
 
     public Instant getCreatedAt() {

@@ -150,7 +150,8 @@ public class StatsService {
                 byForm(leads, visits, formNames),
                 utmTables,
                 funnel(uniqueVisits, events, totalLeads),
-                byEvent(events));
+                byEvent(events),
+                journey(uniqueVisits, events));
     }
 
     /** 상태 라벨 함수(통합 축 V29) — 등장한 커스텀 상태 이름을 한 번에 조회해 붙인다. */
@@ -178,6 +179,38 @@ public class StatsService {
                 .distinct().count();
         return new StatsResponse.Funnel(uniqueVisits, formOpens, leads,
                 rate(formOpens, uniqueVisits), rate(leads, formOpens));
+    }
+
+    private static final int[] SCROLL_DEPTHS = {25, 50, 75, 100};
+
+    /**
+     * 고객 여정(I6): 스크롤 임계값별 도달률(순방문 대비) + 평균 체류 시간(page_exit 이벤트) + 즉시 이탈률.
+     * 스크롤·이탈 이벤트는 IP 해시로 순방문과 대응시킨다(전환 퍼널과 같은 근사 방식).
+     */
+    private StatsResponse.Journey journey(long uniqueVisits, List<InteractionEvent> events) {
+        List<StatsResponse.ScrollPoint> scrollFunnel = new ArrayList<>();
+        for (int depth : SCROLL_DEPTHS) {
+            long reached = events.stream()
+                    .filter(e -> "scroll".equals(e.getEventType())
+                            && e.getScrollDepth() != null && e.getScrollDepth() >= depth)
+                    .map(InteractionEvent::getIpHash)
+                    .filter(h -> h != null && !h.isBlank())
+                    .distinct()
+                    .count();
+            scrollFunnel.add(new StatsResponse.ScrollPoint(depth, reached, rate(reached, uniqueVisits)));
+        }
+
+        double rawAvgDuration = events.stream()
+                .filter(e -> "page_exit".equals(e.getEventType()) && e.getDurationSec() != null)
+                .mapToInt(InteractionEvent::getDurationSec)
+                .average()
+                .orElse(0d);
+        double avgDurationSec = Math.round(rawAvgDuration * 10d) / 10d;
+
+        long reached25 = scrollFunnel.get(0).reached();
+        double bounceRate = rate(Math.max(0, uniqueVisits - reached25), uniqueVisits);
+
+        return new StatsResponse.Journey(uniqueVisits, avgDurationSec, bounceRate, scrollFunnel);
     }
 
     /** 요소 클릭 집계(대상 라벨별 총 클릭 수, 내림차순 상위 20). 라벨 없으면 이벤트 유형으로. */

@@ -1179,6 +1179,7 @@ export interface StatsOverview {
   byUtmTables: StatUtmTable[];
   funnel: StatFunnel;
   byEvent: StatCount[];
+  journey: StatJourney;
 }
 export interface StatUtmTable {
   key: string; // media_from | campaign_name | ads_name
@@ -1190,6 +1191,13 @@ export interface StatFunnel {
   leads: number; // 접수
   openRate: number; // 방문→폼열기 %
   submitRate: number; // 폼열기→접수 %
+}
+/** 고객 여정(I6) — 스크롤 깊이별 도달률 + 평균 체류 시간 + 즉시 이탈률. */
+export interface StatJourney {
+  sessions: number; // 분모(순방문)
+  avgDurationSec: number;
+  bounceRate: number; // 25% 지점도 못 보고 이탈(근사)
+  scrollFunnel: { depth: number; reached: number; rate: number }[];
 }
 export interface StatsFilter {
   from?: string;
@@ -1252,11 +1260,37 @@ export function recordVisit(input: { landingPageId?: number | null; formId?: num
   });
 }
 
-/** 공개 이벤트 기록(비로그인, best-effort). 주요 클릭(폼 열기 등) 시 호출 — 전환 퍼널·요소 클릭 통계(I4/I5). */
-export function recordEvent(input: { landingPageId?: number | null; formId?: number | null; eventType: string; target?: string }): void {
+export interface RecordEventInput {
+  landingPageId?: number | null;
+  formId?: number | null;
+  eventType: string;
+  target?: string;
+  /** 스크롤 도달 깊이(%, 0~100) — eventType="scroll" 에서 사용(I6). */
+  scrollDepth?: number;
+  /** 체류 시간(초) — eventType="page_exit" 에서 사용(I6). */
+  durationSec?: number;
+}
+
+/** 공개 이벤트 기록(비로그인, best-effort). 주요 클릭(폼 열기 등) 시 호출 — 전환 퍼널·요소 클릭·여정 통계(I4/I5/I6). */
+export function recordEvent(input: RecordEventInput): void {
   request<void>("/api/public/events", { method: "POST", body: input, auth: false }).catch(() => {
     /* 이벤트 기록 실패는 무시 */
   });
+}
+
+/**
+ * 페이지 이탈 시점 전용 기록(I6). `fetch`는 언로드 중 취소될 수 있어
+ * `navigator.sendBeacon`으로 보낸다(실패해도 페이지 동작에 영향 없음, best-effort).
+ */
+export function recordEventBeacon(input: RecordEventInput): void {
+  try {
+    const blob = new Blob([JSON.stringify(input)], { type: "application/json" });
+    if (!navigator.sendBeacon(`${BASE_URL}/api/public/events`, blob)) {
+      recordEvent(input); // sendBeacon 실패 시 일반 요청으로 폴백
+    }
+  } catch {
+    recordEvent(input);
+  }
 }
 
 // ---------- 이미지 업로드 ----------

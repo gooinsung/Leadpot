@@ -29,6 +29,40 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-08-29 — **고객 여정 분석(I6) — 스크롤 깊이·체류시간·이탈률**
+>
+> 클라우드 세션(브랜치 `claude/landing-page-journey-analytics-98vi46`). 사용자 요청: "GA에서 쓰는 것처럼
+> 랜딩페이지 스크롤 몇%까지 보고 나가는지 등 고객 여정을 분석하고 싶다." **배포는 보류 — 사용자가 확인 후
+> 진행**(main 병합 안 함, 이 브랜치에만 push).
+>
+> - **범위 확정(AskUserQuestion)**: ① 기존 통계 페이지에 탭 추가(신규 페이지 아님) ② 기본 세트만
+>   (스크롤 25/50/75/100% 도달률 + 평균 체류시간 + 즉시 이탈률 — 블록/섹션별 이탈 지점은 다음 단계로 보류).
+> - **기존 인프라 재사용**: I4(전환 퍼널)/I5(요소 클릭)가 이미 쓰던 `interaction_events`(경량 이벤트 로그,
+>   eventType+target+ip_hash) 구조를 그대로 확장 — 새 테이블 만들지 않음.
+>   - **백엔드**: `interaction_events`에 `scroll_depth`(0~100)·`duration_sec` 컬럼 추가(Flyway **V37**).
+>     `InteractionEventService.record(...)` 오버로드 확장, `PublicEventController.EventRequest`에 두 필드 추가.
+>     `StatsService.journey(...)`: eventType="scroll"(임계값 25/50/75/100 각각 도달 시 1건, IP 해시 distinct로
+>     도달자 수 집계 — I4 퍼널과 같은 근사 방식) + eventType="page_exit"(duration_sec 평균) → `StatsResponse.Journey`
+>     (sessions/avgDurationSec/bounceRate/scrollFunnel). `StatsJourneyTest` 신규(스크롤 단계별 도달자·평균체류·즉시이탈률 검증).
+>   - **프론트**: `LandingView.tsx`에 스크롤 리스너(rAF 스로틀, 임계값 통과 시 1회씩 `recordEvent`) +
+>     `visibilitychange`(hidden)/`pagehide`/언마운트 시 이탈 기록. **이탈 이벤트는 `navigator.sendBeacon`
+>     사용**(`recordEventBeacon` 신설, client.ts) — 일반 fetch는 언로드 중 취소될 수 있어 신뢰성 낮음.
+>     에디터 미리보기(`LandingEditPage`)는 `LandingView`를 안 쓰는 별도 렌더러라 오염 안 됨(확인됨).
+>   - **통계 페이지**: `StatsPage.tsx`에 "개요"/"여정 분석" 탭(`.seg` 재사용) 추가. 여정 탭 =
+>     평균 체류시간·즉시 이탈률·완독률(스크롤 100%) KPI 3개 + 스크롤 깊이별 도달률 막대(퍼널 카드와 같은 스타일).
+>     기존 기간/대상 필터 그대로 적용됨(전체 재구조화 아님, 기존 UI 옆에 얹음).
+> - **검증**: 백엔드 전체 테스트 통과(`StatsJourneyTest` 포함) · 프론트 `tsc --noEmit`·`vitest`(81개)·
+>   `npm run build` 전부 통과. **브라우저 실검증은 안 함**(클라우드 세션, Neon 접속정보 없음 — 기존 세션들과 동일 사유).
+>
+> **다음 후보**:
+> - ⬜ **사용자가 배포 전 확인** — 확인되면 `main` 병합(→ Railway/VM 자동 배포, Flyway V37 자동 적용).
+> - ⬜ 브라우저 실검증(다음 세션, 로컬 PC 또는 Neon 접속 가능한 환경에서): 스크롤하며 25/50/75/100% 이벤트 발사 확인,
+>   탭 전환·통계 카드 값 확인, 모바일(375px)에서 탭 UI 확인.
+> - ⬜ (보류한 확장 범위) 블록/섹션별 이탈 지점 — 어느 블록에서 이탈하는지까지 보려면 블록별 위치 계측이 추가로 필요.
+> - ⬜ 보고서(엑셀 내보내기 `StatsExportService`/`StatsReportPage`)에는 아직 여정 섹션 미포함 — 필요시 추가.
+>
+> ---
+>
 > ## ✅ 2026-08-20 밤 — **리드 조회 화면 '수기 등록'(K7)**
 >
 > 클라우드 세션. 사용자 요청: 마케터가 리드폼 상세(리드 조회) 화면에서 **수기로 DB(리드) 1건을 직접

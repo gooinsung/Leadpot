@@ -25,7 +25,8 @@ public record StatsResponse(
         /** 유입별 비교 표(자체 파라미터 3키) — 값별 방문·리드·전환율. 행 클릭 → 유입 필터. */
         List<UtmTable> byUtmTables,
         Funnel funnel,             // 전환 퍼널: 방문 → 폼 열기 → 접수 (I4)
-        List<Count> byEvent) {     // 요소 클릭 집계(대상별 총 클릭 수) (I5)
+        List<Count> byEvent,       // 요소 클릭 집계(대상별 총 클릭 수) (I5)
+        Journey journey) {         // 고객 여정: 스크롤 깊이·체류 시간·이탈 (I6)
 
     /**
      * 요약 지표.
@@ -63,5 +64,17 @@ public record StatsResponse(
      * (인라인 폼 랜딩·단독 리드폼은 '폼 열기' 단계가 없어 formOpens=0 일 수 있음.)
      */
     public record Funnel(long visits, long formOpens, long leads, double openRate, double submitRate) {
+    }
+
+    /**
+     * 고객 여정(스크롤 깊이·체류 시간·이탈). sessions = 분모(순방문, 기존 summary.uniqueVisits 와 동일).
+     * scrollFunnel 각 단계 rate 는 sessions 대비 그 깊이 이상 스크롤한 방문자 비율.
+     * bounceRate = 25% 지점도 못 보고 이탈한(즉시 이탈) 방문자 비율(근사 — IP 해시 기준 I4/I5 와 동일 한계).
+     */
+    public record Journey(long sessions, double avgDurationSec, double bounceRate, List<ScrollPoint> scrollFunnel) {
+    }
+
+    /** 스크롤 임계값(25/50/75/100) 하나의 도달 현황. */
+    public record ScrollPoint(int depth, long reached, double rate) {
     }
 }

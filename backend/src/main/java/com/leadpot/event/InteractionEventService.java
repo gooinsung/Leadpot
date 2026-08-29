@@ -26,6 +26,13 @@ public class InteractionEventService {
 
     @Transactional
     public void record(Long landingPageId, Long formId, String eventType, String target, String ip) {
+        record(landingPageId, formId, eventType, target, ip, null, null);
+    }
+
+    /** 여정 분석(스크롤 깊이·체류 시간) 값을 함께 기록. 둘 다 없으면 기존과 동일. */
+    @Transactional
+    public void record(Long landingPageId, Long formId, String eventType, String target, String ip,
+            Integer scrollDepth, Integer durationSec) {
         if (eventType == null || eventType.isBlank()) {
             return;
         }
@@ -48,7 +55,14 @@ public class InteractionEventService {
         e.setEventType(cut(eventType.trim(), 40));
         e.setTarget(cut(target, 255));
         e.setIpHash(hashIp(ip));
+        e.setScrollDepth(clampPercent(scrollDepth));
+        e.setDurationSec(durationSec != null && durationSec >= 0 ? Math.min(durationSec, 86400) : null);
         eventRepository.save(e);
+    }
+
+    private static Integer clampPercent(Integer v) {
+        if (v == null) return null;
+        return Math.max(0, Math.min(100, v));
     }
 
     /** IP 원본 대신 SHA-256 해시(hex) 저장 — 고유 방문자 추정용, 개인정보 최소화. */

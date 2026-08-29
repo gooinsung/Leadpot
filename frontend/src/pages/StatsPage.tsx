@@ -8,6 +8,7 @@ import {
   type FormSummary,
   type LandingSummary,
   type StatFunnel,
+  type StatJourney,
   type StatsOverview,
 } from "../api/client";
 import { TopBar } from "../components/TopBar";
@@ -62,6 +63,7 @@ function reportRange(unit: ReportUnit, current: { from: string; to: string }): {
 }
 
 export function StatsPage() {
+  const [view, setView] = useState<"overview" | "journey">("overview");
   const [preset, setPreset] = useState<Preset>("30d");
   const [from, setFrom] = useState(daysAgo(29));
   const [to, setTo] = useState(ymd(new Date()));
@@ -210,12 +212,22 @@ export function StatsPage() {
           )}
         </div>
 
+        {/* 개요 / 여정 분석 탭 */}
+        <div className="seg" style={{ marginTop: 16 }}>
+          <button type="button" className={view === "overview" ? "on" : ""} onClick={() => setView("overview")}>개요</button>
+          <button type="button" className={view === "journey" ? "on" : ""} onClick={() => setView("journey")}>여정 분석</button>
+        </div>
+
         {loading && !stats ? (
           <Loading />
         ) : !stats ? (
           <div className="card card-pad empty-state" style={{ marginTop: 20 }}><p>통계를 불러오지 못했습니다.</p></div>
         ) : (
           <div style={{ opacity: loading ? 0.55 : 1, transition: "opacity .15s" }}>
+          {view === "journey" ? (
+            <JourneySection journey={stats.journey} empty={!!empty} />
+          ) : (
+          <>
             {/* 요약 */}
             <div className="kpis" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", marginTop: 20 }}>
               <div className="kpi card"><div className="k-label">순 방문<span className="k-hint">고유</span></div><div className="k-val">{stats.summary.uniqueVisits.toLocaleString("ko-KR")}</div></div>
@@ -296,6 +308,8 @@ export function StatsPage() {
               <BarCard title="UTM 캠페인" data={stats.byUtmCampaign} />
               <BarCard title="유입 경로" data={stats.byReferer} />
             </div>
+          </>
+          )}
           </div>
         )}
 
@@ -384,5 +398,56 @@ function FunnelCard({ funnel }: { funnel: StatFunnel }) {
         '폼 열기'는 오버레이 CTA(버튼→폼) 클릭만 집계됩니다. 인라인 폼·단독 리드폼은 방문→접수로 봅니다.
       </p>
     </section>
+  );
+}
+
+/** 체류 시간(초) → "N분 M초"/"N초" 표시. */
+function fmtDuration(sec: number): string {
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m > 0 ? `${m}분 ${s}초` : `${s}초`;
+}
+
+/** 고객 여정 분석(I6) — 스크롤 깊이별 도달률 + 평균 체류시간 + 즉시 이탈률. */
+function JourneySection({ journey, empty }: { journey: StatJourney; empty: boolean }) {
+  const completeRate = journey.scrollFunnel.find((p) => p.depth === 100)?.rate ?? 0;
+  return (
+    <>
+      <div className="kpis" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", marginTop: 20 }}>
+        <div className="kpi card"><div className="k-label">평균 체류시간</div><div className="k-val">{fmtDuration(journey.avgDurationSec)}</div></div>
+        <div className="kpi card"><div className="k-label">즉시 이탈률<span className="k-hint">스크롤 25% 미만</span></div><div className="k-val">{journey.bounceRate}<span style={{ fontSize: 16 }}>%</span></div></div>
+        <div className="kpi card"><div className="k-label">완독률<span className="k-hint">100% 도달</span></div><div className="k-val">{completeRate}<span style={{ fontSize: 16 }}>%</span></div></div>
+      </div>
+
+      {empty && (
+        <div className="card card-pad empty-state" style={{ margin: "20px 0" }}>
+          <p>이 기간/대상에 집계할 데이터가 없습니다. 공개 랜딩에 방문이 쌓이면 표시됩니다.</p>
+        </div>
+      )}
+
+      <section className="card card-pad" style={{ marginTop: 20 }}>
+        <div className="card-h">스크롤 깊이별 도달률</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {journey.scrollFunnel.map((p) => (
+            <div key={p.depth}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 13, marginBottom: 4 }}>
+                <span style={{ fontWeight: 700 }}>{p.depth}% 지점</span>
+                <span style={{ fontWeight: 800 }}>
+                  {p.reached.toLocaleString("ko-KR")}명
+                  <span className="dash-sub" style={{ marginLeft: 6, fontWeight: 400, fontSize: 12 }}>({p.rate}%)</span>
+                </span>
+              </div>
+              <span style={{ display: "block", height: 12, borderRadius: 7, background: "var(--surface-2)", overflow: "hidden" }}>
+                <span style={{ display: "block", height: "100%", borderRadius: 7, width: `${p.rate}%`, background: "var(--indigo)", transition: "width .2s" }} />
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="dash-sub" style={{ marginTop: 12, fontSize: 12 }}>
+          순방문({journey.sessions.toLocaleString("ko-KR")}명) 대비 각 지점까지 스크롤한 방문자 비율입니다. IP 기준 추정치라 실제와 소폭 차이가 있을 수 있습니다.
+        </p>
+      </section>
+    </>
   );
 }
