@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { getLandingLive, recordEvent, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
+import { getLandingLive, recordEvent, recordEventBeacon, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
 
@@ -48,6 +48,65 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
       el.textContent = String(Math.max(0, target - live.count));
     });
   }, [live]);
+
+  // I6 고객 여정 추적: 스크롤 깊이(25/50/75/100%) 도달 + 체류시간/이탈. 공개 랜딩에서만 동작(에디터 미리보기는 이 컴포넌트를 쓰지 않음).
+  useEffect(() => {
+    const thresholds = [25, 50, 75, 100];
+    const reached = new Set<number>();
+    let maxScroll = 0;
+    let ticking = false;
+    let exited = false;
+    const startedAt = Date.now();
+
+    function scrollPercent(): number {
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop || 0;
+      const viewport = window.innerHeight || doc.clientHeight || 0;
+      const full = Math.max(doc.scrollHeight, doc.offsetHeight, 1);
+      return Math.min(100, Math.max(0, Math.round(((scrollTop + viewport) / full) * 100)));
+    }
+
+    function checkThresholds() {
+      ticking = false;
+      const pct = scrollPercent();
+      if (pct > maxScroll) maxScroll = pct;
+      for (const t of thresholds) {
+        if (pct >= t && !reached.has(t)) {
+          reached.add(t);
+          recordEvent({ landingPageId: landing.id, eventType: "scroll", scrollDepth: t });
+        }
+      }
+    }
+
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(checkThresholds);
+    }
+
+    function onExit() {
+      if (exited) return;
+      exited = true;
+      const durationSec = Math.round((Date.now() - startedAt) / 1000);
+      recordEventBeacon({ landingPageId: landing.id, eventType: "page_exit", durationSec, scrollDepth: maxScroll });
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") onExit();
+    }
+
+    checkThresholds(); // 스크롤 없이 뷰포트만으로 이미 도달한 깊이도 반영
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onExit);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onExit);
+      onExit(); // 다른 랜딩으로 전환되는 언마운트도 이탈로 간주
+    };
+  }, [landing.id]);
 
   const formOf = (b: LandingBlock): FormDetail | undefined => {
     const fid = b.formId;

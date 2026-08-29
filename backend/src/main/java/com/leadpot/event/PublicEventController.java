@@ -20,14 +20,16 @@ public class PublicEventController {
         this.eventService = eventService;
     }
 
-    public record EventRequest(Long landingPageId, Long formId, String eventType, String target) {
+    public record EventRequest(Long landingPageId, Long formId, String eventType, String target,
+            Integer scrollDepth, Integer durationSec) {
     }
 
     @PostMapping
     public ResponseEntity<Void> record(@RequestBody(required = false) EventRequest req, HttpServletRequest http) {
         if (req != null && req.eventType() != null && (req.landingPageId() != null || req.formId() != null)) {
             try {
-                eventService.record(req.landingPageId(), req.formId(), req.eventType(), req.target(), clientIp(http));
+                eventService.record(req.landingPageId(), req.formId(), req.eventType(), req.target(), clientIp(http),
+                        req.scrollDepth(), req.durationSec());
             } catch (Exception ignored) {
                 // 이벤트 기록 실패는 무시(페이지 동작에 영향 없음)
             }

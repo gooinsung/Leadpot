@@ -88,6 +88,7 @@
 - [ ] **I3. 검색엔진 등록(SEO)** — 구글·네이버 검색에 잘 노출되게 메타태그 세팅
 - [x] **I4. 전환 분석** — 전환 퍼널(방문→폼 열기→접수, 고유 방문자 기준, 단계별 %). 통계 페이지에 퍼널 카드. (경량: 기존 방문/리드 + form_open 이벤트 활용)
 - [x] **I5. 요소 노출/클릭 분석** — 오버레이 CTA(=폼 열기) + **공개 랜딩의 이미지·버튼·링크 자동 클릭 추적**. `interaction_events`(Flyway V15) + `POST /api/public/events`(best-effort) + 통계 '요소 클릭' 집계. 랜딩에 위임 클릭 핸들러(폼 내부·오버레이 CTA 제외해 중복 방지). (노출 임프레션 추적은 추후)
+- [x] **I6. 고객 여정 분석(GA 스타일)** — 공개 랜딩의 **스크롤 깊이(25/50/75/100% 도달률) + 평균 체류시간 + 즉시 이탈률(스크롤 25% 미만)**. `interaction_events`에 `scroll_depth`·`duration_sec` 컬럼 추가(Flyway V37, 기존 I4/I5 이벤트 구조 재사용 — eventType="scroll"/"page_exit"). 프론트 `LandingView`에서 스크롤 임계값 통과 시 이벤트 발사 + `visibilitychange`/`pagehide` 시 `navigator.sendBeacon`으로 이탈 기록(fetch는 언로드 중 취소될 수 있어 beacon 사용). 통계 페이지에 '여정 분석' 탭(스크롤 깊이 막대 + 체류시간/이탈률 KPI). (경량: IP 해시로 순방문과 대응 — I4 퍼널과 같은 근사 방식)
 
 ### J. 통계 · 분석
 - [ ] **J1. 접속 통계** — 방문자 수, 기간별 추이
