@@ -230,7 +230,7 @@ export function AdvertiserReportPage() {
               </div>
               <p className="dash-sub" style={{ fontSize: 12, marginTop: 12, marginBottom: 0 }}>
                 <b>유효율</b>은 접수한 리드 중 상태가 <b>'유효'</b>인 비율입니다. 실제 계약·수임까지
-                이어졌는지가 아니라, 이 서비스 안에서 정산 기준이 되는 상태로 확정된 비율입니다.
+                이어졌는지가 아니라, 이 서비스 안에서 확정된 상태로 처리된 비율입니다.
               </p>
             </div>
 
@@ -260,7 +260,7 @@ export function AdvertiserReportPage() {
                     </div>
                   </div>
                   <p className="dash-sub" style={{ fontSize: 12, marginTop: 12, marginBottom: 0 }}>
-                    <b>인정</b>되면 리드가 무효로 처리되고 정산이 환급됩니다.
+                    <b>인정</b>되면 리드가 무효로 처리됩니다.
                     {asAcceptRate != null && ` 처리 완료된 ${asResolved}건 중 인정 ${asAcceptRate}%.`}
                   </p>
                 </>

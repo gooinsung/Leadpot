@@ -268,7 +268,6 @@ export function LeadSidePanel({
               type="button"
               className={`chip ld-chip ld-${leadStatusClass(s.key)}${lead.statusKey === s.key ? " on" : ""}`}
               disabled={busy || s.status === "AS_REQUESTED"}
-              title={s.status === "VALID" ? "유효로 확정하면 광고주 잔액에서 단가가 차감됩니다(정산 설정 시)" : undefined}
               onClick={() => changeStatus(s)}
             >
               {s.label}
@@ -489,7 +488,6 @@ export function LeadSidePanel({
                   <button
                     className="btn btn-green btn-sm"
                     disabled={busy}
-                    title="유효로 확정하면 광고주 잔액에서 단가가 차감됩니다(정산 설정 시)"
                     onClick={() => validOpt && changeStatus(validOpt)}
                   >
                     유효로 확정

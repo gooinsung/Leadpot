@@ -6,7 +6,6 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.leadpot.advertiser.AdvertiserBillingService;
 import com.leadpot.advertiser.AdvertiserFormGrant;
 import com.leadpot.advertiser.AdvertiserFormGrantRepository;
 import com.leadpot.common.error.InvalidSubmissionException;
@@ -14,10 +13,9 @@ import com.leadpot.common.error.InvalidSubmissionException;
 /**
  * 리드 진행상태 변경의 <b>단일 관문</b>(V29). 마케터 API·광고주 API·자동 승인·AS 처리 전부 여기를 지난다.
  *
- * <p>한 곳에 모은 이유: 상태 전이에는 항상 세 가지가 따라붙는다 —
+ * <p>한 곳에 모은 이유: 상태 전이에는 항상 두 가지가 따라붙는다 —
  * ① 역할별 권한 검증(무효는 마케터만, AS요청은 플로우 전용),
- * ② 이력 메모(공유 축이므로 광고주에게도 보인다),
- * ③ 과금(유효 진입=차감, 이탈=환급, {@link AdvertiserBillingService}).
+ * ② 이력 메모(공유 축이므로 광고주에게도 보인다).
  * 호출부마다 흩어지면 하나가 빠진 경로가 반드시 생긴다.
  *
  * <p>소유권 검증(이 리드가 이 사용자 것인가)은 <b>호출부 책임</b>이다 — 마케터는 폼 소유,
@@ -29,16 +27,13 @@ public class LeadStatusService {
     private final CustomLeadStatusRepository customStatusRepository;
     private final AdvertiserFormGrantRepository grantRepository;
     private final LeadNoteRepository noteRepository;
-    private final AdvertiserBillingService billingService;
 
     public LeadStatusService(CustomLeadStatusRepository customStatusRepository,
             AdvertiserFormGrantRepository grantRepository,
-            LeadNoteRepository noteRepository,
-            AdvertiserBillingService billingService) {
+            LeadNoteRepository noteRepository) {
         this.customStatusRepository = customStatusRepository;
         this.grantRepository = grantRepository;
         this.noteRepository = noteRepository;
-        this.billingService = billingService;
     }
 
     /** 마케터의 상태 변경. 무효 진입·해제 포함 전부 가능(AS요청만 플로우 전용). */
@@ -59,8 +54,8 @@ public class LeadStatusService {
      * 광고주의 상태 변경. 무효는 넣지도 빼지도 못하고, AS 대기 중에도 잠긴다(사용자 확정).
      *
      * <p>⚠️ <b>유효로 확정된 뒤에는 광고주가 직접 상태를 바꿀 수 없다(2026-08-20 사용자 확정)</b> —
-     * 유효는 과금 기준이라 광고주가 마음대로 되돌리면(예: 유효 → 신규) 환급이 근거 없이 발생한다.
-     * 되돌리고 싶으면 AS 요청으로 마케터에게 넘긴다({@link LeadAsRequestService}) — 인정되면 무효+환급,
+     * 유효는 확정 판정이라 광고주가 마음대로 되돌리면(예: 유효 → 신규) 근거 없이 뒤집히게 된다.
+     * 되돌리고 싶으면 AS 요청으로 마케터에게 넘긴다({@link LeadAsRequestService}) — 인정되면 무효,
      * 거부되면 유효 유지로 마케터가 판정한다.
      */
     @Transactional
@@ -101,7 +96,6 @@ public class LeadStatusService {
         noteRepository.save(new LeadNote(lead.getId(), actorId, LeadNote.KIND_SYSTEM,
                 notePrefix + ": " + label(before, beforeCustomId) + " → " + label(status, resolvedCustomId),
                 LeadNote.VISIBILITY_ALL));
-        billingService.onStatusChanged(lead, before, status, actorId);
     }
 
     /**

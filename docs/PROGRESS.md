@@ -29,6 +29,44 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-08-30 — **광고주 선입금 과금(정산)·리드폼 수집 목표 기능 제거**
+>
+> 클라우드 세션(브랜치 `feature/remove-billing-and-goals`, main에서 분기). 사용자 요청: "운영 메뉴의
+> 목표, 리드폼의 정산·목표를 빼자 — 정산 관리는 따로 제대로 만들 계획이다." **백엔드·DB까지 완전히
+> 삭제하기로 확정**(AskUserQuestion — UI만 숨기는 안전한 선택지 대신 완전 삭제를 선택함, 실제 과금·
+> 잔액 데이터가 있었다면 되돌리기 어렵다는 점 고지 후 진행).
+>
+> - **제거한 것**:
+>   - **정산(V31, 2026-08-08 도입)**: `AdvertiserBillingService`·`AdvertiserLedgerEntry`·
+>     `AdvertiserLedgerRepository`·`BillingController`·`BillingOverviewController` 전부 삭제.
+>     `AdvertiserFormGrant`에서 과금 필드(unitPrice·dailyGoal·totalGoal·balanceAlert*·goalAlertDate)
+>     제거 — **권한/배정 필드(canStatus·notifyPhone 등)는 유지**(A2 권한부여와 같은 엔티티를 공유하고
+>     있었음). `LeadRepository`의 과금 전용 집계 쿼리 5개도 함께 정리.
+>   - **수집 목표(2026-08-09 도입)**: `GoalController`·`GoalReportService`·`GoalSettings` 삭제
+>     (별도 테이블 없이 `forms.settings_config` JSONB 키였을 뿐이라 코드 삭제만으로 끝남).
+>   - 프론트: `BillingPage`·`GoalsPage`·`AdvertiserBillingCard` 삭제, `/billing`·`/goals` 라우트와
+>     운영 내비 항목 제거, `FormEditPage`의 '수집 목표 설정'·'광고주 정산' 섹션 제거,
+>     `client.ts`의 관련 API 함수·타입 제거.
+>   - **DB**: Flyway **V38** — `advertiser_ledger` 테이블 DROP + `advertiser_form_grants`의 과금
+>     컬럼 8개 DROP.
+> - **유지한 것(중요 — 삭제 아님)**: "유효로 확정된 리드는 광고주가 직접 상태를 못 바꾼다(AS 요청만
+>   가능)"는 잠금 규칙(`LeadStatusService.changeByAdvertiser`, 2026-08-20 확정) — 원래 근거는 과금
+>   (근거 없는 환급 방지)이었지만, 확정 상태를 함부로 못 뒤집는다는 워크플로 자체는 과금과 무관하게
+>   유지할 가치가 있다고 판단해 **로직은 남기고 주석·안내문구만 과금 언급을 뺐다**(코드·문서·
+>   `AdvertiserGuidePage`/`AdvertiserReportPage`/`AdvertiserLeadDetail`/`LeadSidePanel` 등 광고주
+>   화면 문구). 이 판단이 사용자 의도와 다르면 되돌릴 것.
+> - **테스트**: 과금 로직만 검증하던 `AdvertiserBillingTest` 삭제, 그 안에 섞여 있던 **잠금·AS요청
+>   플로우 테스트 4개는 살려서** `LeadStatusLockAndAsFlowTest`(신규, `com.leadpot.lead`)로 이전.
+>   백엔드 전체 테스트 통과 · 프론트 `tsc --noEmit`·`vitest`(81개)·`npm run build` 전부 통과.
+>   **브라우저 실검증은 안 함**(클라우드 세션, Neon 접속정보 없음).
+>
+> **다음 후보**:
+> - ⬜ 사용자가 확인 후 `main` 병합 → 배포(Flyway V38 자동 적용, `advertiser_ledger` 테이블과 과금
+>   컬럼이 실제로 사라짐 — **되돌릴 수 없음**, 병합 전에 정말 필요 없는 데이터인지 마지막으로 확인).
+> - ⬜ 새 정산 관리 기능 설계(사용자가 "따로 만들 계획"이라고 한 것) — 아직 요구사항 미정.
+>
+> ---
+>
 > ## ✅ 2026-08-29 — **고객 여정 분석(I6) — 스크롤 깊이·체류시간·이탈률**
 >
 > 클라우드 세션(브랜치 `claude/landing-page-journey-analytics-98vi46`). 사용자 요청: "GA에서 쓰는 것처럼

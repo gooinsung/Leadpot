@@ -70,43 +70,6 @@ public class AdvertiserFormGrant {
     @Column(name = "notify_disabled", nullable = false)
     private boolean notifyDisabled;
 
-    // ---------- 선입금 과금(V31) ----------
-
-    /** 유효 DB 1건당 단가(원). 0 이면 과금하지 않는다(원장 기록도 안 남긴다). */
-    @Column(name = "unit_price", nullable = false)
-    private int unitPrice;
-
-    /** 일 목표 수량. 그날 접수가 이 수에 도달하면 마케터에게 문자. 0 = 목표 없음. */
-    @Column(name = "daily_goal", nullable = false)
-    private int dailyGoal;
-
-    /** 총 목표 수량(계약 물량). 화면 표시용. 0 = 목표 없음. */
-    @Column(name = "total_goal", nullable = false)
-    private int totalGoal;
-
-    @Column(name = "balance_alert_enabled", nullable = false)
-    private boolean balanceAlertEnabled;
-
-    /** 잔액이 이 금액(원) 미만이면 알림. */
-    @Column(name = "balance_alert_threshold", nullable = false)
-    private int balanceAlertThreshold;
-
-    /**
-     * 잔액 알림 수신번호 — <b>마케터가 직접 지정</b>한다. V28 원칙(광고주 번호 대리 입력 금지)의
-     * 유일한 예외다(2026-08-08 사용자 확정): 접수 알림을 받는 광고주와 <b>결제하는 사람</b>이
-     * 다를 수 있어서다. 비어 있으면 광고주가 등록한 {@link #notifyPhone} 으로, 그것도 없으면 안 보낸다.
-     */
-    @Column(name = "balance_alert_phone", length = 20)
-    private String balanceAlertPhone;
-
-    /** 마지막 잔액 알림 시각 — 임계 아래에 머무는 동안 반복 발송을 막는다. 충전으로 회복되면 비운다. */
-    @Column(name = "balance_alert_sent_at")
-    private Instant balanceAlertSentAt;
-
-    /** 일 목표 알림을 보낸 날(KST) — 하루 1회만 보낸다. */
-    @Column(name = "goal_alert_date")
-    private java.time.LocalDate goalAlertDate;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -219,58 +182,5 @@ public class AdvertiserFormGrant {
 
     public Instant getCreatedAt() {
         return createdAt;
-    }
-
-    // ---------- 선입금 과금(V31) ----------
-
-    /** 과금 설정 반영(마케터). 음수는 호출부에서 걸러 들어오지 않는다고 본다(서비스 검증). */
-    public void applyBilling(int unitPrice, int dailyGoal, int totalGoal,
-            boolean balanceAlertEnabled, int balanceAlertThreshold, String balanceAlertPhone) {
-        this.unitPrice = unitPrice;
-        this.dailyGoal = dailyGoal;
-        this.totalGoal = totalGoal;
-        this.balanceAlertEnabled = balanceAlertEnabled;
-        this.balanceAlertThreshold = balanceAlertThreshold;
-        this.balanceAlertPhone = balanceAlertPhone == null || balanceAlertPhone.isBlank() ? null : balanceAlertPhone;
-    }
-
-    public int getUnitPrice() {
-        return unitPrice;
-    }
-
-    public int getDailyGoal() {
-        return dailyGoal;
-    }
-
-    public int getTotalGoal() {
-        return totalGoal;
-    }
-
-    public boolean isBalanceAlertEnabled() {
-        return balanceAlertEnabled;
-    }
-
-    public int getBalanceAlertThreshold() {
-        return balanceAlertThreshold;
-    }
-
-    public String getBalanceAlertPhone() {
-        return balanceAlertPhone;
-    }
-
-    public Instant getBalanceAlertSentAt() {
-        return balanceAlertSentAt;
-    }
-
-    public void setBalanceAlertSentAt(Instant at) {
-        this.balanceAlertSentAt = at;
-    }
-
-    public java.time.LocalDate getGoalAlertDate() {
-        return goalAlertDate;
-    }
-
-    public void setGoalAlertDate(java.time.LocalDate date) {
-        this.goalAlertDate = date;
     }
 }

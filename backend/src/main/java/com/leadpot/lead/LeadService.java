@@ -47,14 +47,12 @@ public class LeadService {
     private final LeadStatusService leadStatusService;
     private final CustomLeadStatusRepository customStatusRepository;
     private final LeadAsRequestService asRequestService;
-    private final com.leadpot.advertiser.AdvertiserBillingService billingService;
     private final com.leadpot.auth.UserRepository userRepository;
 
     public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
             FormService formService, IpBlockService ipBlockService, NotificationService notificationService,
             SiteIpBlockService siteIpBlockService, LeadStatusService leadStatusService,
             CustomLeadStatusRepository customStatusRepository, LeadAsRequestService asRequestService,
-            com.leadpot.advertiser.AdvertiserBillingService billingService,
             com.leadpot.auth.UserRepository userRepository) {
         this.leadRepository = leadRepository;
         this.leadNoteRepository = leadNoteRepository;
@@ -65,7 +63,6 @@ public class LeadService {
         this.leadStatusService = leadStatusService;
         this.customStatusRepository = customStatusRepository;
         this.asRequestService = asRequestService;
-        this.billingService = billingService;
         this.userRepository = userRepository;
     }
 
@@ -104,8 +101,6 @@ public class LeadService {
 
         // 리드 접수 훅 — 커밋 후 비동기로 텔레그램/구글시트 알림(best-effort). 접수를 방해하지 않는다.
         notificationService.notifyNewLead(form, lead, () -> isLikelyDuplicate(form, req));
-        // 일 목표 수량(V31) — 오늘 접수가 목표에 닿는 순간 마케터에게 문자(커밋 후 발송, 하루 1회).
-        billingService.checkDailyGoal(form, lead);
         return lead.getId();
     }
 
