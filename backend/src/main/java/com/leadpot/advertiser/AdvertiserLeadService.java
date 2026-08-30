@@ -306,15 +306,15 @@ public class AdvertiserLeadService {
     // ---------- 리드 목록 / 상세 ----------
 
     /**
-     * 리드 목록. 검색·상태·기간 필터는 마케터 목록과 동일하게 메모리에서 처리하고,
+     * 리드 목록. 검색·상태·기간·미확인 필터는 마케터 목록과 동일하게 메모리에서 처리하고,
      * <b>페이지 크기는 서버가 상한을 강제</b>한다(대량 추출 방어).
      */
     @Transactional(readOnly = true)
     public AdvertiserLeadPage leads(Long advertiserId, Long formId, String status, String q,
-            String from, String to, Integer page, Integer size) {
+            String from, String to, Boolean unseenOnly, Integer page, Integer size) {
         requireGrant(advertiserId, formId);
 
-        List<Lead> filtered = filterLeads(formId, status, q, from, to);
+        List<Lead> filtered = filterLeads(formId, status, q, from, to, unseenOnly);
         // 정렬 불필요: 리포지토리가 createdAt DESC 로 주고, 필터링은 순서를 유지한다.
         int pageSize = size == null || size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
         int pageIndex = page == null || page < 0 ? 0 : page;
@@ -642,6 +642,12 @@ public class AdvertiserLeadService {
 
     /** 목록·내보내기가 공유하는 필터(상태·검색어·기간). grant 검증은 호출자 책임. */
     private List<Lead> filterLeads(Long formId, String status, String q, String from, String to) {
+        return filterLeads(formId, status, q, from, to, null);
+    }
+
+    /** @param unseenOnly true 면 광고주가 아직 열지 않은(advertiser_seen_at null) 리드만. */
+    private List<Lead> filterLeads(Long formId, String status, String q, String from, String to,
+            Boolean unseenOnly) {
         List<Lead> all = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(formId);
         List<Lead> filtered = new ArrayList<>();
         Instant fromAt = startOfDay(from);
@@ -659,6 +665,9 @@ public class AdvertiserLeadService {
                 continue;
             }
             if (needle != null && !needle.isEmpty() && !matches(lead, needle)) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(unseenOnly) && lead.getAdvertiserSeenAt() != null) {
                 continue;
             }
             filtered.add(lead);

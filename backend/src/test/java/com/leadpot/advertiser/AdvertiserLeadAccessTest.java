@@ -116,17 +116,40 @@ class AdvertiserLeadAccessTest {
     @DisplayName("부여된 리드폼의 리드만 조회된다")
     void onlyGrantedFormLeadsAreVisible() {
         AdvertiserLeadPage page = leadService.leads(advertiser.getId(), grantedForm.getId(),
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
         assertThat(page.total()).isEqualTo(1);
         assertThat(page.items()).singleElement()
                 .satisfies(l -> assertThat(l.id()).isEqualTo(grantedLead.getId()));
     }
 
     @Test
+    @DisplayName("unseenOnly=true 면 열람한 리드는 빠진다 — 열람 후에는 목록에서 사라진다")
+    void unseenOnlyExcludesViewedLeads() {
+        Lead second = saveLead(grantedForm, "김철수", "01055556666");
+
+        AdvertiserLeadPage before = leadService.leads(advertiser.getId(), grantedForm.getId(),
+                null, null, null, null, true, null, null);
+        assertThat(before.total()).isEqualTo(2);
+
+        leadService.lead(advertiser.getId(), grantedLead.getId(), null); // 열람 → advertiser_seen_at 기록
+
+        AdvertiserLeadPage after = leadService.leads(advertiser.getId(), grantedForm.getId(),
+                null, null, null, null, true, null, null);
+        assertThat(after.total()).isEqualTo(1);
+        assertThat(after.items()).singleElement()
+                .satisfies(l -> assertThat(l.id()).isEqualTo(second.getId()));
+
+        // unseenOnly 를 안 걸면 열람 여부와 무관하게 전부 보인다.
+        AdvertiserLeadPage all = leadService.leads(advertiser.getId(), grantedForm.getId(),
+                null, null, null, null, null, null, null);
+        assertThat(all.total()).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("부여되지 않은 리드폼은 404 (존재 노출 방지)")
     void ungrantedFormIsNotFound() {
         assertThatThrownBy(() -> leadService.leads(advertiser.getId(), otherForm.getId(),
-                null, null, null, null, null, null))
+                null, null, null, null, null, null, null))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -177,7 +200,7 @@ class AdvertiserLeadAccessTest {
         assertThatThrownBy(() -> leadService.lead(advertiser.getId(), grantedLead.getId(), null))
                 .isInstanceOf(NotFoundException.class);
         assertThat(leadService.leads(advertiser.getId(), grantedForm.getId(),
-                null, null, null, null, null, null).total()).isZero();
+                null, null, null, null, null, null, null).total()).isZero();
     }
 
     // ---------- 필드 화이트리스트 ----------
@@ -327,7 +350,7 @@ class AdvertiserLeadAccessTest {
     @DisplayName("페이지 크기는 서버 상한(100)을 넘지 못한다")
     void pageSizeIsCapped() {
         AdvertiserLeadPage page = leadService.leads(advertiser.getId(), grantedForm.getId(),
-                null, null, null, null, 0, 5000);
+                null, null, null, null, null, 0, 5000);
         assertThat(page.size()).isEqualTo(100);
     }
 }

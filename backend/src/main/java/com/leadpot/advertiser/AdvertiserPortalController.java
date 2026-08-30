@@ -114,7 +114,7 @@ public class AdvertiserPortalController {
         return leadService.dashboard(userId(jwt));
     }
 
-    /** 리드 목록. size 는 서버에서 상한(100)이 강제된다. */
+    /** 리드 목록. size 는 서버에서 상한(100)이 강제된다. unseenOnly=true 면 광고주 미확인 리드만. */
     @GetMapping("/leads")
     public AdvertiserLeadPage leads(@AuthenticationPrincipal Jwt jwt,
             @RequestParam Long formId,
@@ -122,9 +122,10 @@ public class AdvertiserPortalController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
+            @RequestParam(required = false) Boolean unseenOnly,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        return leadService.leads(userId(jwt), formId, status, q, from, to, page, size);
+        return leadService.leads(userId(jwt), formId, status, q, from, to, unseenOnly, page, size);
     }
 
     /** 리드 상세(최초 열람 시각 기록). */

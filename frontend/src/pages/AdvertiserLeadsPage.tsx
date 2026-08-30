@@ -42,8 +42,10 @@ function phoneOf(lead: AdvertiserLead): string | null {
  * 광고주 리드 목록. 마케터 리드 목록과 같은 구조(답변 인라인 표시 · 검색 · 상태/기간 필터 · 페이징)로 맞추고,
  * 광고주 전용 요소(전화 버튼)를 더했다. 모바일에서도 그대로 쓸 수 있게 반응형.
  *
- * <p>⚠️ <b>열람 여부(확인/미확인)는 이 화면에 그리지 않는다</b>(V33). 기록은 계속 쌓이지만
- * 그건 마케터가 "광고주가 이 리드를 보기는 했나"를 확인하는 근거지, 광고주에게 보여줄 성적표가 아니다.
+ * <p>열람 여부(확인/미확인)는 <b>광고주 자신을 위한 우선순위 표시로 화면에 그린다(2026-08-30 결정)</b>.
+ * V33 때는 이 값을 "마케터가 광고주를 감시하는 성적표"로 보고 숨겼지만, 이번엔 반대로 광고주 본인이
+ * "어떤 리드에 아직 콜을 안 했는지"를 스스로 챙기는 용도라 목적이 다르다. 기본 화면은 미확인 리드만
+ * 보여주고(콜 우선순위), 체크 한 번으로 전체를 볼 수 있게 한다.
  */
 export function AdvertiserLeadsPage() {
   // 텔레그램 알림 딥링크(/client?form=..&lead=..)로 들어오면 해당 폼·리드를 바로 연다.
@@ -68,6 +70,8 @@ export function AdvertiserLeadsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  // 미확인 우선(2026-08-30) — 기본값은 '아직 안 연 리드만'. 체크 해제하면 전체를 본다.
+  const [unseenOnly, setUnseenOnly] = useState(true);
 
   // 페이징 (서버 페이징 — Pagination 컴포넌트는 1-base, API 는 0-base)
   const [page, setPage] = useState(1);
@@ -117,6 +121,7 @@ export function AdvertiserLeadsPage() {
         q: q.trim() || undefined,
         from: dateFrom || undefined,
         to: dateTo || undefined,
+        unseenOnly: unseenOnly || undefined,
         page: page - 1,
         size: effectiveSize,
       });
@@ -127,7 +132,7 @@ export function AdvertiserLeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [formId, statusFilter, q, dateFrom, dateTo, page, effectiveSize]);
+  }, [formId, statusFilter, q, dateFrom, dateTo, unseenOnly, page, effectiveSize]);
 
   useEffect(() => {
     load();
@@ -136,7 +141,7 @@ export function AdvertiserLeadsPage() {
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [formId, statusFilter, q, dateFrom, dateTo, pageSize]);
+  }, [formId, statusFilter, q, dateFrom, dateTo, unseenOnly, pageSize]);
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -269,12 +274,13 @@ export function AdvertiserLeadsPage() {
    * 할 일 큐 클릭 — 조건을 '더하지' 않고 그 할 일만 남긴다.
    * 여러 필터가 겹쳐 왜 안 보이는지 헷갈리는 일을 막는다.
    */
-  function applyTask(task: "today" | "all") {
+  function applyTask(task: "unseen" | "today" | "all") {
     setQ("");
     setStatusFilter("");
     setPage(1);
     setDateFrom(task === "today" ? today : "");
     setDateTo(task === "today" ? today : "");
+    setUnseenOnly(task === "unseen");
   }
   // 폴링 콜백이 최신 화면 상태를 읽도록 매 렌더마다 갱신.
   pollCtx.current = { page, hasOpen: openId != null, filtered: hasFilter };
@@ -330,14 +336,22 @@ export function AdvertiserLeadsPage() {
           </div>
         </div>
 
-        {/* 할 일 큐(U6 Task-First) — 숫자를 보여주기만 하지 않고 누르면 바로 그 목록으로 간다. */}
+        {/* 할 일 큐(U6 Task-First) — 숫자를 보여주기만 하지 않고 누르면 바로 그 목록으로 간다.
+            '미확인'을 맨 앞에 둔 게 기본값이자 콜 우선순위(2026-08-30) — 아직 안 연 리드부터. */}
         {dash && forms.length > 0 && (
           <div className="task-queue">
             <button
               type="button"
-              className={`task-card${dateFrom === today && dateTo === today ? " on" : ""}${
-                dash.todayLeads > 0 ? " urgent" : ""
-              }`}
+              className={`task-card${unseenOnly ? " on" : ""}${dash.unseenLeads > 0 ? " urgent" : ""}`}
+              onClick={() => applyTask("unseen")}
+            >
+              <span className="task-label">미확인</span>
+              <span className="task-val">{dash.unseenLeads}</span>
+              <span className="task-hint">아직 안 열어본 리드</span>
+            </button>
+            <button
+              type="button"
+              className={`task-card${!unseenOnly && dateFrom === today && dateTo === today ? " on" : ""}`}
               onClick={() => applyTask("today")}
             >
               <span className="task-label">오늘 접수</span>
@@ -346,7 +360,7 @@ export function AdvertiserLeadsPage() {
             </button>
             <button
               type="button"
-              className={`task-card${!hasFilter ? " on" : ""}`}
+              className={`task-card${!unseenOnly && !hasFilter ? " on" : ""}`}
               onClick={() => applyTask("all")}
             >
               <span className="task-label">전체</span>
@@ -381,6 +395,10 @@ export function AdvertiserLeadsPage() {
         {/* 검색·필터 (마케터 리드 목록과 동일한 구성) */}
         {forms.length > 0 && (
           <div className="card card-pad adv-filters">
+            <label className="fr-check" style={{ margin: 0 }}>
+              <input type="checkbox" checked={!unseenOnly} onChange={(e) => setUnseenOnly(!e.target.checked)} />
+              전체 리드 보기
+            </label>
             <input
               className="input"
               style={{ maxWidth: 280 }}
@@ -454,7 +472,16 @@ export function AdvertiserLeadsPage() {
           <Loading />
         ) : forms.length === 0 ? null : shown.length === 0 ? (
           <div className="card card-pad empty-state">
-            <p>{hasFilter ? "조건에 맞는 리드가 없습니다." : "아직 접수된 리드가 없습니다."}</p>
+            <p>
+              {unseenOnly
+                ? "미확인 리드가 없습니다. 전부 확인하셨어요! 🎉"
+                : hasFilter
+                  ? "조건에 맞는 리드가 없습니다."
+                  : "아직 접수된 리드가 없습니다."}
+            </p>
+            {unseenOnly && dash && dash.totalLeads > 0 && (
+              <button className="btn btn-ghost btn-sm" onClick={() => applyTask("all")}>전체 리드 보기</button>
+            )}
           </div>
         ) : (
           <>
@@ -492,9 +519,10 @@ export function AdvertiserLeadsPage() {
                 const phone = phoneOf(lead);
                 const selectable =
                   lead.statusKey !== "INVALID" && lead.statusKey !== "AS_REQUESTED" && lead.statusKey !== "VALID";
+                const unseen = lead.advertiserSeenAt == null;
                 return (
                   <div
-                    className="card card-pad lead-card"
+                    className={`card card-pad lead-card${unseen ? " adv-unseen" : ""}`}
                     key={lead.id}
                     onClick={() => setOpenId(lead.id)}
                     title="클릭하면 상세가 열립니다"
@@ -511,6 +539,7 @@ export function AdvertiserLeadsPage() {
                             style={{ width: 16, height: 16, accentColor: "var(--indigo)" }}
                           />
                         )}
+                        {unseen && <span className="badge b-wait">미확인</span>}
                         {new Date(lead.createdAt).toLocaleString("ko-KR")}
                       </span>
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
