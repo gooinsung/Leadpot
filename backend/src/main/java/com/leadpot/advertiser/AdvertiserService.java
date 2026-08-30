@@ -212,7 +212,7 @@ public class AdvertiserService {
     public AdvertiserLeadPage previewLeads(Long marketerId, Long advertiserId, Long formId,
             String status, String q, String from, String to, Integer page, Integer size) {
         loadOwned(marketerId, advertiserId);
-        return leadService.leads(advertiserId, formId, status, q, from, to, page, size);
+        return leadService.leads(advertiserId, formId, status, q, from, to, null, page, size);
     }
 
     /** 미리보기 리드 상세(읽기 전용) + 공유 메모. seen 을 남기지 않는다. */

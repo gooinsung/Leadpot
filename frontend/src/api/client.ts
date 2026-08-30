@@ -1551,6 +1551,8 @@ export interface AdvertiserLeadFilter {
   q?: string;
   from?: string;
   to?: string;
+  /** true 면 광고주가 아직 열지 않은(미확인) 리드만. */
+  unseenOnly?: boolean;
   page?: number;
   size?: number;
 }
@@ -1600,6 +1602,7 @@ export function listAdvertiserLeads(filter: AdvertiserLeadFilter): Promise<Adver
   if (filter.q) p.set("q", filter.q);
   if (filter.from) p.set("from", filter.from);
   if (filter.to) p.set("to", filter.to);
+  if (filter.unseenOnly) p.set("unseenOnly", "true");
   if (filter.page != null) p.set("page", String(filter.page));
   if (filter.size != null) p.set("size", String(filter.size));
   return request<AdvertiserLeadPage>(`/api/advertiser/leads?${p.toString()}`);
