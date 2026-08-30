@@ -30,7 +30,7 @@ interface Props {
  * 핵심 동선은 <b>전화 걸기</b> — 상단에 큰 버튼으로 둔다.
  * 화면을 열면 서버가 최초 열람 시각을 기록하므로, 마케터가 '확인 여부'를 알 수 있다.
  *
- * 진행상태는 마케터와 공유하는 단일 축(V29)이다. 여기서 <b>유효</b>로 넘기면 정산이 확정되고,
+ * 진행상태는 마케터와 공유하는 단일 축(V29)이다. 여기서 <b>유효</b>로 넘기면 확정되고,
  * 이의가 있으면 <b>AS 요청</b>(사유 필수·증빙 이미지)으로 제기한다 — 무효 처리는 마케터만 한다.
  */
 export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onChanged }: Props) {
@@ -228,9 +228,7 @@ export function AdvertiserLeadDetail({ leadId, canStatus, canMemo, onClose, onCh
                             ? "AS요청은 아래 'AS 요청하기'로만 접수됩니다"
                             : lead.statusKey === "VALID"
                               ? "유효로 확정된 리드는 상태를 바꿀 수 없습니다 — 바꾸려면 AS 요청을 이용하세요"
-                              : s.status === "VALID"
-                                ? "유효로 확정하면 계약 정산에 반영됩니다"
-                                : undefined
+                              : undefined
                       }
                       onClick={() => onStatus(s)}
                     >
