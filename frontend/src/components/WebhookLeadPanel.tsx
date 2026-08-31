@@ -239,24 +239,27 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
   const payloadKeys = config?.lastPayload ? Object.keys(config.lastPayload) : [];
 
   return (
-    <div className="card card-pad" style={{ marginTop: 16 }}>
+    <div
+      className="card card-pad"
+      style={{ marginTop: 16, maxWidth: "100%", overflowX: "hidden", boxSizing: "border-box" }}
+    >
       <div className="card-h"><span>웹훅으로 리드 수신</span></div>
       <label className="fr-check">
         <input type="checkbox" checked={enabled} disabled={busy || loading} onChange={(e) => (e.target.checked ? onEnable() : onDisable())} />
         {" "}이 리드폼을 외부 웹훅으로 받기(Zapier·Make·LeadsBridge 등)
       </label>
-      <p className="dash-sub" style={{ marginTop: 6 }}>
+      <p className="dash-sub" style={{ marginTop: 6, overflowWrap: "break-word" }}>
         켜면 이 리드폼의 공개 URL(/f/…)은 막히고, 대신 아래 웹훅 URL 로 들어오는 리드만 받습니다.
         메타 잠재고객 폼 등 외부 서비스가 이 URL 로 리드를 보내도록 설정하세요.
       </p>
 
       {enabled && (
-        <div style={{ marginTop: 12, display: "grid", gap: 12, maxWidth: 620, minWidth: 0 }}>
+        <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 12, maxWidth: 620, minWidth: 0 }}>
           {freshToken ? (
-            <div className="field">
+            <div className="field" style={{ minWidth: 0 }}>
               <span className="field-label">웹훅 URL</span>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <input className="input" readOnly value={webhookLeadUrl(freshToken)} style={{ flex: 1, minWidth: 260 }} />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
+                <input className="input" readOnly value={webhookLeadUrl(freshToken)} style={{ flex: "1 1 260px", minWidth: 0, maxWidth: "100%" }} />
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
@@ -282,19 +285,19 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
             </div>
           )}
 
-          <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--surface-2)" }}>
+          <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--surface-2)", minWidth: 0, maxWidth: "100%", boxSizing: "border-box" }}>
             <label className="fr-check">
               <input type="checkbox" checked={sheetsGuideOpen} onChange={(e) => setSheetsGuideOpen(e.target.checked)} />
               {" "}📊 구글 스프레드시트로 연결하기 (Apps Script)
             </label>
-            <p className="dash-sub" style={{ marginTop: 6 }}>
+            <p className="dash-sub" style={{ marginTop: 6, overflowWrap: "break-word" }}>
               메타·당근 등 어떤 광고 매체든, 리드가 구글 스프레드시트에 쌓이기만 하면 이 방법으로 자동 연결할 수 있습니다.
               (코딩 지식 없이 아래 코드를 그대로 복사해 붙여넣기만 하면 됩니다)
             </p>
 
             {sheetsGuideOpen && (
-              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6, fontSize: 14 }}>
+              <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 10, minWidth: 0 }}>
+                <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 6, fontSize: 14, overflowWrap: "break-word", minWidth: 0 }}>
                   <li>리드가 쌓이는 <b>구글 스프레드시트</b>를 엽니다. (1행은 반드시 항목 이름이어야 합니다 — 예: 이름, 연락처)</li>
                   <li>상단 메뉴에서 <b>확장 프로그램 → Apps Script</b>를 클릭합니다.</li>
                   <li>기존 코드를 지우고, 아래 코드를 <b>전체 복사해서 붙여넣습니다</b>.
@@ -309,8 +312,8 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
                   <li>완료! 이제 시트에 새 행이 생기면 <b>최대 1분 이내</b> 자동으로 리드팟에 들어옵니다. 아래 "매핑" 표에서 열 이름을 우리 항목에 연결해주세요.</li>
                 </ol>
 
-                <div className="field">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="field" style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                     <span className="field-label">Apps Script 코드</span>
                     <button
                       type="button"
@@ -331,7 +334,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
                     <code>{buildAppsScript(freshToken ? webhookLeadUrl(freshToken) : "여기에-웹훅-URL을-붙여넣으세요")}</code>
                   </pre>
                 </div>
-                <p className="dash-sub" style={{ fontSize: 12 }}>
+                <p className="dash-sub" style={{ fontSize: 12, overflowWrap: "break-word" }}>
                   ⚠️ 구글 정책상 시트 변경 즉시가 아니라 <b>최대 1분 주기</b>로 확인합니다(실시간은 아니지만 상담 응대엔 충분합니다).
                 </p>
               </div>
@@ -354,11 +357,11 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
           )}
 
           {(config?.availableConsentTitles ?? []).length > 0 && (
-            <div>
+            <div style={{ minWidth: 0 }}>
               <span className="field-label">동의 항목 처리</span>
-              <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 6, marginTop: 6 }}>
                 {config!.availableConsentTitles.map((title) => (
-                  <label key={title} className="fr-check" style={{ fontSize: 13 }}>
+                  <label key={title} className="fr-check" style={{ fontSize: 13, overflowWrap: "break-word" }}>
                     <input
                       type="checkbox"
                       checked={alwaysAgreedConsents.includes(title)}
@@ -368,7 +371,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
                   </label>
                 ))}
               </div>
-              <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
+              <p className="dash-sub" style={{ fontSize: 12, marginTop: 6, overflowWrap: "break-word" }}>
                 메타 잠재고객 폼처럼 동의 체크 없이는 애초에 데이터가 안 넘어오는 경우 체크해두세요 —
                 페이로드에 동의를 나타내는 값이 없어도 항상 동의로 저장됩니다(아래 매핑보다 우선 적용).
               </p>
@@ -379,9 +382,9 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
           )}
 
           {payloadKeys.length > 0 ? (
-            <div>
+            <div style={{ minWidth: 0 }}>
               <span className="field-label">매핑 — 최근 수신한 값을 우리 리드폼 항목에 연결하세요</span>
-              <div style={{ overflowX: "auto", marginTop: 6 }}>
+              <div style={{ overflowX: "auto", marginTop: 6, minWidth: 0 }}>
                 <table className="table" style={{ minWidth: 520 }}>
                   <thead>
                     <tr>
