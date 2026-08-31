@@ -222,7 +222,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
       </p>
 
       {enabled && (
-        <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+        <div style={{ marginTop: 12, display: "grid", gap: 12, maxWidth: 620, minWidth: 0 }}>
           {freshToken ? (
             <div className="field">
               <span className="field-label">웹훅 URL</span>
@@ -294,6 +294,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
                   <pre style={{
                     background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8,
                     padding: 12, fontSize: 12, overflowX: "auto", maxHeight: 280, whiteSpace: "pre",
+                    width: "100%", maxWidth: "100%", boxSizing: "border-box",
                   }}>
                     <code>{buildAppsScript(freshToken ? webhookLeadUrl(freshToken) : "여기에-웹훅-URL을-붙여넣으세요")}</code>
                   </pre>
