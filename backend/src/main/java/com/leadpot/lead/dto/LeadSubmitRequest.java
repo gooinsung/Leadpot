@@ -12,7 +12,9 @@ public record LeadSubmitRequest(
         List<Map<String, Object>> answers,
         List<Map<String, Object>> consents,
         Map<String, Object> utm,
-        String groupTag) {
+        String groupTag,
+        /** 웹훅 유입 멱등성 키(V39). 우리 공개 폼(SELF) 제출은 항상 null — {@link WebhookLeadService} 만 채운다. */
+        String externalId) {
 
     public List<Map<String, Object>> answersOrEmpty() {
         return answers == null ? List.of() : answers;

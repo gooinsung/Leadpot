@@ -62,6 +62,14 @@ public class Lead {
     @Column(name = "group_tag")
     private String groupTag;
 
+    /**
+     * 웹훅 유입 멱등성 키(V39) — 외부 고유값 또는 페이로드 해시. {@code (form_id, external_id)} 부분
+     * 유니크 인덱스로 같은 리드가 두 번 저장되는 것(재시도·재전송)을 DB 레벨에서 막는다.
+     * 우리 공개 폼(SELF) 제출은 항상 null.
+     */
+    @Column(name = "external_id")
+    private String externalId;
+
     @Column(name = "submitter_ip", length = 64)
     private String submitterIp;
 
@@ -214,6 +222,14 @@ public class Lead {
 
     public void setGroupTag(String groupTag) {
         this.groupTag = groupTag;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
     }
 
     public String getSubmitterIp() {

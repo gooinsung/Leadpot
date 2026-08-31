@@ -72,8 +72,26 @@ public class LeadService {
 
     @Transactional
     public Long submit(LeadSubmitRequest req, Visitor visitor) {
+        return submit(req, visitor, false);
+    }
+
+    /**
+     * @param external true 면 웹훅 등 외부 유입({@link com.leadpot.lead.webhook.WebhookLeadService}) —
+     *                 방문자 IP 가 없는(서버 대 서버) 요청이라 IP 차단(K2) 을 건너뛴다. 그 외 검증(필수·형식·K3·동의)은
+     *                 공개 제출과 동일하게 적용한다(META-LEADS-PLAN §4-3).
+     */
+    @Transactional
+    public Long submit(LeadSubmitRequest req, Visitor visitor, boolean external) {
         Form form = formService.getEntity(req.formId());
-        checkIpBlocked(form, visitor);
+        // 웹훅 전용 리드폼(V39)은 이 경로(공개 폼 제출)로 못 들어온다 — 반대로 SELF 폼은 웹훅 경로를 못 탄다
+        // (WebhookLeadService 가 source=WEBHOOK 인 리드폼만 찾으므로 자연히 막힌다).
+        boolean isWebhookForm = form.getSource() == com.leadpot.form.FormSource.WEBHOOK;
+        if (isWebhookForm != external) {
+            throw new InvalidSubmissionException("이 리드폼은 이 방식으로 제출할 수 없습니다.");
+        }
+        if (!external) {
+            checkIpBlocked(form, visitor);
+        }
         validate(form, req);
         checkDuplicates(form, req, visitor);
 
@@ -82,6 +100,7 @@ public class LeadService {
         lead.setLandingPageId(req.landingPageId());
         lead.setAnswers(stampVarKeys(form, req.answersOrEmpty()));
         lead.setConsents(req.consentsOrEmpty());
+        lead.setExternalId(req.externalId());
         // 공개 엔드포인트라 임의 키가 올 수 있다 — 허용 키만 남기고 길이를 자른다.
         lead.setUtm(TrackingParams.sanitize(req.utm()));
         // 분야 도장(V35) — 접수 순간 폼의 분야를 새긴다. 이후 폼 분야를 바꿔도 이 리드는 안 바뀐다.

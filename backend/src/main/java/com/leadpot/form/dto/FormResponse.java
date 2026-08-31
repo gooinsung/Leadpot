@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.leadpot.form.Form;
+import com.leadpot.form.FormSource;
 import com.leadpot.form.FormType;
 
 /** 리드폼 상세 응답. */
@@ -14,6 +15,8 @@ public record FormResponse(
         /** 분야(업종 구분, V34). null 가능. */
         String category,
         FormType formType,
+        /** 유입 방식(SELF|WEBHOOK, V39). WEBHOOK 이면 공개 렌더가 막힌다 — 토큰·매핑은 별도 웹훅 설정 API. */
+        FormSource source,
         boolean requirePhoneVerification,
         Map<String, Object> consentConfig,
         Map<String, Object> submitButtonConfig,
@@ -52,6 +55,7 @@ public record FormResponse(
                 form.getName(),
                 form.getCategory(),
                 form.getFormType(),
+                form.getSource(),
                 form.isRequirePhoneVerification(),
                 form.getConsentConfig(),
                 form.getSubmitButtonConfig(),

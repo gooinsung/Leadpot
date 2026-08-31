@@ -11,6 +11,9 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     // 활성 리드(휴지통 제외) — 목록·CSV
     List<Lead> findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long formId);
 
+    // 웹훅 멱등성(V39) — 이미 받은 (form_id, external_id) 인지 사전 확인(빠른 경로, DB 유니크 인덱스가 최종 방어선).
+    boolean existsByFormIdAndExternalId(Long formId, String externalId);
+
     // 휴지통 리드
     List<Lead> findByFormIdAndDeletedAtIsNotNullOrderByCreatedAtDesc(Long formId);
 
