@@ -20,6 +20,69 @@ function selectValue(key: string, cfg: { answerMapping: Record<string, string>; 
 }
 
 /**
+ * 구글 스프레드시트에 새로 쌓이는 행을 이 웹훅 URL로 자동 전송하는 Apps Script 초안.
+ * 헤더 행(1행)의 각 열 이름을 그대로 JSON 키로 보낸다 — 아래 매핑 표에서 그 열 이름이 그대로 뜬다.
+ * 행마다 "_rowId"를 자동으로 붙여 멱등성 ID로 쓸 수 있게 한다(재실행돼도 중복 저장 안 되게).
+ */
+function buildAppsScript(webhookUrl: string): string {
+  return `// ===== 리드팟 웹훅 연동 스크립트 =====
+// 설치법: 이 시트 → 확장 프로그램 → Apps Script → 아래 코드를 전부 붙여넣기
+//        → 위 도구모음에서 함수를 setupTrigger 로 선택 → ▶ 실행 → 권한 승인
+// 그러면 이 시트에 새 행이 생길 때마다(최대 1분 이내) 리드팟으로 자동 전송됩니다.
+
+const WEBHOOK_URL = "${webhookUrl}"; // 리드팟이 발급한 웹훅 URL
+const SHEET_NAME = ""; // 비워두면 첫 번째 시트. 특정 탭만 보내려면 탭 이름을 적으세요 (예: "설문지 응답 시트1")
+
+// 최초 1회 또는 트리거를 다시 걸고 싶을 때 이 함수를 실행하세요.
+function setupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === "checkNewLeads") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("checkNewLeads").timeBased().everyMinutes(1).create();
+  checkNewLeads(); // 지금 있는 행도 한 번 확인해서 보낸다
+}
+
+// 1분마다 자동 실행 — 마지막으로 보낸 행 다음부터 새 행만 찾아 전송한다.
+function checkNewLeads() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = SHEET_NAME ? ss.getSheetByName(SHEET_NAME) : ss.getSheets()[0];
+  if (!sheet) return;
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return; // 헤더뿐이면 보낼 게 없음
+
+  const headers = data[0];
+  const props = PropertiesService.getScriptProperties();
+  const key = "lastRow_" + sheet.getSheetId();
+  const lastRow = Number(props.getProperty(key) || 1); // 0행=헤더, 1부터가 첫 데이터 행
+  const totalRows = data.length;
+  if (totalRows <= lastRow) return; // 새 행 없음
+
+  for (let r = lastRow; r < totalRows; r++) {
+    const row = data[r];
+    const payload = {};
+    headers.forEach(function (h, i) {
+      if (h) payload[String(h).trim()] = row[i];
+    });
+    // 같은 행이 두 번 전송돼도 리드팟이 중복 저장하지 않도록 고유값을 붙인다.
+    // 리드팟 매핑 화면에서 "_rowId" 를 멱등성 ID로 지정하세요.
+    payload["_rowId"] = sheet.getSheetId() + "-" + (r + 1);
+
+    try {
+      UrlFetchApp.fetch(WEBHOOK_URL, {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true,
+      });
+    } catch (e) {
+      // 이 행은 실패해도 다음 행은 계속 보낸다. lastRow 는 끝에서 한 번에 갱신.
+    }
+  }
+  props.setProperty(key, String(totalRows));
+}`;
+}
+
+/**
  * 리드폼 편집기의 "웹훅으로 리드 수신" 섹션(V39, 범용 인바운드).
  * Zapier·Make·LeadsBridge 등 무엇이든 이 URL 로 POST 하면 리드로 들어온다 — 마케터가
  * 직접 켜고, URL을 복사해 외부 도구에 등록하고, 최근 수신 페이로드로 매핑을 맞춘다.
@@ -33,6 +96,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
   const [consentMapping, setConsentMapping] = useState<Record<string, string>>({});
   const [externalIdKey, setExternalIdKey] = useState<string>("");
   const [mappingDirty, setMappingDirty] = useState(false);
+  const [sheetsGuideOpen, setSheetsGuideOpen] = useState(false);
 
   async function load() {
     if (!formId || isNew) return;
@@ -188,6 +252,58 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
               </button>
             </div>
           )}
+
+          <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--surface-2)" }}>
+            <label className="fr-check">
+              <input type="checkbox" checked={sheetsGuideOpen} onChange={(e) => setSheetsGuideOpen(e.target.checked)} />
+              {" "}📊 구글 스프레드시트로 연결하기 (Apps Script)
+            </label>
+            <p className="dash-sub" style={{ marginTop: 6 }}>
+              메타·당근 등 어떤 광고 매체든, 리드가 구글 스프레드시트에 쌓이기만 하면 이 방법으로 자동 연결할 수 있습니다.
+              (코딩 지식 없이 아래 코드를 그대로 복사해 붙여넣기만 하면 됩니다)
+            </p>
+
+            {sheetsGuideOpen && (
+              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 6, fontSize: 14 }}>
+                  <li>리드가 쌓이는 <b>구글 스프레드시트</b>를 엽니다. (1행은 반드시 항목 이름이어야 합니다 — 예: 이름, 연락처)</li>
+                  <li>상단 메뉴에서 <b>확장 프로그램 → Apps Script</b>를 클릭합니다.</li>
+                  <li>기존 코드를 지우고, 아래 코드를 <b>전체 복사해서 붙여넣습니다</b>.
+                    {freshToken ? " (URL이 자동으로 채워져 있어요)" : " — 첫 줄의 URL 부분을 위에서 발급받은 웹훅 URL로 바꿔주세요."}
+                  </li>
+                  <li>화면 위쪽 함수 선택 드롭다운에서 <code>setupTrigger</code>를 고르고 <b>▶ 실행</b>을 누릅니다.</li>
+                  <li>"권한 필요" 화면이 뜨면 내 계정 선택 → <b>고급</b> → "(안전하지 않음)으로 이동" → <b>허용</b>을 누릅니다.
+                    (구글이 낯선 스크립트라 경고하는 것뿐, 본인이 만든 스크립트라 안전합니다)</li>
+                  <li>완료! 이제 시트에 새 행이 생기면 <b>최대 1분 이내</b> 자동으로 리드팟에 들어옵니다. 아래 "매핑" 표에서 열 이름을 우리 항목에 연결해주세요.</li>
+                </ol>
+
+                <div className="field">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span className="field-label">Apps Script 코드</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(buildAppsScript(freshToken ? webhookLeadUrl(freshToken) : "여기에-웹훅-URL을-붙여넣으세요"));
+                        toast.success("코드를 복사했습니다.");
+                      }}
+                    >
+                      코드 복사
+                    </button>
+                  </div>
+                  <pre style={{
+                    background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8,
+                    padding: 12, fontSize: 12, overflowX: "auto", maxHeight: 280, whiteSpace: "pre",
+                  }}>
+                    <code>{buildAppsScript(freshToken ? webhookLeadUrl(freshToken) : "여기에-웹훅-URL을-붙여넣으세요")}</code>
+                  </pre>
+                </div>
+                <p className="dash-sub" style={{ fontSize: 12 }}>
+                  ⚠️ 구글 정책상 시트 변경 즉시가 아니라 <b>최대 1분 주기</b>로 확인합니다(실시간은 아니지만 상담 응대엔 충분합니다).
+                </p>
+              </div>
+            )}
+          </div>
 
           {(config?.lastError || config?.lastReceivedAt) && (
             <div>
