@@ -79,11 +79,10 @@ public class FormService {
                 throw new NotFoundException("리드폼을 찾을 수 없습니다.");
             }
         }
-        // 웹훅 전용 리드폼(V39)은 공개 렌더를 막는다 — 공개 URL 이 살아 있으면 아무나 제출할 수 있고,
-        // 그 제출은 진짜 웹훅 리드가 아니다(META-LEADS-PLAN §4-6).
-        if (form.getSource() == FormSource.WEBHOOK) {
-            throw new NotFoundException("리드폼을 찾을 수 없습니다.");
-        }
+        // ⚠️ 웹훅 수신(V39) 리드폼도 공개 렌더를 막지 않는다(2026-08-31 사용자 결정) — 마케터가 직접
+        // 연락처를 입력해 접수할 수도 있어야 한다는 실사용 요구. 즉 웹훅과 공개 제출을 동시에 받는
+        // "겸용" 리드폼이 정상 상태다. (당초 META-LEADS-PLAN §4-6 에서는 공개 URL 을 막는 안이었으나
+        // 폐기됨 — 남의 링크로 가짜 리드가 섞여도 external_id 유무로 구분 가능하다는 점을 근거로 허용.)
         // 공개 응답 — 운영 설정(시트 웹훅·시크릿, 알림 번호, 문자 본문 등)은 빼고 내려준다.
         return FormResponse.publicOf(form);
     }

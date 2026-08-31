@@ -83,12 +83,10 @@ public class LeadService {
     @Transactional
     public Long submit(LeadSubmitRequest req, Visitor visitor, boolean external) {
         Form form = formService.getEntity(req.formId());
-        // 웹훅 전용 리드폼(V39)은 이 경로(공개 폼 제출)로 못 들어온다 — 반대로 SELF 폼은 웹훅 경로를 못 탄다
-        // (WebhookLeadService 가 source=WEBHOOK 인 리드폼만 찾으므로 자연히 막힌다).
-        boolean isWebhookForm = form.getSource() == com.leadpot.form.FormSource.WEBHOOK;
-        if (isWebhookForm != external) {
-            throw new InvalidSubmissionException("이 리드폼은 이 방식으로 제출할 수 없습니다.");
-        }
+        // ⚠️ 2026-08-31 사용자 결정: 웹훅 수신(V39) 리드폼도 공개 제출(SELF 경로)을 받는다 — 마케터가
+        // 같은 리드폼에 연락처를 직접 입력해 접수시킬 수도 있어야 한다는 실사용 요구. 즉 겸용이 정상.
+        // (SELF 폼이 웹훅 경로를 타는 것만은 여전히 못 막는다 — WebhookLeadService 가 source=WEBHOOK 인
+        // 리드폼만 토큰으로 찾으므로 자연히 막힌다.)
         if (!external) {
             checkIpBlocked(form, visitor);
         }
