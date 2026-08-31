@@ -282,6 +282,7 @@ public class FormService {
         cfg.put("consentMapping", req.consentMappingOrEmpty());
         cfg.put("externalIdKey", (req.externalIdKey() == null || req.externalIdKey().isBlank())
                 ? null : req.externalIdKey().trim());
+        cfg.put("alwaysAgreedConsents", req.alwaysAgreedConsentsOrEmpty());
         form.setWebhookConfig(cfg);
         return buildWebhookConfigResponse(form);
     }
@@ -294,6 +295,8 @@ public class FormService {
         Map<String, String> consentMapping = cfg == null ? Map.of()
                 : (Map<String, String>) cfg.getOrDefault("consentMapping", Map.of());
         String externalIdKey = cfg == null ? null : (String) cfg.get("externalIdKey");
+        List<String> alwaysAgreedConsents = cfg == null ? List.of()
+                : (List<String>) cfg.getOrDefault("alwaysAgreedConsents", List.of());
         Map<String, Object> lastPayload = cfg == null ? null : (Map<String, Object>) cfg.get("lastPayload");
         String lastReceivedAt = cfg == null ? null : (String) cfg.get("lastReceivedAt");
         String lastError = cfg == null ? null : (String) cfg.get("lastError");
@@ -304,6 +307,7 @@ public class FormService {
                 answerMapping,
                 consentMapping,
                 externalIdKey,
+                alwaysAgreedConsents,
                 answerLabels(form),
                 consentTitles(form),
                 lastPayload,

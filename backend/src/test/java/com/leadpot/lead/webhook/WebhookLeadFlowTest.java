@@ -74,7 +74,7 @@ class WebhookLeadFlowTest {
         formService.saveWebhookMapping(ownerId, form.id(), new WebhookMappingRequest(
                 Map.of("name", "이름", "phone", "연락처"),
                 Map.of("agree", "개인정보 수집 동의"),
-                "leadId"));
+                "leadId", List.of()));
 
         Map<String, Object> payload = Map.of(
                 "name", "홍길동",
@@ -121,7 +121,7 @@ class WebhookLeadFlowTest {
         FormResponse f2 = formService.create(ownerId, req);
         WebhookTokenResponse enabled = formService.enableWebhook(ownerId, f2.id());
         formService.saveWebhookMapping(ownerId, f2.id(), new WebhookMappingRequest(
-                Map.of("name", "이름"), Map.of(), null)); // 동의 매핑을 일부러 비움
+                Map.of("name", "이름"), Map.of(), null, List.of())); // 동의 매핑을 일부러 비움
 
         Map<String, Object> payload = Map.of("name", "김철수");
 
@@ -132,6 +132,34 @@ class WebhookLeadFlowTest {
         // 실패도 최근 오류로 기록돼 마케터가 화면에서 바로 본다.
         WebhookLeadConfigResponse after = formService.getWebhookConfig(ownerId, f2.id());
         assertThat(after.lastError()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("동의 항목을 '항상 동의'로 지정하면 페이로드에 값이 없어도 저장된다")
+    void alwaysAgreedConsentBypassesMapping() {
+        FormBlockDto name = new FormBlockDto(null, null, 0, BlockType.FIELD, "text", null,
+                "이름", true, false, null, null, null);
+        Map<String, Object> consentConfig = Map.of("items",
+                List.of(Map.of("title", "개인정보 수집 동의", "required", true)));
+        FormRequest req = new FormRequest("웹훅 리드폼(항상동의)", null, FormType.BASIC, false,
+                consentConfig, null, null, null, null, null, null, List.of(name));
+        FormResponse f3 = formService.create(ownerId, req);
+        WebhookTokenResponse enabled = formService.enableWebhook(ownerId, f3.id());
+        formService.saveWebhookMapping(ownerId, f3.id(), new WebhookMappingRequest(
+                Map.of("name", "이름"), Map.of(), null, List.of("개인정보 수집 동의")));
+
+        // 페이로드에 동의를 나타내는 값이 아예 없다 — 메타 폼처럼 원본이 동의를 이미 전제하는 경우.
+        Map<String, Object> payload = Map.of("name", "박영희");
+
+        boolean created = webhookLeadService.receive(enabled.token(), payload);
+        assertThat(created).isTrue();
+
+        List<Lead> leads = leadRepository.findByFormIdAndDeletedAtIsNullOrderByCreatedAtDesc(f3.id());
+        assertThat(leads).hasSize(1);
+        assertThat(leads.get(0).getConsents()).anySatisfy(c -> {
+            assertThat(c.get("title")).isEqualTo("개인정보 수집 동의");
+            assertThat(c.get("agreed")).isEqualTo(true);
+        });
     }
 
     @Test
