@@ -33,6 +33,25 @@ function buildAppsScript(webhookUrl: string): string {
 const WEBHOOK_URL = "${webhookUrl}"; // 리드팟이 발급한 웹훅 URL
 const SHEET_NAME = ""; // 비워두면 첫 번째 시트. 특정 탭만 보내려면 탭 이름을 적으세요 (예: "설문지 응답 시트1")
 
+// 연락처가 들어있는 "열 이름(헤더)"을 정확히 적으세요(대소문자·띄어쓰기까지 시트 헤더와 똑같이).
+// 메타 등에서 오는 연락처는 "+821011112222", "p:+821011112222", "1011112222" 등 형식이 제각각이라,
+// 이 이름과 일치하는 열만 자동으로 "01011112222" 형식으로 통일해서 보냅니다. 안 쓰려면 "" 로 비우세요.
+const PHONE_FIELD_HEADER = "phone_number";
+
+// 연락처를 010########(11자리) 형식으로 통일한다. 이미 이 형식이면 그대로 둔다.
+function normalizePhone(raw) {
+  if (raw === null || raw === undefined || raw === "") return raw;
+  var s = String(raw).replace(/[^0-9+]/g, ""); // 숫자·+ 만 남기고 "p:", 공백, 대시 등은 버린다
+  if (s.indexOf("+82") === 0) {
+    s = "0" + s.slice(3); // "+821011112222" → "01011112222"
+  } else if (s.indexOf("82") === 0 && s.length >= 11) {
+    s = "0" + s.slice(2); // "821011112222" → "01011112222"
+  } else if (s.indexOf("0") !== 0) {
+    s = "0" + s; // 앞자리 0 이 빠진 "1011112222" → "01011112222"
+  }
+  return s;
+}
+
 // 최초 1회 또는 트리거를 다시 걸고 싶을 때 이 함수를 실행하세요.
 function setupTrigger() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -61,7 +80,9 @@ function checkNewLeads() {
     const row = data[r];
     const payload = {};
     headers.forEach(function (h, i) {
-      if (h) payload[String(h).trim()] = row[i];
+      if (!h) return;
+      const key = String(h).trim();
+      payload[key] = key === PHONE_FIELD_HEADER ? normalizePhone(row[i]) : row[i];
     });
     // 같은 행이 두 번 전송돼도 리드팟이 중복 저장하지 않도록 고유값을 붙인다.
     // 리드팟 매핑 화면에서 "_rowId" 를 멱등성 ID로 지정하세요.
@@ -279,6 +300,9 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
                   <li>기존 코드를 지우고, 아래 코드를 <b>전체 복사해서 붙여넣습니다</b>.
                     {freshToken ? " (URL이 자동으로 채워져 있어요)" : " — 첫 줄의 URL 부분을 위에서 발급받은 웹훅 URL로 바꿔주세요."}
                   </li>
+                  <li><code>PHONE_FIELD_HEADER</code> 값이 내 시트의 연락처 열 이름과 정확히 같은지 확인하세요
+                    (다르면 그 열 이름으로 바꿔주세요) — <b>"+8210…", "p:+8210…", "10…" 등 제각각인 형식을
+                    "01011112222" 형태로 자동 통일</b>해서 보냅니다.</li>
                   <li>화면 위쪽 함수 선택 드롭다운에서 <code>setupTrigger</code>를 고르고 <b>▶ 실행</b>을 누릅니다.</li>
                   <li>"권한 필요" 화면이 뜨면 내 계정 선택 → <b>고급</b> → "(안전하지 않음)으로 이동" → <b>허용</b>을 누릅니다.
                     (구글이 낯선 스크립트라 경고하는 것뿐, 본인이 만든 스크립트라 안전합니다)</li>
