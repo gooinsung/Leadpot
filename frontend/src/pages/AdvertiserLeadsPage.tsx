@@ -74,8 +74,10 @@ export function AdvertiserLeadsPage() {
   const [unseenOnly, setUnseenOnly] = useState(true);
 
   // 페이징 (서버 페이징 — Pagination 컴포넌트는 1-base, API 는 0-base)
+  // 기본값 '전체'(-1) → effectiveSize 가 SERVER_MAX(100)로 캡핑(2026-08-30 사용자 요청):
+  // 미확인 큐는 한 화면에서 최대한 많이 훑어보는 용도라 페이지를 넘기게 하는 게 오히려 방해된다.
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(-1);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
