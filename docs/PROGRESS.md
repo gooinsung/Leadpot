@@ -29,6 +29,41 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-08-31 — **범용 인바운드 웹훅 리드 수신(V39) 1차 구현 — 메타 잠재고객 연동의 실제 구현체**
+>
+> 클라우드 세션. 상세 설계·경위는 [docs/META-LEADS-PLAN.md](META-LEADS-PLAN.md) §10 참고(요약만 여기 남김).
+>
+> **배경**: 메타 잠재고객 폼 리드를 리드팟으로 끌어오는 작업 요청 → 사용자가 LeadsBridge 를 언급 →
+> 조사해보니 LeadsBridge 자체도 결국 "우리가 웹훅 URL 하나만 받으면 되는" 구조라는 걸 확인 →
+> **사용자 아이디어로 최종 확정**: "리드폼 생성 편집페이지에 '웹훅으로 수신' 기능을 만들자. 그 웹훅으로
+> Zapier·Make·LeadsBridge 등 뭐든 오는 걸 다 받을 수 있다." → 벤더 종속 없는 **범용 인바운드 웹훅 수신
+> 기능**으로 방향을 잡고 같은 세션에서 바로 구현까지 완료.
+>
+> **구현한 것**:
+> - **DB(Flyway V39)**: `forms.source`(SELF|WEBHOOK) — WEBHOOK 이면 공개 렌더(`/f/{id}`) 차단.
+>   `forms.webhook_token_hash`(토큰 원문 미저장, SHA-256 해시만 — `InviteTokens` 와 동일 원칙) +
+>   `forms.webhook_config`(JSONB: 매핑·최근 수신 이력·최근 오류). `leads.external_id` +
+>   `(form_id, external_id)` 부분 유니크 인덱스(멱등성 DB 최종 방어선).
+> - **백엔드**: 마케터용 웹훅 설정 API(`/api/forms/{id}/webhook` 켜기/재발급/끄기/매핑저장,
+>   `WebhookLeadConfigController`+`FormService`) + 공개 수신 API(`POST /api/public/webhook-leads/{token}`,
+>   `com.leadpot.lead.webhook` 패키지 — `WebhookLeadService`/`WebhookRateLimiter`(분당 120건/폼)/
+>   `PublicWebhookLeadController`). `LeadService.submit()`에 `external` 플래그 추가(웹훅 유입은 IP차단만
+>   건너뛰고 나머지 검증은 동일 — K3 중복방지도 기본 적용으로 확정). 동의 필수 미확인이면 **접수 자체를
+>   거부**(사용자 확정: "동의 안 하면 접수 자체가 안 됨" 그대로 구현, SMS만 보류하는 별도 분기는 안 만듦).
+> - **프론트**: `WebhookLeadPanel.tsx` — 리드폼 편집기에 "웹훅으로 리드 수신" 섹션(구글시트 연동 다음).
+>   켜기/URL 복사(발급 순간만 노출)/재발급/최근 페이로드 표 기반 매핑(드롭다운+멱등성ID 라디오)/최근 오류.
+> - **검증**: 백엔드 `./gradlew test` **301건 전부 통과**(기존 297 + 신규 `WebhookLeadFlowTest` 4건 —
+>   실제 웹훅 켜기→매핑→수신→리드저장, 같은 external id 재전송 시 멱등, 필수동의 누락 시 거부, 잘못된
+>   토큰 404 를 서비스 레벨로 종단 검증). 프론트 `npx tsc -b` 통과.
+>
+> **⚠️ 아직 안 한 것(다음 세션은 여기부터)**:
+> 1. **실제 브라우저 + curl(또는 진짜 Zapier/LeadsBridge/메타 폼) 종단 테스트** — 지금까지는 JUnit
+>    서비스 레벨 검증만 했고, HTTP 레이어(컨트롤러 라우팅·CORS·직렬화)를 실제로 켜서 확인한 적은 없다.
+> 2. LeadsBridge 는 사용자가 트라이얼(14일) 가입해둔 상태 — 실전 연동 검증은 사용자 확인 필요.
+> 3. `FormsListPage` 등에 WEBHOOK 폼용 "공개 링크" 버튼이 남아있는지 확인(현재 안 막았음, 눌러도 404 라
+>    기능상 문제는 없지만 사소한 UX 정리 항목).
+> 4. 커밋 전이라면 커밋·푸시(브랜치 `claude/meta-leads-integration-uznqh3`).
+
 > ## ✅ 2026-08-30 — **광고주 선입금 과금(정산)·리드폼 수집 목표 기능 제거 + 광고주 리드 목록 미확인 우선**
 >
 > 클라우드 세션. 같은 날 사용자가 준 두 요청을 각각 별도 브랜치(`feature/remove-billing-and-goals`,

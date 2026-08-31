@@ -28,6 +28,7 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { CompletionView } from "../components/formRenderers/CompletionView";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
+import { WebhookLeadPanel } from "../components/WebhookLeadPanel";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import { CALCULATORS, findCalculator } from "../lib/calculators/registry";
@@ -1340,6 +1341,8 @@ export function FormEditPage() {
                 </div>
               )}
             </div>
+
+            <WebhookLeadPanel formId={id ? Number(id) : null} isNew={isNew} />
 
             <div className="card card-pad" style={{ marginTop: 16 }} {...sec("pixels")}>
               <SectionHead title="광고 픽셀 (선택)" open={!collapsed.pixels} onToggle={() => toggleSection("pixels")} />

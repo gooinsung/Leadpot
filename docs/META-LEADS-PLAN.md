@@ -1,12 +1,15 @@
-# docs/META-LEADS-PLAN.md — 메타 잠재고객 폼 → 리드팟 연동 (설계)
+# docs/META-LEADS-PLAN.md — 범용 인바운드 웹훅 리드 수신 (메타 잠재고객 연동 포함)
 
-> **상태**: 설계만 (갱신 2026-08-31). **코드 미착수.**
-> 방향은 **LeadsBridge 웹훅**으로 확정(2026-08-31, 아래 §2 참고). 착수 전 [MESSAGING-PLAN.md](MESSAGING-PLAN.md) §9·§11 과
-> 이 문서의 "§4 반드시 처리할 것"을 반드시 재정독한다.
+> **상태**: **1차 구현 완료(2026-08-31, V39)**. 백엔드(스키마·수신 API·마케터 설정 API) + 프론트(리드폼 편집기
+> "웹훅으로 리드 수신" 섹션) 다 붙었다. **실제 LeadsBridge/Zapier/메타 폼과의 종단 테스트는 아직 안 함**
+> (§10 참고) — 로컬 curl 로만 확인됨.
 >
-> ⚠️ 이 문서는 원래(2026-08-05) **A안(구글시트 Apps Script)** 으로 확정했었다. 2026-08-31 사용자가
-> LeadsBridge 를 언급해 재검토한 결과 **LeadsBridge 웹훅으로 방향을 바꿨다** — 이유는 §2. 수신부(§4) 설계는
-> 어느 경로든 거의 그대로 재사용되므로 대부분 유효하다.
+> ⚠️ 방향 전환 이력: 2026-08-05 A안(구글시트 Apps Script) 확정 → 2026-08-31 LeadsBridge 웹훅으로 전환
+> → **같은 날, 특정 벤더에 묶이지 않는 범용 인바운드 웹훅 수신 기능으로 최종 일반화**(사용자 아이디어:
+> "리드폼 생성 편집페이지에 '웹훅으로 수신' 기능을 만들면 Zapier·Make·LeadsBridge 등 뭐든 받을 수 있다").
+> **메타·LeadsBridge 는 이제 이 기능을 쓰는 예시일 뿐** — 아래 §1~§9 는 그 경위 그대로 남겨두되,
+> 실제 구현은 벤더 이름을 넣지 않고 범용으로 했다(Form.source=WEBHOOK, 토큰 URL, 매핑 화면).
+> 착수 전 [MESSAGING-PLAN.md](MESSAGING-PLAN.md) §9·§11 을 재정독했다.
 
 ---
 
@@ -237,3 +240,60 @@ V38 까지 진행돼 있어 V25 는 이미 반영·운영 중으로 보임, 착�
   발표 글) 검색 결과 종합, 2026-08-31.
 - (구) Apps Script 트리거 제약 — A안 폐기로 참고용: [Simple Triggers](https://developers.google.com/apps-script/guides/triggers) ·
   [Installable Triggers](https://developers.google.com/apps-script/guides/triggers/installable)
+
+---
+
+## 10. 실제 구현 요약 (2026-08-31, V39) — 벤더 무관 범용 웹훅으로 구현됨
+
+§2-2 에서 방향을 "특정 벤더 종속 없는 범용 인바운드 웹훅"으로 최종 일반화한 뒤 바로 구현했다. 아래는
+실제로 붙은 것 — 이후 세션은 여기부터 이어가면 된다(설계 논의였던 §1~§9 는 경위 기록으로 남긴다).
+
+### 스키마 (`V39__inbound_webhook_leads.sql`)
+- `forms.source`(SELF|WEBHOOK, 기본 SELF) — WEBHOOK 이면 공개 렌더(`/f/{id}`)가 막힌다(`FormService.getPublic`).
+- `forms.webhook_token_hash` — 토큰 원문은 저장 안 함(SHA-256 해시만, `WebhookTokens` — `InviteTokens` 와 동일 원칙).
+- `forms.webhook_config`(JSONB) — `answerMapping`/`consentMapping`(원본 키→라벨/제목) · `externalIdKey` ·
+  `lastPayload`/`lastReceivedAt`(매핑 화면 도우미) · `lastError`/`lastErrorAt`.
+- `leads.external_id` + `(form_id, external_id)` 부분 유니크 인덱스 — 멱재성(4-1) DB 최종 방어선.
+
+### 백엔드
+- **관리 API**(로그인, 본인 폼만): `GET/POST/DELETE /api/forms/{id}/webhook`, `POST .../regenerate`,
+  `PUT .../mapping` — `WebhookLeadConfigController` → `FormService` (토큰은 활성화/재발급 응답에서 원문이
+  **한 번만** 내려간다, 이후엔 해시만 남아 다시 보여줄 수 없다 — 잊으면 재발급).
+  ⚠️ `source` 는 **`FormRequest`(일반 저장 API)에 없다** — 웹훅 전용 API로만 바뀐다. 넣었으면 다른 설정을
+  저장할 때마다(디자인·문구 수정 등) `null` 이 실려와 활성화된 웹훅이 조용히 꺼지는 사고가 났을 것.
+- **공개 수신 API**: `POST /api/public/webhook-leads/{token}` (`PublicWebhookLeadController` →
+  `WebhookLeadService`, `com.leadpot.lead.webhook` 패키지). 흐름: 토큰 해시로 폼 조회(없으면 404) →
+  요청량 제한(`WebhookRateLimiter`, 폼별 분당 120건, 메모리 슬라이딩 윈도 — Railway 단일 인스턴스 전제) →
+  멱등성 키 계산(매핑된 키 우선, 없으면 페이로드 정규화 해시 폴백) → 이미 받은 키면 조용히 버림(200,
+  `created:false`) → 매핑으로 answers/consents 구성 → `LeadService.submit(req, visitor, external=true)` →
+  성공/실패 모두 `webhook_config` 에 최근 수신 이력 기록(마케터가 리드폼 화면에서 바로 확인).
+  **업무 검증 실패(필수 누락·동의 미확인)는 200 으로 응답**(발신자 재시도 폭풍 방지, 대신 화면에 오류 노출) —
+  토큰 오류만 404, 과다요청만 429.
+- **`LeadService.submit` 확장**: `submit(req, visitor, external)` — `external=true` 면 IP 차단(K2)만 건너뛴다.
+  나머지(필수·형식·K3 중복·동의)는 공개 제출과 동일 — **K3 는 기본 적용으로 확정**(4-1 의 미결 질문, 별다른
+  반론 없어 문서의 추천대로 감).  `Form.source` 와 `external` 플래그가 어긋나면(WEBHOOK 폼을 공개 경로로,
+  또는 SELF 폼을 웹훅 경로로) 즉시 거부 — 공개 렌더 차단(getPublic)의 2차 방어선.
+- 동의(4-2) 구현: `LeadService.validate` 는 "제출된 동의 배열"만 검사하므로, 웹훅 쪽에서 **폼의 동의 항목
+  전부**를 순회해 매핑 안 된 항목도 `agreed:false` 로 채운다 — 그래야 필수 동의 미확인 시 진짜로 저장을
+  막는다(사용자 확정: "동의 안 하면 접수 자체가 안 됨"을 그대로 구현, 별도의 "저장은 하되 문자만 보류"
+  분기는 만들지 않았다 — 단순함 우선).
+
+### 프론트
+- `frontend/src/components/WebhookLeadPanel.tsx` — 리드폼 편집기(`FormEditPage`)에 섹션으로 삽입(구글시트
+  연동 섹션 바로 다음). 켜기/끄기, URL 복사(발급 순간만 표시), 재발급, 최근 페이로드 표 기반 매핑
+  (열마다 드롭다운으로 답변 항목/동의 항목 선택 + 라디오로 멱등성 ID 지정), 최근 오류 표시.
+- `api/client.ts` — `FormSource`, `WebhookLeadConfig`, `getWebhookConfig`/`enableWebhook`/
+  `regenerateWebhookToken`/`disableWebhook`/`saveWebhookMapping`/`webhookLeadUrl`.
+
+### 검증 상태
+- 백엔드: `./gradlew compileJava compileTestJava test` 전부 통과(297건, 기존 회귀 없음).
+- 프론트: `npx tsc -b` 통과.
+- ⚠️ **아직 안 한 것**: 실제 브라우저로 웹훅 켜기→URL 복사→curl(또는 Zapier/LeadsBridge 테스트 전송)→
+  매핑→리드 저장·문자 발송까지의 **종단 시나리오**. 다음 세션은 여기부터.
+
+### 남은 일 (다음에 할 일)
+1. 로컬(또는 배포)에서 실제 종단 테스트 — curl 로 페이로드 보내보고 매핑 화면·리드 생성·알림까지 확인.
+2. FormsListPage 등에서 WEBHOOK 폼에 "공개 링크 열기"류 버튼이 남아있는지 확인(현재 안 막았음 — 눌러도
+   404 로만 막히니 기능상 문제는 없지만 UX 상 혼란 가능, 사소한 정리 항목).
+3. 실제 LeadsBridge 또는 Zapier 계정으로 붙여서(사용자가 트라이얼 중, §2-1) 실전 검증.
+4. `docs/PROGRESS.md` 최신 확인 후 필요하면 로드맵 상태 갱신.

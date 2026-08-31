@@ -15,6 +15,9 @@ import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormRequest;
 import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
+import com.leadpot.form.dto.WebhookLeadConfigResponse;
+import com.leadpot.form.dto.WebhookMappingRequest;
+import com.leadpot.form.dto.WebhookTokenResponse;
 import com.leadpot.ipblock.SiteIpBlockHit;
 import com.leadpot.ipblock.SiteIpBlockService;
 import com.leadpot.sms.SmsPermissions;
@@ -75,6 +78,11 @@ public class FormService {
                         SiteIpBlockHit.Source.FORM, userAgent);
                 throw new NotFoundException("리드폼을 찾을 수 없습니다.");
             }
+        }
+        // 웹훅 전용 리드폼(V39)은 공개 렌더를 막는다 — 공개 URL 이 살아 있으면 아무나 제출할 수 있고,
+        // 그 제출은 진짜 웹훅 리드가 아니다(META-LEADS-PLAN §4-6).
+        if (form.getSource() == FormSource.WEBHOOK) {
+            throw new NotFoundException("리드폼을 찾을 수 없습니다.");
         }
         // 공개 응답 — 운영 설정(시트 웹훅·시크릿, 알림 번호, 문자 본문 등)은 빼고 내려준다.
         return FormResponse.publicOf(form);
@@ -141,6 +149,8 @@ public class FormService {
     /** 요청의 설정을 리드폼에 반영(블록은 별도 — create/update 가 각자 처리한다). */
     private void applySettings(Form form, FormRequest req) {
         form.setCategory(req.category()); // 분야(V34) — 빈 값은 setter 가 null 로
+        // ⚠️ source(SELF|WEBHOOK, V39)는 여기서 건드리지 않는다 — 웹훅 설정 API(enable/disableWebhook)로만
+        // 바뀐다. FormRequest 에 넣지 않은 이유는 클래스 주석 참고.
         form.setRequirePhoneVerification(Boolean.TRUE.equals(req.requirePhoneVerification()));
         form.setConsentConfig(req.consentConfig());
         form.setSubmitButtonConfig(req.submitButtonConfig());
@@ -197,5 +207,122 @@ public class FormService {
             copy.remove(SMS_ATTACHMENT);
         }
         return copy;
+    }
+
+    /**
+     * 웹훅 수신 이력 기록(공개 인바운드 경로 전용, {@code WebhookLeadService} 가 호출).
+     * 소유자 검증 없이 formId 로 바로 찾는다 — 공개 웹훅 처리 중이라 이미 토큰으로 폼을 특정한 뒤다.
+     * error 가 있으면 lastError 를 남기고, 없으면(성공) 지운다 — 마케터가 매핑을 고쳤는지 바로 알 수 있게.
+     */
+    @Transactional
+    public void recordWebhookReceipt(Long formId, Map<String, Object> payload, Instant at, String error) {
+        Form form = formRepository.findById(formId).orElse(null);
+        if (form == null) {
+            return;
+        }
+        Map<String, Object> cfg = form.getWebhookConfig() == null
+                ? new LinkedHashMap<>() : new LinkedHashMap<>(form.getWebhookConfig());
+        cfg.put("lastPayload", payload);
+        cfg.put("lastReceivedAt", at.toString());
+        if (error != null) {
+            cfg.put("lastError", error);
+            cfg.put("lastErrorAt", at.toString());
+        } else {
+            cfg.remove("lastError");
+            cfg.remove("lastErrorAt");
+        }
+        form.setWebhookConfig(cfg);
+    }
+
+    // ---------- 웹훅 수신 설정 (V39, 범용 인바운드 — META-LEADS-PLAN.md) ----------
+
+    @Transactional(readOnly = true)
+    public WebhookLeadConfigResponse getWebhookConfig(Long ownerId, Long id) {
+        Form form = load(ownerId, id);
+        return buildWebhookConfigResponse(form);
+    }
+
+    /** 웹훅 수신 켜기. 토큰이 없으면 새로 발급(있으면 유지 — 재발급은 별도 API). 토큰 원문은 이 응답에서만 내려간다. */
+    @Transactional
+    public WebhookTokenResponse enableWebhook(Long ownerId, Long id) {
+        Form form = load(ownerId, id);
+        form.setSource(FormSource.WEBHOOK);
+        if (form.getWebhookTokenHash() != null) {
+            // 이미 토큰이 있으면 원문을 다시 보여줄 수 없다(해시만 저장) — 재발급을 안내한다.
+            throw new IllegalStateException("이미 웹훅이 설정돼 있습니다. 토큰을 다시 보려면 재발급하세요.");
+        }
+        String token = WebhookTokens.newToken();
+        form.setWebhookTokenHash(WebhookTokens.hash(token));
+        return new WebhookTokenResponse(token);
+    }
+
+    /** 토큰 재발급(노출됐거나 잊어버렸을 때) — 기존 토큰은 즉시 무효화된다. */
+    @Transactional
+    public WebhookTokenResponse regenerateWebhookToken(Long ownerId, Long id) {
+        Form form = load(ownerId, id);
+        String token = WebhookTokens.newToken();
+        form.setWebhookTokenHash(WebhookTokens.hash(token));
+        return new WebhookTokenResponse(token);
+    }
+
+    /** 웹훅 수신 끄기 — SELF 로 되돌린다. 토큰·매핑은 남겨둔다(재활성화 시 다시 설정할 필요 없게). */
+    @Transactional
+    public void disableWebhook(Long ownerId, Long id) {
+        Form form = load(ownerId, id);
+        form.setSource(FormSource.SELF);
+    }
+
+    /** 원본 키 매핑 저장(마케터 셀프서비스). lastPayload/lastError 등 수신 이력은 건드리지 않는다. */
+    @Transactional
+    public WebhookLeadConfigResponse saveWebhookMapping(Long ownerId, Long id, WebhookMappingRequest req) {
+        Form form = load(ownerId, id);
+        Map<String, Object> cfg = form.getWebhookConfig() == null
+                ? new LinkedHashMap<>() : new LinkedHashMap<>(form.getWebhookConfig());
+        cfg.put("answerMapping", req.answerMappingOrEmpty());
+        cfg.put("consentMapping", req.consentMappingOrEmpty());
+        cfg.put("externalIdKey", (req.externalIdKey() == null || req.externalIdKey().isBlank())
+                ? null : req.externalIdKey().trim());
+        form.setWebhookConfig(cfg);
+        return buildWebhookConfigResponse(form);
+    }
+
+    @SuppressWarnings("unchecked")
+    private WebhookLeadConfigResponse buildWebhookConfigResponse(Form form) {
+        Map<String, Object> cfg = form.getWebhookConfig();
+        Map<String, String> answerMapping = cfg == null ? Map.of()
+                : (Map<String, String>) cfg.getOrDefault("answerMapping", Map.of());
+        Map<String, String> consentMapping = cfg == null ? Map.of()
+                : (Map<String, String>) cfg.getOrDefault("consentMapping", Map.of());
+        String externalIdKey = cfg == null ? null : (String) cfg.get("externalIdKey");
+        Map<String, Object> lastPayload = cfg == null ? null : (Map<String, Object>) cfg.get("lastPayload");
+        String lastReceivedAt = cfg == null ? null : (String) cfg.get("lastReceivedAt");
+        String lastError = cfg == null ? null : (String) cfg.get("lastError");
+        String lastErrorAt = cfg == null ? null : (String) cfg.get("lastErrorAt");
+        return new WebhookLeadConfigResponse(
+                form.getSource() == FormSource.WEBHOOK,
+                form.getWebhookTokenHash() != null,
+                answerMapping,
+                consentMapping,
+                externalIdKey,
+                answerLabels(form),
+                consentTitles(form),
+                lastPayload,
+                lastReceivedAt,
+                lastError,
+                lastErrorAt);
+    }
+
+    /** 매핑 화면 드롭다운용 — 답변을 만드는 항목의 라벨(FIELD)/질문(CHOICE), 등장 순서대로. */
+    private List<String> answerLabels(Form form) {
+        return form.answerBlocks().stream().map(FormBlock::answerLabel)
+                .filter(l -> l != null && !l.isBlank()).toList();
+    }
+
+    private List<String> consentTitles(Form form) {
+        return form.consentItems().stream()
+                .map(it -> it.get("title"))
+                .filter(t -> t instanceof String s && !s.isBlank())
+                .map(String.class::cast)
+                .toList();
     }
 }

@@ -266,6 +266,9 @@ export interface FormBlock {
   content?: Record<string, unknown> | null;
 }
 
+/** 리드폼 유입 방식(V39). SELF = 우리 공개 URL 로 직접 제출(기본). WEBHOOK = 공개 렌더를 막고 외부 웹훅으로만 수신. */
+export type FormSource = "SELF" | "WEBHOOK";
+
 export interface FormInput {
   name: string;
   /** 분야(업종 구분: 개인회생·장기렌트 등, V34). 빈 값 = 미지정. ⚠️ 리드 '태그'와 별개 축 */
@@ -284,6 +287,8 @@ export interface FormInput {
 
 export interface FormDetail extends FormInput {
   id: number;
+  /** 유입 방식(V39, 읽기 전용) — 웹훅 설정 API(get/enable/disableWebhook)로만 바뀐다. */
+  source: FormSource;
   requirePhoneVerification: boolean;
   createdAt: string;
   updatedAt: string;
@@ -317,6 +322,58 @@ export function updateForm(id: number, input: FormInput): Promise<FormDetail> {
 
 export function deleteForm(id: number): Promise<void> {
   return request<void>(`/api/forms/${id}`, { method: "DELETE" });
+}
+
+// ---------- 웹훅으로 리드 수신 (범용 인바운드, V39) ----------
+// 벤더 무관 — Zapier·Make·LeadsBridge 등 무엇이든 이 URL 로 POST 하면 리드로 들어온다.
+// 매핑(원본 키 → 우리 항목)은 마케터가 이 화면에서 셀프서비스로 설정한다.
+
+export interface WebhookLeadConfig {
+  enabled: boolean;
+  hasToken: boolean;
+  answerMapping: Record<string, string>;
+  consentMapping: Record<string, string>;
+  externalIdKey: string | null;
+  availableAnswerLabels: string[];
+  availableConsentTitles: string[];
+  lastPayload: Record<string, unknown> | null;
+  lastReceivedAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+export interface WebhookMappingInput {
+  answerMapping: Record<string, string>;
+  consentMapping: Record<string, string>;
+  externalIdKey: string | null;
+}
+
+export function getWebhookConfig(formId: number): Promise<WebhookLeadConfig> {
+  return request<WebhookLeadConfig>(`/api/forms/${formId}/webhook`);
+}
+
+/** 웹훅 수신 켜기(최초 1회) — 응답의 token 은 이때만 내려온다(즉시 복사해두게 안내). */
+export function enableWebhook(formId: number): Promise<{ token: string }> {
+  return request<{ token: string }>(`/api/forms/${formId}/webhook`, { method: "POST" });
+}
+
+/** 토큰 재발급(노출 대응) — 기존 토큰은 즉시 무효화된다. */
+export function regenerateWebhookToken(formId: number): Promise<{ token: string }> {
+  return request<{ token: string }>(`/api/forms/${formId}/webhook/regenerate`, { method: "POST" });
+}
+
+/** 웹훅 수신 끄기(공개 폼으로 되돌림). 토큰·매핑은 남아서 다시 켜면 재설정할 필요가 없다. */
+export function disableWebhook(formId: number): Promise<void> {
+  return request<void>(`/api/forms/${formId}/webhook`, { method: "DELETE" });
+}
+
+export function saveWebhookMapping(formId: number, input: WebhookMappingInput): Promise<WebhookLeadConfig> {
+  return request<WebhookLeadConfig>(`/api/forms/${formId}/webhook/mapping`, { method: "PUT", body: input });
+}
+
+/** 웹훅 URL 표시용 — API 오리진 + 토큰 조합. 토큰은 활성화/재발급 응답에서만 받는다. */
+export function webhookLeadUrl(token: string): string {
+  return `${BASE_URL}/api/public/webhook-leads/${token}`;
 }
 
 // ---------- 동의 항목(리드폼 consentConfig 안에 저장) ----------

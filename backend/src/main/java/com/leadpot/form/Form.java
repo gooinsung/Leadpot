@@ -57,6 +57,24 @@ public class Form {
     @Column(name = "form_type", nullable = false, length = 30)
     private FormType formType;
 
+    /** 유입 방식(SELF|WEBHOOK, V39). WEBHOOK 이면 공개 렌더를 막고 웹훅으로만 리드를 받는다. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private FormSource source = FormSource.SELF;
+
+    /** 웹훅 URL 토큰의 SHA-256 해시(원문은 저장하지 않음, InviteTokens 와 동일 원칙). WEBHOOK 활성화 시에만 값이 있다. */
+    @Column(name = "webhook_token_hash", length = 64)
+    private String webhookTokenHash;
+
+    /**
+     * 웹훅 수신 설정. answerMapping/consentMapping(원본 키 → 리드폼 항목 라벨/동의 제목),
+     * externalIdKey(멱등성에 쓸 원본 키), lastPayload/lastReceivedAt(매핑 화면 도우미),
+     * lastError/lastErrorAt(최근 처리 실패, 마케터가 매핑을 고칠 단서).
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "webhook_config")
+    private Map<String, Object> webhookConfig;
+
     @Column(name = "require_phone_verification", nullable = false)
     private boolean requirePhoneVerification;
 
@@ -182,6 +200,21 @@ public class Form {
         return blocks.stream().filter(FormBlock::producesAnswer).toList();
     }
 
+    /**
+     * 동의 항목 목록({@code consentConfig.items}) — 형식이 어긋나면 빈 리스트.
+     * 웹훅 매핑 화면·인바운드 수신(V39) 양쪽에서 쓴다(재사용).
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> consentItems() {
+        if (consentConfig == null || !(consentConfig.get("items") instanceof List<?> items)) {
+            return List.of();
+        }
+        return items.stream()
+                .filter(Map.class::isInstance)
+                .map(it -> (Map<String, Object>) it)
+                .toList();
+    }
+
     public Long getId() {
         return id;
     }
@@ -213,6 +246,30 @@ public class Form {
 
     public void setFormType(FormType formType) {
         this.formType = formType;
+    }
+
+    public FormSource getSource() {
+        return source;
+    }
+
+    public void setSource(FormSource source) {
+        this.source = source == null ? FormSource.SELF : source;
+    }
+
+    public String getWebhookTokenHash() {
+        return webhookTokenHash;
+    }
+
+    public void setWebhookTokenHash(String webhookTokenHash) {
+        this.webhookTokenHash = webhookTokenHash;
+    }
+
+    public Map<String, Object> getWebhookConfig() {
+        return webhookConfig;
+    }
+
+    public void setWebhookConfig(Map<String, Object> webhookConfig) {
+        this.webhookConfig = webhookConfig;
     }
 
     public boolean isRequirePhoneVerification() {
