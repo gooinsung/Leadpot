@@ -79,6 +79,8 @@ public class WebhookLeadService {
                 : (Map<String, String>) cfg.getOrDefault("answerMapping", Map.of());
         Map<String, String> consentMapping = cfg == null ? Map.of()
                 : (Map<String, String>) cfg.getOrDefault("consentMapping", Map.of());
+        List<String> alwaysAgreed = cfg == null ? List.of()
+                : (List<String>) cfg.getOrDefault("alwaysAgreedConsents", List.of());
 
         List<Map<String, Object>> answers = new ArrayList<>();
         for (Map.Entry<String, String> e : answerMapping.entrySet()) {
@@ -95,6 +97,10 @@ public class WebhookLeadService {
         // 원본 키 → 동의 제목 매핑을 뒤집어(제목 기준) 폼의 동의 항목을 전부 순서대로 채운다.
         // LeadService.validate 는 "제출된 동의 배열"만 보므로, 매핑 안 된 항목도 agreed=false 로
         // 넣어야 required 검증이 원래 의도대로 동작한다(동의 안 하면 접수 자체가 안 되게, §4-2).
+        //
+        // alwaysAgreedConsents 는 그 반대 상황을 위한 예외다 — 원본이 애초에 동의해야만 데이터를
+        // 넘기는 구조(예: 메타 잠재고객 폼은 동의 체크 없이 제출 자체가 안 됨)라 페이로드에 동의를
+        // 나타내는 값 자체가 없을 수 있다. 이 목록에 있으면 페이로드 값과 무관하게 항상 동의로 본다.
         Map<String, String> titleToRawKey = new LinkedHashMap<>();
         for (Map.Entry<String, String> e : consentMapping.entrySet()) {
             titleToRawKey.put(e.getValue(), e.getKey());
@@ -103,8 +109,13 @@ public class WebhookLeadService {
         for (Map<String, Object> item : form.consentItems()) {
             Object title = item.get("title");
             boolean required = Boolean.TRUE.equals(item.get("required"));
-            String rawKey = title instanceof String s ? titleToRawKey.get(s) : null;
-            boolean agreed = rawKey != null && isTruthy(payload.get(rawKey));
+            boolean agreed;
+            if (title instanceof String s && alwaysAgreed.contains(s)) {
+                agreed = true;
+            } else {
+                String rawKey = title instanceof String s ? titleToRawKey.get(s) : null;
+                agreed = rawKey != null && isTruthy(payload.get(rawKey));
+            }
             Map<String, Object> c = new LinkedHashMap<>();
             c.put("title", title);
             c.put("required", required);

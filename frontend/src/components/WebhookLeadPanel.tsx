@@ -95,6 +95,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
   const [answerMapping, setAnswerMapping] = useState<Record<string, string>>({});
   const [consentMapping, setConsentMapping] = useState<Record<string, string>>({});
   const [externalIdKey, setExternalIdKey] = useState<string>("");
+  const [alwaysAgreedConsents, setAlwaysAgreedConsents] = useState<string[]>([]);
   const [mappingDirty, setMappingDirty] = useState(false);
   const [sheetsGuideOpen, setSheetsGuideOpen] = useState(false);
 
@@ -107,6 +108,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
       setAnswerMapping(c.answerMapping ?? {});
       setConsentMapping(c.consentMapping ?? {});
       setExternalIdKey(c.externalIdKey ?? "");
+      setAlwaysAgreedConsents(c.alwaysAgreedConsents ?? []);
       setMappingDirty(false);
     } catch {
       toast.error("웹훅 설정을 불러오지 못했습니다.");
@@ -188,6 +190,11 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
     setMappingDirty(true);
   }
 
+  function onToggleAlwaysAgreed(title: string, checked: boolean) {
+    setAlwaysAgreedConsents((prev) => (checked ? [...prev, title] : prev.filter((t) => t !== title)));
+    setMappingDirty(true);
+  }
+
   async function onSaveMapping() {
     setBusy(true);
     try {
@@ -195,6 +202,7 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
         answerMapping,
         consentMapping,
         externalIdKey: externalIdKey || null,
+        alwaysAgreedConsents,
       });
       setConfig(c);
       setMappingDirty(false);
@@ -318,6 +326,31 @@ export function WebhookLeadPanel({ formId, isNew }: { formId: number | null; isN
                   최근 처리 실패: {config.lastError}
                 </div>
               )}
+            </div>
+          )}
+
+          {(config?.availableConsentTitles ?? []).length > 0 && (
+            <div>
+              <span className="field-label">동의 항목 처리</span>
+              <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
+                {config!.availableConsentTitles.map((title) => (
+                  <label key={title} className="fr-check" style={{ fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={alwaysAgreedConsents.includes(title)}
+                      onChange={(e) => onToggleAlwaysAgreed(title, e.target.checked)}
+                    />
+                    {" "}<b>{title}</b> — 받은 값과 무관하게 항상 동의로 처리
+                  </label>
+                ))}
+              </div>
+              <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
+                메타 잠재고객 폼처럼 동의 체크 없이는 애초에 데이터가 안 넘어오는 경우 체크해두세요 —
+                페이로드에 동의를 나타내는 값이 없어도 항상 동의로 저장됩니다(아래 매핑보다 우선 적용).
+              </p>
+              <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 8 }} disabled={busy || !mappingDirty} onClick={onSaveMapping}>
+                저장
+              </button>
             </div>
           )}
 

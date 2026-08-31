@@ -13,6 +13,8 @@ public record WebhookLeadConfigResponse(
         Map<String, String> answerMapping,
         Map<String, String> consentMapping,
         String externalIdKey,
+        /** 페이로드 값과 무관하게 항상 동의로 처리할 동의 제목 목록. */
+        List<String> alwaysAgreedConsents,
         List<String> availableAnswerLabels,
         List<String> availableConsentTitles,
         Map<String, Object> lastPayload,

@@ -334,6 +334,8 @@ export interface WebhookLeadConfig {
   answerMapping: Record<string, string>;
   consentMapping: Record<string, string>;
   externalIdKey: string | null;
+  /** 받은 값과 무관하게 항상 동의로 처리할 동의 제목 목록(예: 메타 폼처럼 동의해야만 데이터가 넘어오는 경우). */
+  alwaysAgreedConsents: string[];
   availableAnswerLabels: string[];
   availableConsentTitles: string[];
   lastPayload: Record<string, unknown> | null;
@@ -346,6 +348,7 @@ export interface WebhookMappingInput {
   answerMapping: Record<string, string>;
   consentMapping: Record<string, string>;
   externalIdKey: string | null;
+  alwaysAgreedConsents: string[];
 }
 
 export function getWebhookConfig(formId: number): Promise<WebhookLeadConfig> {
