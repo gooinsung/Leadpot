@@ -273,7 +273,14 @@ code {
   font-size: 13px;
   margin: -2px 0 2px;
 }
-.field-desc.emphasis {
+/* 항목 설명 강조 3단계: 1=굵게 · 2=빨간 글씨 · 3=빨간 굵게(예전 boolean 강조와 동일) */
+.field-desc.emphasis-bold {
+  font-weight: 700;
+}
+.field-desc.emphasis-red {
+  color: var(--rose);
+}
+.field-desc.emphasis-redbold {
   color: var(--rose);
   font-weight: 700;
 }

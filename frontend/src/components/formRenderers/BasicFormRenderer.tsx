@@ -2,7 +2,7 @@ import type { FormBlock, FormInput } from "../../api/client";
 import { HtmlBlock } from "../HtmlBlock";
 import { ConsentView } from "./ConsentView";
 import { PhoneInput3 } from "../PhoneInput3";
-import { resolveStyle } from "./formStyle";
+import { descEmphasisClass, resolveStyle } from "./formStyle";
 
 /** BASIC 유형 리드폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
 export function BasicFormRenderer({ form }: { form: FormInput }) {
@@ -71,7 +71,7 @@ function FieldView({ block }: { block: FormBlock }) {
         {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
       </label>
       {(block.content?.description as string) && (
-        <p className={`field-desc${block.content?.descriptionEmphasis ? " emphasis" : ""}`}>{block.content?.description as string}</p>
+        <p className={`field-desc${descEmphasisClass(block.content?.descriptionEmphasis)}`}>{block.content?.description as string}</p>
       )}
       {type === "textarea" ? (
         <textarea className="input" placeholder={block.placeholder ?? ""} rows={3} readOnly />

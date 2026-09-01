@@ -33,6 +33,7 @@ import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import { CALCULATORS, findCalculator } from "../lib/calculators/registry";
 import { CalcFollowUp, CalcResultView } from "../components/formRenderers/CalcResultView";
+import { descEmphasisLevel } from "../components/formRenderers/formStyle";
 import type { CalculatorDef } from "../lib/calculators/types";
 
 /**
@@ -100,10 +101,12 @@ const FIELD_TYPES = [
   { value: "select", label: "선택박스" },
 ];
 
-// 스텝형 단계의 답변 방식 (기본형 필드 유형과 동일 계열 + 카드 선택)
+// 스텝형 단계의 답변 방식 (기본형 필드 유형과 동일 계열 + 카드/목록 선택)
 const ANSWER_TYPES = [
   { value: "single", label: "단일 선택(카드)" },
   { value: "multi", label: "다중 선택(카드)" },
+  { value: "list_single", label: "단일 선택(목록)" },
+  { value: "list_multi", label: "다중 선택(목록)" },
   { value: "select", label: "선택박스" },
   { value: "text", label: "텍스트" },
   { value: "textarea", label: "장문" },
@@ -112,7 +115,8 @@ const ANSWER_TYPES = [
   { value: "number", label: "숫자" },
   { value: "date", label: "날짜" },
 ];
-const OPTION_ANSWER_TYPES = ["single", "multi", "select"]; // 선택지 목록이 필요한 유형
+const OPTION_ANSWER_TYPES = ["single", "multi", "list_single", "list_multi", "select"]; // 선택지 목록이 필요한 유형
+const OPTION_DESC_HIDDEN_TYPES = ["select", "list_single", "list_multi"]; // 선택지별 설명 입력이 필요 없는(카드가 아닌) 유형
 
 /** 접은 카드 기억용(브라우저에만 저장). 매번 다시 접지 않아도 되게 한다. */
 const COLLAPSE_KEY = "leadpot-form-edit-collapsed";
@@ -861,7 +865,7 @@ export function FormEditPage() {
                           {s.options.map((o, oi) => (
                             <div className="opt-row" key={oi}>
                               <input className="input" placeholder="선택지 제목" value={o.label} onChange={(e) => patchOption(i, oi, { label: e.target.value })} />
-                              {s.answerType !== "select" && (
+                              {!OPTION_DESC_HIDDEN_TYPES.includes(s.answerType) && (
                                 <input className="input" placeholder="설명(선택)" value={o.desc} onChange={(e) => patchOption(i, oi, { desc: e.target.value })} />
                               )}
                               {/* 계산 입력의 선택지는 계산에 들어가는 숫자를 따로 갖는다 — 비면 계산이 0으로 처리된다. */}
@@ -1535,14 +1539,19 @@ function BlockFields({
           <div className="field">
             <label>설명(선택)</label>
             <input className="input" value={(block.content?.description as string) ?? ""} onChange={(e) => onContent({ description: e.target.value })} />
-            <label className="fr-check" style={{ marginTop: 2 }}>
-              <input
-                type="checkbox"
-                checked={Boolean(block.content?.descriptionEmphasis)}
-                onChange={(e) => onContent({ descriptionEmphasis: e.target.checked })}
-              />{" "}
-              강조하기 (빨간 굵은 글씨로 표시)
-            </label>
+            <div className="field" style={{ marginTop: 6, marginBottom: 0, maxWidth: 220 }}>
+              <label>강조</label>
+              <select
+                className="input"
+                value={descEmphasisLevel(block.content?.descriptionEmphasis)}
+                onChange={(e) => onContent({ descriptionEmphasis: e.target.value })}
+              >
+                <option value="none">강조 없음</option>
+                <option value="bold">1단계 (굵게)</option>
+                <option value="red">2단계 (빨간 글씨)</option>
+                <option value="redbold">3단계 (빨간 굵게)</option>
+              </select>
+            </div>
           </div>
           {block.fieldType === "select" && <SelectChoicesEditor block={block} onPatch={onPatch} />}
           <DedupField block={block} onPatch={onPatch} />

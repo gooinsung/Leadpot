@@ -450,6 +450,36 @@
   font-size: 12.5px;
   color: var(--muted);
 }
+/* 목록형 선택(라디오/체크박스) — 선택지가 많을 때 카드보다 compact 하게 나열 */
+.sfr-list {
+  display: flex;
+  flex-direction: column;
+  margin: 14px 0 18px;
+}
+.sfr-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 14px;
+}
+.sfr-list-item:last-child {
+  border-bottom: none;
+}
+.sfr-list-item input[type="radio"],
+.sfr-list-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.sfr-list-t {
+  color: var(--text);
+}
+.sfr-list-item.sel .sfr-list-t {
+  font-weight: 700;
+}
 .sfr-nav {
   display: flex;
   gap: 10px;

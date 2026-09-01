@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
 import { PhoneInput3 } from "../PhoneInput3";
-import { resolveStyle } from "./formStyle";
+import { descEmphasisClass, isMultiAnswerType, resolveStyle } from "./formStyle";
 import { CalcGateView } from "./CalcResultView";
 import { findCalculator } from "../../lib/calculators/registry";
 
@@ -93,7 +93,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
                 {b.label || "(제목 없음)"} {b.required && <span className="req">*</span>}
               </label>
               {(b.content?.description as string) && (
-                <p className={`field-desc${b.content?.descriptionEmphasis ? " emphasis" : ""}`}>{b.content?.description as string}</p>
+                <p className={`field-desc${descEmphasisClass(b.content?.descriptionEmphasis)}`}>{b.content?.description as string}</p>
               )}
               {b.fieldType === "tel" ? (
                 <PhoneInput3 value="" onChange={() => {}} readOnly />
@@ -145,7 +145,7 @@ function ChoiceStep({
   const question = (block.content?.question as string) || "(질문 없음)";
   const description = block.content?.description as string | undefined;
   const answerType = (block.content?.answerType as string) || (block.content?.selectType as string) || "single";
-  const multi = answerType === "multi";
+  const multi = isMultiAnswerType(answerType);
   const options = (block.content?.options as ChoiceOption[]) || [];
   const placeholder = (block.content?.placeholder as string) || "";
 
@@ -168,6 +168,22 @@ function ChoiceStep({
               <span className="sfr-opt-t">{o.label || `선택지 ${i + 1}`}</span>
               {o.desc && <span className="sfr-opt-d">{o.desc}</span>}
             </button>
+          ))}
+          {options.length === 0 && <p className="dash-sub">선택지를 추가하세요.</p>}
+        </div>
+      ) : answerType === "list_single" || answerType === "list_multi" ? (
+        <div className="sfr-list">
+          {options.map((o, i) => (
+            <label key={i} className={`sfr-list-item ${selected.includes(i) ? "sel" : ""}`}>
+              <input
+                type={multi ? "checkbox" : "radio"}
+                name="sfr-list-preview"
+                checked={selected.includes(i)}
+                onChange={() => onToggle(i, multi)}
+                style={{ accentColor: accent }}
+              />
+              <span className="sfr-list-t">{o.label || `선택지 ${i + 1}`}</span>
+            </label>
           ))}
           {options.length === 0 && <p className="dash-sub">선택지를 추가하세요.</p>}
         </div>

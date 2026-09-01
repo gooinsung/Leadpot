@@ -9,7 +9,7 @@ import {
   type LeadAnswer,
   type LeadConsent,
 } from "../api/client";
-import { resolveStyle } from "./formRenderers/formStyle";
+import { descEmphasisClass, isChoiceAnswerType, isMultiAnswerType, resolveStyle } from "./formRenderers/formStyle";
 import { PhoneInput3 } from "./PhoneInput3";
 import { consentDocUrl } from "../lib/site";
 import { parseUtm } from "../lib/utm";
@@ -36,7 +36,7 @@ function collectCalcInputs(
     const key = b.content?.calcInput as string | undefined;
     if (!key) return;
     const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
-    if (answerType === "single" || answerType === "multi") {
+    if (isChoiceAnswerType(answerType)) {
       const opts = (b.content?.options as { label?: string; value?: string }[]) ?? [];
       const picked = (choices[i] ?? []).map((oi) => opts[oi]?.value ?? opts[oi]?.label ?? "").filter(Boolean);
       // 미선택은 키를 넣지 않는다 — 계산기가 '미입력'과 '0'을 구분해 전제 경고를 붙인다.
@@ -139,7 +139,7 @@ export function PublicFormView({
         if (typeof di !== "number") return;
         const opts = (b.content?.options as { label?: string }[]) ?? [];
         if (opts[di] == null) return;
-        if (answerType === "single" || answerType === "multi") initChoices[i] = [di];
+        if (isChoiceAnswerType(answerType)) initChoices[i] = [di];
         else if (answerType === "select") initValues[`s${i}`] = opts[di].label ?? "";
       });
     }
@@ -164,7 +164,7 @@ export function PublicFormView({
       choiceBlocks.forEach((b, i) => {
         const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
         let value: string;
-        if (answerType === "single" || answerType === "multi") {
+        if (isChoiceAnswerType(answerType)) {
           const opts = (b.content?.options as { label?: string }[]) ?? [];
           value = (choices[i] ?? []).map((oi) => opts[oi]?.label ?? `선택지 ${oi + 1}`).join(", ");
         } else {
@@ -202,7 +202,7 @@ export function PublicFormView({
         const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
         const required = b.content?.required === true;
         const label = (b.content?.question as string) || "질문";
-        if (answerType === "single" || answerType === "multi") {
+        if (isChoiceAnswerType(answerType)) {
           if (required && (choices[i] ?? []).length === 0) return `'${label}' 항목을 선택해주세요.`;
         } else {
           const e = fieldError(answerType, values[`s${i}`] ?? "", required, label);
@@ -329,7 +329,7 @@ function LiveField({ block, idx, value, onChange }: { block: FormBlock; idx: num
         {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
       </label>
       {(block.content?.description as string) && (
-        <p className={`field-desc${block.content?.descriptionEmphasis ? " emphasis" : ""}`}>{block.content?.description as string}</p>
+        <p className={`field-desc${descEmphasisClass(block.content?.descriptionEmphasis)}`}>{block.content?.description as string}</p>
       )}
       {type === "textarea" ? (
         <textarea id={`fld-${idx}`} className="input" rows={3} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
@@ -427,7 +427,7 @@ function StepFlow(props: {
     }
     const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
     const required = b.content?.required === true;
-    const isChoice = answerType === "single" || answerType === "multi";
+    const isChoice = isChoiceAnswerType(answerType);
     if (isChoice) {
       if (required && (choices[step] ?? []).length === 0) {
         setStepError("이 항목을 선택해주세요.");
@@ -463,7 +463,7 @@ function StepFlow(props: {
         (() => {
           const b = choiceBlocks[step];
           const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
-          const multi = answerType === "multi";
+          const multi = isMultiAnswerType(answerType);
           const opts = (b.content?.options as { label?: string; desc?: string }[]) ?? [];
           const sel = choices[step] ?? [];
           const placeholder = (b.content?.placeholder as string) || "";
@@ -481,6 +481,21 @@ function StepFlow(props: {
                       <span className="sfr-opt-t">{o.label || `선택지 ${i + 1}`}</span>
                       {o.desc && <span className="sfr-opt-d">{o.desc}</span>}
                     </button>
+                  ))}
+                </div>
+              ) : answerType === "list_single" || answerType === "list_multi" ? (
+                <div className="sfr-list">
+                  {opts.map((o, i) => (
+                    <label key={i} className={`sfr-list-item ${sel.includes(i) ? "sel" : ""}`}>
+                      <input
+                        type={multi ? "checkbox" : "radio"}
+                        name={`sfr-list-${step}`}
+                        checked={sel.includes(i)}
+                        onChange={() => toggle(step, i, multi)}
+                        style={{ accentColor: style.accentColor }}
+                      />
+                      <span className="sfr-list-t">{o.label || `선택지 ${i + 1}`}</span>
+                    </label>
                   ))}
                 </div>
               ) : answerType === "select" ? (

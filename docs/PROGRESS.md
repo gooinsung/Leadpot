@@ -29,6 +29,41 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-09-01 (2) — **스텝형 질문에 "목록형" 답변 방식(단일·다중) + 항목 설명 강조 3단계 — 배포 완료**
+>
+> 클라우드 세션(풀스크린 랜딩과 같은 세션 이어서). 사용자 요청 두 건을 한 번에 처리:
+>
+> **1) 스텝형 질문 답변 방식에 "목록형" 추가** — "셀렉박스 말고 나열된거 선택하는 유형도 추가해줘.
+> 이것도 단일, 중복 선택 가능하도록." 기존엔 선택지 목록이 필요한 답변 방식이 카드형(`single`/`multi`,
+> 큰 버튼)과 선택박스(`select`, 드롭다운) 뿐이었음 → 그 사이에 **체크박스/라디오 형태로 나열되는
+> 목록형**(`list_single`/`list_multi`)을 추가. 선택지 많을 때 카드보다 compact.
+> - `FormEditPage.tsx`: `ANSWER_TYPES`에 "단일 선택(목록)"/"다중 선택(목록)" 추가,
+>   `OPTION_ANSWER_TYPES`에도 포함(선택지 편집 UI 노출). 선택지별 설명 입력은 select와 마찬가지로
+>   숨김(`OPTION_DESC_HIDDEN_TYPES`).
+> - `formStyle.ts`(공용): `isChoiceAnswerType`/`isMultiAnswerType` 헬퍼 추가 — 기존에
+>   `answerType === "single" || answerType === "multi"`로 흩어져 있던 체크(계산기 입력 수집·기본값
+>   주입·답변 저장·검증·다음 단계 검증)를 전부 이걸로 교체해 새 유형이 자동으로 같이 동작하게 함.
+> - `PublicFormView.tsx`/`StepFormRenderer.tsx`(공개 렌더·빌더 미리보기 둘 다): 목록형 렌더 branch
+>   추가(`.sfr-list`/`.sfr-list-item`, 실제 라디오/체크박스 input + label, 선택 시 굵게).
+> - `form-builder.css`: `.sfr-list*` 스타일 추가(탭 타깃 20px, 구분선 있는 리스트).
+> - 새 answerType 값만 추가하는 거라 **DB/백엔드 변경 없음**, 기존 폼(카드형·선택박스)은 전혀 영향 없음.
+>
+> **2) 항목 설명 강조를 boolean → 3단계로 확장** — "1단계는 bold, 2단계는 빨간 텍스트, 3단계는
+> 빨간 볼드로 커스텀할 수 있게." 기존엔 체크박스 하나(꺼짐/켜짐="빨간 굵은 글씨")뿐이었음.
+> - `formStyle.ts`: `descEmphasisLevel(v)`(레거시 boolean `true`→`"redbold"`로 매핑, 하위호환) +
+>   `descEmphasisClass(v)` 헬퍼 추가.
+> - `FormEditPage.tsx`: 체크박스를 4단계 select로 교체("강조 없음"/"1단계 굵게"/"2단계 빨간 글씨"/
+>   "3단계 빨간 굵게"), 저장값은 이제 boolean 대신 문자열(`"none"|"bold"|"red"|"redbold"`).
+> - `base.css`: `.field-desc.emphasis-bold/-red/-redbold` 3규칙(예전 `.emphasis` 하나를 대체).
+> - `BasicFormRenderer.tsx`/`StepFormRenderer.tsx`/`PublicFormView.tsx` 전부 `descEmphasisClass`로 교체.
+> - **레거시 데이터(boolean `true`)는 계속 3단계와 동일하게(빨간 굵게) 보임** — 기존 폼 재저장 없이도
+>   안전. FIELD 블록(BASIC 항목 + STEP 연락처 단계) 공통이라 두 폼 유형 다 적용됨.
+>
+> **검증**: `tsc -b`·`npm run build`·`vitest`(81개) 전부 통과. Playwright 정적 렌더로 목록형
+> 체크박스 UI·강조 3단계 전부 스크린샷 확인(육안 확인, 실제 앱 종단 테스트는 이번에도 DB 없어서 못함).
+> **배포**: `main`에 직접 커밋·push, GitHub Actions Deploy Frontend 성공 확인. 백엔드/DB 변경 없음,
+> 기존 데이터 100% 하위호환.
+
 > ## ✅ 2026-09-01 — **랜딩 풀스크린 스텝 진행(fullscreen trigger) — main 병합·배포 완료, 다음 세션은 실브라우저 검증부터**
 >
 > 클라우드 세션. 사용자가 인스타 광고에서 본 법률사무소 "채무조정제도 진단" 랜딩(캡처 5장 공유) —
