@@ -21,8 +21,19 @@ function blockStyle(b: LandingBlock): CSSProperties {
 /** 공개 랜딩 렌더(모바일 최적화). 블록 렌더 + 인라인 리드폼 / CTA 오버레이. 데이터 로딩은 상위 페이지가 담당. */
 export function LandingView({ landing }: { landing: PublicLanding }) {
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
+  const [fullscreenForm, setFullscreenForm] = useState<FormDetail | null>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState<LandingLive | null>(null);
+
+  // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
+  useEffect(() => {
+    if (!fullscreenForm) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [fullscreenForm]);
 
   // 동적 요소(M8) 마커가 콘텐츠에 있으면 실시간 집계를 불러온다.
   const contentHtml = useMemo(
@@ -119,7 +130,7 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
     const el = (e.target as HTMLElement | null)?.closest("a, button, img") as HTMLElement | null;
     if (!el) return;
     if (el.classList.contains("landing-cta")) return; // 오버레이 CTA = form_open
-    if (el.closest(".landing-form-card, .landing-overlay, form")) return; // 폼 내부 클릭 제외
+    if (el.closest(".landing-form-card, .landing-overlay, .landing-fullscreen, form")) return; // 폼 내부 클릭 제외
     const tag = el.tagName.toLowerCase();
     let target =
       tag === "img"
@@ -144,11 +155,12 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
           if (b.type === "FORM") {
             const form = formOf(b);
             if (!form) return null;
-            if (b.trigger === "overlay") {
+            if (b.trigger === "overlay" || b.trigger === "fullscreen") {
+              const open = b.trigger === "fullscreen" ? setFullscreenForm : setOverlayForm;
               return (
                 <button key={i} className="btn btn-green landing-cta" type="button" style={ms}
                   onClick={() => {
-                    setOverlayForm(form);
+                    open(form);
                     // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
                     recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
                   }}>
@@ -171,6 +183,15 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
           <div className="landing-overlay-card" onClick={(e) => e.stopPropagation()}>
             <button className="landing-overlay-close" type="button" onClick={() => setOverlayForm(null)} aria-label="닫기">×</button>
             <PublicFormView form={overlayForm} landingPageId={landing.id} trackingConfig={overlayForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
+          </div>
+        </div>
+      )}
+
+      {fullscreenForm && (
+        <div className="landing-fullscreen">
+          <button className="landing-fullscreen-close" type="button" onClick={() => setFullscreenForm(null)} aria-label="닫기">×</button>
+          <div className="landing-fullscreen-inner">
+            <PublicFormView form={fullscreenForm} landingPageId={landing.id} trackingConfig={fullscreenForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
           </div>
         </div>
       )}

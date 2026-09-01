@@ -451,11 +451,13 @@ function StepFlow(props: {
 
   return (
     <div className="sfr">
-      <div className="sfr-head">
-        <span>{isContact ? (hasCalc ? "진단 결과" : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
-        <span>SSL 보안연결</span>
+      <div className="sfr-topbar">
+        <div className="sfr-head">
+          <span>{isContact ? (hasCalc ? "진단 결과" : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
+          <span>SSL 보안연결</span>
+        </div>
+        <div className="sfr-progress"><i style={{ width: `${((step + 1) / total) * 100}%`, background: style.accentColor }} /></div>
       </div>
-      <div className="sfr-progress"><i style={{ width: `${((step + 1) / total) * 100}%`, background: style.accentColor }} /></div>
 
       {!isContact ? (
         (() => {

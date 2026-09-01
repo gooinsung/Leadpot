@@ -256,9 +256,10 @@ export function LandingEditPage() {
                         <select className="input" value={(b.trigger as string) ?? "inline"} onChange={(e) => patch(i, { trigger: e.target.value })}>
                           <option value="inline">인라인(페이지에 바로 표시)</option>
                           <option value="overlay">버튼 → 오버레이(모달)</option>
+                          <option value="fullscreen">버튼 → 풀스크린 스텝 진행</option>
                         </select>
                       </div>
-                      {b.trigger === "overlay" && (
+                      {(b.trigger === "overlay" || b.trigger === "fullscreen") && (
                         <div className="field"><label>버튼 문구</label><input className="input" value={(b.buttonLabel as string) ?? ""} onChange={(e) => patch(i, { buttonLabel: e.target.value })} /></div>
                       )}
                     </>
@@ -313,11 +314,14 @@ export function LandingEditPage() {
                   if (b.type === "FORM") {
                     const fid = b.formId as number | null;
                     const detail = fid != null ? formDetails[fid] : undefined;
-                    if (b.trigger === "overlay") {
+                    if (b.trigger === "overlay" || b.trigger === "fullscreen") {
+                      const isFullscreen = b.trigger === "fullscreen";
                       return (
                         <div key={i} style={{ padding: "8px 16px 16px", ...ms }}>
                           <button className="btn btn-green" style={{ width: "100%", minHeight: 48 }} disabled>{(b.buttonLabel as string) || "신청하기"}</button>
-                          <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>버튼 클릭 시 오버레이로 리드폼 표시</p>
+                          <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>
+                            {isFullscreen ? "버튼 클릭 시 화면 전체를 채우는 스텝형으로 리드폼 표시" : "버튼 클릭 시 오버레이로 리드폼 표시"}
+                          </p>
                         </div>
                       );
                     }

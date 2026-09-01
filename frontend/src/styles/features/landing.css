@@ -184,6 +184,65 @@
   .landing-overlay-card { border-radius: 18px; }
 }
 
+/* 풀스크린 스텝 진행(CTA → 화면 전체를 채우는 스텝형 리드폼) — 오버레이(하단시트)와 달리
+   카드 경계 없이 화면 전체를 차지하고, 질문마다 화면이 전환되는 느낌을 준다. */
+.landing-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--pub-surface, #fff);
+  display: flex;
+  flex-direction: column;
+  animation: overlayUp 0.2s ease;
+}
+.landing-fullscreen-inner {
+  flex: 1;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+}
+/* 질문 내용이 한 화면보다 짧아도 "다음" 버튼이 화면 맨 아래에 붙도록 — .sfr 을 세로 flex 로 만들고
+   나머지 여백을 nav 위쪽으로 밀어낸다(margin-top:auto). 내용이 길면 자연스럽게 스크롤된다. */
+.landing-fullscreen-inner > .sfr {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.landing-fullscreen-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+/* 진행률바+단계표시는 상단 고정, 다음/이전 버튼은 하단 고정 — 예시 레퍼런스처럼 질문 화면 자체가
+   풀스크린을 채우게 한다. .sfr-topbar/.sfr-nav 자체는 다른 곳(카드·오버레이)에도 쓰이는 공용
+   클래스라 여기서는 .landing-fullscreen 안에서만 스티키를 건다(다른 화면은 영향 없음). */
+.landing-fullscreen .sfr-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--pub-surface, #fff);
+  margin: 0 -20px;
+  padding: 44px 20px 0;
+}
+.landing-fullscreen .sfr-nav {
+  /* margin-top:auto — 내용이 짧아도 nav 를 화면(스크롤 영역) 맨 아래로 밀어낸다 */
+  margin: auto -20px 0;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+  background: var(--pub-surface, #fff);
+  border-top: 1px solid var(--pub-border, var(--border));
+}
+
 
 /* ── 광고 URL 빌더 모달 (AdUrlBuilder) ──────────────────────────
    .lead-modal 껍데기는 components.css 것을 쓰고, 안쪽만 여기서 잡는다.

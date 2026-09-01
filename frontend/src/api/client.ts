@@ -1023,7 +1023,7 @@ export interface LandingBlock {
   type: LandingBlockType;
   /** 편집 화면에서만 쓰는 블록 이름(예: "헤더 이미지", "선착순 HTML"). 공개 페이지에는 노출하지 않는다. */
   name?: string;
-  // IMAGE: {url, alt} · TEXT: {text} · HTML: {html} · FORM: {formId, trigger:"inline"|"overlay", buttonLabel}
+  // IMAGE: {url, alt} · TEXT: {text} · HTML: {html} · FORM: {formId, trigger:"inline"|"overlay"|"fullscreen", buttonLabel}
   [key: string]: unknown;
 }
 export interface LandingInput {

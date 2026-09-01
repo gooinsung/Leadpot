@@ -29,6 +29,50 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## 🔄 2026-09-01 — **랜딩 풀스크린 스텝 진행(fullscreen trigger) — 미배포, 다음 세션은 실브라우저 검증부터**
+>
+> 클라우드 세션. 사용자가 인스타 광고에서 본 법률사무소 "채무조정제도 진단" 랜딩(캡처 5장 공유) —
+> 화면 전체를 채우는 커버 → 스텝 질문 → 연락처 입력 흐름 — 을 리드팟에도 만들자는 요청.
+> **사용자 아이디어로 방향 확정**: "랜딩 자체를 스텝형 페이지로 만들어서 리드폼이랑 연결. 리드폼을
+> 선택하면 그 폼의 질문을 커버 다음에 순서대로 노출."
+>
+> **조사 결과(중요)**: 스텝 로직(진행바·카드 선택지·유효성검사·계산기 연동)은 이미
+> `PublicFormView.tsx`의 `StepFlow`에 잘 구현돼 있었음 — 부족했던 건 **레이아웃뿐**. 기존엔 항상
+> `.public-form-card`(카드, max-width 460px)나 `.landing-form-card`(랜딩 안 카드) 안에 축소돼
+> 있었고, 랜딩 자체에는 "커버 화면" 개념이 없었음(순수 스크롤 블록 나열). → **완전 새 랜딩
+> "타입"이나 백엔드 스키마 변경 없이, 기존 FORM 블록의 `trigger`(JSONB 자유 필드, DB enum 아님)에
+> 세 번째 값 `"fullscreen"`만 추가하는 것으로 충분하다고 판단** — 랜딩의 앞쪽 블록들(이미지·텍스트)이
+> 자연스럽게 "커버 화면"이 되고, FORM 블록 CTA를 누르면 연결된 폼이 오버레이(모달) 대신 화면 전체를
+> 채우며 스텝이 진행됨.
+>
+> **구현(프론트 전용, 백엔드/DB 변경 없음)**:
+> - `LandingEditPage.tsx`: 노출 방식 select에 `fullscreen` 옵션 추가 + 에디터 미리보기 placeholder.
+> - `LandingView.tsx`: `fullscreenForm` 상태 추가, `trigger==="fullscreen"`이면 CTA 클릭 시
+>   오버레이 대신 풀스크린 렌더(`.landing-fullscreen`) 오픈 + 배경 스크롤 락(`document.body.style.overflow`).
+> - `PublicFormView.tsx`: `StepFlow`의 헤더+진행바를 `.sfr-topbar`로 감싸기만 함(다른 화면 영향 없음,
+>   풀스크린 안에서만 CSS로 sticky 적용).
+> - `landing.css`: `.landing-fullscreen`(`position:fixed;inset:0`) + `.landing-fullscreen .sfr-topbar`
+>   sticky top + `.landing-fullscreen .sfr-nav`(`margin-top:auto`로 내용 짧아도 버튼이 화면 맨
+>   아래로 붙음, `env(safe-area-inset-bottom)` 대응).
+> - `docs/SPEC.md` §3.2에 fullscreen 옵션 설명 추가.
+>
+> **검증한 것**: 프론트 `npx tsc -b`·`npm run build`·`npx vitest run`(81개) 전부 통과. **DB 접속정보가
+> 없는 클라우드 세션이라 실제 앱(로그인→랜딩 생성→공개 렌더)으로는 못 띄워봄** — 대신 빌드된 CSS를
+> 그대로 붙여 만든 정적 HTML을 Playwright(사전 설치된 Chromium)로 모바일(375px) 스크린샷 렌더해
+> 레이아웃만 검증함(진행바·카드 선택지·하단 고정 버튼·safe-area 전부 의도대로 나옴, 레퍼런스
+> 캡처와 거의 동일). **실제 리드폼 연결·제출까지의 종단 플로우는 검증 안 됨.**
+>
+> **⚠️ 아직 안 한 것(다음 세션은 여기부터)**:
+> 1. 로컬(Neon 접속 가능 PC) 또는 이 브랜치를 배포 가능한 환경에서 **진짜 브라우저로 실제 플로우
+>    확인**: 리드폼(STEP 유형) 만들기 → 랜딩 만들기 → FORM 블록 trigger=fullscreen 선택 → 공개
+>    링크에서 커버→CTA→스텝 진행→연락처 입력→제출→리드 저장까지.
+> 2. **아직 `main` 미병합·미배포** — 사용자가 결과를 보고 확인한 뒤 병합할지 결정하기로 함
+>    (배포하면 GitHub Actions가 프론트를 자동 빌드·배포함, 백엔드 변경 없음).
+> 3. (선택) 마지막 질문 단계의 버튼 문구를 레퍼런스처럼 "다음"→"상담 정보 입력"으로 바꾸는 건
+>    `StepFlow`가 다른 화면(카드·오버레이)에서도 쓰는 공용 로직이라 **일부러 손대지 않음**(전체
+>    스텝폼 문구가 다 같이 바뀌는 걸 원하지 않을 수 있어 사용자 확인 후 진행).
+> 4. 브랜치: `claude/leadpot-fullscreen-landing-qi2x3y`.
+
 > ## ✅ 2026-08-31 — **범용 인바운드 웹훅 리드 수신(V39) 1차 구현 — 메타 잠재고객 연동의 실제 구현체**
 >
 > 클라우드 세션. 상세 설계·경위는 [docs/META-LEADS-PLAN.md](META-LEADS-PLAN.md) §10 참고(요약만 여기 남김).
