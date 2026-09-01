@@ -390,6 +390,20 @@
 }
 
 /* 스텝 렌더러 */
+/* 질문 설명(.dash-sub)의 강조색이 안 먹던 문제: 로드 순서가 tokens→base→layout→features 라
+   layout.css 의 .dash-sub{color:var(--muted)}가 base.css 의 .emphasis-red 보다 나중에 로드돼
+   같은 클래스 하나짜리 우선순위에서 이긴다(font-weight 은 dash-sub 에 없어서 굵게는 정상
+   동작했었다). features 레이어(여기)에서 컴파운드 셀렉터로 다시 못박는다. */
+.dash-sub.emphasis-bold {
+  font-weight: 700;
+}
+.dash-sub.emphasis-red {
+  color: var(--rose);
+}
+.dash-sub.emphasis-redbold {
+  color: var(--rose);
+  font-weight: 700;
+}
 .sfr-head {
   display: flex;
   justify-content: space-between;
