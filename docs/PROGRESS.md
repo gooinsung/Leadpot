@@ -29,6 +29,21 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> ## ✅ 2026-09-01 (3) — **스텝형 "질문 설명"에도 강조 3단계 적용 — 배포 완료**
+>
+> 같은 세션 이어서. 사용자가 "스텝형에는 강조가 없는것같은데"라고 확인 요청 → 맞다고 답변(FIELD
+> 항목 설명에만 있었고, 스텝 질문 설명(`dash-sub`, CHOICE 블록 `content.description`)은 완전히
+> 다른 렌더링 경로라 강조가 없었음) → "추가해" 요청으로 바로 구현·배포.
+> - `FormEditPage.tsx`: `StepData`에 `descriptionEmphasis` 필드 추가, 질문 "설명(선택)" 아래에도
+>   동일한 4단계 select(강조 없음/1단계 굵게/2단계 빨간 글씨/3단계 빨간 굵게) 노출. 기존 폼 로드 시
+>   `descEmphasisLevel`로 정규화해서 읽음.
+> - 강조 CSS를 `field-desc` 전용 컴파운드 셀렉터(`.field-desc.emphasis-bold` 등)에서 **독립
+>   클래스**(`.emphasis-bold`/`.emphasis-red`/`.emphasis-redbold`)로 바꿔 `dash-sub`(질문 설명)
+>   에도 그대로 붙을 수 있게 함. `PublicFormView.tsx`·`StepFormRenderer.tsx`의 질문 설명 렌더에 적용.
+> - 프론트 전용, 기존 폼은 강조 없음(`"none"`)으로 기본 동작 — 영향 없음.
+> - 검증: `tsc -b`·`npm run build`·`vitest`(81개) 통과. 배포: `main` 직접 push, Deploy Frontend
+>   run #114 (커밋 `a39a309`).
+
 > ## ✅ 2026-09-01 (2) — **스텝형 질문에 "목록형" 답변 방식(단일·다중) + 항목 설명 강조 3단계 — 배포 완료**
 >
 > 클라우드 세션(풀스크린 랜딩과 같은 세션 이어서). 사용자 요청 두 건을 한 번에 처리:
