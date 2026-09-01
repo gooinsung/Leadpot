@@ -158,6 +158,8 @@ function SectionHead({ title, open, onToggle }: { title: string; open: boolean; 
 interface StepData {
   question: string;
   description: string;
+  /** 질문 설명 강조 단계("none"|"bold"|"red"|"redbold"). 레거시 boolean 데이터도 있을 수 있어 읽을 때는 descEmphasisLevel 로 정규화. */
+  descriptionEmphasis?: string;
   answerType: string;
   placeholder: string;
   required: boolean;
@@ -431,6 +433,7 @@ export function FormEditPage() {
               varKey: b.varKey ?? null,
               question: (b.content?.question as string) || "",
               description: (b.content?.description as string) || "",
+              descriptionEmphasis: descEmphasisLevel(b.content?.descriptionEmphasis),
               answerType: (b.content?.answerType as string) || (b.content?.selectType as string) || "single",
               placeholder: (b.content?.placeholder as string) || "",
               required: b.content?.required === true,
@@ -582,6 +585,7 @@ export function FormEditPage() {
             content: {
               question: s.question,
               description: s.description,
+              descriptionEmphasis: s.descriptionEmphasis ?? "none",
               answerType: s.answerType,
               selectType: s.answerType === "multi" ? "multi" : "single", // 하위호환
               placeholder: s.placeholder,
@@ -840,6 +844,19 @@ export function FormEditPage() {
                       <div className="field">
                         <label>설명(선택)</label>
                         <input className="input" value={s.description} onChange={(e) => patchStep(i, { description: e.target.value })} />
+                        <div className="field" style={{ marginTop: 6, marginBottom: 0, maxWidth: 220 }}>
+                          <label>강조</label>
+                          <select
+                            className="input"
+                            value={s.descriptionEmphasis ?? "none"}
+                            onChange={(e) => patchStep(i, { descriptionEmphasis: e.target.value })}
+                          >
+                            <option value="none">강조 없음</option>
+                            <option value="bold">1단계 (굵게)</option>
+                            <option value="red">2단계 (빨간 글씨)</option>
+                            <option value="redbold">3단계 (빨간 굵게)</option>
+                          </select>
+                        </div>
                       </div>
                       <div className="field">
                         <label>답변 방식</label>

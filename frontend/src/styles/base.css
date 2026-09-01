@@ -273,14 +273,15 @@ code {
   font-size: 13px;
   margin: -2px 0 2px;
 }
-/* 항목 설명 강조 3단계: 1=굵게 · 2=빨간 글씨 · 3=빨간 굵게(예전 boolean 강조와 동일) */
-.field-desc.emphasis-bold {
+/* 항목·질문 설명 강조 3단계: 1=굵게 · 2=빨간 글씨 · 3=빨간 굵게(예전 boolean 강조와 동일).
+   field-desc(항목 설명)·dash-sub(스텝 질문 설명) 어디에도 붙일 수 있게 독립 클래스로 둔다. */
+.emphasis-bold {
   font-weight: 700;
 }
-.field-desc.emphasis-red {
+.emphasis-red {
   color: var(--rose);
 }
-.field-desc.emphasis-redbold {
+.emphasis-redbold {
   color: var(--rose);
   font-weight: 700;
 }

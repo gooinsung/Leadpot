@@ -473,7 +473,11 @@ function StepFlow(props: {
               <h3 className="t-h3" style={{ marginBottom: 4 }}>
                 {(b.content?.question as string) || "질문"} {b.content?.required === true && <span className="req">*</span>}
               </h3>
-              {(b.content?.description as string) && <p className="dash-sub" style={{ marginTop: 0 }}>{b.content?.description as string}</p>}
+              {(b.content?.description as string) && (
+                <p className={`dash-sub${descEmphasisClass(b.content?.descriptionEmphasis)}`} style={{ marginTop: 0 }}>
+                  {b.content?.description as string}
+                </p>
+              )}
               {answerType === "single" || answerType === "multi" ? (
                 <div className="sfr-options">
                   {opts.map((o, i) => (
