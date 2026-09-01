@@ -41,13 +41,15 @@
 >
 > **2) "단일 선택형 카드나 목록은 선택하면 '다음' 안눌러도 자동으로 넘어가게"**: `PublicFormView.tsx`
 > (공개 렌더) + `StepFormRenderer.tsx`(빌더 미리보기) 양쪽의 `toggle`에 — 단일 선택(`single`/
-> `list_single`)일 때만 선택 후 260ms 뒤 자동으로 `setStep(s+1)`. 다중 선택(`multi`/`list_multi`)은
+> `list_single`)일 때만 선택 후 자동으로 `setStep(s+1)`. 다중 선택(`multi`/`list_multi`)은
 > 그대로 "다음" 버튼 필요(여러 개 더 고를 수 있어야 하므로). 연타로 두 단계 건너뛰거나 "이전"으로
 > 되돌아간 뒤 타이머가 뒤늦게 발화해 다시 밀어버리는 걸 막기 위해 타이머를 `useRef`로 관리하고
 > `step`이 바뀔 때마다 정리(`useEffect` cleanup). 커밋 `988fc8c`.
+> **지연 시간은 260ms→100ms로 축소**(사용자 피드백 "260ms는 느리다, 0.1초면 될듯, 없어도 됨" —
+> 최소한의 선택 표시만 남기고 줄임). 커밋 `b35be5e`.
 >
-> 둘 다 프론트 전용, 검증(`tsc -b`·`build`·`vitest` 81개) 통과 후 `main` 바로 push, Deploy Frontend
-> 둘 다 success(run #115, #116).
+> 전부 프론트 전용, 검증(`tsc -b`·`build`·`vitest` 81개) 통과 후 `main` 바로 push, Deploy Frontend
+> 전부 success(run #115, #116, #117).
 >
 > **다음 후보**: 이 세션에서 만든 기능들(풀스크린 랜딩·목록형 답변·강조 3단계·자동 진행)을 실제
 > 브라우저(로그인→리드폼/랜딩 생성→공개 링크)로 종단 확인 — 이 세션은 DB 접속정보가 없는 클라우드
