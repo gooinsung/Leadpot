@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { HtmlBlock } from "./HtmlBlock";
 import {
   ApiError,
@@ -406,6 +406,18 @@ function StepFlow(props: {
   const total = choiceBlocks.length + 1;
   const isContact = step >= choiceBlocks.length;
   const [stepError, setStepError] = useState("");
+  /**
+   * 단일 선택 자동 진행 타이머. step 이 바뀌면(자동 진행 자신이든, "이전"/"다음" 수동 클릭이든)
+   * 예약돼 있던 타이머를 정리한다 — 안 그러면 "선택 후 곧장 이전으로 되돌아가기" 같은 경우
+   * 엉뚱한 단계에서 타이머가 뒤늦게 발화해 한 번 더 넘어가버린다.
+   */
+  const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (autoAdvanceTimer.current) {
+      clearTimeout(autoAdvanceTimer.current);
+      autoAdvanceTimer.current = null;
+    }
+  }, [step]);
 
   function toggle(si: number, oi: number, multi: boolean) {
     setStepError("");
@@ -414,6 +426,12 @@ function StepFlow(props: {
       const next = multi ? (cur.includes(oi) ? cur.filter((x) => x !== oi) : [...cur, oi]) : [oi];
       return { ...prev, [si]: next };
     });
+    // 단일 선택(카드·목록)은 "다음"을 안 눌러도 고르면 바로 다음 단계로 넘어간다.
+    // 선택 표시가 잠깐 눈에 보이도록 살짝(260ms) 여유를 둔다.
+    if (!multi) {
+      if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+      autoAdvanceTimer.current = setTimeout(() => setStep((s) => s + 1), 260);
+    }
   }
 
   // 필수 미응답·형식 오류 시 다음 단계로 진행 차단

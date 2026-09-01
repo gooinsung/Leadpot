@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
 import { PhoneInput3 } from "../PhoneInput3";
@@ -43,6 +43,16 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
   const submitLabel =
     calculator?.gate.submitLabel || (form.submitButtonConfig?.label as string) || "제출하기";
 
+  // 공개 렌더(PublicFormView)와 동일하게 단일 선택은 자동으로 다음 단계로 넘어간다 —
+  // 미리보기가 실물과 다르면 마케터가 잘못된 흐름으로 오해한다.
+  const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (autoAdvanceTimer.current) {
+      clearTimeout(autoAdvanceTimer.current);
+      autoAdvanceTimer.current = null;
+    }
+  }, [step]);
+
   function toggleOption(stepIdx: number, optIdx: number, multi: boolean) {
     setSelections((prev) => {
       const cur = prev[stepIdx] ?? [];
@@ -51,6 +61,10 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
       else next = [optIdx];
       return { ...prev, [stepIdx]: next };
     });
+    if (!multi) {
+      if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+      autoAdvanceTimer.current = setTimeout(() => setStep((prev) => prev + 1), 260);
+    }
   }
 
   if (totalSteps === 1 && choiceBlocks.length === 0 && contactBlocks.length === 0) {
