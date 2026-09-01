@@ -427,10 +427,10 @@ function StepFlow(props: {
       return { ...prev, [si]: next };
     });
     // 단일 선택(카드·목록)은 "다음"을 안 눌러도 고르면 바로 다음 단계로 넘어간다.
-    // 선택 표시가 잠깐 눈에 보이도록 살짝(260ms) 여유를 둔다.
+    // 선택 표시가 아주 잠깐 눈에 보이도록 최소한의 여유(100ms)만 둔다.
     if (!multi) {
       if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
-      autoAdvanceTimer.current = setTimeout(() => setStep((s) => s + 1), 260);
+      autoAdvanceTimer.current = setTimeout(() => setStep((s) => s + 1), 100);
     }
   }
 

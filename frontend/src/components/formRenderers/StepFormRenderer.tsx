@@ -63,7 +63,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
     });
     if (!multi) {
       if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
-      autoAdvanceTimer.current = setTimeout(() => setStep((prev) => prev + 1), 260);
+      autoAdvanceTimer.current = setTimeout(() => setStep((prev) => prev + 1), 100);
     }
   }
 
