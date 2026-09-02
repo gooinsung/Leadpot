@@ -100,6 +100,11 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
               {(form.typeConfig?.contactMessage as string) || "연락처를 남겨주세요"}
             </h3>
           )}
+          {!calculator && (form.typeConfig?.contactDescription as string) && (
+            <p className={`dash-sub${descEmphasisClass(form.typeConfig?.contactDescriptionEmphasis)}`} style={{ marginTop: 0, marginBottom: 12 }}>
+              {form.typeConfig?.contactDescription as string}
+            </p>
+          )}
           {contactBlocks.length === 0 && <p className="dash-sub">연락처 항목을 추가하세요.</p>}
           {contactBlocks.map((b, i) => (
             <div className="field" key={b.id ?? i}>

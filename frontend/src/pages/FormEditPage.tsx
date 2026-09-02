@@ -280,6 +280,8 @@ export function FormEditPage() {
   const [steps, setSteps] = useState<StepData[]>(defaultSteps());
   const [contactFields, setContactFields] = useState<FormBlock[]>(defaultContactFields());
   const [contactMessage, setContactMessage] = useState("");
+  const [contactDescription, setContactDescription] = useState("");
+  const [contactDescriptionEmphasis, setContactDescriptionEmphasis] = useState("none");
   /**
    * 붙어 있는 계산기(`null` = 없음). 마케터에게는 "리드폼 종류"로 보이지만
    * 내부적으로는 STEP + CALC 블록이다 — formType 을 늘리면 BASIC/STEP 분기를 전부 3-way 로
@@ -451,6 +453,8 @@ export function FormEditPage() {
           setCalcKey(findCalculator(savedCalcKey) ? savedCalcKey! : null);
           setContactFields(sorted.filter((b) => b.blockType === "FIELD"));
           setContactMessage((f.typeConfig?.contactMessage as string) || "");
+          setContactDescription((f.typeConfig?.contactDescription as string) || "");
+          setContactDescriptionEmphasis(descEmphasisLevel(f.typeConfig?.contactDescriptionEmphasis));
         } else {
           setBlocks(sorted);
         }
@@ -565,6 +569,9 @@ export function FormEditPage() {
   function patchContact(i: number, patch: Partial<FormBlock>) {
     setContactFields((prev) => prev.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
   }
+  function patchContactContent(i: number, patch: Record<string, unknown>) {
+    setContactFields((prev) => prev.map((b, idx) => (idx === i ? { ...b, content: { ...(b.content ?? {}), ...patch } } : b)));
+  }
   function addContact() {
     setContactFields((prev) => [...prev, { sortOrder: 0, blockType: "FIELD", fieldType: "text", label: "새 항목", required: false }]);
   }
@@ -658,7 +665,7 @@ export function FormEditPage() {
     submitButtonConfig: { label: submitLabel },
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
     styleConfig: { buttonColor, accentColor },
-    typeConfig: { contactMessage },
+    typeConfig: { contactMessage, contactDescription, contactDescriptionEmphasis },
     settingsConfig: {
       allowSameIp,
       ipDedupDays,
@@ -934,6 +941,28 @@ export function FormEditPage() {
                   <div className="field">
                     <label>상단 안내 문구(선택)</label>
                     <input className="input" placeholder="예: 마지막 정보를 입력하면 분석 내용을 바로 보내드립니다!" value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} />
+                    <div className="field" style={{ marginTop: 6, marginBottom: 0 }}>
+                      <label>안내 문구 설명(선택)</label>
+                      <input
+                        className="input"
+                        placeholder="예: 평일 09~18시 전문 상담사가 직접 안내드립니다."
+                        value={contactDescription}
+                        onChange={(e) => setContactDescription(e.target.value)}
+                      />
+                      <div className="field" style={{ marginTop: 6, marginBottom: 0, maxWidth: 220 }}>
+                        <label>강조</label>
+                        <select
+                          className="input"
+                          value={contactDescriptionEmphasis}
+                          onChange={(e) => setContactDescriptionEmphasis(e.target.value)}
+                        >
+                          <option value="none">강조 없음</option>
+                          <option value="bold">1단계 (굵게)</option>
+                          <option value="red">2단계 (빨간 글씨)</option>
+                          <option value="redbold">3단계 (빨간 굵게)</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                   {contactFields.map((b, i) => (
                     <div className="block-editor" key={i}>
@@ -941,7 +970,7 @@ export function FormEditPage() {
                         <span className="pill">입력 항목</span>
                         <button className="btn btn-ghost btn-sm danger" onClick={() => removeContact(i)}>삭제</button>
                       </div>
-                      <BlockFields block={b} onPatch={(p) => patchContact(i, p)} onContent={() => {}} />
+                      <BlockFields block={b} onPatch={(p) => patchContact(i, p)} onContent={(p) => patchContactContent(i, p)} />
                     </div>
                   ))}
                   <div className="add-block-row">

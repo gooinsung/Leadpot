@@ -7,6 +7,7 @@ import {
   bulkUpdateLeadCategory,
   bulkUpdateLeadStatus,
   markLeadsSeen,
+  getForm,
   getInbox,
   getUtmFacets,
   type InboxItem,
@@ -72,6 +73,9 @@ export function LeadInboxPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // 선택한 폼에 구글시트 연동이 켜져 있으면 '시트 열기' 버튼을 보여준다.
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+
   // 상세 선택. 데스크톱은 openId 가 없어도 첫 리드를 보여준다(자동 선택).
   const [openId, setOpenId] = useState<number | null>(null);
   const isNarrow = useIsNarrow();
@@ -130,6 +134,24 @@ export function LeadInboxPage() {
   useEffect(() => {
     setUtmKey("");
     setUtmValue("");
+  }, [formFilter]);
+
+  // 특정 폼을 골랐을 때만 그 폼의 구글시트 연동 여부를 확인한다('모든 폼'에서는 어느 시트인지 알 수 없다).
+  useEffect(() => {
+    if (formFilter == null) {
+      setSheetUrl(null);
+      return;
+    }
+    let alive = true;
+    getForm(formFilter)
+      .then((f) => {
+        if (!alive) return;
+        const enabled = f.settingsConfig?.sheetsEnabled === true;
+        const sheetId = (f.settingsConfig?.sheetsSpreadsheetId as string) || "";
+        setSheetUrl(enabled && sheetId ? `https://docs.google.com/spreadsheets/d/${sheetId}/edit` : null);
+      })
+      .catch(() => { if (alive) setSheetUrl(null); });
+    return () => { alive = false; };
   }, [formFilter]);
 
   // 필터가 바뀌면 1페이지로
@@ -301,6 +323,12 @@ export function LeadInboxPage() {
                   </option>
                 ))}
               </select>
+              {/* 이 폼에 구글시트 연동이 켜져 있을 때만 — 은근히 자주 눌러서 매번 리드폼 편집까지 갈 필요 없게 */}
+              {sheetUrl && (
+                <a className="btn btn-ghost btn-sm" href={sheetUrl} target="_blank" rel="noreferrer">
+                  시트 열기 ↗
+                </a>
+              )}
               {/* 분야 필터(V34) — 분야 지정된 폼이 하나도 없으면 숨긴다 */}
               {(counts?.byCategory?.length ?? 0) > 0 && (
                 <select
