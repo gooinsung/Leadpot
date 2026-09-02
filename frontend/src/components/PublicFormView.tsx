@@ -9,7 +9,7 @@ import {
   type LeadAnswer,
   type LeadConsent,
 } from "../api/client";
-import { descEmphasisClass, isChoiceAnswerType, isMultiAnswerType, resolveStyle } from "./formRenderers/formStyle";
+import { descEmphasisClass, isChoiceAnswerType, isMultiAnswerType, resolveStyle, resolveSubmitLabel } from "./formRenderers/formStyle";
 import { PhoneInput3 } from "./PhoneInput3";
 import { consentDocUrl } from "../lib/site";
 import { parseUtm } from "../lib/utm";
@@ -146,7 +146,7 @@ export function PublicFormView({
     if (Object.keys(initValues).length) setValues((prev) => ({ ...initValues, ...prev }));
     if (Object.keys(initChoices).length) setChoices((prev) => ({ ...initChoices, ...prev }));
   }, [form.formType, sorted]);
-  const submitLabel = (form.submitButtonConfig?.label as string) || "제출하기";
+  const submitLabel = resolveSubmitLabel(form, calculator?.gate.submitLabel);
 
   function setVal(key: string, v: string) {
     setValues((prev) => ({ ...prev, [key]: v }));
@@ -547,7 +547,16 @@ function StepFlow(props: {
         <div>
           {/* 계산기: 결과를 보려면 정보를 입력해야 한다 — 결과 먼저 보여주면 리드가 안 남는다. */}
           {hasCalc && calcGate ? (
-            <CalcGateView gate={calcGate} accentColor={style.accentColor} />
+            <CalcGateView
+              // 계산기 기본 문구 대신, 마케터가 '마지막 단계·연락처'에 입력한 상단 안내 문구/설명이
+              // 있으면 그걸로 덮어쓴다 — 계산기가 붙어도 이 두 입력이 화면에 반영돼야 한다.
+              gate={{
+                ...calcGate,
+                title: contactMessage.trim() ? contactMessage : calcGate.title,
+                highlight: contactDescription.trim() ? contactDescription : calcGate.highlight,
+              }}
+              accentColor={style.accentColor}
+            />
           ) : (
             <h3 className="t-h3" style={{ marginBottom: 12 }}>{contactMessage || "연락처를 남겨주세요"}</h3>
           )}
@@ -569,7 +578,7 @@ function StepFlow(props: {
         {step > 0 && <button className="btn btn-ghost" type="button" onClick={goPrev}>이전</button>}
         {isContact ? (
           <button className="btn" type="button" style={{ flex: 1, background: style.buttonColor, color: style.buttonText }} disabled={submitting} onClick={onSubmit}>
-            {submitting ? "제출 중…" : (calcGate?.submitLabel || submitLabel)}
+            {submitting ? "제출 중…" : submitLabel}
           </button>
         ) : (
           <button className="btn" type="button" style={{ flex: 1, background: style.accentColor, color: style.accentText }} onClick={goNext}>다음</button>

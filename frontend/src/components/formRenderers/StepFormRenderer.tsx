@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
 import { PhoneInput3 } from "../PhoneInput3";
-import { descEmphasisClass, isMultiAnswerType, resolveStyle } from "./formStyle";
+import { descEmphasisClass, isMultiAnswerType, resolveStyle, resolveSubmitLabel } from "./formStyle";
 import { CalcGateView } from "./CalcResultView";
 import { findCalculator } from "../../lib/calculators/registry";
 
@@ -40,8 +40,18 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
     () => findCalculator(sorted.find((b) => b.blockType === "CALC")?.content?.calcKey as string | undefined),
     [sorted],
   );
-  const submitLabel =
-    calculator?.gate.submitLabel || (form.submitButtonConfig?.label as string) || "제출하기";
+  const submitLabel = resolveSubmitLabel(form, calculator?.gate.submitLabel);
+  // 계산기 기본 문구 대신, '마지막 단계·연락처'의 상단 안내 문구/설명이 있으면 그걸로 덮어쓴다
+  // (공개 렌더 PublicFormView와 동일한 규칙 — 미리보기가 실물과 달라지면 안 된다).
+  const contactMessage = form.typeConfig?.contactMessage as string | undefined;
+  const contactDescription = form.typeConfig?.contactDescription as string | undefined;
+  const gate = calculator
+    ? {
+        ...calculator.gate,
+        title: contactMessage?.trim() ? contactMessage : calculator.gate.title,
+        highlight: contactDescription?.trim() ? contactDescription : calculator.gate.highlight,
+      }
+    : null;
 
   // 공개 렌더(PublicFormView)와 동일하게 단일 선택은 자동으로 다음 단계로 넘어간다 —
   // 미리보기가 실물과 다르면 마케터가 잘못된 흐름으로 오해한다.
@@ -93,8 +103,8 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
         />
       ) : (
         <div>
-          {calculator ? (
-            <CalcGateView gate={calculator.gate} accentColor={s.accentColor} />
+          {calculator && gate ? (
+            <CalcGateView gate={gate} accentColor={s.accentColor} />
           ) : (
             <h3 className="t-h3" style={{ marginBottom: 12 }}>
               {(form.typeConfig?.contactMessage as string) || "연락처를 남겨주세요"}

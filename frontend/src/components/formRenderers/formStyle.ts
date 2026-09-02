@@ -1,5 +1,19 @@
 import type { FormInput } from "../../api/client";
 
+/**
+ * '제출 버튼 문구'의 손대지 않은 씨앗값(FormEditPage 의 useState 기본값과 동일해야 한다).
+ * 계산기가 붙은 폼에서 마케터가 아직 이 값을 안 건드렸으면 계산기의 CTA 문구를 대신 쓴다 —
+ * 반대로 이 값과 다르면 마케터가 직접 입력한 것이므로 그 값이 항상 이긴다.
+ */
+export const DEFAULT_SUBMIT_LABEL = "무료 상담 신청";
+
+/** 마지막 제출 버튼에 실제로 쓸 문구. 마케터 설정 > 계산기 기본 CTA > 범용 기본값 순. */
+export function resolveSubmitLabel(form: FormInput, calcSubmitLabel: string | undefined): string {
+  const configured = form.submitButtonConfig?.label as string | undefined;
+  if (configured && configured !== DEFAULT_SUBMIT_LABEL) return configured;
+  return calcSubmitLabel || configured || "제출하기";
+}
+
 export interface ResolvedStyle {
   buttonColor: string;
   accentColor: string;

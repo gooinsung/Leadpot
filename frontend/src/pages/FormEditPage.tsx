@@ -33,7 +33,7 @@ import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import { CALCULATORS, findCalculator } from "../lib/calculators/registry";
 import { CalcFollowUp, CalcResultView } from "../components/formRenderers/CalcResultView";
-import { descEmphasisLevel } from "../components/formRenderers/formStyle";
+import { DEFAULT_SUBMIT_LABEL, descEmphasisLevel } from "../components/formRenderers/formStyle";
 import type { CalculatorDef } from "../lib/calculators/types";
 
 /**
@@ -303,7 +303,7 @@ export function FormEditPage() {
 
   const [consentItems, setConsentItems] = useState<ConsentItem[]>(defaultConsentItems());
   const [consentDocs, setConsentDocs] = useState<ConsentDocumentSummary[]>([]);
-  const [submitLabel, setSubmitLabel] = useState("무료 상담 신청");
+  const [submitLabel, setSubmitLabel] = useState(DEFAULT_SUBMIT_LABEL);
   const [buttonColor, setButtonColor] = useState("#12b886");
   const [accentColor, setAccentColor] = useState("#3a43c0");
   const [successMode, setSuccessMode] = useState<"message" | "redirect">("message");
@@ -411,7 +411,7 @@ export function FormEditPage() {
         setFormType(f.formType);
         const items = f.consentConfig?.items as ConsentItem[] | undefined;
         setConsentItems(items && items.length ? items : defaultConsentItems());
-        setSubmitLabel((f.submitButtonConfig?.label as string) || "무료 상담 신청");
+        setSubmitLabel((f.submitButtonConfig?.label as string) || DEFAULT_SUBMIT_LABEL);
         setButtonColor((f.styleConfig?.buttonColor as string) || "#12b886");
         setAccentColor((f.styleConfig?.accentColor as string) || "#3a43c0");
         const sc = f.successConfig;
@@ -549,6 +549,12 @@ export function FormEditPage() {
     setSteps(stepsFromCalculator(def));
     if (!contactMessage.trim()) {
       setContactMessage("진단 결과를 전문 상담사가 자세히 설명해드립니다. 연락처를 남겨주세요.");
+    }
+    // 마케터가 아직 '제출 버튼 문구'를 안 건드렸으면(씨앗값 그대로면) 계산기의 CTA로 바꿔친다.
+    // 이미 뭔가 직접 입력해뒀으면 그 값이 우선이다 — 렌더러도 이 값을 그대로 쓴다(하드코딩된
+    // 계산기 CTA로 조용히 덮어쓰지 않는다).
+    if (!submitLabel.trim() || submitLabel === DEFAULT_SUBMIT_LABEL) {
+      setSubmitLabel(def.gate.submitLabel);
     }
   }
 
