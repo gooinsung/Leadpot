@@ -9,6 +9,7 @@ import {
   listAsRequests,
   listLeadNotes,
   resolveAsRequest,
+  retryOutboundWebhook,
   updateLeadStatus,
   updateLeadTags,
   ApiError,
@@ -164,6 +165,22 @@ export function LeadSidePanel({
     }
   }
 
+  /** 아웃바운드 웹훅(외부 API 전달) 재시도 — 그 자리에서 다시 호출하고 결과를 반영한다. */
+  async function retryWebhook() {
+    if (!lead || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await retryOutboundWebhook(leadId);
+      setLead(updated);
+      onChanged?.(updated);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "재시도에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveTags(next: string[]) {
     if (!lead) return;
     setBusy(true);
@@ -249,6 +266,35 @@ export function LeadSidePanel({
           <span className="ip-v">{Object.entries(lead.utm).map(([k, v]) => `${trackingKeyLabel(k)} ${v}`).join(" · ")}</span>
         </div>
       )}
+    </div>
+  );
+
+  /** 아웃바운드 웹훅(외부 API 전달) 최신 결과 — 시도한 적 있을 때만 보인다. */
+  const webhookSection = lead && lead.outboundWebhookSentAt && (
+    <div className={split ? "card card-pad" : ""}>
+      <div className="ip-section-label" style={split ? { marginTop: 0 } : undefined}>외부 API 전달</div>
+      <div className="ip-answer">
+        <span className="ip-k">결과</span>
+        <span className="ip-v">
+          <span className={`badge ${lead.outboundWebhookStatus === "SUCCESS" ? "b-normal" : "b-bad"}`}>
+            {lead.outboundWebhookStatus === "SUCCESS" ? "성공" : "실패"}
+            {lead.outboundWebhookCode != null && ` · HTTP ${lead.outboundWebhookCode}`}
+          </span>
+        </span>
+      </div>
+      <div className="ip-answer">
+        <span className="ip-k">전송 시각</span>
+        <span className="ip-v">{fmtDateTime(lead.outboundWebhookSentAt)}</span>
+      </div>
+      {lead.outboundWebhookResponse && (
+        <div className="ip-answer">
+          <span className="ip-k">응답값</span>
+          <span className="ip-v" style={{ wordBreak: "break-all" }}>{lead.outboundWebhookResponse}</span>
+        </div>
+      )}
+      <div className="ip-actions">
+        <button className="btn btn-ghost btn-sm" disabled={busy} onClick={retryWebhook}>재시도</button>
+      </div>
     </div>
   );
 
@@ -500,6 +546,7 @@ export function LeadSidePanel({
               <div className="ip-col">
                 {answersSection}
                 {visitorSection}
+                {webhookSection}
               </div>
               <div className="ip-col">
                 {statusTagsSection}
@@ -540,6 +587,7 @@ export function LeadSidePanel({
           {asSection}
           {errorLine}
           {visitorSection}
+          {webhookSection}
           {notesSection}
           {showFormLink && (
             <div className="ip-actions">

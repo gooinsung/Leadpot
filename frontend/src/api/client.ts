@@ -519,6 +519,11 @@ export interface Lead {
   advertiserSeenAt: string | null;
   /** 내(마케터)가 열어본 시각. null = '미확인'. 리드 상태와 무관하다(V32). */
   seenAt: string | null;
+  /** 아웃바운드 웹훅(외부 API 전달) 최신 시도 결과. null = 아직 시도한 적 없음(연동 꺼짐 포함). */
+  outboundWebhookStatus: "SUCCESS" | "FAILED" | null;
+  outboundWebhookCode: number | null;
+  outboundWebhookResponse: string | null;
+  outboundWebhookSentAt: string | null;
 }
 
 export interface LeadNote {
@@ -858,6 +863,11 @@ export function getLead(id: number): Promise<Lead> {
 /** 리드 태그 교체. */
 export function updateLeadTags(id: number, tags: string[]): Promise<Lead> {
   return request<Lead>(`/api/leads/${id}/tags`, { method: "PUT", body: { tags } });
+}
+
+/** 아웃바운드 웹훅(외부 API 전달) 재시도 — 그 자리에서 다시 호출하고 최신 결과가 담긴 리드를 돌려준다. */
+export function retryOutboundWebhook(id: number): Promise<Lead> {
+  return request<Lead>(`/api/leads/${id}/webhook-out/retry`, { method: "POST" });
 }
 
 /** 리드 메모/이력 목록(오래된 순). */

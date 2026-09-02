@@ -127,6 +127,22 @@ public class Lead {
     @Column(name = "seen_at")
     private Instant seenAt;
 
+    /**
+     * 아웃바운드 웹훅(외부 API 전달) 최신 시도 결과. 이력이 아니라 <b>최신 1건</b>만 —
+     * 재시도하면 이 값이 그대로 덮어써진다. null = 아직 시도한 적 없음.
+     */
+    @Column(name = "outbound_webhook_status", length = 20)
+    private String outboundWebhookStatus;
+
+    @Column(name = "outbound_webhook_code")
+    private Integer outboundWebhookCode;
+
+    @Column(name = "outbound_webhook_response", length = 1000)
+    private String outboundWebhookResponse;
+
+    @Column(name = "outbound_webhook_sent_at")
+    private Instant outboundWebhookSentAt;
+
     public Long getId() {
         return id;
     }
@@ -336,5 +352,28 @@ public class Lead {
         }
         advertiserSeenAt = at;
         return true;
+    }
+
+    public String getOutboundWebhookStatus() {
+        return outboundWebhookStatus;
+    }
+
+    public Integer getOutboundWebhookCode() {
+        return outboundWebhookCode;
+    }
+
+    public String getOutboundWebhookResponse() {
+        return outboundWebhookResponse;
+    }
+
+    public Instant getOutboundWebhookSentAt() {
+        return outboundWebhookSentAt;
+    }
+
+    public void setOutboundWebhookResult(String status, Integer code, String response, Instant sentAt) {
+        this.outboundWebhookStatus = status;
+        this.outboundWebhookCode = code;
+        this.outboundWebhookResponse = response;
+        this.outboundWebhookSentAt = sentAt;
     }
 }

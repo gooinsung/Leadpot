@@ -44,6 +44,7 @@ public class LeadService {
     private final IpBlockService ipBlockService;
     private final SiteIpBlockService siteIpBlockService;
     private final NotificationService notificationService;
+    private final com.leadpot.integration.OutboundWebhookService outboundWebhookService;
     private final LeadStatusService leadStatusService;
     private final CustomLeadStatusRepository customStatusRepository;
     private final LeadAsRequestService asRequestService;
@@ -51,6 +52,7 @@ public class LeadService {
 
     public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
             FormService formService, IpBlockService ipBlockService, NotificationService notificationService,
+            com.leadpot.integration.OutboundWebhookService outboundWebhookService,
             SiteIpBlockService siteIpBlockService, LeadStatusService leadStatusService,
             CustomLeadStatusRepository customStatusRepository, LeadAsRequestService asRequestService,
             com.leadpot.auth.UserRepository userRepository) {
@@ -59,6 +61,7 @@ public class LeadService {
         this.formService = formService;
         this.ipBlockService = ipBlockService;
         this.notificationService = notificationService;
+        this.outboundWebhookService = outboundWebhookService;
         this.siteIpBlockService = siteIpBlockService;
         this.leadStatusService = leadStatusService;
         this.customStatusRepository = customStatusRepository;
@@ -118,6 +121,8 @@ public class LeadService {
 
         // 리드 접수 훅 — 커밋 후 비동기로 텔레그램/구글시트 알림(best-effort). 접수를 방해하지 않는다.
         notificationService.notifyNewLead(form, lead, () -> isLikelyDuplicate(form, req));
+        // 아웃바운드 웹훅(외부 API 전달) — 연동이 꺼져 있으면 내부에서 조용히 아무 일도 하지 않는다.
+        outboundWebhookService.dispatchOnLead(form, lead);
         return lead.getId();
     }
 
@@ -660,6 +665,19 @@ public class LeadService {
     @Transactional(readOnly = true)
     public LeadResponse getOne(Long ownerId, Long leadId) {
         return LeadResponse.from(requireOwnedLead(ownerId, leadId));
+    }
+
+    /**
+     * 아웃바운드 웹훅 재시도(본인 리드폼만) — 그 자리에서 다시 호출하고 결과를 반영해 즉시 돌려준다.
+     * 연동이 꺼져 있으면 {@link com.leadpot.common.error.InvalidSubmissionException}(400).
+     */
+    @Transactional
+    public LeadResponse retryOutboundWebhook(Long ownerId, Long leadId) {
+        Lead lead = requireOwnedLead(ownerId, leadId);
+        Form form = formService.getEntity(lead.getFormId());
+        com.leadpot.integration.OutboundWebhookService.Result r = outboundWebhookService.retry(form, lead);
+        lead.setOutboundWebhookResult(r.success() ? "SUCCESS" : "FAILED", r.code(), r.body(), java.time.Instant.now());
+        return LeadResponse.from(lead);
     }
 
     /** 리드 메모/이력 목록(오래된 순). 작성자 역할(마케터/광고주)을 함께 내려 화면이 표기한다. */

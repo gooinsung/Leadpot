@@ -155,6 +155,17 @@ function SectionHead({ title, open, onToggle }: { title: string; open: boolean; 
   );
 }
 
+/**
+ * 아웃바운드 웹훅(외부 API 전달) 파라미터 한 개. source 에 따라 값을 어디서 가져올지 갈린다:
+ * fixed = value 그대로 / answer = varKey 로 이 리드의 답변값 조회 / builtin = 시스템 값(ip 등, value 에 키).
+ */
+interface OutboundWebhookParam {
+  name: string;
+  source: "fixed" | "answer" | "builtin";
+  value: string;
+  varKey?: string;
+}
+
 interface StepData {
   question: string;
   description: string;
@@ -335,6 +346,11 @@ export function FormEditPage() {
   const [sheetsTabName, setSheetsTabName] = useState("");
   const [sheetTest, setSheetTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [sheetTesting, setSheetTesting] = useState(false);
+  // 아웃바운드 웹훅: 리드 접수 시 외부 URL 로 GET/POST 전달(인바운드 웹훅 수신의 반대 방향).
+  const [outboundWebhookEnabled, setOutboundWebhookEnabled] = useState(false);
+  const [outboundWebhookUrl, setOutboundWebhookUrl] = useState("");
+  const [outboundWebhookMethod, setOutboundWebhookMethod] = useState<"GET" | "POST">("GET");
+  const [outboundWebhookParams, setOutboundWebhookParams] = useState<OutboundWebhookParam[]>([]);
   const [tracking, setTracking] = useState<Record<string, unknown> | null>(null); // 광고 픽셀
   // 카드 접기 상태(브라우저에 기억). sec(key) 로 카드에 붙이고 SectionHead 로 제목을 그린다.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
@@ -426,6 +442,10 @@ export function FormEditPage() {
         setSmsLeadImageId((f.settingsConfig?.smsLeadImageId as string) || "");
         setSheetsSpreadsheetId((f.settingsConfig?.sheetsSpreadsheetId as string) || "");
         setSheetsTabName((f.settingsConfig?.sheetsTabName as string) || "");
+        setOutboundWebhookEnabled(f.settingsConfig?.outboundWebhookEnabled === true);
+        setOutboundWebhookUrl((f.settingsConfig?.outboundWebhookUrl as string) || "");
+        setOutboundWebhookMethod((f.settingsConfig?.outboundWebhookMethod as string) === "POST" ? "POST" : "GET");
+        setOutboundWebhookParams((f.settingsConfig?.outboundWebhookParams as OutboundWebhookParam[]) || []);
         setTracking(f.trackingConfig ?? null);
         const sorted = [...f.blocks].sort((a, b) => a.sortOrder - b.sortOrder);
         if (f.formType === "STEP") {
@@ -684,6 +704,10 @@ export function FormEditPage() {
       smsLeadImageId,
       sheetsSpreadsheetId: extractSpreadsheetId(sheetsSpreadsheetId),
       sheetsTabName: sheetsTabName.trim(),
+      outboundWebhookEnabled,
+      outboundWebhookUrl: outboundWebhookUrl.trim(),
+      outboundWebhookMethod,
+      outboundWebhookParams: outboundWebhookParams.filter((p) => p.name.trim()),
     },
     trackingConfig: tracking ?? undefined,
     blocks: builtBlocks,
@@ -721,6 +745,17 @@ export function FormEditPage() {
     } finally {
       setSheetTesting(false);
     }
+  }
+
+  // ---- 아웃바운드 웹훅 파라미터 편집 ----
+  function addOutboundParam() {
+    setOutboundWebhookParams((prev) => [...prev, { name: "", source: "fixed", value: "" }]);
+  }
+  function patchOutboundParam(i: number, patch: Partial<OutboundWebhookParam>) {
+    setOutboundWebhookParams((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  }
+  function removeOutboundParam(i: number) {
+    setOutboundWebhookParams((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   if (loading) return <Loading full />;
@@ -1393,6 +1428,118 @@ export function FormEditPage() {
             </div>
 
             <WebhookLeadPanel formId={id ? Number(id) : null} isNew={isNew} />
+
+            <div className="card card-pad" style={{ marginTop: 16 }} {...sec("outboundWebhook")}>
+              <SectionHead title="외부 API 전달 (아웃바운드)" open={!collapsed.outboundWebhook} onToggle={() => toggleSection("outboundWebhook")} />
+              <label className="fr-check">
+                <input
+                  type="checkbox"
+                  checked={outboundWebhookEnabled}
+                  onChange={(e) => setOutboundWebhookEnabled(e.target.checked)}
+                /> 리드가 접수되면 외부 URL 로 자동 전달
+              </label>
+              <p className="dash-sub" style={{ marginTop: 6 }}>
+                타사 DB 수집 시스템 등으로 리드를 즉시 GET/POST 호출해 전달합니다. 위 "웹훅 수신"과는 반대 방향입니다.
+              </p>
+              {outboundWebhookEnabled && (
+                <div style={{ display: "grid", gap: 12, maxWidth: 640, marginTop: 8 }}>
+                  <label className="field">
+                    <span className="field-label">전달 URL</span>
+                    <input
+                      className="input"
+                      value={outboundWebhookUrl}
+                      onChange={(e) => setOutboundWebhookUrl(e.target.value)}
+                      placeholder="https://example.com/receive.php"
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">전송 방식</span>
+                    <select
+                      className="input"
+                      style={{ maxWidth: 160 }}
+                      value={outboundWebhookMethod}
+                      onChange={(e) => setOutboundWebhookMethod(e.target.value as "GET" | "POST")}
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                    </select>
+                  </label>
+                  <div>
+                    <span className="field-label">전달 파라미터</span>
+                    {outboundWebhookParams.map((p, i) => (
+                      <div className="block-row" key={i} style={{ marginTop: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <input
+                          className="input"
+                          style={{ maxWidth: 140 }}
+                          placeholder="파라미터명 (예: name)"
+                          value={p.name}
+                          onChange={(e) => patchOutboundParam(i, { name: e.target.value })}
+                        />
+                        <select
+                          className="input"
+                          style={{ maxWidth: 130 }}
+                          value={p.source}
+                          onChange={(e) => patchOutboundParam(i, { source: e.target.value as OutboundWebhookParam["source"] })}
+                        >
+                          <option value="fixed">고정값</option>
+                          <option value="answer">답변 항목</option>
+                          <option value="builtin">시스템 값</option>
+                        </select>
+                        {p.source === "answer" ? (
+                          <select
+                            className="input"
+                            style={{ flex: 1, minWidth: 140 }}
+                            value={p.varKey ?? ""}
+                            onChange={(e) => patchOutboundParam(i, { varKey: e.target.value })}
+                          >
+                            <option value="">항목 선택…</option>
+                            {answerBlocks.map((b) => (
+                              <option key={b.varKey as string} value={b.varKey as string}>{blockLabel(b)}</option>
+                            ))}
+                          </select>
+                        ) : p.source === "builtin" ? (
+                          <select
+                            className="input"
+                            style={{ flex: 1, minWidth: 140 }}
+                            value={p.value}
+                            onChange={(e) => patchOutboundParam(i, { value: e.target.value })}
+                          >
+                            <option value="">선택…</option>
+                            <option value="ip">접속 IP</option>
+                            <option value="leadId">리드 번호</option>
+                            <option value="submittedAt">접수 시각</option>
+                            <option value="formName">리드폼 이름</option>
+                          </select>
+                        ) : (
+                          <input
+                            className="input"
+                            style={{ flex: 1, minWidth: 140 }}
+                            placeholder="고정값"
+                            value={p.value}
+                            onChange={(e) => patchOutboundParam(i, { value: e.target.value })}
+                          />
+                        )}
+                        <button className="btn btn-ghost btn-sm danger" onClick={() => removeOutboundParam(i)}>삭제</button>
+                      </div>
+                    ))}
+                    <div className="add-block-row">
+                      <button className="btn btn-ghost btn-sm" onClick={addOutboundParam}>+ 파라미터 추가</button>
+                    </div>
+                  </div>
+                  {outboundWebhookUrl && outboundWebhookParams.some((p) => p.name.trim()) && (
+                    <span className="dash-sub" style={{ fontSize: 12, wordBreak: "break-all" }}>
+                      예시({outboundWebhookMethod}): {outboundWebhookUrl}
+                      {outboundWebhookMethod === "GET"
+                        ? `?${outboundWebhookParams.filter((p) => p.name.trim()).map((p) => `${p.name}=...`).join("&")}`
+                        : " (파라미터는 POST 본문으로 전송)"}
+                    </span>
+                  )}
+                  <span className="dash-sub" style={{ fontSize: 12 }}>
+                    실제 전송 결과(성공/실패·응답값)는 각 리드 상세에서 확인하고 재시도할 수 있습니다.
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }} {...sec("pixels")}>
               <SectionHead title="광고 픽셀 (선택)" open={!collapsed.pixels} onToggle={() => toggleSection("pixels")} />

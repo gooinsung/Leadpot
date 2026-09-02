@@ -92,6 +92,12 @@ public class LeadController {
         return leadService.getOne(userId(jwt), id);
     }
 
+    /** 아웃바운드 웹훅(외부 API 전달) 재시도 — 그 자리에서 다시 호출하고 최신 결과를 담아 돌려준다. */
+    @PostMapping("/{id}/webhook-out/retry")
+    public LeadResponse retryOutboundWebhook(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return leadService.retryOutboundWebhook(userId(jwt), id);
+    }
+
     /**
      * 이 리드를 <b>광고주가 보기는 했는지</b>(V33). 요약(최초/최근 열람·열람 횟수·행동 여부)과 시간순 이력.
      * 마케터 전용이다 — 광고주 화면에는 확인 여부를 노출하지 않는다.

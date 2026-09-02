@@ -31,7 +31,12 @@ public record LeadResponse(
         /** 광고주가 이 리드를 처음 열어본 시각. null 이면 아직 안 봤다는 뜻(목록의 '광고주 확인' 표시). */
         Instant advertiserSeenAt,
         /** <b>마케터</b>가 열어본 시각. null 이면 '미확인'. 리드 상태와 무관하다(V32). */
-        Instant seenAt) {
+        Instant seenAt,
+        /** 아웃바운드 웹훅(외부 API 전달) 최신 시도 결과. SUCCESS/FAILED, null = 시도한 적 없음. */
+        String outboundWebhookStatus,
+        Integer outboundWebhookCode,
+        String outboundWebhookResponse,
+        Instant outboundWebhookSentAt) {
 
     public static LeadResponse from(Lead l) {
         return new LeadResponse(
@@ -54,6 +59,10 @@ public record LeadResponse(
                 l.statusKey(),
                 l.getCustomStatusId(),
                 l.getAdvertiserSeenAt(),
-                l.getSeenAt());
+                l.getSeenAt(),
+                l.getOutboundWebhookStatus(),
+                l.getOutboundWebhookCode(),
+                l.getOutboundWebhookResponse(),
+                l.getOutboundWebhookSentAt());
     }
 }
