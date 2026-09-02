@@ -111,7 +111,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
             </h3>
           )}
           {!calculator && (form.typeConfig?.contactDescription as string) && (
-            <p className={`dash-sub${descEmphasisClass(form.typeConfig?.contactDescriptionEmphasis)}`} style={{ marginTop: 0, marginBottom: 12 }}>
+            <p className="dash-sub" style={{ marginTop: 0, marginBottom: 12 }}>
               {form.typeConfig?.contactDescription as string}
             </p>
           )}

@@ -284,7 +284,6 @@ export function PublicFormView({
           sorted={sorted}
           contactMessage={(form.typeConfig?.contactMessage as string) || ""}
           contactDescription={(form.typeConfig?.contactDescription as string) || ""}
-          contactDescriptionEmphasis={form.typeConfig?.contactDescriptionEmphasis}
           consentItems={consentItems}
           values={values} setVal={setVal}
           choices={choices} setChoices={setChoices}
@@ -376,7 +375,6 @@ function StepFlow(props: {
   sorted: FormBlock[];
   contactMessage: string;
   contactDescription: string;
-  contactDescriptionEmphasis: unknown;
   consentItems: ConsentItem[];
   values: Record<string, string>;
   setVal: (k: string, v: string) => void;
@@ -397,7 +395,7 @@ function StepFlow(props: {
   /** 연락처 받기 전 유도 문구(계산기 정의). */
   calcGate: CalculatorDef["gate"] | null;
 }) {
-  const { sorted, contactMessage, contactDescription, contactDescriptionEmphasis, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcGate } = props;
+  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcGate } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
   /**
@@ -561,7 +559,7 @@ function StepFlow(props: {
             <h3 className="t-h3" style={{ marginBottom: 12 }}>{contactMessage || "연락처를 남겨주세요"}</h3>
           )}
           {!hasCalc && contactDescription && (
-            <p className={`dash-sub${descEmphasisClass(contactDescriptionEmphasis)}`} style={{ marginTop: 0, marginBottom: 12 }}>
+            <p className="dash-sub" style={{ marginTop: 0, marginBottom: 12 }}>
               {contactDescription}
             </p>
           )}
