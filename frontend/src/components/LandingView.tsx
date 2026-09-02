@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { getLandingLive, recordEvent, recordEventBeacon, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
+import { resolveStyle } from "./formRenderers/formStyle";
 
 /**
  * 블록 여백(위/아래/좌우, px) → 인라인 스타일.
@@ -157,8 +158,12 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
             if (!form) return null;
             if (b.trigger === "overlay" || b.trigger === "fullscreen") {
               const open = b.trigger === "fullscreen" ? setFullscreenForm : setOverlayForm;
+              // 오버레이/풀스크린 CTA 버튼 색은 연결된 리드폼의 버튼 색(styleConfig.buttonColor)을 따라간다 —
+              // 고정된 초록색 대신 리드폼 편집기에서 지정한 색과 일치해야 한다.
+              const btnStyle = resolveStyle(form);
               return (
-                <button key={i} className="btn btn-green landing-cta" type="button" style={ms}
+                <button key={i} className="btn landing-cta" type="button"
+                  style={{ ...ms, background: btnStyle.buttonColor, color: btnStyle.buttonText }}
                   onClick={() => {
                     open(form);
                     // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
