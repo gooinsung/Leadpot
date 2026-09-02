@@ -133,6 +133,13 @@
   min-height: 52px;
   font-size: 17px;
 }
+/* 버튼 바로 아래 붙는 설명 — 버튼의 아래쪽 여백 안으로 끌어올려 한 묶음처럼 보이게 한다. */
+.landing-cta-desc {
+  margin: -8px 20px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
 .landing-form-card {
   margin: 16px 20px;
   padding: 20px;

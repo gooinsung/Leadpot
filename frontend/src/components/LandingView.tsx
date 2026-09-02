@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { getLandingLive, recordEvent, recordEventBeacon, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
@@ -161,16 +161,20 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
               // 오버레이/풀스크린 CTA 버튼 색은 연결된 리드폼의 버튼 색(styleConfig.buttonColor)을 따라간다 —
               // 고정된 초록색 대신 리드폼 편집기에서 지정한 색과 일치해야 한다.
               const btnStyle = resolveStyle(form);
+              const buttonDescription = b.buttonDescription as string | undefined;
               return (
-                <button key={i} className="btn landing-cta" type="button"
-                  style={{ ...ms, background: btnStyle.buttonColor, color: btnStyle.buttonText }}
-                  onClick={() => {
-                    open(form);
-                    // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
-                    recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
-                  }}>
-                  {(b.buttonLabel as string) || "신청하기"}
-                </button>
+                <Fragment key={i}>
+                  <button className="btn landing-cta" type="button"
+                    style={{ ...ms, background: btnStyle.buttonColor, color: btnStyle.buttonText }}
+                    onClick={() => {
+                      open(form);
+                      // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
+                      recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
+                    }}>
+                    {(b.buttonLabel as string) || "신청하기"}
+                  </button>
+                  {buttonDescription && <p className="landing-cta-desc">{buttonDescription}</p>}
+                </Fragment>
               );
             }
             return (

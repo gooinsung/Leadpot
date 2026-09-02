@@ -19,6 +19,7 @@ import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { DynamicSnippetPicker } from "../components/DynamicSnippetPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
+import { resolveStyle } from "../components/formRenderers/formStyle";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { HtmlImageUploadButton } from "../components/HtmlImageUploadButton";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
@@ -260,7 +261,13 @@ export function LandingEditPage() {
                         </select>
                       </div>
                       {(b.trigger === "overlay" || b.trigger === "fullscreen") && (
-                        <div className="field"><label>버튼 문구</label><input className="input" value={(b.buttonLabel as string) ?? ""} onChange={(e) => patch(i, { buttonLabel: e.target.value })} /></div>
+                        <>
+                          <div className="field"><label>버튼 문구</label><input className="input" value={(b.buttonLabel as string) ?? ""} onChange={(e) => patch(i, { buttonLabel: e.target.value })} /></div>
+                          <div className="field">
+                            <label>버튼 아래 설명(선택)</label>
+                            <input className="input" placeholder="예: 상담 신청 후 24시간 내 연락드립니다" value={(b.buttonDescription as string) ?? ""} onChange={(e) => patch(i, { buttonDescription: e.target.value })} />
+                          </div>
+                        </>
                       )}
                     </>
                   )}
@@ -316,9 +323,20 @@ export function LandingEditPage() {
                     const detail = fid != null ? formDetails[fid] : undefined;
                     if (b.trigger === "overlay" || b.trigger === "fullscreen") {
                       const isFullscreen = b.trigger === "fullscreen";
+                      // 버튼 색은 연결된 리드폼의 버튼 색을 따라간다(실제 공개 렌더 LandingView와 동일한 규칙).
+                      const btnStyle = detail ? resolveStyle(detail) : undefined;
                       return (
                         <div key={i} style={{ padding: "8px 16px 16px", ...ms }}>
-                          <button className="btn btn-green" style={{ width: "100%", minHeight: 48 }} disabled>{(b.buttonLabel as string) || "신청하기"}</button>
+                          <button
+                            className="btn"
+                            style={{ width: "100%", minHeight: 48, background: btnStyle?.buttonColor ?? "#12b886", color: btnStyle?.buttonText ?? "#fff" }}
+                            disabled
+                          >
+                            {(b.buttonLabel as string) || "신청하기"}
+                          </button>
+                          {(b.buttonDescription as string) && (
+                            <p className="dash-sub" style={{ textAlign: "center", marginTop: 6 }}>{b.buttonDescription as string}</p>
+                          )}
                           <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>
                             {isFullscreen ? "버튼 클릭 시 화면 전체를 채우는 스텝형으로 리드폼 표시" : "버튼 클릭 시 오버레이로 리드폼 표시"}
                           </p>
