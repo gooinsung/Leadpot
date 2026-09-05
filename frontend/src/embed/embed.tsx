@@ -67,7 +67,9 @@ function mountOne(el: HTMLElement) {
       recordVisit({ formId: form.id, utm: parseUtm() });
       initPixels(form.trackingConfig);
       createRoot(root).render(
-        <div className="public-form-card">
+        // "public-form" 클래스가 있어야 public.css 의 라이트 고정(color-scheme: light)이 걸린다 —
+        // 없으면 고객 사이트 방문자의 기기가 다크모드일 때 관리자 앱용 다크 팔레트가 새어 들어온다.
+        <div className="public-form public-form-card">
           <PublicFormView form={form} trackingConfig={form.trackingConfig} />
         </div>,
       );
