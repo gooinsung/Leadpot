@@ -157,14 +157,41 @@
   justify-content: space-between;
   gap: 8px;
 }
+/* <a>(외부 URL)와 <button>(내부 문서 펼치기) 둘 다 같은 모양이어야 한다 — 버튼 기본 스타일을 지운다. */
 .fr-view-link {
   font-size: 12px;
   color: var(--muted);
   text-decoration: underline;
   flex: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
 }
 .fr-view-link:hover {
   color: var(--indigo);
+}
+
+/* 동의문서 인라인 펼침 — '보기'를 눌러도 페이지를 떠나지 않는다(작성 중이던 값이 날아가는 이탈 방지). */
+.fr-consent-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fr-consent-doc {
+  max-height: 220px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.fr-consent-doc-msg {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 

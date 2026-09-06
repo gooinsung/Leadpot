@@ -11,7 +11,7 @@ import {
 } from "../api/client";
 import { descEmphasisClass, isChoiceAnswerType, isMultiAnswerType, resolveStyle, resolveSubmitLabel } from "./formRenderers/formStyle";
 import { PhoneInput3 } from "./PhoneInput3";
-import { consentDocUrl } from "../lib/site";
+import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
 import { parseUtm } from "../lib/utm";
 import { CompletionView } from "./formRenderers/CompletionView";
 import { firePixelLead } from "../lib/pixels";
@@ -350,22 +350,15 @@ function LiveField({ block, idx, value, onChange }: { block: FormBlock; idx: num
 
 function ConsentInputs({ items, agreed, setAgreed, accent }: { items: ConsentItem[]; agreed: Record<number, boolean>; setAgreed: (f: (p: Record<number, boolean>) => Record<number, boolean>) => void; accent: string }) {
   if (!items.length) return null;
-  function href(it: ConsentItem): string | null {
-    if (it.linkType === "external" && it.url) return it.url;
-    // 앱 도메인 절대 URL로 고정한다 — 상대 경로는 서브도메인 사이트·외부 임베드에서 404 (lib/site.ts 주석)
-    if (it.linkType === "document" && it.documentId) return consentDocUrl(it.documentId);
-    return null;
-  }
   return (
     <div className="fr-consent">
       {items.map((it, i) => (
-        <div className="fr-consent-row" key={i}>
+        <ConsentItemRow item={it} key={i}>
           <label className="fr-check">
             <input type="checkbox" checked={Boolean(agreed[i])} style={{ accentColor: accent }} onChange={(e) => setAgreed((p) => ({ ...p, [i]: e.target.checked }))} />{" "}
             {it.title} <span className={it.required ? "req" : "field-optional"}>({it.required ? "필수" : "선택"})</span>
           </label>
-          {href(it) && <a className="fr-view-link" href={href(it)!} target="_blank" rel="noreferrer">보기</a>}
-        </div>
+        </ConsentItemRow>
       ))}
     </div>
   );
