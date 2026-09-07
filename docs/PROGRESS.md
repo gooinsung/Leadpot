@@ -8,6 +8,24 @@
 
 ## 📍 지금 위치
 
+- **⚠️ 알려진 문제 — VM 백엔드 배포가 2026-09-02 부터 계속 실패 중(내가 만든 문제 아님)**:
+  `deploy-backend.yml`(Oracle VM 배포)이 VM 컨테이너 헬스체크 단계에서 매번 실패한다.
+  원인은 VM `~/Leadpot/.env` 의 Neon DB 비밀번호가 stale — `password authentication failed for
+  user 'neondb_owner'`(Flyway 연결 실패). **2026-09-02 커밋(`98d49ca`, 아웃바운드 웹훅) 배포 때도
+  이미 같은 에러로 실패**했음을 GitHub Actions 로그로 확인 — 즉 이 세션의 어떤 변경과도 무관한
+  기존 문제다. **실제 서비스 영향은 낮을 가능성**(CLAUDE.md 기준 API 트래픽은 Railway 만 받고,
+  VM 은 프론트 정적 파일 서빙 + 이 레거시 백엔드 배포 워크플로만 남아있음 — Railway 는 별도
+  자체 Git 연동으로 독립적으로 배포됨). 다만 **미확인 상태**이니 다음에 이어받는 사람이:
+  1) Railway 쪽 `api.lead-pot.com`이 실제로 정상인지 확인(이 세션은 아웃바운드 네트워크 제한으로
+     확인 불가 — Cloudflare 와 같은 이유)
+  2) VM `.env` 의 Neon 비밀번호를 Railway 것과 맞추거나(SSH 필요), 혹은 SSR-LANDING-PLAN Phase 5 로
+     VM 을 곧 종료할 예정이니 **그냥 놔두고 `deploy-backend.yml`(VM 배포, 이제 사실상 중복)을
+     정리**할지 사용자와 상의해 결정할 것.
+- **✅ 공개 랜딩 SEO(I3, 2026-09-07)**: `renderer/`(SSR)의 `generateMetadata` 에 랜딩별
+  `description`(첫 TEXT 블록에서 추출)·`og:*`·`twitter:*`·`canonical` 추가, `robots.txt` 신설.
+  미존재/IP차단 랜딩은 Next 내장 404 폴백이 자동으로 noindex 처리(직접 지정해도 덮여서 무의미
+  — 실측 확인). 예전엔 CSR 라 못 했던 것, SSR 전환(Phase 3) 덕에 이제 가능해짐. Cloudflare 배포를
+  기다리는 동안 독립적으로 진행한 작업.
 - **✅ 구글시트 연동 버그 수정(2026-09-07, `7e0f304`)**: 사용자가 우리 데이터 열 옆에 체크박스
   등 자기 열을 만들어 아래까지 서식을 입혀두면(체크박스는 빈 칸도 실제 FALSE 값이 들어감),
   신규 리드가 시트 전체 기준 "마지막 행" 계산 때문에 실제 데이터에서 한참 아래에 찍히던 버그.

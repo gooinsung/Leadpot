@@ -85,7 +85,11 @@
 ### I. 마케팅 · 트래킹
 - [x] **I1. 광고 픽셀 설치** — 구글·메타·틱톡·카카오·당근·**토스애즈**(2026-08-20 추가) 광고 추적 코드 심기. `frontend/src/lib/pixels.ts`(공개 페이지 로드 시 PageView + 리드 제출 시 전환 발사) + `components/PixelFields.tsx`(리드폼 설정 UI). 메서드명은 공식 문서(toss-ads.gitbook.io/guide/tracking/tosspixel, 사용자가 원문 붙여넣어 대조 확인) 기준 검증됨. **토스도 메타·당근처럼 전환 이벤트를 리드폼별로 선택 가능**(`TOSS_EVENTS` — lead/signUp/subscribe/preRegister/viewLimit/applyScreening, 기본 lead). 값 자체가 실제 호출 메서드명(다른 플랫폼과 달리 이벤트마다 메서드가 다른 SDK 구조라 그렇게 설계). ⬜ 남은 것: 실제 전환 코드로 "토스 픽셀 도우미"(브라우저 확장) 실동작 검증 · `lead_type`/`event_id` 등 선택 파라미터는 아직 안 보냄(필요 시 추가).
 - [x] **I2. UTM 추적** — 표준 UTM 5개(`utm_source`·`medium`·`campaign`·`term`·`content`) + 자체 광고 파라미터 3개(`media_from`·`campaign_name`·`ads_name`) 를 리드·방문에 저장(`leads.utm`/`visits.utm` JSONB). 리드 상세 패널·CSV 표시, 백엔드 화이트리스트 관문(`TrackingParams`), 랜딩 목록의 **광고 URL 빌더**. ⬜ **남은 것: 리드 목록의 출처 열·필터** — 저장은 되는데 목록에서 걸러낼 수가 없다
-- [ ] **I3. 검색엔진 등록(SEO)** — 구글·네이버 검색에 잘 노출되게 메타태그 세팅
+- [x] **I3. 검색엔진 등록(SEO)** — 공개 랜딩 SSR 렌더러(`renderer/`)의 `generateMetadata` 에서
+      랜딩별 `<title>`·`description`(첫 TEXT 블록에서 추출)·`og:*`·`twitter:*`·`canonical` 생성,
+      존재하지 않거나 IP 차단된 페이지는 Next 내장 404 폴백이 자동으로 `noindex` 처리.
+      `robots.txt` 신설(전체 허용). 예전엔 CSR 라 엣지렌더 없이는 못 했던 것 — SSR 전환(Phase 3)
+      이 끝난 뒤에야 실제로 가능해짐(2026-09-07).
 - [x] **I4. 전환 분석** — 전환 퍼널(방문→폼 열기→접수, 고유 방문자 기준, 단계별 %). 통계 페이지에 퍼널 카드. (경량: 기존 방문/리드 + form_open 이벤트 활용)
 - [x] **I5. 요소 노출/클릭 분석** — 오버레이 CTA(=폼 열기) + **공개 랜딩의 이미지·버튼·링크 자동 클릭 추적**. `interaction_events`(Flyway V15) + `POST /api/public/events`(best-effort) + 통계 '요소 클릭' 집계. 랜딩에 위임 클릭 핸들러(폼 내부·오버레이 CTA 제외해 중복 방지). (노출 임프레션 추적은 추후)
 - [x] **I6. 고객 여정 분석(GA 스타일)** — 공개 랜딩의 **스크롤 깊이(25/50/75/100% 도달률) + 평균 체류시간 + 즉시 이탈률(스크롤 25% 미만)**. `interaction_events`에 `scroll_depth`·`duration_sec` 컬럼 추가(Flyway V37, 기존 I4/I5 이벤트 구조 재사용 — eventType="scroll"/"page_exit"). 프론트 `LandingView`에서 스크롤 임계값 통과 시 이벤트 발사 + `visibilitychange`/`pagehide` 시 `navigator.sendBeacon`으로 이탈 기록(fetch는 언로드 중 취소될 수 있어 beacon 사용). 통계 페이지에 '여정 분석' 탭(스크롤 깊이 막대 + 체류시간/이탈률 KPI). (경량: IP 해시로 순방문과 대응 — I4 퍼널과 같은 근사 방식)

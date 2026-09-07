@@ -64,12 +64,66 @@ export default async function SiteLandingPage({ params }: { params: Promise<Para
   );
 }
 
+const DEFAULT_DESCRIPTION = "Leadpot — 랜딩페이지로 상담 신청을 받는 페이지입니다.";
+
+/** 랜딩 콘텐츠의 첫 TEXT 블록을 og:description·meta description 으로 쓴다(I3 SEO, 별도 필드 없이). */
+function firstText(content: PublicLanding["content"]): string | undefined {
+  const b = content.find((b) => b.type === "TEXT" && typeof b.text === "string" && (b.text as string).trim());
+  return b ? (b.text as string).trim() : undefined;
+}
+
+/** 첫 IMAGE 블록을 og:image·twitter:image 로 쓴다. 없으면 이미지 태그 자체를 생략한다. */
+function firstImage(content: PublicLanding["content"]): string | undefined {
+  const b = content.find((b) => b.type === "IMAGE" && typeof b.url === "string" && (b.url as string).trim());
+  return b ? (b.url as string).trim() : undefined;
+}
+
+function toDescription(content: PublicLanding["content"]): string {
+  const text = firstText(content);
+  if (!text) return DEFAULT_DESCRIPTION;
+  const oneLine = text.replace(/\s+/g, " ").trim();
+  return oneLine.length > 155 ? oneLine.slice(0, 154) + "…" : oneLine;
+}
+
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { subdomain, identifier } = await params;
   // IP 차단된 방문자에게는 랜딩 존재 자체를 숨긴다(백엔드 LandingService 의도) — 그래서 메타데이터도
-  // 본문과 똑같이 ctx 를 넘긴다. 같은 인자의 fetch 라 Next 가 자동으로 한 번만 호출한다(중복 요청 없음).
+  // 본문과 똑같이 ctx 를 넘긴다.
+  // ⚠️ 예전엔 "같은 인자의 fetch 라 Next 가 자동으로 한 번만 호출한다"고 적어뒀었는데, Phase 4
+  // 실측(SPA 폴백 검증 중)에서 generateMetadata 와 페이지 컴포넌트가 실제로 각각 별도 네트워크
+  // 호출을 하는 걸 확인했다 — 메모이제이션에 기대지 말 것. 응답이 가벼워서 랜딩당 요청 2회는 감수한다.
   const ctx = await forwardedContext();
   const landing = await resolveSite(subdomain, identifier, ctx).catch(() => null);
-  if (!landing) return { title: "페이지를 찾을 수 없습니다" };
-  return { title: landing.title };
+  if (!landing) {
+    // 존재하지 않거나(또는 IP 차단으로 숨겨진) 페이지는 검색엔진이 색인하면 안 된다.
+    // ⚠️ 여기서 robots 를 따로 지정할 필요가 없다 — page.tsx 의 notFound() 가 렌더하는
+    // Next 내장 폴백(HTTPAccessFallbackBoundary)이 <meta name="robots" content="noindex"> 를
+    // 항상 자동으로 박아 넣는다(실측 확인, node_modules/next 코드에 하드코딩돼 있음). 여기서
+    // robots 를 지정해도 그 자동 삽입 태그에 덮여 반영이 안 된다.
+    return { title: "페이지를 찾을 수 없습니다" };
+  }
+
+  const url = `https://${subdomain}.lead-pot.com/${identifier}`;
+  const description = toDescription(landing.content);
+  const image = firstImage(landing.content);
+
+  return {
+    title: landing.title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: landing.title,
+      description,
+      url,
+      type: "website",
+      locale: "ko_KR",
+      images: image ? [{ url: image }] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: landing.title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
 }
