@@ -156,9 +156,12 @@ export interface FormDetail extends FormInput {
   updatedAt: string;
 }
 
-/** 공개 리드폼 렌더 데이터(비로그인). */
-export function getPublicForm(id: number): Promise<FormDetail> {
-  return request<FormDetail>(`/api/public/forms/${id}`);
+/**
+ * 공개 리드폼 렌더 데이터(비로그인). `ctx` — SSR 렌더러에서 호출할 때는 원 요청의 IP·UA 를
+ * 반드시 넘긴다(§6-1, `ForwardedRequestContext` 참고 — 백엔드가 이 IP 로 폼 단위 IP 차단을 판정한다).
+ */
+export function getPublicForm(id: number, ctx?: ForwardedRequestContext): Promise<FormDetail> {
+  return request<FormDetail>(`/api/public/forms/${id}`, { headers: forwardHeaders(ctx) });
 }
 
 // ---------- 동의 항목(리드폼 consentConfig 안에 저장) ----------

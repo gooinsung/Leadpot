@@ -8,6 +8,26 @@
 
 ## 📍 지금 위치
 
+- **✅ `/f/{id}` 단독 공개 폼도 SSR 로 통일(2026-09-08, 원격 세션, 사용자 승인 후 자율 진행)**:
+  Phase 5 실배포·검증까지 끝난 뒤 사용자가 "안 쓰는 페이지도 굳이 CSR 로 남겨둘 이유 없다"고
+  판단해 마지막 남은 공개 렌더링 경로도 SSR로 옮겼다(`docs/SSR-LANDING-PLAN.md` §11 #7).
+  - `renderer/src/app/f/[identifier]/page.tsx` + `error.tsx` 신설(서브도메인 랜딩과 완전히 같은
+    패턴 — `notFound()`·SSR 실패시 SPA 폴백·`generateMetadata`)
+  - `renderer/src/proxy.ts`: `app.lead-pot.com/f/*` 만 예외적으로 이 렌더러가 직접 처리하고,
+    그 외 `app` 경로(로그인·대시보드 등)는 그대로 관리 앱(Pages)으로 리버스 프록시 유지
+  - `packages/public-ui`: `PublicFormPageView`(방문기록+픽셀초기화+렌더 묶음) 신설,
+    `getPublicForm()`이 `resolveSite`/`getLandingLive` 와 같은 `ForwardedRequestContext` 를
+    받도록 확장(§6-1 — 폼 단위 IP 차단이 SSR 에서도 원 방문자 IP 기준으로 판정되도록)
+  - `frontend/src/pages/PublicFormPage.tsx`: 같은 `PublicFormPageView` 를 쓰도록 리팩터(중복
+    제거) — 이 라우트는 운영에서는 도달 안 함(위 proxy.ts 가 먼저 가로챔), 로컬 개발용으로 유지
+  - 로컬 검증(mock 오리진 + 스텁 API): `app.lead-pot.com/f/42` SSR 렌더 확인, `app.lead-pot.com/login`·
+    `/`는 여전히 관리 앱으로 정상 프록시, `/f/999`(미존재) 404, 기존 랜딩 SSR 영향 없음, 방문·픽셀
+    기록에 쓰이는 IP/UA 헤더 전달 확인. `tsc --noEmit`·`next build`(renderer)·`vitest`+`build`
+    (public-ui·frontend) 전부 통과.
+  - **다음**: 이 커밋 push → GitHub Actions 가 자동으로 렌더러·프론트 재배포 → 배포 후 실제
+    `app.lead-pot.com/f/{실제폼번호}` 브라우저로 최종 확인(§9-C). 사용자가 "혼자 진행하고 배포까지
+    하라"고 명시적으로 승인해서 이 세션이 직접 push 함 — 문제 생기면 이 커밋만 되돌리면 복구.
+
 - **✅ Phase 5 완료 — Cloudflare 배포 (2026-09-07)**: [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) 6단계 전부 완료. 사용자가 발급한 Cloudflare API 토큰은 GitHub 저장소 시크릿에 등록 완료 — **더 필요 없으면 Cloudflare 대시보드에서 폐기 권장**.
   - **1~3번**: GitHub 시크릿 등록, 두 워크플로 Node `20`→`22` 버그 수정(`a113fab`·`30fd49b`), 기존 DNS 확인.
   - **5번 — `app.lead-pot.com` → Cloudflare Pages 컷오버 (2026-09-07 15:31 UTC)**: 관리자 앱이 Oracle VM 이 아니라 Cloudflare Pages(`leadpot-app`)에서 서빙됨. 겪은 함정 2개(다른 이름 Pages 프로젝트에 남아있던 잔여 커스텀 도메인 등록, DNS 자동 전환 안 됨 — A→CNAME 수동 PUT 필요)는 [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) §5 에 상세 기록.

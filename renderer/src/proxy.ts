@@ -69,6 +69,12 @@ export async function proxy(request: NextRequest) {
   // (서브도메인 이름이 우연히 "app"으로 시작하는 경우, 예: "application.lead-pot.com" 과 혼동하지
   // 않도록 split(".")[0] 로 정확히 첫 라벨만 비교한다.)
   if (hostname.split(".")[0] === "app") {
+    // 단, /f/{id}(단독 공개 리드폼)는 예외 — 이 렌더러 자신이 SSR 로 처리한다
+    // (app/f/[identifier]/page.tsx, 2026-09-08). 그 외 모든 app 경로(로그인·대시보드 등
+    // 관리 화면)만 실제 관리 앱(Pages)으로 프록시한다.
+    if (request.nextUrl.pathname.startsWith("/f/")) {
+      return NextResponse.next();
+    }
     return proxyToAdminApp(request);
   }
 

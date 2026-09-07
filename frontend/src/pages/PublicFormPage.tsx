@@ -1,26 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useParams } from "react-router-dom";
-import { getPublicForm, recordVisit, type FormDetail } from "../api/client";
-import { parseUtm, initPixels, PublicFormView } from "@leadpot/public-ui";
+import { getPublicForm, type FormDetail } from "../api/client";
+import { PublicFormPageView } from "@leadpot/public-ui";
 
-/** 리드폼 단독 공개 페이지 (/f/{id}). 모바일 최적화된 카드 안에 실제 제출 가능한 리드폼을 렌더. */
+/**
+ * 리드폼 단독 공개 페이지 (/f/{id}).
+ * ⚠️ 운영에서는 이 라우트에 실제로 도달하지 않는다 — `app.lead-pot.com/f/*` 는 렌더러가
+ * SSR 로 먼저 처리한다(`renderer/src/proxy.ts`, 2026-09-08). 이 라우트는 로컬 개발(`npm run dev`,
+ * 렌더러 없이 frontend 만 띄웠을 때)과 만약을 위한 이중 방어선으로 남겨둔다.
+ */
 export function PublicFormPage() {
   const { id } = useParams();
   const [form, setForm] = useState<FormDetail | null>(null);
   const [error, setError] = useState("");
-  const visited = useRef(false);
 
   useEffect(() => {
     getPublicForm(Number(id))
-      .then((f) => {
-        setForm(f);
-        if (!visited.current) {
-          visited.current = true;
-          recordVisit({ formId: f.id, utm: parseUtm() });
-          initPixels(f.trackingConfig);
-        }
-      })
+      .then(setForm)
       .catch(() => setError("리드폼을 찾을 수 없습니다."));
   }, [id]);
 
@@ -34,11 +31,5 @@ export function PublicFormPage() {
     );
   if (!form) return <Loading full />;
 
-  return (
-    <div className="public-form">
-      <div className="public-form-card">
-        <PublicFormView form={form} trackingConfig={form.trackingConfig} />
-      </div>
-    </div>
-  );
+  return <PublicFormPageView form={form} />;
 }

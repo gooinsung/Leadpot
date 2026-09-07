@@ -7,6 +7,7 @@ export * from "./api/client";
 
 export { LandingView } from "./components/LandingView";
 export { PublicFormView } from "./components/PublicFormView";
+export { PublicFormPageView } from "./components/PublicFormPageView";
 export { HtmlBlock } from "./components/HtmlBlock";
 export { PhoneInput3 } from "./components/PhoneInput3";
 
