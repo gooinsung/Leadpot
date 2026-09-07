@@ -1,3 +1,4 @@
+"use client";
 import { useState, type ReactNode } from "react";
 import { getPublicConsentDoc, type ConsentDocument, type ConsentItem } from "../../api/client";
 import { consentDocUrl } from "../../lib/site";

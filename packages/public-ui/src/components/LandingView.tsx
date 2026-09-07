@@ -1,8 +1,10 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+"use client";
+import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { getLandingLive, recordEvent, recordEventBeacon, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
 import { resolveStyle } from "./formRenderers/formStyle";
+import { hydrateLiveMarkers } from "../lib/liveMarkers";
 
 /**
  * 블록 여백(위/아래/좌우, px) → 인라인 스타일.
@@ -29,7 +31,6 @@ function blockStyle(b: LandingBlock): CSSProperties {
 export function LandingView({ landing, initialLive = null }: { landing: PublicLanding; initialLive?: LandingLive | null }) {
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
   const [fullscreenForm, setFullscreenForm] = useState<FormDetail | null>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState<LandingLive | null>(initialLive);
 
   // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
@@ -55,17 +56,11 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
     getLandingLive(landing.id).then(setLive).catch(() => {});
   }, [needsLive, landing.id, initialLive]);
 
-  // 실시간 값 하이드레이션: HTML 블록 안 data-lp-live 마커 텍스트를 실제 값으로 채운다.
-  useEffect(() => {
-    if (!live || !innerRef.current) return;
-    innerRef.current.querySelectorAll<HTMLElement>('[data-lp-live="count"]').forEach((el) => {
-      el.textContent = live.count.toLocaleString("ko-KR");
-    });
-    innerRef.current.querySelectorAll<HTMLElement>('[data-lp-live="slots"]').forEach((el) => {
-      const target = Number(el.getAttribute("data-target") || "0");
-      el.textContent = String(Math.max(0, target - live.count));
-    });
-  }, [live]);
+  // 실시간 값 반영: data-lp-live 마커를 DOM 이 아니라 **HTML 문자열 자체**에서 치환한다(hydrateLiveMarkers).
+  // SSR 이면 서버가 만드는 원본 HTML 에 이미 실제 숫자가 박히고, CSR 이면 live 가 갱신될 때
+  // 이 컴포넌트가 다시 렌더되며 새 문자열이 HtmlBlock 에 그대로 전달된다 — 별도 DOM 조작이 필요 없다
+  // (2026-09 Phase 3, docs/SSR-LANDING-PLAN.md §Phase 2·3 — 예전엔 querySelectorAll 로 DOM 만 고쳐써서
+  // 크롤러가 받는 원본 HTML 에는 반영되지 않았다).
 
   // I6 고객 여정 추적: 스크롤 깊이(25/50/75/100%) 도달 + 체류시간/이탈. 공개 랜딩에서만 동작(에디터 미리보기는 이 컴포넌트를 쓰지 않음).
   useEffect(() => {
@@ -150,7 +145,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
   return (
     <div className="landing-public" onClickCapture={handleContentClick}>
       {hasToast && live && <RecentToast recent={live.recent} />}
-      <div className="landing-public-inner" ref={innerRef}>
+      <div className="landing-public-inner">
         {landing.content.map((b, i) => {
           const ms = blockStyle(b);
           if (b.type === "IMAGE") {
@@ -158,7 +153,11 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
             return url ? <img key={i} className="landing-img" src={url} alt={(b.alt as string) || ""} style={ms} /> : null;
           }
           if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
-          if (b.type === "HTML") return <HtmlBlock key={i} className="landing-html" style={ms} html={(b.html as string) || ""} />;
+          if (b.type === "HTML") {
+            const raw = (b.html as string) || "";
+            const html = live ? hydrateLiveMarkers(raw, live) : raw;
+            return <HtmlBlock key={i} className="landing-html" style={ms} html={html} />;
+          }
           if (b.type === "FORM") {
             const form = formOf(b);
             if (!form) return null;

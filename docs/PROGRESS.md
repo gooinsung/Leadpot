@@ -8,6 +8,30 @@
 
 ## 📍 지금 위치
 
+- **✅ 공개 랜딩 SSR 전환 Phase 1~3 완료 (2026-09-07)** — 로컬 검증까지 끝, 배포는 아직(Phase 5).
+  상세 체크리스트는 [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) §7. 요약:
+  - **Phase 1** 공유 패키지 추출 — `packages/public-ui`(npm workspaces)로 공개 렌더 컴포넌트·lib·styles
+    이동, `frontend` 는 이걸 import. 동작 100% 동일 확인 후 커밋.
+  - **Phase 2** SSR 안전성 정리 — `window` 직접 의존 제거(`parseUtm`·`currentSubdomain` 인자화,
+    `setAppBaseUrl()` 주입 패턴), `sanitizeHtml.ts` 신설(정규식, `google_ads_safe` 용 — 아직 미적용),
+    `LandingView` 가 `initialLive` props 도 받도록.
+  - **Phase 3** 렌더러(`renderer/`, Next.js 16 + `@opennextjs/cloudflare`) 신설:
+    - `proxy.ts` 가 서브도메인 추출해 `/site/{sub}/{id}` 로 rewrite, 예약 호스트(`app`·`api`·`www`)는 통과
+    - 서버 데이터 로딩 시 `CF-Connecting-IP`·`User-Agent` 를 백엔드로 그대로 forward(`ForwardedRequestContext`,
+      IP 차단 로직이 Worker IP 를 보지 않도록 — §6-1 핵심 함정 해결)
+    - `data-lp-live` 실시간 마커를 **문자열 단계에서** 실제 값으로 치환(`liveMarkers.ts`, 신규) — 예전
+      DOM 조작 방식은 크롤러가 보는 원본 HTML 에 반영 안 됐던 것을 근본 해결. **Node 파서 라이브러리는
+      결국 불필요**로 결론(정규식으로 충분, `sanitizeHtml.ts` 와 같은 방식)
+    - `HtmlBlock` 을 서버·클라이언트 모두 `dangerouslySetInnerHTML` 로 렌더하도록 재설계(전엔 `useEffect`
+      로만 채워서 SSR 결과가 빈 `<div>` 였음)
+    - 5개 컴포넌트에 `"use client"` 추가(Next App Router 는 훅 쓰는 파일을 명시해야 함 — Vite 는 이 구분이
+      없어서 몰랐던 차이)
+    - **로컬 검증 통과**(curl + Playwright): JS 없이 본문 전체 렌더, 실시간 숫자가 서버 HTML 에 직접
+      박힘(하이드레이션 불일치 없음), 차단/미존재 랜딩 → 404(정보 비노출), 예약 호스트 통과 확인
+    - 미룬 것: Workers CPU 시간(10ms 무료 티어) 실측, `google_ads_safe` 정화 적용(Phase 4),
+      R2 캐시 바인딩(Cloudflare 계정 필요, Phase 5)
+  - **다음**: Phase 4(`google_ads_safe` 백엔드+편집기 옵션, SSR 실패시 SPA 폴백) → Phase 5(Cloudflare
+    배포, **사용자의 계정 작업 필요**) → Phase 6(재심사) → Phase 7(문서 정리).
 - **✅ 서브도메인 관리(D3) 검증 완료 (2026-07-24, gooinsung PC)**: 백엔드 빌드+테스트 통과 / API 스모크 전부 통과 / 브라우저에서 `{sub}.localhost:5173/{id}` 공개 렌더·루트 404 확인. 브랜치 `feature/d3-subdomain`(코드 커밋 ce10518).
   - **DB = Neon(무료 호스팅 Postgres)로 전환** — "모든 환경 공유 DB 한 대". 접속정보는 `backend/application-local.properties`(**gitignore됨·커밋금지**)에 저장, profile `local`로 기동. Flyway V1~V10 Neon에 적용됨(리전 ap-southeast-1).
   - **⚙️ 이 PC 환경 세팅(gooinsung PC = `C:\Users\gooinsung\git\Leadpot`)**: JDK21(`C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`, winget) 설치, `npm install` 완료. Docker/WSL은 미설치(Neon 쓰므로 불필요).
@@ -28,6 +52,15 @@
 - **추가 폼 개선(2026-07-24)**: 공개 폼 이름 숨김 · 동의 항목 기본체크 설정 · 공개 폼 모바일 최적화(1차) · **스텝형 답변 방식 확장**(카드 단일/다중 + 선택박스·텍스트·장문·연락처·이메일·숫자·날짜) · **마지막 단계 커스텀 안내문구**(typeConfig.contactMessage) · 스텝 입력형 간격 개선 · **중복 제출 방지(K3)**: 항목별 중복허용/유효기간 + 폼 동일IP 접수허용(settings_config, Flyway V6)
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
+
+> **바로 이어서 할 일: SSR-LANDING-PLAN.md Phase 4** — `google_ads_safe` 옵션.
+> - Flyway 마이그레이션으로 `landing_pages.google_ads_safe boolean not null default false` 추가
+> - 엔티티·서비스·DTO 반영, 편집기에 체크박스 + 안내 문구("HTML 블록 스크립트가 실행되지 않습니다")
+> - `renderer/`의 HTML 블록 렌더 경로에서 이 값이 켜진 랜딩만 `sanitizeHtml()`(이미 있음,
+>   `packages/public-ui/src/lib/sanitizeHtml.ts`) 적용
+> - SSR 실패 시 기존 CSR SPA 셸로 자동 폴백하는 안전장치 구현(전면 SSR 의 유일한 안전망)
+> - 사용자 지시("페이즈 7까지 계속 진행해. 내 확인 필요할때만 말해주고")에 따라 계속 진행하되,
+>   Phase 5(Cloudflare 배포)는 사용자의 실제 계정 작업이 필요해 거기서 확인이 필요할 수 있음(§8 참고).
 
 > ## 📋 2026-09-06 — **구글 광고 거절 원인 분석 + 공개 랜딩 SSR 계획 수립 / 버그 2건 배포 완료**
 >

@@ -1,0 +1,4 @@
+# `npm run preview`(Workers 런타임 로컬 미리보기) 용 — 실제 값을 채운 사본은 .dev.vars 로 저장한다(gitignore 됨).
+NEXTJS_ENV=development
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_APP_BASE_URL=http://localhost:5173

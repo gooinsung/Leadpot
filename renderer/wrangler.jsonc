@@ -1,0 +1,28 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "leadpot-renderer",
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Self-reference service binding, the service name must match the worker name
+			// see https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "leadpot-renderer"
+		}
+	],
+	"images": {
+		// Enable image optimization
+		// see https://opennext.js.org/cloudflare/howtos/image
+		"binding": "IMAGES"
+	}
+	// R2 증분 캐시는 넣지 않았다 — R2 버킷 생성은 Cloudflare 계정 접근이 필요해
+	// 사용자가 직접 해야 하는 일(docs/SSR-LANDING-PLAN.md §8)이다. 나중에 필요해지면
+	// r2_buckets 섹션을 추가하고 open-next.config.ts 의 incrementalCache 도 같이 켠다.
+	// (https://opennext.js.org/cloudflare/caching)
+}

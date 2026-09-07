@@ -1,0 +1,16 @@
+/* ============================================================
+   공개 랜딩 SSR 렌더러 스타일 진입점.
+   frontend/src/index.css 와 같은 레이어를 같은 순서로 불러온다 — 관리 화면 전용 레이어
+   (auth·about·stats·leads·advertiser)만 빠진다. 구조 지도: packages/public-ui/README.md 없음,
+   원본은 frontend/src/styles/README.md 참고. (docs/SSR-LANDING-PLAN.md §5-2)
+   ============================================================ */
+
+@import "@leadpot/public-ui/src/styles/tokens.css";
+@import "@leadpot/public-ui/src/styles/base.css";
+@import "@leadpot/public-ui/src/styles/components.css";
+@import "@leadpot/public-ui/src/styles/layout.css";
+
+@import "@leadpot/public-ui/src/styles/features/form-builder.css";
+@import "@leadpot/public-ui/src/styles/features/landing.css";
+@import "@leadpot/public-ui/src/styles/features/public.css";
+@import "@leadpot/public-ui/src/styles/features/calculator.css";

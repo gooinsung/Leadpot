@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useRef, type CSSProperties } from "react";
 
 /**
@@ -33,6 +34,13 @@ import { useEffect, useRef, type CSSProperties } from "react";
  * **보안**: HTML 블록은 이 변경 *이전에도* 임의 JS 실행이 가능했다(`<img onerror>` 같은
  * 인라인 이벤트 핸들러는 innerHTML 로도 실행된다 — 실측 확인). 작성자는 리드폼·랜딩을
  * 소유한 마케터 본인뿐이라(광고주 계정에는 HTML 편집 권한이 없다) 신뢰 경계가 넓어지지 않는다.
+ *
+ * **SSR(2026-09, docs/SSR-LANDING-PLAN.md §5-4)**: 마크업 자체는 `dangerouslySetInnerHTML` 로
+ * 렌더한다(서버·클라이언트 항상 동일하게) — 그래야 서버가 그린 HTML 에도 실제 내용이 들어가고,
+ * 하이드레이션 때 React 가 그대로 재사용해 화면이 깜빡이지 않는다. `<script>` 는 어차피
+ * `dangerouslySetInnerHTML` 로는 실행되지 않으므로(HTML 표준), `useEffect` 가 **이미 그려진
+ * DOM 위에서** CSS 스코프링 + 스크립트 교체 실행만 담당한다 — `innerHTML` 을 직접 다시 쓰지 않는다
+ * (다시 쓰면 React 가 만든 DOM 을 지웠다가 새로 만드는 셈이라 상태·포커스가 날아가고 깜빡인다).
  */
 /** 블록마다 다른 스코프를 줘서 블록끼리도 CSS 가 섞이지 않게 한다. */
 let scopeSeq = 0;
@@ -59,8 +67,10 @@ export function HtmlBlock({
 
     host.setAttribute("data-lp-hb", scopeId.current);
     let cleanup: (() => void) | null = null;
+    // html 은 이미 렌더(JSX 의 dangerouslySetInnerHTML)에서 DOM 에 들어가 있다 — 여기서는
+    // 스코프링 + 스크립트 실행만 한다(§ 위 SSR 주석 참고).
     const apply = () => {
-      cleanup = injectAndRun(host, html, `[data-lp-hb="${scopeId.current}"]`);
+      cleanup = processAndRun(host, `[data-lp-hb="${scopeId.current}"]`);
     };
 
     if (debounceMs > 0) {
@@ -74,7 +84,7 @@ export function HtmlBlock({
     return () => cleanup?.();
   }, [html, debounceMs]);
 
-  return <div ref={ref} className={className} style={style} />;
+  return <div ref={ref} className={className} style={style} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 /** 스크립트가 만든 것들을 되돌리려고 실행 중에 모아두는 자리. */
@@ -86,23 +96,21 @@ type Tracked = {
 };
 
 /**
- * HTML 을 붙이고 CSS 를 블록 안으로 격리한 뒤 스크립트를 실행한다. 되돌리는 함수를 반환.
+ * 이미 DOM 에 들어가 있는 마크업(JSX 의 `dangerouslySetInnerHTML`)의 CSS 를 블록 안으로
+ * 격리하고 스크립트를 실행한다. 되돌리는 함수를 반환.
  *
  * ⚠️ 기기 미리보기는 iframe 안에서 렌더된다. iframe 은 **문서·window·CSSOM 클래스가 전부 다르므로**
  * 전역 `document`/`window` 를 쓰면 안 되고 항상 호스트가 속한 문서(`host.ownerDocument`)를 따라간다.
  */
-function injectAndRun(host: HTMLElement, html: string, scope: string): () => void {
+function processAndRun(host: HTMLElement, scope: string): () => void {
   const doc = host.ownerDocument;
   const win = doc.defaultView ?? window;
 
-  host.innerHTML = html;
   scopeStyles(host, scope, win);
 
   const scripts = Array.from(host.querySelectorAll("script"));
   if (scripts.length === 0) {
-    return () => {
-      host.innerHTML = "";
-    };
+    return () => {};
   }
 
   const tracked: Tracked = { intervals: [], timeouts: [], listeners: [], observers: [] };
@@ -131,7 +139,9 @@ function injectAndRun(host: HTMLElement, html: string, scope: string): () => voi
         /* 이미 정리됐으면 무시 */
       }
     });
-    host.innerHTML = "";
+    // ⚠️ host.innerHTML 은 여기서 지우지 않는다 — React 가 dangerouslySetInnerHTML 로
+    // 다음 렌더의 내용을 이미 심어놨을 수 있다(html prop 변경 시 cleanup 이 새 커밋 *이후*
+    // 실행된다). 지우면 방금 React 가 그린 새 내용을 날려버린다.
   };
 }
 

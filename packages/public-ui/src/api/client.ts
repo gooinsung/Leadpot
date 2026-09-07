@@ -60,11 +60,34 @@ async function parseError(res: Response): Promise<ApiError> {
 interface RequestOptions {
   method?: string;
   body?: unknown;
+  headers?: Record<string, string>;
+}
+
+/**
+ * SSR 렌더러가 원 요청의 방문자 IP·User-Agent 를 백엔드로 그대로 전달할 때 쓴다.
+ *
+ * ⚠️ 왜 필요한가 — 브라우저가 직접 API 를 부르면 Cloudflare 가 `CF-Connecting-IP` 를 실제 방문자
+ * IP 로 자동으로 붙여준다(백엔드 `ClientIp.java` 참고). 하지만 **SSR 렌더러 안에서 서버가 대신
+ * API 를 호출하면**, 그 두 번째 요청은 Cloudflare 입장에서 "Workers 가 보낸 새 요청"이라 그 자리에서
+ * 잡히는 IP 를 쓴다 — 원래 방문자의 IP 가 사라진다. 그대로 두면 IP 차단(K2)·중복 제출 방지·순방문
+ * 통계가 전부 조용히 망가진다(docs/SSR-LANDING-PLAN.md §6-1). 그래서 렌더러는 원 요청에서 받은 이
+ * 두 값을 반드시 여기 담아 넘겨야 한다.
+ */
+export interface ForwardedRequestContext {
+  clientIp?: string;
+  userAgent?: string;
+}
+
+function forwardHeaders(ctx?: ForwardedRequestContext): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (ctx?.clientIp) headers["CF-Connecting-IP"] = ctx.clientIp;
+  if (ctx?.userAgent) headers["User-Agent"] = ctx.userAgent;
+  return headers;
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body } = opts;
-  const headers: Record<string, string> = {};
+  const { method = "GET", body, headers: extraHeaders } = opts;
+  const headers: Record<string, string> = { ...extraHeaders };
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   const res = await fetch(`${apiBaseUrl}${path}`, {
@@ -203,10 +226,14 @@ export interface PublicLanding {
   tracking?: Record<string, unknown> | null;
 }
 
-/** 공개 사이트 해석(비로그인): {subdomain}.도메인/{랜딩번호|슬러그}. published 만 열림. */
-export function resolveSite(subdomain: string, identifier: string): Promise<PublicLanding> {
+/**
+ * 공개 사이트 해석(비로그인): {subdomain}.도메인/{랜딩번호|슬러그}. published 만 열림.
+ * `ctx` — SSR 렌더러에서 호출할 때는 원 요청의 IP·UA 를 반드시 넘긴다(§6-1, `ForwardedRequestContext` 참고).
+ */
+export function resolveSite(subdomain: string, identifier: string, ctx?: ForwardedRequestContext): Promise<PublicLanding> {
   return request<PublicLanding>(
     `/api/public/sites/${encodeURIComponent(subdomain)}/${encodeURIComponent(identifier)}`,
+    { headers: forwardHeaders(ctx) },
   );
 }
 
@@ -215,9 +242,9 @@ export interface LandingLive {
   count: number; // 연결폼 활성 리드 수
   recent: { name: string; at: string }[]; // 최근 신청자(이름 마스킹)
 }
-/** 공개 랜딩 동적 요소용 실시간 집계(비로그인). 신청수·최근 신청자. */
-export function getLandingLive(id: number): Promise<LandingLive> {
-  return request<LandingLive>(`/api/public/landings/${id}/live`);
+/** 공개 랜딩 동적 요소용 실시간 집계(비로그인). 신청수·최근 신청자. `ctx` 는 {@link resolveSite} 와 같다. */
+export function getLandingLive(id: number, ctx?: ForwardedRequestContext): Promise<LandingLive> {
+  return request<LandingLive>(`/api/public/landings/${id}/live`, { headers: forwardHeaders(ctx) });
 }
 
 // ---------- 방문·이벤트 기록 ----------

@@ -340,21 +340,42 @@ API 호출 자체는 CPU 시간에 안 잡히지만(I/O 대기라 무관), 페�
 - [x] ✅ 회귀 검증 — `tsc -b`·`npm run build`(앱+embed, 번들 크기 그대로)·vitest **89개**
       (frontend 20 + public-ui 69, sanitizeHtml 8개 추가) 전부 통과
 
-### Phase 3 — 렌더러 앱 신설 (로컬까지)
-- [ ] `renderer/` Next.js 앱 생성 + OpenNext Cloudflare 어댑터
-- [ ] 라우트: `app/[identifier]/page.tsx` — `Host` 헤더에서 서브도메인 추출
-- [ ] 서버 데이터 로딩: `/api/public/sites/{sub}/{id}` + 필요 시 `/live`
-      → **`CF-Connecting-IP`·`User-Agent` 전달** (§6-1) 🔴
-- [ ] **Node 호환 HTML 파서 도입** (Phase 2 에서 발견 — `linkedom` 등, Cloudflare Workers 에서 동작 확인 필요):
-      - `data-lp-live` 마커를 **문자열 단계에서** 실제 값으로 치환(현재의 DOM 조작 방식은 크롤러가
-        보는 원본 HTML 에는 반영이 안 됨 — Phase 2 발견 사항)
-      - `google_ads_safe` 정화를 이 파서로 다시 구현(정규식보다 견고하게) — `sanitizeHtml.ts` 교체 검토
-      - `HtmlBlock` 서버 렌더 경로 + 클라이언트 하이드레이션 분기(Phase 2 에서 미룬 것, §5-4) 구현
-- [ ] 메타데이터: 랜딩별 `<title>`·`og:*`·`description` (§1-4)
-- [ ] 404 처리: 없는 서브도메인/식별자 → 기존 `SiteNotFound` 와 동일하게
-- [ ] ✅ 로컬 검증: `curl` 로 **JS 없이** 본문이 보이는지, 실시간 숫자가 이미 박혀 있는지(문자열에 직접),
-      스크립트 쓰는 기존 랜딩이 하이드레이션 후 정상 동작하는지, `google_ads_safe` 랜딩은 스크립트가
-      안 나오는지
+### Phase 3 — 렌더러 앱 신설 (로컬까지) — ✅ 완료 2026-09-07
+
+- [x] `renderer/` Next.js 16 앱 생성 + `@opennextjs/cloudflare` 어댑터
+      (`npx opennextjs-cloudflare migrate` 는 R2 버킷을 실제로 만들려고 Cloudflare API 인증을 시도해
+      샌드박스에서 멈춤 — 템플릿 파일(`wrangler.jsonc`·`open-next.config.ts`)을 직접 읽어 손으로 구성.
+      R2 캐시 바인딩은 Cloudflare 계정이 있어야 하므로 Phase 5(§8, 사용자 작업)로 미룸)
+- [x] 라우트: `app/site/[subdomain]/[identifier]/page.tsx` — `proxy.ts`(구 `middleware.ts`, Next 16 개명)가
+      `Host` 헤더에서 서브도메인을 뽑아 `/site/{sub}/{id}` 로 rewrite
+- [x] 서버 데이터 로딩: `resolveSite()` / `getLandingLive()` (`@leadpot/public-ui`) — 둘 다
+      `ForwardedRequestContext`(`clientIp`·`userAgent`)를 받아 **`CF-Connecting-IP`·`User-Agent` 전달**
+      (§6-1 🔴 해결 — `headers()` 로 읽어 매 요청 forward)
+- [x] ~~Node 호환 HTML 파서 도입~~ → **정규식 방식으로 대체, 파서 라이브러리 불필요**로 결론.
+      `packages/public-ui/src/lib/liveMarkers.ts` 신설 — `hydrateLiveMarkers(html, live)` 가
+      `data-lp-live` 마커를 **문자열 단계에서** 실제 값으로 치환(`sanitizeHtml.ts` 와 같은 이유로
+      정규식 채택 — Workers/Node/브라우저 어디서나 의존성 없이 동일 동작, 마커 형식이 고정적이라
+      파서 없이도 안전). `LandingView` 의 옛 DOM 조작(`querySelectorAll`+`textContent`) `useEffect`
+      제거하고 렌더 전에 문자열을 바꾸는 방식으로 교체 — SSR·CSR 모두 동일 코드 경로.
+      `google_ads_safe` 정화는 계획대로 Phase 4 에서 기존 `sanitizeHtml.ts`(정규식)를 그대로 붙인다
+      (교체 불필요).
+      `HtmlBlock` 은 서버·클라이언트 모두 `dangerouslySetInnerHTML` 로 마크업을 내려받고, `useEffect`
+      는 이미 DOM 에 있는 마크업 위에서 CSS 스코프 적용 + `<script>` 재실행만 한다(§5-4) — 렌더 자체를
+      분기하지 않아 하이드레이션 불일치가 없다.
+- [x] 메타데이터: `generateMetadata()` 로 랜딩별 `<title>` (og/description 은 Phase 4 이후 필요 시 추가)
+- [x] 404 처리: 없는 서브도메인/식별자·IP 차단(백엔드가 404 로 비노출) 모두 `notFound()` → Next 기본
+      404 페이지, 실제 제목·데이터 노출 없음(curl 로 확인)
+- [x] 예약 호스트(`app`·`api`·`www` 등) 통과 확인: `proxy.ts` 가 rewrite 하지 않고 그대로 지나가
+      플레이스홀더 루트 페이지가 보임(운영에서는 Cloudflare 라우팅 자체가 이 호스트들을 렌더러로
+      보내지 않음 — Phase 5 대상)
+- [x] ✅ 로컬 검증(Playwright + curl, `/etc/hosts` 에 `*.localhost` 추가):
+      - `curl` 로 **JS 없이** 본문 전체(텍스트·HTML 블록·폼)가 보임
+      - 실시간 숫자가 **원본 HTML 문자열에 직접** 박혀 있음(`37`, placeholder `0` 아님) — 서버 HTML 과
+        브라우저 렌더 결과가 정확히 일치(하이드레이션 불일치 콘솔 에러 없음)
+      - 차단/미존재 랜딩 → 404, 페이지 제목 등 정보 비노출
+      - 예약 호스트 → rewrite 없이 통과
+      - 스크립트 있는 기존 랜딩의 하이드레이션 후 동작 및 Workers CPU 시간(§6-4) 실측은 Phase 5
+        (`wrangler dev`/`preview`, 실제 Cloudflare 환경 필요)로 이월 — 로컬 Node 실행에서는 측정 불가
 
 ### Phase 4 — "구글 광고용" 옵션 (백엔드 + 편집기)
 - [ ] **Flyway V41** `landing_pages.google_ads_safe` 추가 (기본 `false`)

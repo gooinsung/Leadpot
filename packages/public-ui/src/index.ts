@@ -28,6 +28,7 @@ export {
 
 export { parseUtm } from "./lib/utm";
 export { sanitizeHtml } from "./lib/sanitizeHtml";
+export { hydrateLiveMarkers } from "./lib/liveMarkers";
 export { initPixels, firePixelLead, type PixelConfig } from "./lib/pixels";
 export { currentSubdomain, appBaseUrl, setAppBaseUrl, consentDocUrl, publicSiteUrl } from "./lib/site";
 export { findCalculator, CALCULATORS } from "./lib/calculators/registry";

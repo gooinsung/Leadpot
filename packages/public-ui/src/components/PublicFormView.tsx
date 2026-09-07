@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { HtmlBlock } from "./HtmlBlock";
 import {
