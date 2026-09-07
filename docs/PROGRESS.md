@@ -8,6 +8,12 @@
 
 ## 📍 지금 위치
 
+- **✅ 구글시트 연동 버그 수정(2026-09-07, `7e0f304`)**: 사용자가 우리 데이터 열 옆에 체크박스
+  등 자기 열을 만들어 아래까지 서식을 입혀두면(체크박스는 빈 칸도 실제 FALSE 값이 들어감),
+  신규 리드가 시트 전체 기준 "마지막 행" 계산 때문에 실제 데이터에서 한참 아래에 찍히던 버그.
+  `GoogleSheetsClient.lastUsedRow()` 가 시트 전체가 아니라 **우리가 쓰는 열만** 보고 다음 행을
+  정하도록 수정(`backend/.../integration/GoogleSheetsClient.java`). SSR 작업과는 무관한 별도 수정.
+
 - **✅ 공개 랜딩 SSR 전환 Phase 4 완료 (2026-09-07)** — "구글 광고용"(`google_ads_safe`) 옵션.
   상세는 [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) §7 Phase 4. 요약:
   - Flyway V41 로 `landing_pages.google_ads_safe`(기본 false) 추가, 엔티티·DTO·서비스 반영
