@@ -8,6 +8,15 @@
 
 ## 📍 지금 위치
 
+- **🔄 Phase 5 실행 중 — Cloudflare 배포 (2026-09-07, 로컬 세션)**: [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) 문서대로 진행 중. 사용자가 Cloudflare API 토큰(Account ID 포함)을 직접 발급해 채팅으로 전달 — **이 토큰은 이미 GitHub 저장소 시크릿에 등록 완료, 더 이상 필요 없으면 Cloudflare 대시보드에서 폐기 권장**.
+  - **완료(실제 서비스에 영향 없는 단계)**:
+    - GitHub 저장소 시크릿 `CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID` 등록 완료
+    - `deploy-renderer.yml`·`deploy-frontend-cloudflare.yml` 둘 다 Node `20`→`22` 버그 수정(Wrangler가 Node 22+ 요구, 커밋 `a113fab`·`30fd49b`) 후 그린 — Cloudflare Pages 프로젝트 `leadpot-app` 은 API로 미리 생성해둠(안 하면 첫 배포가 "Project not found"로 실패)
+    - 렌더러 배포 확인: `https://leadpot-renderer.gooinsung96.workers.dev` 자체 도메인에서 정상 HTML 응답. ⚠️ `curl -H "Host: {sub}.lead-pot.com" .../37` 식 스푸핑 검증은 Cloudflare 엣지가 workers.dev 도메인에서 Host 헤더 불일치를 403으로 차단해서 **여기선 안 됨** — 코드 문제 아님, 실제 도메인 라우팅 연결(4번) 후에 진짜 도메인으로 검증할 것
+    - 프론트 Pages 배포 확인: `https://leadpot-app.pages.dev` 접속 가능(수동 브라우저 확인은 아직 — 다음 세션에서 로그인/대시보드 렌더 확인 필요)
+    - 기존 DNS 레코드 확인·기록: `app.lead-pot.com`→A `129.225.198.2`(VM), **`*.lead-pot.com`→A `129.225.198.2`(VM) 이미 존재**(문서의 "와일드카드 없으면 생성" 단계는 건너뛰어도 됨, 4번에서 Workers 라우트만 얹으면 됨), `api.lead-pot.com`→CNAME Railway(안 건드림)
+  - **다음 (실제 도메인에 영향 — 사용자 확인 후 진행)**: 문서 4번(와일드카드 위에 `leadpot-renderer` Workers 라우트 연결) → 5번(`app.lead-pot.com` 을 Pages 커스텀 도메인으로 전환, 진짜 트래픽 이전 순간) → 6번 마무리 체크리스트. **CLAUDE.md §0 최상위 지침에 따라 4·5번은 착수 전 반드시 사용자에게 먼저 확인할 것** — 직전 세션에서 사용자에게 물어봤으나 응답 대기 중 세션이 넘어감.
+  - 이 세션에서 GitHub CLI(`gh`)를 winget 으로 설치해 브라우저 device-flow 로 로그인해둠 — PATH 에는 없음, `/c/Program Files/GitHub CLI/gh.exe` 로 실행.
 - **✅ 죽은 워크플로 정리 — `deploy-backend.yml` 삭제(2026-09-07)**: VM 백엔드 배포가 2026-09-02 부터
   계속 실패 중인 걸 발견(내가 만든 문제 아님 — 그 전 커밋 배포 때도 이미 실패했음을 로그로 확인).
   원인을 사용자에게 확인한 결과: **Neon 은 비용 문제로 삭제됐고 DB 는 이미 Railway Postgres 로
