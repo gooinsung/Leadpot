@@ -1,0 +1,65 @@
+name: Deploy Frontend (Cloudflare Pages)
+
+# frontend/** 또는 packages/public-ui/** 가 바뀌어 main 에 push 되면 관리 앱을
+# Cloudflare Pages 로도 배포한다(docs/SSR-LANDING-PLAN.md Phase 5 — HOSTING-MIGRATION-PLAN 흡수).
+#
+# ⚠️ 검증 단계 워크플로다 — 기존 deploy-frontend.yml(Oracle VM 배포)과 나란히 돈다.
+# *.pages.dev 임시 도메인에서 정상 동작을 확인한 뒤에만 app.lead-pot.com DNS 를 이쪽으로 돌린다
+# (사용자 작업, §8). 그 전까지는 이 워크플로가 돌아도 기존 서비스(VM)에 아무 영향이 없다.
+# 안정화되면 deploy-frontend.yml 과 Oracle VM 을 정리하고 이 워크플로만 남긴다.
+#
+# 필요한 저장소 시크릿(Settings → Secrets and variables → Actions → New repository secret):
+#   CLOUDFLARE_API_TOKEN   — Account: Cloudflare Pages:Edit 권한의 API 토큰
+#   CLOUDFLARE_ACCOUNT_ID  — Cloudflare 대시보드 우측 사이드바에 있는 Account ID
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'packages/public-ui/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-frontend-cloudflare.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-frontend-cloudflare
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # ⚠️ npm workspaces 라 설치는 반드시 저장소 루트에서 한다.
+      - name: 설치 (워크스페이스 루트)
+        run: npm ci
+
+      - name: Build (프로덕션 API·앱 주소 주입)
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://api.lead-pot.com
+          # 동의문서 링크를 앱 도메인 절대 URL로 만든다(서브도메인·외부 임베드에서 404 방지)
+          VITE_APP_BASE_URL: https://app.lead-pot.com
+        run: npm run build
+
+      # projectName 이 없는 프로젝트면 첫 배포 때 자동으로 만들어진다. 실패하면 Cloudflare
+      # 대시보드에서 Workers & Pages → Create → Pages 로 같은 이름의 빈 프로젝트를 먼저 만들 것.
+      - name: Cloudflare Pages 배포
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: leadpot-app
+          directory: frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

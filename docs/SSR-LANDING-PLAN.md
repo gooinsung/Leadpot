@@ -406,15 +406,32 @@ API 호출 자체는 CPU 시간에 안 잡히지만(I/O 대기라 무관), 페�
 > HOSTING-MIGRATION-PLAN Phase B(프론트 이전)를 여기 흡수한다 — `app`(관리 화면)과 `*`(공개 랜딩)를
 > **같이** Cloudflare 로 옮긴다. 되돌리기 지점을 분리해두면 문제 생겨도 한쪽만 되돌릴 수 있다.
 
-- [ ] Cloudflare 에 렌더러 배포 → `*.workers.dev` 임시 도메인에서 먼저 검증
-- [ ] Cloudflare Pages 프로젝트 생성(`frontend`) → `*.pages.dev` 임시 도메인에서 검증
-      (빌드 `npm run build` · 출력 `dist` · `_redirects` 이미 존재 — HOSTING-MIGRATION-PLAN §Phase B 그대로)
-- [ ] 배포 워크플로 추가/정리(`renderer/**`·`frontend/**` 변경 시에만 각각 트리거)
+> ⚠️ **왜 배포 방식이 GitHub Actions 인가(2026-09-07)**: 이 세션(Claude Code 원격 실행 환경)은
+> 아웃바운드 네트워크가 화이트리스트(npm·GitHub·PyPI 등)로 제한돼 있어 `api.cloudflare.com` 에
+> 직접 접근할 수 없다(사용자가 발급한 API 토큰이 있어도 요청 자체가 프록시 단계에서 403 으로
+> 막힘 — 인증 문제가 아니라 이 컨테이너의 방화벽 정책 문제). Cloudflare 대시보드에서 직접
+> GitHub 저장소를 연결하는 네이티브 Git 연동(Workers Builds/Pages)도 가능하지만, GitHub Actions
+> 쪽이 이미 있는 `deploy-frontend.yml`·`deploy-backend.yml` 과 같은 패턴이라 더 검증된 방식으로
+> 판단해 이걸 택함 — 사용자가 할 일은 **GitHub 저장소 시크릿 2개 등록**뿐, 이후 배포는
+> `main` push 때마다 완전 자동이다.
+
+- [x] `.github/workflows/deploy-renderer.yml` 신설 — `renderer/**`·`packages/public-ui/**` 변경 시
+      `npm run deploy`(OpenNext 빌드 + `wrangler deploy`)로 Cloudflare Workers 에 배포
+- [x] `.github/workflows/deploy-frontend-cloudflare.yml` 신설 — `frontend/**`·`packages/public-ui/**`
+      변경 시 `npm run build` 후 `cloudflare/pages-action` 으로 Cloudflare Pages 에 배포
+      (기존 `deploy-frontend.yml`, VM 배포와 나란히 돈다 — 검증 끝나기 전까지 서로 영향 없음)
+- [ ] **(사용자 작업)** GitHub 저장소 → Settings → Secrets and variables → Actions 에 시크릿 2개 등록:
+      `CLOUDFLARE_API_TOKEN`(Account: Workers Scripts:Edit + Cloudflare Pages:Edit + Account Settings:Read
+      권한으로 발급) · `CLOUDFLARE_ACCOUNT_ID`
+- [ ] 두 워크플로가 `*.workers.dev`·`leadpot-app.pages.dev` 임시 도메인에 정상 배포되는지 확인
+      (Pages 프로젝트가 없으면 첫 배포 때 자동 생성됨 — 실패 시 대시보드에서 같은 이름으로 빈
+      프로젝트를 먼저 만들 것)
 - [ ] 와일드카드 DNS·SSL 구성 (§6-3)
 - [ ] `app.lead-pot.com` → Cloudflare Pages 전환 ⭐ **되돌리기 지점 1** (기존 VM 은 그대로 켜둔 채 전환 — 문제 시 DNS 만 되돌리면 복구)
 - [ ] `*.lead-pot.com` 라우트를 렌더러로 전환 ⭐ **되돌리기 지점 2**
 - [ ] `api`·`www` 등 나머지 예약 호스트가 영향받지 않았는지 확인
-- [ ] 두 전환 모두 안정화 확인 후 **Oracle VM 종료** (Nginx·인증서 관리 부담 완전히 소멸)
+- [ ] 두 전환 모두 안정화 확인 후 **Oracle VM 종료** (Nginx·인증서 관리 부담 완전히 소멸) — 이때
+      `deploy-frontend.yml`(VM 배포)·`docs/HOSTING-MIGRATION-PLAN.md` 도 함께 정리
 
 ### Phase 6 — 검증 & 재심사
 - [ ] §9 검증 시나리오 전부 통과
