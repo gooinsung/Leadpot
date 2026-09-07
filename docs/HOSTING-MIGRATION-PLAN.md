@@ -5,6 +5,16 @@
 > 기준 커밋 `61adf17` · **Flyway V28** · 백엔드 테스트 212개 통과.
 > 이어받는 세션은 이 문서 하나만 읽으면 처음부터 끝까지 실행할 수 있다.
 > 관련: [CLAUDE.md](../CLAUDE.md) §6(배포법) · [DEPLOY.md](DEPLOY.md) 부록 C · [PROGRESS.md](PROGRESS.md)
+>
+> ⚠️ **2026-09-07 갱신 — 아래 Phase B 는 [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) Phase 5 가 흡수했다.**
+> 이유: 공개 랜딩을 SSR(Cloudflare Workers, `renderer/`)로 옮기는 작업과 프론트 이전을 **같이** 해야
+> §291 의 "와일드카드 서브도메인을 Pages 가 처리 못 하면?" 질문이 자연히 풀린다 — 와일드카드는
+> Pages 가 아니라 **렌더러(Workers) 쪽 Workers 라우트**가 받는다. 실행은 이 문서의 Phase B 절차가
+> 아니라 [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) §7 Phase 5 와
+> [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md)(실행 가이드)를 따를 것. 아래 Phase B
+> 본문은 그 결정이 나오기 전의 초안이라 **참고용으로만** 남겨둔다(배포 방식도 Cloudflare 네이티브
+> Git 연동이 아니라 **GitHub Actions**로 바뀌었다 — 이 세션의 아웃바운드 네트워크 제약 때문, 이유는
+> SSR-LANDING-PLAN.md Phase 5 주석 참고).
 
 ---
 
@@ -277,6 +287,10 @@ DNS 전환 기간에는 **VM 과 Railway 두 백엔드가 같은 Neon DB 를 동
 ---
 
 ### Phase B — 프론트를 Cloudflare Pages 로
+
+> ⚠️ **참고용 초안 — 실제 실행은 [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) §7 Phase 5 를 따를 것**
+> (2026-09-07, 위 상단 갱신 노트 참고). 이 섹션은 결정 전 초안이라 배포 방식(Cloudflare 네이티브
+> Git 연동 가정)과 와일드카드 처리(❓ 미해결)가 최신 결정과 다르다.
 
 > 백엔드가 Railway 로 가면 VM 에 남는 건 **정적 파일 서빙뿐**이다. 그거 하나로 VM 을 유지할 이유가 없다.
 > Cloudflare Pages 는 **무료 + 상업적 사용 허용**이고 DNS 도 이미 Cloudflare 에 있다. (Vercel 은 같은 일에 Pro $20/월)
