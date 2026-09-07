@@ -1,16 +1,17 @@
 # docs/SSR-LANDING-PLAN.md — 공개 랜딩 SSR 전환 계획 (Next.js on Cloudflare)
 
-> **작성 2026-09-06, 핵심 방향 확정 2026-09-07. 상태: 📋 계획 수립 완료 — 착수 전 §11 남은 질문만 결정하면 된다.**
+> **작성 2026-09-06, 전체 결정 완료 2026-09-07. 상태: ✅ 계획 확정 — 착수 가능 (Phase 0 부터).**
 > 기준 커밋 `992877e` · **Flyway V40** · 프론트 React+Vite SPA(CSR)
 > 배경 조사·방식 비교는 이 문서에 전부 담았다. **이어받는 세션은 이 문서 하나만 읽으면 실행할 수 있다.**
-> 관련: [CLAUDE.md](../CLAUDE.md) §2·§3·§6 · [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md)(프론트 이전과 맞물림) · [PROGRESS.md](PROGRESS.md)
+> 관련: [CLAUDE.md](../CLAUDE.md) §2·§3·§6 · [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md)(Phase B 를 이 계획이 흡수·완료한다 — §11) · [PROGRESS.md](PROGRESS.md)
 
 ---
 
 ## 0. 한 줄 요약
 
 **공개 랜딩(`{서브도메인}.lead-pot.com/{식별자}`)을 CSR(빈 HTML + JS) 에서 SSR(완성된 HTML) 로 바꿔
-구글 광고 심사에서 "시스템 우회"로 거절되는 구조적 원인을 없앤다.** 관리 화면(대시보드·빌더)은 지금 그대로 둔다.
+구글 광고 심사에서 "시스템 우회"로 거절되는 구조적 원인을 없앤다.** 관리 화면(대시보드·빌더)은 **렌더링 방식은
+그대로**(CSR SPA) 두되, 이번 작업에서 **호스팅을 Oracle VM → Cloudflare Pages 로 함께 옮긴다**(§11).
 
 ---
 
@@ -72,7 +73,8 @@ DOM 텍스트를 덮어쓴다:
 - 렌더링 코드가 **한 벌만 존재한다**(관리 화면과 공개 화면이 같은 컴포넌트를 쓴다).
 
 ### 비목표 (이번에 하지 않는다)
-- 관리 화면(대시보드·빌더·광고주 포털) SSR — 로그인 뒤 화면이라 SEO·광고심사와 무관하다. **그대로 둔다.**
+- 관리 화면(대시보드·빌더·광고주 포털)의 **렌더링 방식 변경** — 로그인 뒤 화면이라 SEO·광고심사와 무관하다.
+  CSR SPA 그대로 둔다. (단, **호스팅 위치**는 §11 결정에 따라 Cloudflare Pages 로 옮긴다 — 별개 축이다.)
 - 임베드(`embed.js`) SSR — 남의 사이트에 심는 스크립트라 구조상 불가능하고 불필요하다.
 - 백엔드 이전·DB 변경 — 건드리지 않는다.
 
@@ -101,10 +103,14 @@ DOM 텍스트를 덮어쓴다:
 
 ## 4. 목표 구성
 
+> **✅ 결정 (2026-09-07)**: 이 작업을 [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) **Phase B(프론트 →
+> Cloudflare)와 묶어서 진행**한다. 어차피 이번에 Cloudflare 를 새로 만지므로, `app.lead-pot.com`(관리 화면)도
+> 같이 옮겨 Oracle VM 을 이 시점에 완전히 종료한다. §7·§8 에 반영.
+
 ```
-[방문자 / 구글 AdsBot]
-   │
-   ▼
+[방문자 / 구글 AdsBot]                    [마케터 / 광고주]
+   │                                          │
+   ▼                                          ▼
 Cloudflare DNS (무료 SSL)
    │
    ├─ *.lead-pot.com  ──▶ ⭐신설 Next.js 렌더러 (Cloudflare Workers)   $0
@@ -113,8 +119,10 @@ Cloudflare DNS (무료 SSL)
    │                          ▼
    ├─ api.lead-pot.com ──▶ Railway(싱가포르) Spring Boot ──▶ Neon
    │                          ▲
-   └─ app.lead-pot.com ──▶ 기존 React+Vite SPA (그대로. 관리 화면)
+   └─ app.lead-pot.com ──▶ Cloudflare Pages(정적, 관리 화면)  $0  ⭐HOSTING-MIGRATION-PLAN Phase B 흡수
                               └ 여기서도 같은 API 를 부른다
+
+⛔ Oracle Cloud VM — 이 작업 완료 후 종료 (남아 있던 마지막 용도가 이걸로 없어짐)
 ```
 
 - `app` 은 **개별 DNS 레코드**라 와일드카드(`*`)보다 우선한다 → 관리 화면은 영향 없다.
@@ -282,7 +290,7 @@ Phase 6 검증에 **IP 차단 실동작 테스트를 반드시 포함**할 것.
 - [ ] §6-4 어댑터 최신 상태 확인 → OpenNext 로 갈지 확정
 - [ ] Cloudflare 에서 `*.lead-pot.com` 와일드카드 DNS·SSL 구성 가능 여부 확인 (§6-3)
 - [ ] Workers 무료 티어 한도 확인(요청 수·CPU 시간)
-- [ ] §11 열린 질문 결정
+- [x] §11 결정 완료 — 착수 전 질문 없음
 
 ### Phase 1 — 공유 패키지 추출 (운영 영향 없음)
 - [ ] 루트 `package.json` 에 npm workspaces 설정
@@ -317,21 +325,31 @@ Phase 6 검증에 **IP 차단 실동작 테스트를 반드시 포함**할 것.
 - [ ] ✅ 백엔드 테스트 통과 확인
 
 ### Phase 5 — 배포 (⚠️ 사용자 직접 작업 구간 — §8)
+
+> HOSTING-MIGRATION-PLAN Phase B(프론트 이전)를 여기 흡수한다 — `app`(관리 화면)과 `*`(공개 랜딩)를
+> **같이** Cloudflare 로 옮긴다. 되돌리기 지점을 분리해두면 문제 생겨도 한쪽만 되돌릴 수 있다.
+
 - [ ] Cloudflare 에 렌더러 배포 → `*.workers.dev` 임시 도메인에서 먼저 검증
-- [ ] 배포 워크플로 추가(`renderer/**` 변경 시에만)
-- [ ] 와일드카드 DNS·SSL 구성
-- [ ] `*.lead-pot.com` 라우트를 렌더러로 전환 ⭐ **되돌리기 지점**
-- [ ] `app`·`api` 등 예약 호스트가 영향받지 않았는지 확인
+- [ ] Cloudflare Pages 프로젝트 생성(`frontend`) → `*.pages.dev` 임시 도메인에서 검증
+      (빌드 `npm run build` · 출력 `dist` · `_redirects` 이미 존재 — HOSTING-MIGRATION-PLAN §Phase B 그대로)
+- [ ] 배포 워크플로 추가/정리(`renderer/**`·`frontend/**` 변경 시에만 각각 트리거)
+- [ ] 와일드카드 DNS·SSL 구성 (§6-3)
+- [ ] `app.lead-pot.com` → Cloudflare Pages 전환 ⭐ **되돌리기 지점 1** (기존 VM 은 그대로 켜둔 채 전환 — 문제 시 DNS 만 되돌리면 복구)
+- [ ] `*.lead-pot.com` 라우트를 렌더러로 전환 ⭐ **되돌리기 지점 2**
+- [ ] `api`·`www` 등 나머지 예약 호스트가 영향받지 않았는지 확인
+- [ ] 두 전환 모두 안정화 확인 후 **Oracle VM 종료** (Nginx·인증서 관리 부담 완전히 소멸)
 
 ### Phase 6 — 검증 & 재심사
 - [ ] §9 검증 시나리오 전부 통과
 - [ ] 🔴 **IP 차단 실동작 테스트** (§6-1)
+- [ ] 관리 화면(로그인·대시보드·빌더) 정상 동작 — Pages 전환 회귀 확인
 - [ ] 구글 광고: 최종 URL 재설정 → **이의신청(재심사 요청)** 제출
-- [ ] 2~3일 관찰: 리드 유실 없는지 · 통계가 정상인지 · 승인 나는지
+- [ ] 2~3일 관찰: 리드 유실 없는지 · 통계가 정상인지 · 승인 나는지 · VM 종료 후 이상 없는지
 
 ### Phase 7 — 정리
-- [ ] [CLAUDE.md](../CLAUDE.md) §2 표·§3 아키텍처·§6 배포법 갱신
-- [ ] [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) Phase B 와 정합성 맞추기(프론트 이전 대상 확정)
+- [ ] [CLAUDE.md](../CLAUDE.md) §2 표·§3 아키텍처·§6 배포법 갱신 — `app`·`*` 모두 Cloudflare 로
+- [ ] [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) Phase B 를 "이 문서로 완료 처리"로 갱신
+- [ ] `.github/workflows/deploy-frontend.yml` 삭제(Pages 가 대체)
 - [ ] [PROGRESS.md](PROGRESS.md)·[ROADMAP.md](ROADMAP.md) 갱신
 - [ ] I3 SEO 항목을 "해소됨"으로 정리
 
@@ -341,12 +359,15 @@ Phase 6 검증에 **IP 차단 실동작 테스트를 반드시 포함**할 것.
 
 | # | 작업 | 위치 |
 |---|---|---|
-| 1 | Cloudflare Workers 프로젝트 생성 · GitHub 저장소 연결 | Cloudflare 대시보드 |
-| 2 | 환경변수 등록 — API 주소·앱 주소 | Workers → Settings → Variables |
-| 3 | `*.lead-pot.com` 와일드카드 DNS 레코드 + SSL | Cloudflare DNS |
-| 4 | Workers 라우트 `*.lead-pot.com/*` 연결 | Workers → Routes |
-| 5 | `app`·`api`·`www` 개별 레코드가 그대로인지 확인 | Cloudflare DNS |
-| 6 | (선택) API 토큰을 발급해 주면 이후 배포는 CLI 로 자동화 가능 | 최소 권한(Workers 배포)으로만 |
+| 1 | Cloudflare Workers 프로젝트 생성 · GitHub 저장소 연결(렌더러) | Cloudflare 대시보드 |
+| 2 | Cloudflare Pages 프로젝트 생성 · GitHub 저장소 연결(관리 앱) | Cloudflare 대시보드 |
+| 3 | 환경변수 등록 — API 주소·앱 주소(두 프로젝트 모두) | Workers/Pages → Settings → Variables |
+| 4 | `*.lead-pot.com` 와일드카드 DNS 레코드 + SSL | Cloudflare DNS |
+| 5 | Workers 라우트 `*.lead-pot.com/*` 연결 | Workers → Routes |
+| 6 | `app.lead-pot.com` 커스텀 도메인을 Pages 프로젝트에 연결 | Cloudflare Pages → Custom domains |
+| 7 | `api`·`www` 등 나머지 예약 호스트 레코드가 그대로인지 확인 | Cloudflare DNS |
+| 8 | 안정화 확인 후 **Oracle VM 종료** | Oracle Cloud 콘솔 |
+| 9 | (선택) API 토큰을 발급해 주면 이후 배포는 CLI 로 자동화 가능 | 최소 권한(Workers·Pages 배포)으로만 |
 
 ---
 
@@ -380,45 +401,43 @@ Phase 6 검증에 **IP 차단 실동작 테스트를 반드시 포함**할 것.
 | 시점 | 되돌리는 법 |
 |---|---|
 | Phase 1~4 중 | 배포 전이라 코드 되돌리면 끝. 운영 영향 0 |
-| Phase 5 직후 문제 발생 | Cloudflare 에서 **Workers 라우트만 해제** → 즉시 기존 SPA 로 복귀 |
-| 렌더러 오류·타임아웃 | **자동 폴백**으로 SPA 셸이 나간다(§5-5) — 사람이 개입하기 전에 이미 리드는 계속 들어온다 |
+| `app.lead-pot.com`(Pages) 전환 직후 문제 | DNS 를 Oracle VM(A 레코드)으로 되돌리면 끝 — **VM 을 종료하기 전까지는 항상 이 경로가 살아 있다** |
+| `*.lead-pot.com`(렌더러) 전환 직후 문제 | Cloudflare 에서 **Workers 라우트만 해제** → 즉시 기존 SPA 로 복귀 |
+| 렌더러 오류·타임아웃(전환 이후 상시) | **자동 폴백**으로 SPA 셸이 나간다(§5-5) — 사람이 개입하기 전에 이미 리드는 계속 들어온다 |
 | 특정 랜딩의 스크립트가 문제 | 그 랜딩의 `google_ads_safe` 를 끄면 스크립트가 다시 실행된다 — 배포 없이 개별 회피 |
+
+> ⚠️ **VM 종료는 두 전환(app·랜딩) 모두 며칠 안정된 뒤** 한다 — 그 전까지는 VM 이 살아 있는 게 가장 확실한 롤백 경로다.
 
 > Flyway V41 은 컬럼 추가(기본값 있음)라 **롤백해도 기존 코드가 그대로 동작**한다.
 
 ---
 
-## 11. 결정 사항 / 남은 질문
+## 11. 결정 사항 — 전부 확정됨 (2026-09-07 사용자)
 
-### ✅ 결정됨 (2026-09-07 사용자)
+| # | 질문 | 결정 | 근거 / 반영 위치 |
+|---|---|---|---|
+| 1 | 렌더링 토글 방식 | **전면 SSR 고정** — 랜딩별 렌더링 토글 없음 | 경로 이원화 방지 + 기본값이 안전한 쪽이어야 함 (§5-5) |
+| 2 | HTML 블록 스크립트 정화 범위 | **전면 적용하지 않는다** — 랜딩별 "구글 광고용" 옵션으로만 선택 적용 | 구글 외 매체(메타·당근·카카오)용 랜딩에서 카운트다운·플로팅 배너를 계속 써야 함 (§5-4·5-5) |
+| 3 | 전면 SSR 의 안전장치 | **SSR 실패 시 SPA 자동 폴백** | 렌더러 장애가 전체 랜딩 장애가 되지 않게 (§5-5) |
+| 4 | `/f/{id}` 단독 공개 폼 | **범위에서 제외** — 서브도메인 랜딩만 SSR | 구글 광고 최종 URL 로 `/f/{id}` 를 쓰는 경우가 없음(사용자 확인) |
+| 5 | 공유 패키지 추출(Phase 1) 시점 | **지금 한다** | 나중에 하면 renderer 가 `frontend/src` 를 직접 참조하게 돼 두 앱 빌드가 얽히고, 나중일수록 분리 비용이 커짐 |
+| 6 | 프론트 호스팅 이전과의 관계 | **HOSTING-MIGRATION-PLAN Phase B 를 이 작업이 흡수** — `app.lead-pot.com` 도 같이 Cloudflare Pages 로 이전, 완료 후 Oracle VM 종료 | 어차피 Cloudflare 를 새로 세팅하므로 같이 하는 게 효율적 (§4·Phase 5·§8 에 반영) |
 
-| # | 결정 | 근거 |
-|---|---|---|
-| 1 | **렌더링은 전면 SSR 고정** — 랜딩별 렌더링 토글 없음 | 경로 이원화 방지 + 기본값이 안전한 쪽이어야 함 (§5-5) |
-| 2 | **스크립트 정화는 전면 적용하지 않는다** | 구글 외 매체(메타·당근·카카오)용 랜딩에서 카운트다운·플로팅 배너를 계속 써야 함 (§5-4) |
-| 3 | 정화는 **랜딩별 "구글 광고용" 옵션**으로 제공 | 매체에 맞춰 마케터가 선택 (§5-5) |
-| 4 | 전면 SSR 의 안전장치로 **SSR 실패 시 SPA 자동 폴백** | 렌더러 장애가 전체 랜딩 장애가 되지 않게 (§5-5) |
-
-### ❓ 남은 질문
-
-1. **`/f/{id}` 단독 공개 폼도 SSR 대상에 넣을 것인가**
-   - 지금 계획은 **서브도메인 랜딩만** 다룬다(광고 최종 URL 이 주로 이쪽이라).
-   - `/f/{id}` 는 `app.lead-pot.com` 에 있어 같은 호스트를 두 오리진으로 쪼개야 한다(복잡).
-   - → **광고에 `/f/{id}` 를 직접 쓰고 있다면 범위에 넣어야 한다.** 확인 필요.
-2. **공유 패키지 추출(Phase 1) 을 지금 할지** — 안 하면 초기 속도는 빠르지만 드리프트 위험이 남는다
-3. **프론트 호스팅 이전(HOSTING-MIGRATION-PLAN Phase B)과 묶을지** — 어차피 Cloudflare 를 만지므로 같이 하면 효율적
+> #4 에 따라 이 계획의 범위는 처음 설계대로 **서브도메인 랜딩(`{sub}.lead-pot.com/{id}`) 만**이다.
+> 나중에 `/f/{id}` 를 광고에 쓰게 되면 그때 별도로 범위를 넓힌다.
 
 ---
 
 ## 12. 진행 체크리스트 (이어받는 세션용)
 
 ```
-[ ] 0  어댑터·와일드카드 확인 + §11 남은 질문 결정
+[x] 0  어댑터·와일드카드 확인 남음 / §11 결정 완료(전부 확정, 2026-09-07)
 [ ] 1  packages/public-ui 추출 → 프론트 회귀 검증 (운영 영향 0)
 [ ] 2  SSR 안전성(window 제거 · HtmlBlock 서버렌더[스크립트는 살림] · 깜빡임 방지 · live props화)
 [ ] 3  renderer(Next.js) 신설 → 로컬에서 "JS 없이 본문 보임" 확인
 [ ] 4  V41 google_ads_safe + 편집기 체크박스 + SSR 실패 시 자동 폴백
-[ ] 5  Cloudflare 배포 → 임시 도메인 검증 → *.lead-pot.com 라우트 전환 ⭐
-[ ] 6  §9 검증 전부 + 🔴 IP 차단 테스트 + 구글 이의신청 → 2~3일 관찰
-[ ] 7  CLAUDE.md·HOSTING-MIGRATION-PLAN·PROGRESS 갱신
+[ ] 5  Cloudflare 배포(렌더러=Workers + 관리앱=Pages) → 임시 도메인 검증
+       → app.lead-pot.com 전환 ⭐1 → *.lead-pot.com 라우트 전환 ⭐2
+[ ] 6  §9 검증 전부 + 🔴 IP 차단 테스트 + 구글 이의신청 → 2~3일 관찰 → Oracle VM 종료
+[ ] 7  CLAUDE.md·HOSTING-MIGRATION-PLAN(Phase B 완료 처리)·PROGRESS 갱신
 ```
