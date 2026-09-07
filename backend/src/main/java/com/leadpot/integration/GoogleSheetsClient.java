@@ -134,10 +134,10 @@ public class GoogleSheetsClient {
             Grid grid = readGrid(sheets, id, tabName);
 
             // 빈 시트면 예전처럼 헤더를 첫 행으로 깔고 그 아래부터 쓴다.
-            boolean writeHeader = grid.lastRow() == 0 && !labels.isEmpty();
+            boolean writeHeader = grid.isEmpty() && !labels.isEmpty();
             List<Object> sheetHeader = writeHeader ? labels : grid.header();
             Layout layout = plan(sheetHeader, labels, row.size());
-            int targetRow = writeHeader ? 2 : grid.lastRow() + 1;
+            int targetRow = writeHeader ? 2 : lastUsedRow(grid.rows(), layout.columns()) + 1;
 
             List<ValueRange> data = new ArrayList<>();
             if (writeHeader) {
@@ -257,12 +257,15 @@ public class GoogleSheetsClient {
 
     // ---------- 내부 ----------
 
-    /** 시트 1행과 마지막 데이터 행. */
-    private record Grid(List<Object> header, int lastRow) {
+    /** 시트 1행(헤더)과 전체 데이터 행(헤더 포함, 0번째가 헤더). */
+    private record Grid(List<Object> header, List<List<Object>> rows) {
+        boolean isEmpty() {
+            return rows.isEmpty();
+        }
     }
 
     /**
-     * 1행(헤더)과 마지막 데이터 행을 <b>한 번의 호출로</b> 읽는다.
+     * 1행(헤더)과 전체 데이터를 <b>한 번의 호출로</b> 읽는다.
      * {@code values.get} 은 뒤쪽 빈 행·빈 칸을 잘라서 주므로 {@code A:ZZ} 로 넓게 물어도
      * 실제 데이터만큼만 내려온다 — 응답 크기는 시트에 쌓인 행 수에 비례한다.
      */
@@ -270,9 +273,31 @@ public class GoogleSheetsClient {
         ValueRange r = sheets.spreadsheets().values().get(id, range(tabName, "A:ZZ")).execute();
         List<List<Object>> values = r.getValues();
         if (values == null || values.isEmpty()) {
-            return new Grid(List.of(), 0);
+            return new Grid(List.of(), List.of());
         }
-        return new Grid(values.get(0), values.size());
+        return new Grid(values.get(0), values);
+    }
+
+    /**
+     * 다음 리드를 쓸 행 = <b>우리 열({@code columns})에 값이 있는 마지막 행</b>. 시트 전체(A:ZZ) 기준이
+     * 아니라 우리가 실제로 쓰는 칸만 본다(2026-09-07).
+     *
+     * <p>왜 필요한가 — 사용자가 우리 열 오른쪽에 자기 열(예: 체크박스 '클릭')을 만들어 쓰는데,
+     * 구글시트는 <b>빈 셀에 체크박스 서식을 입히는 순간 그 칸에 실제로 {@code FALSE} 값을 채운다</b>.
+     * 사용자가 미리 수백 행 아래까지 체크박스 서식을 입혀두면, 시트 전체 기준 "마지막 행"은 그 훨씬
+     * 아래로 잡혀서 신규 리드가 실제 데이터에서 멀리 떨어진 곳에 찍힌다(실제 제보 2026-09-07).
+     * 우리 열만 보면 사용자가 다른 열을 어디까지 어떻게 채워놨든 영향을 받지 않는다.
+     */
+    static int lastUsedRow(List<List<Object>> rows, int[] columns) {
+        for (int i = rows.size() - 1; i >= 1; i--) { // 0번째는 헤더 — 데이터 행만 아래에서부터
+            List<Object> r = rows.get(i);
+            for (int c : columns) {
+                if (c < r.size() && !text(r.get(c)).isBlank()) {
+                    return i + 1; // rows 의 i번째 = 시트 (i+1)행(1-based)
+                }
+            }
+        }
+        return 1; // 우리 열엔 데이터가 없음 — 헤더(1행) 바로 다음(2행)부터 시작
     }
 
     private void write(Sheets sheets, String id, List<ValueRange> data) throws Exception {

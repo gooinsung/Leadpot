@@ -189,6 +189,49 @@ class GoogleSheetsClientTest {
     }
 
     @Nested
+    @DisplayName("다음 리드를 쓸 행 찾기 — 우리 열 기준")
+    class LastUsedRow {
+
+        /** 헤더(0) · 리드 3건(1~3) · 그 아래로 사용자가 체크박스 서식을 입혀 실제로는 FALSE 값이 든 빈 리드행(4~7). */
+        private final List<List<Object>> 시트 = List.of(
+                List.of("접수일시", "리드폼", "연락처", "특이사항", "클릭"),
+                List.of("2026-09-02 13:54", "더엘", "010-4246-0309", "회의후 통화원함", "FALSE"),
+                List.of("2026-09-02 15:36", "더엘", "010-4733-2240", "", "FALSE"),
+                List.of("2026-09-03 15:31", "더엘", "010-8213-9916", "", "TRUE"),
+                List.of("", "", "", "", "FALSE"),
+                List.of("", "", "", "", "FALSE"),
+                List.of("", "", "", "", "FALSE"),
+                List.of("", "", "", "", "FALSE"));
+
+        @Test
+        @DisplayName("사용자가 체크박스로 아래까지 서식을 채워도(우리 열이 아니면) 실제 마지막 리드 다음에 쓴다")
+        void 우리_열이_아니면_영향받지_않는다() {
+            // 접수일시=0, 리드폼=1, 연락처=2 — '클릭'(4) 은 우리 열이 아니다.
+            int last = GoogleSheetsClient.lastUsedRow(시트, new int[] { 0, 1, 2 });
+
+            assertThat(last).isEqualTo(4); // 3번째 리드가 시트 4행(1-based) → 다음은 5행
+        }
+
+        @Test
+        @DisplayName("데이터가 전혀 없으면(헤더만) 1을 돌려줘 2행부터 쓰게 한다")
+        void 데이터가_없으면_헤더_다음부터() {
+            List<List<Object>> 헤더만 = List.of(List.of("접수일시", "리드폼"));
+
+            assertThat(GoogleSheetsClient.lastUsedRow(헤더만, new int[] { 0, 1 })).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("행 길이가 우리 열보다 짧아도(그 열엔 값을 쓴 적이 없어도) 인덱스 밖으로 나가지 않는다")
+        void 짧은_행도_안전하다() {
+            List<List<Object>> 시트 = List.of(
+                    List.of("접수일시"),
+                    List.of("2026-09-02 13:54")); // '리드폼' 열(1)은 아직 이 행에 존재하지 않음
+
+            assertThat(GoogleSheetsClient.lastUsedRow(시트, new int[] { 0, 1 })).isEqualTo(2);
+        }
+    }
+
+    @Nested
     @DisplayName("열 번호 → 알파벳")
     class ColumnLetter {
 
