@@ -48,15 +48,16 @@
 
 ---
 
-## 2. 기술 스택 (2026-08-20 기준 실제 구성)
+## 2. 기술 스택 (2026-09-07 기준 실제 구성)
 
-> ⚠️ 아래 "배포처"는 **지금 실제로 도는 곳**이다. 최초 기획(§9 의사결정 로그)과는 다르다 —
-> 백엔드·DB는 이미 이전됐고, 프론트만 아직 과거 계획(Oracle VM)에 남아 있다. 상세·실측치는
-> [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C, 남은 이전 단계는 [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md).
+> ⚠️ 아래 "배포처"는 **지금 실제로 도는 곳**이다. 최초 기획(§9 의사결정 로그)과는 다르다.
+> 상세·실측치는 [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C, SSR·Cloudflare 이전 경과는
+> [docs/SSR-LANDING-PLAN.md](docs/SSR-LANDING-PLAN.md)(§7 Phase 5 완료 기록).
 
 | 구성 | 선택 | 지금 배포처 |
 |---|---|---|
-| 프론트엔드 | **React + Vite (TypeScript) SPA** | **Oracle VM 의 Nginx**(`app.lead-pot.com`, GitHub Actions 가 rsync, §6) — 추후 **Railway 또는 Cloudflare Pages**로 이전 예정(미정, 둘 중 하나) |
+| 관리 앱(로그인·대시보드·빌더) | **React + Vite (TypeScript) SPA** | **Cloudflare Pages**(`app.lead-pot.com`, 프로젝트 `leadpot-app`) — 2026-09-07 Oracle VM 에서 컷오버 완료 |
+| 공개 랜딩(`{sub}.lead-pot.com`) | **Next.js(App Router) SSR** | **Cloudflare Workers**(OpenNext 어댑터, `renderer/`, 워커 `leadpot-renderer`) — 2026-09-07 신설·전환 완료. 관리 앱과 컴포넌트를 `packages/public-ui` 로 공유 |
 | 백엔드 | **Spring Boot (REST API) + Docker** | **Railway**(싱가포르, `api.lead-pot.com`) — 2026-08-09 Oracle VM에서 컷오버 완료 |
 | DB | **PostgreSQL** | **Railway Postgres**(Railway 가 직접 호스팅, 백엔드와 같은 프로젝트) — Neon 은 비용 문제로 삭제하고 이전 완료(2026-09-07 확인) |
 | 파일 저장 | 초기: VM 디스크 → 후기: Cloudflare R2 / S3 | — |
@@ -66,11 +67,17 @@
 **이식성 원칙 (중요)**: 백엔드는 Docker 컨테이너로, DB는 표준 PostgreSQL로 유지한다.
 → 나중에 유료 VPS(Hetzner)·Google Cloud Run·AWS 등 어디로든 코드 수정 거의 없이 이전 가능해야 한다.
 특정 플랫폼 전용 기능(락인)에 의존하지 않는다. (실제로 백엔드가 Oracle VM → Railway 로,
-DB 가 Neon → Railway Postgres 로 코드 거의 안 건드리고 옮겨간 것이 이 원칙 덕분이다.)
+DB 가 Neon → Railway Postgres 로 코드 거의 안 건드리고 옮겨간 것이 이 원칙 덕분이다. 프론트·
+렌더러의 Cloudflare 전환도 표준 Vite/Next 빌드 산출물이라 다른 정적 호스팅으로 옮기는 것도
+어렵지 않다 — 단, `renderer/` 는 OpenNext 어댑터로 Cloudflare Workers 런타임에 맞춰 빌드하므로
+다른 플랫폼으로 옮기려면 그 부분만 다시 빌드 설정을 맞춰야 한다.)
+
+- Oracle VM 은 **아직 켜져 있다**(롤백 안전망, `docs/SSR-LANDING-PLAN.md` §7 Phase 6 관찰 기간
+  종료 후 종료 예정) — 정적 파일은 이제 서빙하지 않고 비어 있는 상태.
 
 ---
 
-## 3. 아키텍처 (2026-08-20 기준 실제 구성)
+## 3. 아키텍처 (2026-09-07 기준 실제 구성)
 
 ```
 [방문자 / 사용자]
@@ -78,8 +85,14 @@ DB 가 Neon → Railway Postgres 로 코드 거의 안 건드리고 옮겨간 �
         ▼
 Cloudflare DNS(프록시, 무료 SSL)
         │
-        ├─ app.lead-pot.com ─▶ Oracle VM Nginx ─▶ React SPA(정적 파일)
-        │                        (추후 Railway 또는 Cloudflare Pages로 이전 예정)
+        ├─ app.lead-pot.com ─▶ Cloudflare Pages ─▶ React SPA(정적 파일, 관리 앱)
+        │
+        ├─ {sub}.lead-pot.com/* (와일드카드 Workers 라우트)
+        │        └─▶ Cloudflare Workers(leadpot-renderer, Next.js SSR)
+        │                 ├─ 서브도메인 있음 → 공개 랜딩 SSR 렌더
+        │                 └─ Host="app" → 관리 앱(Pages)으로 리버스 프록시
+        │                    (renderer/src/proxy.ts proxyToAdminApp() — 와일드카드 라우트가
+        │                    app 도 가로채는 것에 대한 안전장치, §6-5 실제 장애 참고)
         │
         └─ api.lead-pot.com ─▶ Railway(싱가포르) ─▶ Spring Boot(Docker)
                                                           │
@@ -87,12 +100,19 @@ Cloudflare DNS(프록시, 무료 SSL)
                                           Railway Postgres(같은 프로젝트, 같은 리전)
 ```
 
-- 프론트: `app.lead-pot.com` (Oracle VM Nginx) / 백엔드: `api.lead-pot.com` (Railway) / DB: Railway Postgres
-  (⚠️ 예전엔 Neon 이었으나 비용 문제로 삭제 → Railway 자체 Postgres 로 이전, 2026-09-07 확인.
+- 관리 앱: `app.lead-pot.com`(Cloudflare Pages) / 공개 랜딩: `{sub}.lead-pot.com`(Cloudflare Workers
+  SSR) / 백엔드: `api.lead-pot.com`(Railway) / DB: Railway Postgres
+  (⚠️ DB 는 예전엔 Neon 이었으나 비용 문제로 삭제 → Railway 자체 Postgres 로 이전, 2026-09-07 확인.
   같은 프로젝트·같은 리전이라 [HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) P1 이
-  노리던 "DB 왕복 지연 해소" 목표에 오히려 더 잘 맞는 구성이 됐다 — 문서 갱신 필요, 아래 §6 참고)
+  노리던 "DB 왕복 지연 해소" 목표에 오히려 더 잘 맞는 구성이 됐다)
 - 서로 다른 오리진 → **CORS 설정 필수** (허용 오리진을 환경변수로 관리)
-- 시크릿/키는 **절대 코드·git에 커밋하지 않는다.** 프론트·VM 은 `.env`(git 무시), 백엔드는 **Railway Variables**로만 관리(§6).
+- 시크릿/키는 **절대 코드·git에 커밋하지 않는다.** 프론트·렌더러는 Cloudflare 환경변수(Workers/Pages
+  Variables), 백엔드는 **Railway Variables**로만 관리(§6).
+- 🔴 **와일드카드 Workers 라우트는 DNS/커스텀 도메인 설정과 무관하게 패턴에 매칭되는 모든 요청을
+  가로챈다** — `app.lead-pot.com` 도 `*.lead-pot.com` 에 매칭되므로 라우트를 걸면 렌더러로도
+  들어온다. 그래서 렌더러가 `app` 요청을 관리 앱으로 리버스 프록시하도록 코드로 방어해뒀다
+  (`renderer/src/proxy.ts`) — 이 방어가 없으면 실제 장애가 난다(2026-09-07 실측, 상세는
+  [PHASE5-CLOUDFLARE-HANDOFF.md](docs/PHASE5-CLOUDFLARE-HANDOFF.md) §4-1).
 
 ---
 
@@ -106,15 +126,24 @@ dbcart/
 │   ├─ FEATURES.md            # 디비카트 전체 기능 카탈로그
 │   ├─ SPEC.md                # 우리 서비스 기능 명세
 │   └─ DECISIONS.md           # (선택) 의사결정 로그 상세
-├─ frontend/                  # React + Vite (TypeScript)
+├─ frontend/                  # 관리 앱 — React + Vite (TypeScript) SPA. Cloudflare Pages 배포
 │   ├─ src/
-│   │   ├─ pages/             # 화면(대시보드/로그인/빌더/공개랜딩)
+│   │   ├─ pages/             # 화면(대시보드/로그인/빌더 등 — 공개 랜딩 렌더링은 renderer/ 가 담당)
 │   │   ├─ components/        # 재사용 컴포넌트
-│   │   ├─ api/               # 백엔드 API 클라이언트
+│   │   ├─ api/               # 백엔드 API 클라이언트(공개 API 부분은 packages/public-ui 재-export)
 │   │   └─ lib/               # 유틸/훅
 │   ├─ .env.example
 │   ├─ vite.config.ts
 │   └─ package.json
+├─ renderer/                  # 공개 랜딩 SSR 렌더러 — Next.js(App Router) + OpenNext Cloudflare
+│   │                           어댑터. Cloudflare Workers(leadpot-renderer)에 배포. {sub}.lead-pot.com
+│   │                           만 처리(관리 앱과 무관) — 자세한 배경은 docs/SSR-LANDING-PLAN.md
+│   ├─ src/app/                # site/[subdomain]/[identifier] 라우트 + robots.ts
+│   ├─ src/proxy.ts            # 서브도메인 라우팅(구 middleware) + app 리버스 프록시 안전장치
+│   └─ wrangler.jsonc
+├─ packages/public-ui/        # frontend·renderer 가 공유하는 공개 렌더링 컴포넌트·API 클라이언트
+│   │                           (LandingView·PublicFormView·HtmlBlock 등) — npm workspaces 패키지.
+│   │                           크롤러가 보는 화면과 실사용자가 보는 화면이 갈라지지 않게 하는 핵심.
 ├─ backend/                   # Spring Boot (Gradle)
 │   ├─ src/main/java/com/dbcart/
 │   │   ├─ auth/              # 회원가입·로그인·JWT
@@ -155,45 +184,40 @@ npm run dev
 
 ## 6. 배포법
 
-> ⚠️ **아래는 실제 구성이다(2026-08-04 코드로 확인).** 초기 계획(프론트=Cloudflare Pages)과 다르다 —
-> 프론트·백엔드 **둘 다 GitHub Actions 가 Oracle VM 으로 배포**한다. Cloudflare 는 DNS·SSL 프록시만 담당한다.
-> 상세·실측치는 [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C.
-
-> 🚚 **백엔드는 이미 Railway 로 이전됐다 (Phase A 컷오버 완료 2026-08-09, 커밋 `611d3eb`).**
->
-> | | 지금 어디서 도는가 | 배포 | 환경변수 |
-> |---|---|---|---|
-> | **백엔드** `api.lead-pot.com` | **Railway(싱가포르)** | `main` push → Railway 가 `backend/**` 감지해 자동 배포 | **Railway → Variables 화면**(저장하면 무중단 재배포) |
-> | **프론트** `app.lead-pot.com` | 아직 Oracle VM Nginx | `main` push → GitHub Actions rsync | — |
->
-> - 랜딩 API 실측 **850~980ms → 220~246ms**. VM 은 프론트 때문에 아직 살아 있다.
-> - **push 하면 VM(Actions)과 Railway 둘 다 배포된다**(이전 기간 의도). 실제 API 트래픽은 Railway 만 받는다.
-> - ⚠️ **시크릿을 SSH 로 고치지 말 것.** 백엔드 환경변수는 이제 **Railway Variables** 다.
->   아래 §6 본문의 "VM `.env` 를 SSH 로 편집" 설명은 **프론트·VM 에만 해당**하는 옛 절차다.
-> - 남은 단계(프론트 → **Railway 또는 Cloudflare Pages**로 이전, 어느 쪽인지 미정 · VM 종료)는
->   [docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) — 이 문서는 아직 Cloudflare Pages 단독 기준으로
->   쓰여 있어 이전 대상이 정해지면 함께 갱신해야 한다(2026-08-20 사용자: Railway 도 후보로 고려 중).
->   **VM 을 내리는 날 Railway 에서 `APP_LEAD_AUTO_APPROVE_ENABLED=true` 로 켜는 것을 잊지 말 것** ⭐
->   §2·§3 은 2026-08-20 에 실제 구성으로 갱신 완료 — 프론트 이전이 끝나면 이 §6 표와 §2·§3 을 다시 갱신한다.
+> ⚠️ **아래는 2026-09-07 Cloudflare 전환 완료 후 실제 구성이다.** 이전 이력(Oracle VM 시절)은
+> [docs/DEPLOY.md](docs/DEPLOY.md) 부록 C·[docs/HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md),
+> Cloudflare 전환 경과·겪은 장애는 [docs/SSR-LANDING-PLAN.md](docs/SSR-LANDING-PLAN.md) §7 Phase 5·
+> [docs/PHASE5-CLOUDFLARE-HANDOFF.md](docs/PHASE5-CLOUDFLARE-HANDOFF.md) 참고.
 
 **`main` 에 push 하면 아래 워크플로가 경로별로 자동 실행된다(+ Railway 가 백엔드를 따로 배포한다). 수동 배포는 필요 없다.**
 
-| 워크플로 | 트리거 경로 | 하는 일 | 소요 | 다운타임 |
-|---|---|---|---|---|
-| [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | 러너에서 `npm run build`(`VITE_API_BASE_URL=https://api.lead-pot.com` 주입) → rsync 로 VM `/var/www/leadpot/` | 1~2분 | **없음** (해시 자산 먼저 올리고 `index.html` 을 마지막에 교체) |
+| 워크플로 | 트리거 경로 | 하는 일 | 배포처 |
+|---|---|---|---|
+| [deploy-frontend-cloudflare.yml](.github/workflows/deploy-frontend-cloudflare.yml) | `frontend/**`·`packages/public-ui/**` | `npm run build`(`VITE_API_BASE_URL` 주입) → `cloudflare/pages-action` | Cloudflare Pages(`leadpot-app`, `app.lead-pot.com`) |
+| [deploy-renderer.yml](.github/workflows/deploy-renderer.yml) | `renderer/**`·`packages/public-ui/**` | `npm run deploy`(OpenNext 빌드 + `wrangler deploy`) | Cloudflare Workers(`leadpot-renderer`, `{sub}.lead-pot.com`) |
+| [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | rsync 로 Oracle VM `/var/www/leadpot/` | Oracle VM(**이제 실제 트래픽 안 받음** — 관찰 기간 동안의 롤백 안전망일 뿐, 정리 예정) |
 
+- 필요한 저장소 시크릿: `CLOUDFLARE_API_TOKEN`(Workers Scripts:Edit + Cloudflare Pages:Edit +
+  Account Settings:Read) · `CLOUDFLARE_ACCOUNT_ID` · (VM 용) `VM_SSH_KEY`·`VM_HOST`·`VM_USER`.
+- `NEXT_PUBLIC_*`(렌더러)·`VITE_*`(프론트)는 **빌드 시점에** 번들에 박히므로 워크플로의 `env:` 에서
+  프로덕션 값을 넣어 빌드한다 — Cloudflare 대시보드의 런타임 변수와는 별개다.
 - 백엔드(`api.lead-pot.com`)는 **Railway 가 자체 GitHub 연동으로 독립 배포**한다 — 이 저장소의
   워크플로가 아니다. `backend/**` push 시 Railway 대시보드에서 자동으로 빌드·배포되고, 환경변수는
   Railway Variables 로 관리한다(무중단 롤링 배포).
 - DB 는 **Railway Postgres**다(Railway 가 직접 호스팅, 예전 Neon 은 삭제됨 — 위 §2·§3 참고).
   VM 안에 Postgres 컨테이너를 띄우지 않는다.
+- 🔴 **와일드카드 Workers 라우트(`*.lead-pot.com/*` → `leadpot-renderer`)는 `app.lead-pot.com` 도
+  그대로 가로챈다** — Cloudflare 는 DNS/커스텀 도메인 설정과 무관하게 패턴 매칭만 본다. 그래서
+  `renderer/src/proxy.ts` 가 `Host` 가 `app` 이면 관리 앱(Pages)으로 리버스 프록시한다(`ADMIN_APP_ORIGIN`
+  환경변수, 기본값 `https://leadpot-app.pages.dev`) — 이 방어가 없으면 관리 앱이 렌더러의 빈
+  placeholder 로 대체되는 실제 장애가 난다(2026-09-07 실측, 되돌리기는 라우트 삭제로 즉시 가능).
 - 🗑️ **`deploy-backend.yml`(VM 에 백엔드를 따로 배포하던 옛 워크플로)은 2026-09-07 삭제했다.**
   VM `~/Leadpot/.env` 가 가리키던 Neon 접속정보가 Neon 삭제로 죽어서, VM 컨테이너가 뜨자마자
-  Flyway DB 연결에 실패하고 매번 헬스체크 타임아웃으로 실패하고 있었다(2026-09-02 부터, GitHub
-  Actions 로그로 확인). 실제 트래픽은 Railway 만 받으니 서비스 영향은 없었다 — 그냥 항상 빨간
-  X 만 뜨는 죽은 워크플로였던 것. VM 은 이제 프론트 정적 파일 서빙만 한다. `backend/Dockerfile.runtime`·
-  `docker-compose.prod.yml`(이 워크플로 전용이었던 배포 산출물)은 아직 저장소에 남아있다 —
-  정리 여부는 [SSR-LANDING-PLAN.md](docs/SSR-LANDING-PLAN.md) Phase 5(VM 완전 종료) 때 같이 결정.
+  Flyway DB 연결에 실패하고 매번 헬스체크 타임아웃으로 실패하고 있었다. 실제 트래픽은 Railway 만
+  받으니 서비스 영향은 없었다. `backend/Dockerfile.runtime`·`docker-compose.prod.yml`(이 워크플로
+  전용 산출물)은 VM 완전 종료 때 같이 정리 예정.
+- Oracle VM 은 [SSR-LANDING-PLAN.md](docs/SSR-LANDING-PLAN.md) §7 Phase 6 의 2~3일 관찰 기간이
+  끝나면 종료한다 — 그때 `deploy-frontend.yml` 도 함께 삭제.
 
 ---
 

@@ -420,25 +420,34 @@ API 호출 자체는 CPU 시간에 안 잡히지만(I/O 대기라 무관), 페�
 - [x] `.github/workflows/deploy-frontend-cloudflare.yml` 신설 — `frontend/**`·`packages/public-ui/**`
       변경 시 `npm run build` 후 `cloudflare/pages-action` 으로 Cloudflare Pages 에 배포
       (기존 `deploy-frontend.yml`, VM 배포와 나란히 돈다 — 검증 끝나기 전까지 서로 영향 없음)
-- [ ] **(사용자 작업)** GitHub 저장소 → Settings → Secrets and variables → Actions 에 시크릿 2개 등록:
-      `CLOUDFLARE_API_TOKEN`(Account: Workers Scripts:Edit + Cloudflare Pages:Edit + Account Settings:Read
-      권한으로 발급) · `CLOUDFLARE_ACCOUNT_ID`
-- [ ] 두 워크플로가 `*.workers.dev`·`leadpot-app.pages.dev` 임시 도메인에 정상 배포되는지 확인
-      (Pages 프로젝트가 없으면 첫 배포 때 자동 생성됨 — 실패 시 대시보드에서 같은 이름으로 빈
-      프로젝트를 먼저 만들 것)
-- [ ] 와일드카드 DNS·SSL 구성 (§6-3)
-- [ ] `app.lead-pot.com` → Cloudflare Pages 전환 ⭐ **되돌리기 지점 1** (기존 VM 은 그대로 켜둔 채 전환 — 문제 시 DNS 만 되돌리면 복구)
-- [ ] `*.lead-pot.com` 라우트를 렌더러로 전환 ⭐ **되돌리기 지점 2**
-- [ ] `api`·`www` 등 나머지 예약 호스트가 영향받지 않았는지 확인
-- [ ] 두 전환 모두 안정화 확인 후 **Oracle VM 종료** (Nginx·인증서 관리 부담 완전히 소멸) — 이때
-      `deploy-frontend.yml`(VM 배포)·`docs/HOSTING-MIGRATION-PLAN.md` 도 함께 정리
+- [x] GitHub 저장소 시크릿 2개 등록 완료(`CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID`)
+- [x] 두 워크플로가 `*.workers.dev`·`leadpot-app.pages.dev` 임시 도메인에 정상 배포 확인
+- [x] 와일드카드 DNS — 이미 존재하는 걸 확인(D3 서브도메인 작업 때 만든 것으로 추정), 새로 안 만듦
+- [x] `app.lead-pot.com` → Cloudflare Pages 전환 완료(2026-09-07 15:31 UTC) ⭐ **되돌리기 지점 1**
+- [x] `*.lead-pot.com` 라우트를 렌더러로 전환 완료(2026-09-07 15:52 UTC) ⭐ **되돌리기 지점 2**
+      — 🚨 **실제 장애 1건 발생 후 해결**: 와일드카드 라우트가 `app.lead-pot.com` 도 그대로
+      가로채 렌더러의 빈 placeholder 를 응답하는 사고가 났다(라우트 즉시 삭제로 롤백).
+      원인은 "Cloudflare 가 app/api/www 를 걸러줄 것"이라는 §4 의 가정이 틀렸던 것 — Workers
+      라우트는 DNS/커스텀 도메인 설정과 무관하게 패턴에 매칭되는 모든 요청을 가로챈다.
+      `renderer/src/proxy.ts` 에 `proxyToAdminApp()` 추가(커밋 `bfdaed2`)로 해결: `app` 요청을
+      Cloudflare 라우팅 우선순위에 기대지 않고 코드로 확실하게 실제 관리 앱(Pages)에 리버스
+      프록시하도록 만들었다. 재배포 후 재연결 → 검증 성공. 상세 기록은
+      [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) §4-1.
+- [x] `api`·`www`(Railway 등) 나머지 예약 호스트 영향 없음 확인
+- [x] **실사용 랜딩으로 SSR 최종 확인** — `the-law.lead-pot.com/30`("더엘4")이 JS 없이도 본문
+      텍스트(채무상담 폼)까지 완전히 SSR 렌더링됨을 실제 도메인에서 확인(2026-09-07 15:52 UTC).
+      이게 이번 작업 전체의 목표였던 "크롤러가 실제 콘텐츠를 본다"의 최종 증거다.
+- [ ] 안정화 확인(§6~7 규모 확인 뒤) 후 **Oracle VM 종료** — 이때 `deploy-frontend.yml`(VM 배포)·
+      `docs/HOSTING-MIGRATION-PLAN.md` 도 함께 정리(아래 Phase 7)
 
 ### Phase 6 — 검증 & 재심사
-- [ ] §9 검증 시나리오 전부 통과
-- [ ] 🔴 **IP 차단 실동작 테스트** (§6-1)
-- [ ] 관리 화면(로그인·대시보드·빌더) 정상 동작 — Pages 전환 회귀 확인
-- [ ] 구글 광고: 최종 URL 재설정 → **이의신청(재심사 요청)** 제출
-- [ ] 2~3일 관찰: 리드 유실 없는지 · 통계가 정상인지 · 승인 나는지 · VM 종료 후 이상 없는지
+- [x] §9-A 크롤러 관점 핵심 확인(실사용 랜딩 SSR·JS 없이 본문 노출) — 위 Phase 5 마지막 항목
+- [ ] §9-B 나머지 기존 기능 회귀 확인(스텝형 폼·계산기 랜딩·동의문서 인라인 펼침·오버레이/풀스크린
+      CTA·픽셀 발사·**IP 차단 실동작**·방문·스크롤·이탈 통계) — **급하지 않음, 실제 도메인에서
+      브라우저로 하나씩 확인 필요**(이 세션은 접근 불가 — 로컬 세션 또는 사용자가 확인)
+- [ ] §9-C 안 건드린 영역 확인(`/f/{id}` 단독 공개 폼, 외부 임베드 `embed.js`)
+- [ ] 2~3일 관찰: 리드 유실 없는지 · 통계가 정상인지
+- [ ] 관찰 기간 통과하면 → 구글 광고: 최종 URL 재설정 → **이의신청(재심사 요청)** 제출(사용자 작업)
 
 ### Phase 7 — 정리
 - [ ] [CLAUDE.md](../CLAUDE.md) §2 표·§3 아키텍처·§6 배포법 갱신 — `app`·`*` 모두 Cloudflare 로
