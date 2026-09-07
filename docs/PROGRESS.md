@@ -24,9 +24,12 @@
     `/`는 여전히 관리 앱으로 정상 프록시, `/f/999`(미존재) 404, 기존 랜딩 SSR 영향 없음, 방문·픽셀
     기록에 쓰이는 IP/UA 헤더 전달 확인. `tsc --noEmit`·`next build`(renderer)·`vitest`+`build`
     (public-ui·frontend) 전부 통과.
-  - **다음**: 이 커밋 push → GitHub Actions 가 자동으로 렌더러·프론트 재배포 → 배포 후 실제
-    `app.lead-pot.com/f/{실제폼번호}` 브라우저로 최종 확인(§9-C). 사용자가 "혼자 진행하고 배포까지
-    하라"고 명시적으로 승인해서 이 세션이 직접 push 함 — 문제 생기면 이 커밋만 되돌리면 복구.
+  - **✅ 배포 확인(2026-09-07 16:08 UTC, 커밋 `ce096fa`)**: `deploy-renderer.yml`·
+    `deploy-frontend-cloudflare.yml`·`deploy-frontend.yml`(VM, 레거시) 전부 GitHub Actions 에서
+    성공(success) 확인. **실제 도메인에서 `/f/{실제폼번호}` 브라우저로 최종 확인은 아직 안 함**
+    (이 세션은 실제 도메인 접근 불가) — 다음 이어받는 사람이 §9-C 로 확인할 것. 문제 생기면 이
+    커밋(`ce096fa`)만 되돌리면 복구된다(`renderer/src/proxy.ts` 의 `/f/` 분기만 되돌리는 것과 같음 —
+    다른 랜딩·관리 앱 라우팅에는 영향 없음).
 
 - **✅ Phase 5 완료 — Cloudflare 배포 (2026-09-07)**: [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) 6단계 전부 완료. 사용자가 발급한 Cloudflare API 토큰은 GitHub 저장소 시크릿에 등록 완료 — **더 필요 없으면 Cloudflare 대시보드에서 폐기 권장**.
   - **1~3번**: GitHub 시크릿 등록, 두 워크플로 Node `20`→`22` 버그 수정(`a113fab`·`30fd49b`), 기존 DNS 확인.
