@@ -1,12 +1,18 @@
 name: Deploy Frontend
 
-# frontend/** 가 바뀌어 main 에 push 되면 프론트를 빌드해 VM(Nginx 웹루트)로 배포한다.
+# frontend/** 또는 packages/public-ui/** 가 바뀌어 main 에 push 되면 프론트를 빌드해 VM(Nginx 웹루트)로 배포한다.
+# ⚠️ frontend 는 npm workspaces 의 일부다(루트 package.json) — 공개 랜딩·리드폼 렌더링 코드가
+# packages/public-ui 로 옮겨졌고(docs/SSR-LANDING-PLAN.md §5-2) frontend 가 그걸 가져다 쓰므로,
+# 그쪽만 바뀌어도 반드시 다시 빌드·배포해야 한다.
 # 필요한 저장소 시크릿: VM_SSH_KEY(CI 배포용 개인키), VM_HOST(공인 IP), VM_USER(ubuntu)
 on:
   push:
     branches: [main]
     paths:
       - 'frontend/**'
+      - 'packages/public-ui/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch: {}
 
@@ -24,7 +30,11 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
+
+      # ⚠️ npm workspaces 라 설치는 반드시 저장소 루트에서 한다(frontend 안에서 npm ci 하면 안 됨).
+      - name: 설치 (워크스페이스 루트)
+        run: npm ci
 
       - name: Build (프로덕션 API·앱 주소 주입)
         working-directory: frontend
@@ -32,9 +42,7 @@ jobs:
           VITE_API_BASE_URL: https://api.lead-pot.com
           # 동의문서 링크를 앱 도메인 절대 URL로 만든다(서브도메인·외부 임베드에서 404 방지, src/lib/site.ts)
           VITE_APP_BASE_URL: https://app.lead-pot.com
-        run: |
-          npm ci
-          npm run build
+        run: npm run build
 
       - name: SSH 준비
         run: |

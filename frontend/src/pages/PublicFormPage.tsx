@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useParams } from "react-router-dom";
 import { getPublicForm, recordVisit, type FormDetail } from "../api/client";
-import { parseUtm } from "../lib/utm";
-import { initPixels } from "../lib/pixels";
-import { PublicFormView } from "../components/PublicFormView";
+import { parseUtm, initPixels, PublicFormView } from "@leadpot/public-ui";
 
 /** 리드폼 단독 공개 페이지 (/f/{id}). 모바일 최적화된 카드 안에 실제 제출 가능한 리드폼을 렌더. */
 export function PublicFormPage() {

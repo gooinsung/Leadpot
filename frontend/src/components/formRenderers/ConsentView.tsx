@@ -1,5 +1,5 @@
 import type { ConsentItem } from "../../api/client";
-import { ConsentItemRow } from "./ConsentItemRow";
+import { ConsentItemRow } from "@leadpot/public-ui";
 
 /** 동의 항목 렌더(빌더 미리보기) — 체크박스 + 제목(필수/선택) + '보기'. 실제 공개 폼과 같은 방식으로 펼쳐진다. */
 export function ConsentView({ config, accent }: { config?: Record<string, unknown> | null; accent?: string }) {

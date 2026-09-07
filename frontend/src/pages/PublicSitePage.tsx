@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useParams } from "react-router-dom";
 import { resolveSite, recordVisit, type PublicLanding } from "../api/client";
-import { parseUtm } from "../lib/utm";
-import { initPixels } from "../lib/pixels";
-import { LandingView } from "../components/LandingView";
+import { parseUtm, initPixels, LandingView } from "@leadpot/public-ui";
 
 /** 랜딩에 포함된 리드폼들의 픽셀 설정을 하나로 합친다(키별 첫 유효값 우선). PageView 1회 발사용. */
 function mergeFormPixels(forms: PublicLanding["forms"]): Record<string, unknown> {

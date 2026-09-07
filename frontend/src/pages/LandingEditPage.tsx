@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
-import { HtmlBlock } from "../components/HtmlBlock";
+import { HtmlBlock, resolveStyle } from "@leadpot/public-ui";
 import {
   ApiError,
   createLanding,
@@ -19,7 +19,6 @@ import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { DynamicSnippetPicker } from "../components/DynamicSnippetPicker";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
-import { resolveStyle } from "../components/formRenderers/formStyle";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { HtmlImageUploadButton } from "../components/HtmlImageUploadButton";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";

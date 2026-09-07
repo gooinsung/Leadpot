@@ -25,16 +25,21 @@ import { TopBar } from "../components/TopBar";
 import { HtmlComponentPicker } from "../components/HtmlComponentPicker";
 import { HtmlImageUploadButton } from "../components/HtmlImageUploadButton";
 import { FormRenderer } from "../components/formRenderers/FormRenderer";
-import { CompletionView } from "../components/formRenderers/CompletionView";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { WebhookLeadPanel } from "../components/WebhookLeadPanel";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
-import { CALCULATORS, findCalculator } from "../lib/calculators/registry";
-import { CalcFollowUp, CalcResultView } from "../components/formRenderers/CalcResultView";
-import { DEFAULT_SUBMIT_LABEL, descEmphasisLevel } from "../components/formRenderers/formStyle";
-import type { CalculatorDef } from "../lib/calculators/types";
+import {
+  CALCULATORS,
+  findCalculator,
+  CalcFollowUp,
+  CalcResultView,
+  CompletionView,
+  DEFAULT_SUBMIT_LABEL,
+  descEmphasisLevel,
+  type CalculatorDef,
+} from "@leadpot/public-ui";
 
 /**
  * 광고주 접수 알림 수신 상태 안내(V28).

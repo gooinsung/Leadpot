@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
-import { PhoneInput3 } from "../PhoneInput3";
-import { descEmphasisClass, isMultiAnswerType, resolveStyle, resolveSubmitLabel } from "./formStyle";
-import { CalcGateView } from "./CalcResultView";
-import { findCalculator } from "../../lib/calculators/registry";
+import {
+  PhoneInput3,
+  descEmphasisClass,
+  isMultiAnswerType,
+  resolveStyle,
+  resolveSubmitLabel,
+  CalcGateView,
+  findCalculator,
+} from "@leadpot/public-ui";
 
 interface ChoiceOption {
   label?: string;

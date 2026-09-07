@@ -1,8 +1,6 @@
 import type { FormBlock, FormInput } from "../../api/client";
-import { HtmlBlock } from "../HtmlBlock";
 import { ConsentView } from "./ConsentView";
-import { PhoneInput3 } from "../PhoneInput3";
-import { descEmphasisClass, resolveStyle } from "./formStyle";
+import { HtmlBlock, PhoneInput3, descEmphasisClass, resolveStyle } from "@leadpot/public-ui";
 
 /** BASIC 유형 리드폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
 export function BasicFormRenderer({ form }: { form: FormInput }) {

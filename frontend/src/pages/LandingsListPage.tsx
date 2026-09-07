@@ -3,7 +3,7 @@ import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteLanding, listLandings, type LandingSummary } from "../api/client";
 import { useAuth } from "../lib/authContext";
-import { publicSiteUrl } from "../lib/site";
+import { publicSiteUrl } from "@leadpot/public-ui";
 import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";

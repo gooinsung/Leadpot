@@ -3,34 +3,52 @@
 > 이 폴더만 보면 "어떤 스타일이 어디 있는지" 알 수 있게 정리한 지도다.
 > **플레인 CSS + CSS 변수(디자인 토큰)** 방식이다. Tailwind/CSS-in-JS 를 쓰지 않는다.
 
+## ⚠️ 2026-09-07 부로 일부가 `@leadpot/public-ui` 로 옮겨졌다
+
+**공개 랜딩을 SSR 로 렌더링하는 별도 앱(renderer, Next.js)이 이 코드를 그대로 재사용**하기 위해
+(docs/SSR-LANDING-PLAN.md §5-2), 공개 화면(랜딩·리드폼·임베드)이 쓰는 레이어는
+`packages/public-ui/src/styles/`(패키지 `@leadpot/public-ui`)로 이동했다. **이 `frontend/src/styles/`
+폴더에는 관리 화면(로그인·통계·리드 인박스·광고주 포털) 전용 파일만 남는다.**
+
+| 옮겨간 파일 | 새 위치 |
+|---|---|
+| `tokens.css`·`base.css`·`components.css`·`layout.css` | `packages/public-ui/src/styles/` |
+| `features/public.css`·`features/landing.css`·`features/calculator.css`·`features/form-builder.css` | `packages/public-ui/src/styles/features/` |
+
+`frontend/src/index.css` 가 이 파일들을 `@import "@leadpot/public-ui/src/styles/...";` 로 불러오고,
+`embed.tsx` 도 같은 경로에서 `?inline` 으로 가져온다. **새 공개 화면용 스타일은 `packages/public-ui`
+쪽에 추가하고, 관리 화면 전용 스타일만 여기(`frontend/src/styles/features/`)에 추가한다.**
+
 ## 진입점
 
-`src/main.tsx` 는 `src/index.css` 하나만 import 한다. `index.css` 가 아래 파일들을
-**레이어 순서대로 `@import`** 한다. 개별 컴포넌트(.tsx)에서 별도 `.css` 를 import 하지 않는다.
+`src/main.tsx` 는 `src/index.css` 하나만 import 한다. `index.css` 가 이 폴더의 파일들과
+`@leadpot/public-ui` 의 파일들을 **레이어 순서대로 `@import`** 한다. 개별 컴포넌트(.tsx)에서
+별도 `.css` 를 import 하지 않는다.
 
 ## 레이어 (로드 순서 = 캐스케이드 순서)
 
 아래로 갈수록 나중에 로드되어 **같은 특정도에서 이긴다**. 새 규칙은 "가장 알맞은 레이어"에 넣는다.
 
-| 순서 | 파일 | 역할 | 예시 클래스 |
-|---|---|---|---|
-| 1 | `tokens.css` | 디자인 토큰(값만, 규칙 없음). 색·간격·타이포·그림자. 라이트/다크. | `--indigo` `--radius` `--shadow` |
-| 2 | `base.css` | 리셋 + 요소 기본값 + **공통 프리미티브**(단일 UI). | `.btn` `.card` `.input` `.badge` `.pill` `.wrap` |
-| 3 | `components.css` | **여러 화면이 공유하는 복합 컴포넌트**. | `.lead-modal` 테이블 `.seg` 리드 상태색 `.st-*` |
-| 4 | `layout.css` | 앱 셸(전역 뼈대). | `.app-shell` `.topbar-*` `.nav-link` `.dash-*` |
-| 5 | `features/*.css` | **페이지·기능별** 스타일. 서로 네임스페이스가 겹치지 않는다. | 아래 표 |
+| 순서 | 파일 | 위치 | 역할 | 예시 클래스 |
+|---|---|---|---|---|
+| 1 | `tokens.css` | `@leadpot/public-ui` | 디자인 토큰(값만, 규칙 없음). 색·간격·타이포·그림자. 라이트/다크. | `--indigo` `--radius` `--shadow` |
+| 2 | `base.css` | `@leadpot/public-ui` | 리셋 + 요소 기본값 + **공통 프리미티브**(단일 UI). | `.btn` `.card` `.input` `.badge` `.pill` `.wrap` |
+| 3 | `components.css` | `@leadpot/public-ui` | **여러 화면이 공유하는 복합 컴포넌트**. | `.lead-modal` 테이블 `.seg` 리드 상태색 `.st-*` |
+| 4 | `layout.css` | `@leadpot/public-ui` | 앱 셸(전역 뼈대). | `.app-shell` `.topbar-*` `.nav-link` `.dash-*` |
+| 5 | `features/*.css` | 아래 표 참고 | **페이지·기능별** 스타일. 서로 네임스페이스가 겹치지 않는다. | 아래 표 |
 
 ### features/
 
-| 파일 | 담당 화면 | 대표 클래스 |
-|---|---|---|
-| `auth.css` | 로그인·회원가입(마케터·광고주) | `.auth-*` |
-| `stats.css` | 통계 대시보드(차트·필터·엔티티 표) | `.stat-*` `.chart-*` |
-| `form-builder.css` | 리드폼 빌더(편집기·렌더러·스텝·색상) | `.builder-*` `.step-*` |
-| `landing.css` | 랜딩 빌더·공개 랜딩(`/p/:slug`) | `.lp-*` (landing) |
-| `public.css` | 공개 폼(`/f/:id`)·동의·완료 — **임베드에서도 사용** | `.public-form-*` |
-| `leads.css` | 마케터 리드 화면 — 폼별 목록·통합 인박스·상세 사이드 패널 | `.flead-*`(폼별 행) `.inbox-*`(인박스) `.ip-*`(패널) `.ld-*`(상태색) |
-| `advertiser.css` | 광고주 관리(A2)·광고주 포털(A3) | `.client-*` `.adv-*` |
+| 파일 | 위치 | 담당 화면 | 대표 클래스 |
+|---|---|---|---|
+| `auth.css` | frontend | 로그인·회원가입(마케터·광고주) | `.auth-*` |
+| `stats.css` | frontend | 통계 대시보드(차트·필터·엔티티 표) | `.stat-*` `.chart-*` |
+| `form-builder.css` | `@leadpot/public-ui` | 리드폼 빌더(편집기·렌더러·스텝·색상) — **실제 공개 폼도 이 클래스로 렌더됨** | `.builder-*` `.step-*` `.fr-*` |
+| `landing.css` | `@leadpot/public-ui` | 랜딩 빌더·공개 랜딩(서브도메인·`/p/:slug`) | `.lp-*` (landing) |
+| `public.css` | `@leadpot/public-ui` | 공개 폼(`/f/:id`)·동의·완료 — **임베드·renderer 에서도 사용** | `.public-form-*` |
+| `calculator.css` | `@leadpot/public-ui` | 계산기 리드폼(결과 화면) | `.calc-*` |
+| `leads.css` | frontend | 마케터 리드 화면 — 폼별 목록·통합 인박스·상세 사이드 패널 | `.flead-*`(폼별 행) `.inbox-*`(인박스) `.ip-*`(패널) `.ld-*`(상태색) |
+| `advertiser.css` | frontend | 광고주 관리(A2)·광고주 포털(A3) | `.client-*` `.adv-*` |
 
 ## 규칙 (컨벤션)
 

@@ -1,0 +1,8 @@
+{
+  "name": "leadpot",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "packages/*"
+  ]
+}

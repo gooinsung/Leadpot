@@ -1,22 +1,22 @@
 import { createRoot } from "react-dom/client";
 import { getPublicForm, recordVisit } from "../api/client";
-import { PublicFormView } from "../components/PublicFormView";
-import { initPixels } from "../lib/pixels";
-import { parseUtm } from "../lib/utm";
+import { PublicFormView, initPixels, parseUtm } from "@leadpot/public-ui";
 // 스타일 레이어를 개별 인라인으로 가져온다(구조: styles/README.md).
 // tokens 만 :root→:host 로 치환하므로 따로 두고, 나머지는 그대로 이어붙인다.
-import tokensCss from "../styles/tokens.css?inline";
-import baseCss from "../styles/base.css?inline";
-import componentsCss from "../styles/components.css?inline";
-import layoutCss from "../styles/layout.css?inline";
+// tokens·base·components·layout·public·landing·form-builder·calculator 는 @leadpot/public-ui 로 옮겨져
+// frontend·renderer 가 같은 CSS 를 공유한다(§5-2) — auth·stats·leads·advertiser 는 관리 화면 전용이라 그대로 frontend 에 남는다.
+import tokensCss from "@leadpot/public-ui/src/styles/tokens.css?inline";
+import baseCss from "@leadpot/public-ui/src/styles/base.css?inline";
+import componentsCss from "@leadpot/public-ui/src/styles/components.css?inline";
+import layoutCss from "@leadpot/public-ui/src/styles/layout.css?inline";
 import authCss from "../styles/features/auth.css?inline";
 import statsCss from "../styles/features/stats.css?inline";
-import formBuilderCss from "../styles/features/form-builder.css?inline";
-import landingCss from "../styles/features/landing.css?inline";
-import publicCss from "../styles/features/public.css?inline";
+import formBuilderCss from "@leadpot/public-ui/src/styles/features/form-builder.css?inline";
+import landingCss from "@leadpot/public-ui/src/styles/features/landing.css?inline";
+import publicCss from "@leadpot/public-ui/src/styles/features/public.css?inline";
 import leadsCss from "../styles/features/leads.css?inline";
 import advertiserCss from "../styles/features/advertiser.css?inline";
-import calculatorCss from "../styles/features/calculator.css?inline";
+import calculatorCss from "@leadpot/public-ui/src/styles/features/calculator.css?inline";
 
 /**
  * 외부 사이트 임베드(M6) 진입점 — 자립 스크립트로 빌드된다(vite.embed.config.ts, IIFE).

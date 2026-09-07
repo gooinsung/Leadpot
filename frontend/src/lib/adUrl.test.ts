@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AD_PARAM_KEYS, buildAdUrl } from "./adUrl";
-import { parseUtm } from "./utm";
+import { parseUtm } from "@leadpot/public-ui";
 
 const BASE = "https://bali.lead-pot.com/17";
 

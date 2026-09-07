@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
-import { HtmlBlock } from "../components/HtmlBlock";
+import { HtmlBlock } from "@leadpot/public-ui";
 import {
   ApiError,
   createHtmlComponent,

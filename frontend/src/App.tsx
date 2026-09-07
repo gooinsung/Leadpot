@@ -38,7 +38,7 @@ import { InviteAcceptPage } from "./pages/InviteAcceptPage";
 import { ProtectedRoute, RoleHomeRedirect } from "./components/ProtectedRoute";
 import { ServiceLayout } from "./components/ServiceLayout";
 import { Toaster } from "./components/Toaster";
-import { currentSubdomain } from "./lib/site";
+import { currentSubdomain } from "@leadpot/public-ui";
 // 전역 스타일은 main.tsx 의 index.css 진입점에서 모두 로드된다(styles/README.md 참고).
 
 function App() {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useParams } from "react-router-dom";
 import { getLandingPreview, type PublicLanding } from "../api/client";
-import { LandingView } from "../components/LandingView";
+import { LandingView } from "@leadpot/public-ui";
 
 /**
  * /p/{slug} — 소유자 전용 미리보기(공개용 아님).
