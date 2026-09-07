@@ -8,14 +8,15 @@
 
 ## 📍 지금 위치
 
-- **🔄 Phase 5 실행 중 — Cloudflare 배포 (2026-09-07, 로컬 세션)**: [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) 문서대로 진행 중. 사용자가 Cloudflare API 토큰(Account ID 포함)을 직접 발급해 채팅으로 전달 — **이 토큰은 이미 GitHub 저장소 시크릿에 등록 완료, 더 이상 필요 없으면 Cloudflare 대시보드에서 폐기 권장**.
-  - **완료(실제 서비스에 영향 없는 단계)**:
-    - GitHub 저장소 시크릿 `CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID` 등록 완료
-    - `deploy-renderer.yml`·`deploy-frontend-cloudflare.yml` 둘 다 Node `20`→`22` 버그 수정(Wrangler가 Node 22+ 요구, 커밋 `a113fab`·`30fd49b`) 후 그린 — Cloudflare Pages 프로젝트 `leadpot-app` 은 API로 미리 생성해둠(안 하면 첫 배포가 "Project not found"로 실패)
-    - 렌더러 배포 확인: `https://leadpot-renderer.gooinsung96.workers.dev` 자체 도메인에서 정상 HTML 응답. ⚠️ `curl -H "Host: {sub}.lead-pot.com" .../37` 식 스푸핑 검증은 Cloudflare 엣지가 workers.dev 도메인에서 Host 헤더 불일치를 403으로 차단해서 **여기선 안 됨** — 코드 문제 아님, 실제 도메인 라우팅 연결(4번) 후에 진짜 도메인으로 검증할 것
-    - 프론트 Pages 배포 확인: `https://leadpot-app.pages.dev` 접속 가능(수동 브라우저 확인은 아직 — 다음 세션에서 로그인/대시보드 렌더 확인 필요)
-    - 기존 DNS 레코드 확인·기록: `app.lead-pot.com`→A `129.225.198.2`(VM), **`*.lead-pot.com`→A `129.225.198.2`(VM) 이미 존재**(문서의 "와일드카드 없으면 생성" 단계는 건너뛰어도 됨, 4번에서 Workers 라우트만 얹으면 됨), `api.lead-pot.com`→CNAME Railway(안 건드림)
-  - **다음 (실제 도메인에 영향 — 사용자 확인 후 진행)**: 문서 4번(와일드카드 위에 `leadpot-renderer` Workers 라우트 연결) → 5번(`app.lead-pot.com` 을 Pages 커스텀 도메인으로 전환, 진짜 트래픽 이전 순간) → 6번 마무리 체크리스트. **CLAUDE.md §0 최상위 지침에 따라 4·5번은 착수 전 반드시 사용자에게 먼저 확인할 것** — 직전 세션에서 사용자에게 물어봤으나 응답 대기 중 세션이 넘어감.
+- **🔄 Phase 5 실행 중 — Cloudflare 배포 (2026-09-07, 로컬 세션)**: [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) 문서대로 진행 중(그 문서에 실측 함정·해결법 상세 기록해둠, 여기는 요약). 사용자가 Cloudflare API 토큰(Account ID 포함)을 직접 발급해 채팅으로 전달 — **이 토큰은 이미 GitHub 저장소 시크릿에 등록 완료, 더 이상 필요 없으면 Cloudflare 대시보드에서 폐기 권장**.
+  - **✅ 완료 1~3번**: GitHub 시크릿 등록, 두 워크플로 Node `20`→`22` 버그 수정(`a113fab`·`30fd49b`) 후 그린, 기존 DNS 확인(`app`→A VM, `*`→A VM 이미 존재, `api`→CNAME Railway 안 건드림).
+  - **✅ 완료 5번 — `app.lead-pot.com` → Cloudflare Pages 컷오버 (2026-09-07 15:31 UTC)**: 관리자 앱(Vite SPA)이 이제 Oracle VM 이 아니라 Cloudflare Pages(`leadpot-app` 프로젝트)에서 서빙된다. **VM 은 롤백용으로 아직 안 끔** — 문제 생기면 DNS `app.lead-pot.com` 을 도로 `A 129.225.198.2` 로 바꾸면 즉시 복구.
+    - 겪은 함정 2개(상세는 핸드오프 문서 5번 참고): ① 예전 시도 때 다른 이름 Pages 프로젝트(`leadpot`)에 이미 걸려있던 잔여 커스텀 도메인 등록 때문에 "already added" 에러 — 그 프로젝트에서 도메인 바인딩 DELETE 후 재시도로 해결. ② 커스텀 도메인 등록 성공해도 DNS 를 자동으로 안 바꿔줌 — `app` A 레코드를 직접 CNAME(`leadpot-app.pages.dev`)으로 PUT 해야 검증이 진행됨(약 1~2분 후 `active`).
+    - 검증: ETag 비교로 실제 Pages 콘텐츠 서빙 확인(VM 도 같은 커밋으로 빌드해서 파일 해시가 같아 `<title>`만으로는 구분 안 됨 — `curl -sI` 의 `ETag` 헤더가 `leadpot-app.pages.dev` 와 완전히 같은 것으로 확인).
+  - **🚨 4번 보류 — 구조적 충돌 발견, 아직 미해결(사용자 결정 대기)**: `*.lead-pot.com/*` 와일드카드 Workers 라우트를 걸면 (5번과 무관하게) **`app.lead-pot.com` 도 같이 가로채서 렌더러의 빈 placeholder 로 응답한다** — 실측으로 실제 장애 재현 후 라우트 즉시 삭제로 롤백함(라우트 id `984cb590d574478d9cf1ad981f99ac88` 는 삭제된 상태, 지금 존재하지 않음). 렌더러(`renderer/src/proxy.ts`)가 예약 호스트(`app`)를 만나면 그냥 통과시키기만 해서 실제 앱 콘텐츠가 없기 때문. 두 가지 해결책을 사용자에게 제시했고 아직 최종 답을 못 받음:
+    1. (권장) 렌더러가 `app` 요청을 Pages 콘텐츠로 서버사이드 fetch 해서 그대로 반환하도록 코드 수정 — 코드 변경 + 배포 + workers.dev 검증 먼저 필요.
+    2. 서브도메인 랜딩(SSR) 연결은 이번 범위에서 보류, `app` 이전(5번)만으로 세션 마무리.
+    상세 실행 순서·API 호출은 [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) §4-1 참고. **다음 세션은 여기서부터 — 4번 라우트를 절대 사용자 확인 없이 다시 걸지 말 것(이미 한 번 실제 장애 냄).**
   - 이 세션에서 GitHub CLI(`gh`)를 winget 으로 설치해 브라우저 device-flow 로 로그인해둠 — PATH 에는 없음, `/c/Program Files/GitHub CLI/gh.exe` 로 실행.
 - **✅ 죽은 워크플로 정리 — `deploy-backend.yml` 삭제(2026-09-07)**: VM 백엔드 배포가 2026-09-02 부터
   계속 실패 중인 걸 발견(내가 만든 문제 아님 — 그 전 커밋 배포 때도 이미 실패했음을 로그로 확인).

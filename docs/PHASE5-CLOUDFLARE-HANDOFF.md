@@ -89,12 +89,39 @@ curl -s -H "Host: <실제서브도메인>.lead-pot.com" \
 
 **`api`·`_railway-verify` 는 이번 작업과 무관 — 그대로 둔다.** `app`·와일드카드(`*`)만 4·5번에서 바뀐다.
 
-## 4. Workers 라우트 연결 (⭐ 되돌리기 지점 1) — 와일드카드 DNS 는 이미 있으니 이것만 하면 됨
+## 4. Workers 라우트 연결 (⭐ 되돌리기 지점 1) — 🚨 아래 4-1 을 반드시 먼저 읽을 것
 
-**와일드카드 DNS 레코드를 새로 만들 필요 없다** — 위 3번에서 확인했듯 `*.lead-pot.com` 이 이미
-Oracle VM 을 가리키는 proxied A 레코드로 존재한다. Workers Route 는 그 위에 겹쳐서 매칭되는
-요청을 **DNS 레코드의 실제 내용과 무관하게** 가로채므로, 레코드는 그대로 두고 Route 만 추가하면
-된다(레코드를 더미 IP 로 바꿀 필요도 없음 — 지금 이대로 충분).
+### 4-1. 🚨 실제로 겪은 장애 — 이 라우트를 그냥 걸면 `app.lead-pot.com` 이 즉시 깨진다 (2026-09-07 실측)
+
+`*.lead-pot.com/*` 와일드카드는 **서브도메인을 가리지 않고 모든 `*.lead-pot.com` 프록시 트래픽을
+가로챈다.** `app.lead-pot.com` 도 `*.lead-pot.com` 패턴에 매치되고, 3번에서 확인했듯 이미 proxied
+A 레코드다 → 이 라우트를 걸면 `app.lead-pot.com` 요청도 전부 `leadpot-renderer` Worker 로 간다.
+렌더러의 `proxy.ts` 는 예약 호스트(`app`·`api`·`www`)를 감지하면 **그냥 통과시키기만** 하는데
+(`NextResponse.next()`), 이 렌더러 앱엔 관리자 앱 콘텐츠가 없으니 실제로는 Next 기본 placeholder
+(`<title>Leadpot</title>`, 빈 페이지)가 뜬다 — **로그인 화면 대신 빈 페이지가 뜨는 실제 장애**다.
+(실측: 라우트 생성 직후 `curl https://app.lead-pot.com/` → VM 의 실제 React 앱이 아니라 렌더러
+placeholder 응답 확인. 라우트 삭제로 즉시 복구됨.)
+
+**추가로**: 이 라우트가 존재하는 동안은 5번(`app.lead-pot.com` 을 Pages 커스텀 도메인으로 연결)도
+`POST .../pages/projects/leadpot-app/domains` 가 `"You have already added this custom domain"`
+(code 8000018) 로 **실패한다** — Cloudflare 가 같은 호스트에 Workers 라우트와 Pages 커스텀 도메인이
+동시에 걸리는 걸 막기 때문. 즉 **4번과 5번은 지금 코드 상태로는 순서 문제가 아니라 구조적으로
+동시에 성립할 수 없다.**
+
+**해결책 (아직 미구현 — 이 문서를 이어받는 세션이 사용자와 상의해서 고를 것, CLAUDE.md §0)**:
+1. **(권장)** 렌더러의 `proxy.ts` 를 고쳐서 예약 호스트 `app`(`www` 도 최종적으로는 같은 목적지)을
+   그냥 통과시키지 말고, **Worker 안에서 실제 Pages 배포 콘텐츠를 fetch 해서 그대로 반환**하도록
+   만든다(서버사이드 리버스 프록시). 이러면 Worker 하나가 `*.lead-pot.com` 전체의 진입점이 되고,
+   Pages 커스텀 도메인은 아예 안 걸어도 된다(Worker → Pages 프로젝트로 내부 fetch만 하면 됨).
+   코드 수정 + 배포 + 검증이 필요하니 실제 도메인을 다시 건드리기 전에 **로컬/workers.dev 에서
+   충분히 검증**할 것.
+2. 아니면 프론트 이전(VM→Cloudflare) 자체를 이번 범위에서 빼고, 이번엔 렌더러(서브도메인 랜딩)만
+   연결한다 — `app.lead-pot.com` 은 계속 VM에 남겨둔다. 이러면 5번은 무기한 보류.
+
+**어느 쪽이든 라우트를 다시 걸기 전에 반드시 사용자에게 계획을 먼저 확인할 것** — 이미 한 번
+실제 장애를 낸 적이 있는 지점이다.
+
+### 4-2. 준비되면(위 문제 해결 후) 라우트 생성
 
 ```bash
 curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/workers/routes" \
@@ -102,11 +129,18 @@ curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/workers/rou
   --data '{"pattern":"*.lead-pot.com/*","script":"leadpot-renderer"}'
 ```
 
-배포 후 실제 사용자 서브도메인으로 `https://{sub}.lead-pot.com/{id}` 를 브라우저로 열어 확인.
+생성 직후 **가장 먼저 `curl -s -o /dev/null -w "%{http_code}" https://app.lead-pot.com/` 로
+관리자 앱이 살아있는지부터 확인**(200 이면서 실제 React 앱 HTML인지 `<title>` 등으로 확인 — 렌더러
+placeholder 의 `<title>Leadpot</title>` 과 실제 앱의 `<title>Leadpot · 리드팟</title>` 이 다르다).
+그 다음 실제 사용자 서브도메인으로 `https://{sub}.lead-pot.com/{id}` 도 확인.
 **문제가 생기면 이 라우트만 삭제(`DELETE /zones/$ZONE_ID/workers/routes/{route_id}`)하면 즉시
 이전 상태로 복구된다** — VM 은 이 시점까지 그대로 켜져 있으므로 위험 부담이 적다.
 
-## 5. `app.lead-pot.com` → Cloudflare Pages 커스텀 도메인 (⭐ 되돌리기 지점 2)
+## 5. `app.lead-pot.com` → Cloudflare Pages 커스텀 도메인 — ✅ 완료(2026-09-07)
+
+> ⚠️ 4-1 의 해결책 1번(렌더러가 Pages 를 내부 fetch 로 프록시)을 골랐다면 **이 단계 자체가
+> 필요 없어진다** — Worker 하나가 이미 app 트래픽까지 처리하기 때문. 해결책 2번(프론트 이전
+> 보류)을 골랐다면 이 단계는 통째로 스킵.
 
 ```bash
 curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/leadpot-app/domains" \
@@ -114,10 +148,36 @@ curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOU
   --data '{"name":"app.lead-pot.com"}'
 ```
 
-Cloudflare 가 필요한 DNS 레코드(CNAME)를 자동으로 만들거나 안내한다. 기존 `app` 레코드가 VM 을
-가리키고 있었다면 이 단계에서 Pages 쪽으로 바뀐다 — **여기가 실제 트래픽이 VM 에서 Cloudflare 로
-넘어가는 순간**이니 브라우저로 로그인·대시보드·랜딩 빌더가 다 정상인지 바로 확인할 것.
-문제가 생기면 `app` DNS 레코드를 원래 VM IP 로 되돌리면 복구된다(3번에서 확인해둔 원래 값 참고).
+⚠️ **실제로 겪은 함정**: 이 POST 가 `"You have already added this custom domain"`(code 8000018)로
+실패할 수 있다 — 4번의 와일드카드 라우트 때문이 아니라(라우트가 없어도 재현됨), **예전에 다른
+이름의 Pages 프로젝트(우리 경우 `leadpot`, 최종 이름은 `leadpot-app`)에 같은 도메인이 이미
+바인딩된 잔여 등록**이 원인이었다. 확인·정리 방법:
+```bash
+# 계정의 모든 Pages 프로젝트와 각 프로젝트의 domains 를 확인해 어디 걸려있는지 찾는다
+curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq '.result[] | {name, domains}'
+# 찾은 프로젝트에서 삭제(DNS 레코드가 아니라 Pages 커스텀 도메인 "바인딩"만 지움 — /dns_records/ 아님)
+curl -s -X DELETE "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/{그_프로젝트}/domains/app.lead-pot.com" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+```
+지운 뒤 곧바로 `curl -s -o /dev/null -w '%{http_code}' https://app.lead-pot.com/` 로 기존 서비스가
+안 깨졌는지 확인(이 삭제는 DNS 레코드를 안 건드리므로 원래 안전해야 한다), 그다음 POST 재시도.
+
+**두 번째 함정**: POST 가 성공(`status: initializing`)해도 곧장 안 넘어간다 — 도메인 검증이
+`"error_message": "CNAME record not set"` 로 멈춘다. 문서·Cloudflare 안내와 달리 **DNS 레코드를
+자동으로 안 바꿔준다** — 기존 A 레코드(VM IP)를 **직접 CNAME 으로 바꿔야** 한다:
+```bash
+curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/{app_레코드_id}" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+  --data '{"type":"CNAME","name":"app.lead-pot.com","content":"leadpot-app.pages.dev","proxied":true}'
+```
+바꾼 뒤 도메인 상태가 `pending`→(verification `active`)→(validation `active`, SSL 인증서 발급)까지
+가는 데 실측 **약 1~2분** 걸렸다. `status: active` 확인 후 `curl https://app.lead-pot.com/` 로
+Pages 콘텐츠가 나오는지 확인(같은 자산을 VM 도 서빙하고 있어서 `<title>`·파일명만으로는 구분 안 될
+수 있다 — **ETag 비교**가 확실하다: `curl -sI https://app.lead-pot.com/assets/{파일}.js` 와
+`curl -sI https://leadpot-app.pages.dev/assets/{같은파일}.js` 의 `ETag` 헤더가 같으면 진짜 Pages 가
+서빙 중인 것). 문제가 생기면 `app` DNS 레코드를 원래 A(VM IP) 로 되돌리면 복구된다
+(3번에서 확인해둔 원래 값: `A 129.225.198.2`).
 
 ## 6. 마무리 확인 (SSR-LANDING-PLAN.md §9 전체)
 
