@@ -12,9 +12,14 @@ public record LandingRequest(
         List<Map<String, Object>> content,
         String status,
         @Size(max = 120) String slug,
-        Map<String, Object> tracking) {
+        Map<String, Object> tracking,
+        Boolean googleAdsSafe) {
 
     public List<Map<String, Object>> contentOrEmpty() {
         return content == null ? List.of() : content;
+    }
+
+    public boolean googleAdsSafeOrDefault() {
+        return Boolean.TRUE.equals(googleAdsSafe);
     }
 }

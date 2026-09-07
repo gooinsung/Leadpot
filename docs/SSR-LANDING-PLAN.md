@@ -377,13 +377,29 @@ API 호출 자체는 CPU 시간에 안 잡히지만(I/O 대기라 무관), 페�
       - 스크립트 있는 기존 랜딩의 하이드레이션 후 동작 및 Workers CPU 시간(§6-4) 실측은 Phase 5
         (`wrangler dev`/`preview`, 실제 Cloudflare 환경 필요)로 이월 — 로컬 Node 실행에서는 측정 불가
 
-### Phase 4 — "구글 광고용" 옵션 (백엔드 + 편집기)
-- [ ] **Flyway V41** `landing_pages.google_ads_safe` 추가 (기본 `false`)
-- [ ] 엔티티·서비스·DTO 반영 (§5-5)
-- [ ] 편집기 체크박스 + "HTML 블록 스크립트가 실행되지 않습니다" 안내 문구
-- [ ] 렌더러: 이 값이 켜진 랜딩만 HTML 블록 정화 적용
-- [ ] 🔙 **SSR 실패 시 SPA 셸로 자동 폴백** 구현 (§5-5) — 전면 SSR 의 안전장치
-- [ ] ✅ 백엔드 테스트 통과 확인
+### Phase 4 — "구글 광고용" 옵션 (백엔드 + 편집기) — ✅ 완료 2026-09-07
+
+- [x] **Flyway V41** `landing_pages.google_ads_safe` 추가 (기본 `false`)
+- [x] 엔티티·서비스·DTO 반영 (§5-5) — `LandingPage.googleAdsSafe`, `LandingRequest.googleAdsSafeOrDefault()`,
+      `LandingResponse`·`PublicLandingResponse` 에 필드 추가, `LandingService` create/update/buildPublic 반영
+- [x] 편집기(`LandingEditPage.tsx`) 체크박스 + "HTML 블록 스크립트가 실행되지 않습니다" 안내 문구.
+      편집기 미리보기도 켜져 있으면 `sanitizeHtml()` 를 적용해 실제 공개 렌더와 동일하게 보여준다.
+- [x] 렌더러: `LandingView.tsx` 가 `landing.googleAdsSafe` 를 보고 HTML 블록에 `sanitizeHtml()` 을
+      조건부 적용(라이브 마커 치환 전에 먼저 정화) — `renderer/` 는 `LandingView` 를 그대로 쓰므로
+      추가 코드 없이 자동으로 적용된다
+- [x] 🔙 **SSR 실패 시 SPA 셸로 자동 폴백** 구현(§5-5) — `renderer/src/app/site/[subdomain]/[identifier]/error.tsx`
+      신설. `page.tsx` 는 백엔드가 진짜 404(미존재/IP 차단)로 응답한 경우만 `notFound()` 로 처리하고,
+      그 외 실패(네트워크 오류·백엔드 5xx 등)는 그대로 throw 해 Next 의 에러 바운더리(`error.tsx`)가
+      뜨게 한다. `error.tsx` 는 별도 CSR 앱으로 리다이렉트하지 않고 **브라우저에서 직접**
+      `resolveSite()` 를 다시 호출해 같은 `LandingView` 를 클라이언트 렌더(SPA)한다 — 그 fetch 는
+      진짜 방문자의 브라우저가 하므로 IP 문제(§6-1)도 없다.
+      Playwright 로 실제 검증: 스텁 API 를 "첫 요청만 500, 그다음은 성공"으로 구성해 SSR 이
+      실패하도록 만든 뒤, 브라우저에서 에러 바운더리가 뜨고 곧바로 클라이언트가 재요청해
+      TEXT·HTML(실시간 마커)·FORM 블록이 전부 정상 렌더되는 것을 확인(콘솔에 "SSR 실패, 클라이언트
+      폴백으로 전환" 로그 확인).
+- [x] ✅ 백엔드 컴파일·테스트 통과, `sanitizeHtml()` 적용 여부를 curl 로 직접 검증:
+      `googleAdsSafe: true` 랜딩은 렌더된 `<div class="landing-html">` 안에 `<script>` 가 사라지고
+      `false` 인 대조군은 그대로 남아있음을 확인(정규식 정화가 정확히 조건부로만 동작)
 
 ### Phase 5 — 배포 (⚠️ 사용자 직접 작업 구간 — §8)
 

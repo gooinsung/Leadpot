@@ -973,11 +973,14 @@ export interface LandingInput {
   status?: string;
   slug?: string; // 미지정 시 서버가 자동 생성. 지정 시 소문자·숫자·하이픈 3~120자.
   tracking?: Record<string, unknown> | null; // 광고 픽셀 {google,meta,tiktok,kakao,daangn}
+  /** 켜면 공개 렌더 시 HTML 블록의 스크립트·iframe 을 제거한다(구글 광고용, V41). */
+  googleAdsSafe?: boolean;
 }
 export interface LandingDetail extends LandingInput {
   id: number;
   slug: string;
   status: string;
+  googleAdsSafe: boolean;
   createdAt: string;
   updatedAt: string;
 }

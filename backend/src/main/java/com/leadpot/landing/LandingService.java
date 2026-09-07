@@ -119,6 +119,7 @@ public class LandingService {
         landing.setContent(req.contentOrEmpty());
         landing.setStatus(status(req.status()));
         landing.setTracking(req.tracking());
+        landing.setGoogleAdsSafe(req.googleAdsSafeOrDefault());
         landingRepository.save(landing);
         return LandingResponse.from(landing);
     }
@@ -134,6 +135,7 @@ public class LandingService {
         landing.setContent(req.contentOrEmpty());
         landing.setStatus(status(req.status()));
         landing.setTracking(req.tracking());
+        landing.setGoogleAdsSafe(req.googleAdsSafeOrDefault());
         return LandingResponse.from(landing);
     }
 
@@ -200,7 +202,8 @@ public class LandingService {
                 }
             }
         }
-        return new PublicLandingResponse(landing.getId(), landing.getTitle(), landing.getContent(), forms, landing.getTracking());
+        return new PublicLandingResponse(landing.getId(), landing.getTitle(), landing.getContent(), forms,
+                landing.getTracking(), landing.isGoogleAdsSafe());
     }
 
     private LandingPage load(Long ownerId, Long id) {

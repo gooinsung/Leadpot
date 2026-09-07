@@ -8,6 +8,18 @@
 
 ## 📍 지금 위치
 
+- **✅ 공개 랜딩 SSR 전환 Phase 4 완료 (2026-09-07)** — "구글 광고용"(`google_ads_safe`) 옵션.
+  상세는 [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) §7 Phase 4. 요약:
+  - Flyway V41 로 `landing_pages.google_ads_safe`(기본 false) 추가, 엔티티·DTO·서비스 반영
+  - 랜딩 편집기에 체크박스 추가("HTML 블록 스크립트가 실행되지 않습니다") — 미리보기에도 반영
+  - `LandingView`(공유 컴포넌트)가 이 값이 켜진 랜딩만 `sanitizeHtml()` 적용 — 렌더러는 `LandingView`
+    를 그대로 쓰므로 추가 코드 없이 자동 적용됨
+  - **SSR 실패 시 SPA 셸 자동 폴백** 구현(`renderer/.../error.tsx`) — 진짜 404(미존재/IP차단)는 그대로
+    404, 그 외 진짜 장애(백엔드 다운 등)만 브라우저가 직접 재요청해 같은 컴포넌트로 복구 렌더.
+    Playwright 로 "SSR 첫 요청 500 → 에러 바운더리 → 클라이언트 재요청 성공 → 폼까지 정상 렌더"
+    전체 흐름 실측 검증 완료.
+  - curl 로 `googleAdsSafe: true/false` 양쪽 다 확인 — true 만 `<script>` 제거됨
+  - **다음**: Phase 5(Cloudflare 배포, 사용자의 실제 계정 작업 필요) → Phase 6(재심사) → Phase 7(문서 정리)
 - **✅ 공개 랜딩 SSR 전환 Phase 1~3 완료 (2026-09-07)** — 로컬 검증까지 끝, 배포는 아직(Phase 5).
   상세 체크리스트는 [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) §7. 요약:
   - **Phase 1** 공유 패키지 추출 — `packages/public-ui`(npm workspaces)로 공개 렌더 컴포넌트·lib·styles
@@ -53,14 +65,16 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> **바로 이어서 할 일: SSR-LANDING-PLAN.md Phase 4** — `google_ads_safe` 옵션.
-> - Flyway 마이그레이션으로 `landing_pages.google_ads_safe boolean not null default false` 추가
-> - 엔티티·서비스·DTO 반영, 편집기에 체크박스 + 안내 문구("HTML 블록 스크립트가 실행되지 않습니다")
-> - `renderer/`의 HTML 블록 렌더 경로에서 이 값이 켜진 랜딩만 `sanitizeHtml()`(이미 있음,
->   `packages/public-ui/src/lib/sanitizeHtml.ts`) 적용
-> - SSR 실패 시 기존 CSR SPA 셸로 자동 폴백하는 안전장치 구현(전면 SSR 의 유일한 안전망)
-> - 사용자 지시("페이즈 7까지 계속 진행해. 내 확인 필요할때만 말해주고")에 따라 계속 진행하되,
->   Phase 5(Cloudflare 배포)는 사용자의 실제 계정 작업이 필요해 거기서 확인이 필요할 수 있음(§8 참고).
+> **바로 이어서 할 일: SSR-LANDING-PLAN.md Phase 5** — Cloudflare 배포.
+> ⚠️ 여기부터는 **사용자의 실제 Cloudflare 계정 작업이 필요**하다(§8) — 이 세션(샌드박스)은 계정
+> 인증·DNS·R2 버킷 생성 등을 할 수 없다. 사용자 확인/작업이 필요하면 멈추고 물어볼 것.
+> - Cloudflare 에 렌더러 배포(`*.workers.dev` 로 먼저 검증) — R2 캐시 바인딩은 계정 필요해 비워둔 상태
+> - Cloudflare Pages 프로젝트 생성(`frontend`) → `*.pages.dev` 로 먼저 검증
+> - 와일드카드 DNS·SSL 구성, `app.lead-pot.com`→Pages·`*.lead-pot.com`→렌더러 순으로 전환(되돌리기
+>   지점 2개, 문제 시 DNS 만 되돌리면 복구)
+> - 두 전환 안정화 확인 후 Oracle VM 종료
+> - 사용자 지시("페이즈 7까지 계속 진행해. 내 확인 필요할때만 말해주고")에 따라 Phase 4까지는 자율
+>   진행했고, Phase 5는 계정 작업이 필요해 사용자 확인이 필요한 지점.
 
 > ## 📋 2026-09-06 — **구글 광고 거절 원인 분석 + 공개 랜딩 SSR 계획 수립 / 버그 2건 배포 완료**
 >

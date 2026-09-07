@@ -49,6 +49,10 @@ public class LandingPage {
     @Column
     private Map<String, Object> tracking;
 
+    /** 켜면 공개 렌더 시 HTML 블록의 스크립트·iframe 을 제거한다(V41, 구글 광고용). */
+    @Column(name = "google_ads_safe", nullable = false)
+    private boolean googleAdsSafe = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -112,6 +116,14 @@ public class LandingPage {
 
     public void setTracking(Map<String, Object> tracking) {
         this.tracking = tracking;
+    }
+
+    public boolean isGoogleAdsSafe() {
+        return googleAdsSafe;
+    }
+
+    public void setGoogleAdsSafe(boolean googleAdsSafe) {
+        this.googleAdsSafe = googleAdsSafe;
     }
 
     public Instant getCreatedAt() {

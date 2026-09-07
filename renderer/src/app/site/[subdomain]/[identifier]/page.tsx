@@ -6,7 +6,9 @@ import {
   getLandingLive,
   setApiBaseUrl,
   LandingView,
+  ApiError,
   type ForwardedRequestContext,
+  type PublicLanding,
 } from "@leadpot/public-ui";
 
 // 서버 쪽 @leadpot/public-ui 모듈 인스턴스 설정 — 클라이언트 쪽은 ApiBaseInit.tsx 가 따로 한다.
@@ -34,13 +36,25 @@ function needsLiveData(content: { type: string; html?: unknown }[]): boolean {
   return content.some((b) => b.type === "HTML" && typeof b.html === "string" && b.html.includes("data-lp-live"));
 }
 
+/**
+ * 진짜 미존재/IP 차단(백엔드가 404 로 응답, 존재 비노출)만 `notFound()` 로 처리하고, 그 밖의
+ * 실패(네트워크 오류·백엔드 5xx 등)는 그대로 던져 `error.tsx` 가 클라이언트 폴백을 렌더하게 한다
+ * (§5-5 — 여기서 전부 `catch(() => null)` 로 삼키면 진짜 장애도 조용히 404 가 되어 폴백이 못 뜬다).
+ */
+async function loadLanding(subdomain: string, identifier: string, ctx: ForwardedRequestContext): Promise<PublicLanding> {
+  try {
+    return await resolveSite(subdomain, identifier, ctx);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
+}
+
 export default async function SiteLandingPage({ params }: { params: Promise<Params> }) {
   const { subdomain, identifier } = await params;
   const ctx = await forwardedContext();
 
-  const landing = await resolveSite(subdomain, identifier, ctx).catch(() => null);
-  if (!landing) notFound();
-
+  const landing = await loadLanding(subdomain, identifier, ctx);
   const live = needsLiveData(landing.content) ? await getLandingLive(landing.id, ctx).catch(() => null) : null;
 
   return (

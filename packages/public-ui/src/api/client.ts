@@ -224,6 +224,8 @@ export interface PublicLanding {
   content: LandingBlock[];
   forms: Record<string, FormDetail>;
   tracking?: Record<string, unknown> | null;
+  /** 켜져 있으면 HTML 블록의 스크립트·iframe 을 렌더 전에 제거한다(구글 광고용, V41 — sanitizeHtml.ts). */
+  googleAdsSafe?: boolean;
 }
 
 /**

@@ -5,11 +5,15 @@ import java.util.Map;
 
 import com.leadpot.form.dto.FormResponse;
 
-/** 공개 랜딩 렌더 데이터(비로그인). content 블록 + FORM 블록이 참조하는 리드폼 정의(formId → FormResponse). */
+/**
+ * 공개 랜딩 렌더 데이터(비로그인). content 블록 + FORM 블록이 참조하는 리드폼 정의(formId → FormResponse).
+ * `googleAdsSafe` — 켜져 있으면 렌더러가 HTML 블록의 스크립트를 제거하고 내려준다(V41).
+ */
 public record PublicLandingResponse(
         Long id,
         String title,
         List<Map<String, Object>> content,
         Map<Long, FormResponse> forms,
-        Map<String, Object> tracking) {
+        Map<String, Object> tracking,
+        boolean googleAdsSafe) {
 }

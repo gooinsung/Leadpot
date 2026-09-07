@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
-import { HtmlBlock, resolveStyle } from "@leadpot/public-ui";
+import { HtmlBlock, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
 import {
   ApiError,
   createLanding,
@@ -58,6 +58,7 @@ export function LandingEditPage() {
   const [title, setTitle] = useState("새 랜딩");
   const [status, setStatus] = useState("published");
   const [slug, setSlug] = useState(""); // 공개 주소. 비우면 서버가 자동 생성(신규). 편집 시 현재 slug 로드.
+  const [googleAdsSafe, setGoogleAdsSafe] = useState(false); // 켜면 HTML 블록 스크립트를 공개 렌더에서 제거(구글 광고용)
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
@@ -93,6 +94,7 @@ export function LandingEditPage() {
         setTitle(l.title);
         setStatus(l.status);
         setSlug(l.slug ?? "");
+        setGoogleAdsSafe(!!l.googleAdsSafe);
         setBlocks(l.content ?? []);
       })
       .catch(() => setError("랜딩을 불러오지 못했습니다."))
@@ -148,7 +150,7 @@ export function LandingEditPage() {
     setError("");
     setSaving(true);
     try {
-      const payload = { title, content: blocks, status, slug: slug.trim() || undefined };
+      const payload = { title, content: blocks, status, slug: slug.trim() || undefined, googleAdsSafe };
       if (isNew) await createLanding(payload);
       else await updateLanding(Number(id), payload);
       setDirty(false);
@@ -200,6 +202,20 @@ export function LandingEditPage() {
               {" "}(랜딩번호로도 접속 가능)
             </span>
           </div>
+          <label className="block-full-toggle" style={{ marginTop: 12 }}>
+            <input
+              type="checkbox"
+              checked={googleAdsSafe}
+              onChange={(e) => { setGoogleAdsSafe(e.target.checked); setDirty(true); }}
+            />
+            <span>구글 광고용(HTML 블록 스크립트가 실행되지 않습니다)</span>
+          </label>
+          {googleAdsSafe && (
+            <p className="field-optional" style={{ marginTop: 4, fontSize: 12 }}>
+              카운트다운·플로팅배너 등 HTML 블록에 넣은 &lt;script&gt; 가 공개 페이지에서 제거됩니다.
+              메타·당근·카카오 등 다른 매체 랜딩에는 이 옵션을 켜지 마세요.
+            </p>
+          )}
         </div>
 
         <div className="edit-grid">
@@ -316,7 +332,12 @@ export function LandingEditPage() {
                       : <div key={i} className="fr-img-ph" style={{ margin: 16, ...ms }}>이미지</div>;
                   if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
                   // 편집 중엔 타이핑마다 스크립트가 다시 돌지 않게 늦춘다(타이머 누적 방지).
-                  if (b.type === "HTML") return <HtmlBlock key={i} className="landing-html" style={ms} html={(b.html as string) || ""} debounceMs={600} />;
+                  // 구글 광고용 옵션이 켜져 있으면 미리보기도 실제 공개 렌더처럼 스크립트를 제거해서 보여준다.
+                  if (b.type === "HTML") {
+                    const raw = (b.html as string) || "";
+                    const html = googleAdsSafe ? sanitizeHtml(raw) : raw;
+                    return <HtmlBlock key={i} className="landing-html" style={ms} html={html} debounceMs={600} />;
+                  }
                   if (b.type === "FORM") {
                     const fid = b.formId as number | null;
                     const detail = fid != null ? formDetails[fid] : undefined;

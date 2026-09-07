@@ -5,6 +5,7 @@ import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
 import { resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
+import { sanitizeHtml } from "../lib/sanitizeHtml";
 
 /**
  * 블록 여백(위/아래/좌우, px) → 인라인 스타일.
@@ -155,7 +156,9 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
           if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
           if (b.type === "HTML") {
             const raw = (b.html as string) || "";
-            const html = live ? hydrateLiveMarkers(raw, live) : raw;
+            // "구글 광고용" 랜딩은 스크립트·iframe 을 먼저 제거한 뒤 실시간 마커를 채운다(§5-5, V41).
+            const safe = landing.googleAdsSafe ? sanitizeHtml(raw) : raw;
+            const html = live ? hydrateLiveMarkers(safe, live) : safe;
             return <HtmlBlock key={i} className="landing-html" style={ms} html={html} />;
           }
           if (b.type === "FORM") {
