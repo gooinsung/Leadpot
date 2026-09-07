@@ -39,29 +39,23 @@
 
 ---
 
-## 1. GitHub 저장소 시크릿 등록 (아직 안 됐으면)
+## 1. GitHub 저장소 시크릿 등록 — ✅ 완료(2026-09-07, 웹 UI 로 등록됨)
 
-```bash
-gh secret set CLOUDFLARE_API_TOKEN --repo gooinsung/Leadpot --body "<토큰>"
-gh secret set CLOUDFLARE_ACCOUNT_ID --repo gooinsung/Leadpot --body "<계정ID>"
-```
+`CLOUDFLARE_API_TOKEN`·`CLOUDFLARE_ACCOUNT_ID` 둘 다 이미 등록돼 있고 정상 동작 확인됨
+(아래 2번의 두 워크플로가 이미 성공한 적 있음). **`gh` CLI 는 이 단계에 필요 없다** — 인증이
+안 돼 있어도 신경 쓰지 말 것. 혹시 나중에 시크릿을 다시 등록해야 하면 GitHub 저장소 →
+Settings → Secrets and variables → Actions 에서 웹으로 하면 된다(`gh secret set` 은 대안일 뿐
+필수가 아니다).
 
-`gh` 가 없거나 인증이 안 돼 있으면 GitHub 저장소 → Settings → Secrets and variables → Actions 에서
-같은 이름으로 수동 등록해도 된다.
+## 2. 워크플로 실행 → `*.workers.dev` / `*.pages.dev` 임시 배포 확인 — ✅ 완료(2026-09-07)
 
-## 2. 워크플로 실행 → `*.workers.dev` / `*.pages.dev` 임시 배포 확인
+`deploy-renderer.yml`·`deploy-frontend-cloudflare.yml` 둘 다 이미 `workflow_dispatch` 로 성공
+확인됨. **이 단계도 `gh` CLI 가 필요 없다** — 확인만 하려면 GitHub 저장소 → Actions 탭에서
+초록 체크만 보면 된다(웹 UI). 코드가 바뀌면 이제 push 할 때마다 알아서 다시 돈다.
 
-시크릿을 등록한 뒤 수동으로 한 번 실행(코드 변경 없이 바로 검증하려면 `workflow_dispatch` 사용):
-
-```bash
-gh workflow run deploy-renderer.yml --repo gooinsung/Leadpot
-gh workflow run deploy-frontend-cloudflare.yml --repo gooinsung/Leadpot
-gh run watch --repo gooinsung/Leadpot   # 둘 다 성공(✓)할 때까지
-```
-
-**렌더러 검증** — Worker 이름이 `leadpot-renderer` 이므로 배포 URL은
+**렌더러 검증(아직 안 했으면)** — Worker 이름이 `leadpot-renderer` 이므로 배포 URL은
 `https://leadpot-renderer.<계정의 workers.dev 서브도메인>.workers.dev` 형태다(정확한 서브도메인은
-`wrangler deploy` 출력이나 Cloudflare 대시보드 → Workers & Pages → leadpot-renderer 에서 확인).
+Cloudflare 대시보드 → Workers & Pages → leadpot-renderer 에서 확인).
 
 ```bash
 # {sub}.lead-pot.com/{id} 형태를 흉내내려면 Host 헤더로 서브도메인을 실어 보낸다.
@@ -75,39 +69,34 @@ curl -s -H "Host: <실제서브도메인>.lead-pot.com" \
 - `data-lp-live="count"` 같은 실시간 마커에 **실제 숫자**가 이미 박혀 있다(0이 아님)
 - `<title>` 이 랜딩 제목으로 나온다
 
-**Pages(관리 앱) 검증** — `https://leadpot-app.pages.dev` 로 접속해 로그인·대시보드가 정상 뜨는지 확인.
-(`VITE_API_BASE_URL=https://api.lead-pot.com` 로 빌드되므로 실제 운영 백엔드에 붙는다 — 로그인하면
-실제 데이터가 보인다. 읽기만 하고 되도록 실제 데이터를 건드리는 조작은 하지 말 것.)
+**Pages(관리 앱) 검증(아직 안 했으면)** — `https://leadpot-app.pages.dev` 로 접속해 로그인·대시보드가
+정상 뜨는지 확인. (`VITE_API_BASE_URL=https://api.lead-pot.com` 로 빌드되므로 실제 운영 백엔드에
+붙는다 — 로그인하면 실제 데이터가 보인다. 읽기만 하고 되도록 실제 데이터를 건드리는 조작은 하지 말 것.)
 
-둘 다 문제없으면 3번으로. 문제가 있으면 `gh run view --log-failed` 로 로그를 보고 원인부터 고칠 것
-(이 시점까지는 실제 도메인을 안 건드렸으므로 실패해도 서비스에 영향 없다 — 편하게 반복 시도 가능).
+둘 다 문제없으면 3번으로. 문제가 있으면 GitHub 저장소 Actions 탭에서 실패한 런을 열어 로그를
+확인(이 시점까지는 실제 도메인을 안 건드렸으므로 실패해도 서비스에 영향 없다 — 편하게 반복 시도 가능).
 
-## 3. 기존 DNS 레코드 확인 (건드리면 안 되는 것부터 확인)
+## 3. 기존 DNS 레코드 확인 — ✅ 완료(2026-09-07)
+
+확인된 현재 레코드(아무것도 건드리지 않았음):
+
+| 이름 | 타입 | 값 | 비고 |
+|---|---|---|---|
+| `app.lead-pot.com` | A | `129.225.198.2` (Oracle VM) | proxied |
+| `*.lead-pot.com` | A | `129.225.198.2` (Oracle VM) | proxied — **이미 존재함, D3 서브도메인 작업 때 만든 것으로 추정** |
+| `api.lead-pot.com` | CNAME | `09g4ey7v.up.railway.app` | Railway — **절대 건드리지 말 것** |
+| `_railway-verify.api.lead-pot.com` | TXT | (Railway 도메인 검증용) | **절대 건드리지 말 것** |
+
+**`api`·`_railway-verify` 는 이번 작업과 무관 — 그대로 둔다.** `app`·와일드카드(`*`)만 4·5번에서 바뀐다.
+
+## 4. Workers 라우트 연결 (⭐ 되돌리기 지점 1) — 와일드카드 DNS 는 이미 있으니 이것만 하면 됨
+
+**와일드카드 DNS 레코드를 새로 만들 필요 없다** — 위 3번에서 확인했듯 `*.lead-pot.com` 이 이미
+Oracle VM 을 가리키는 proxied A 레코드로 존재한다. Workers Route 는 그 위에 겹쳐서 매칭되는
+요청을 **DNS 레코드의 실제 내용과 무관하게** 가로채므로, 레코드는 그대로 두고 Route 만 추가하면
+된다(레코드를 더미 IP 로 바꿀 필요도 없음 — 지금 이대로 충분).
 
 ```bash
-curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/zones?name=lead-pot.com" | jq '.result[0].id'
-# 위에서 나온 zone id 를 ZONE_ID 라 하면:
-curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" | jq '.result[] | {name,type,content,proxied}'
-```
-
-**`api.lead-pot.com`(Railway 백엔드)·`www` 등 기존 레코드는 그대로 두고 절대 지우거나 바꾸지 말 것.**
-이번 작업은 `app`·와일드카드(`*`)만 새로 추가/변경한다.
-
-## 4. 와일드카드 DNS + Workers 라우트 (⭐ 되돌리기 지점 1)
-
-와일드카드 `*.lead-pot.com` 을 프록시(주황 구름) DNS 레코드로 추가하고, 그 위에 Workers 라우트를
-`leadpot-renderer` 로 건다(더미 IP 로 A 레코드를 만들어도 된다 — Workers Route 가 실제 라우팅을
-가로채므로 레코드 내용 자체는 의미가 크지 않다. 이미 `*` 레코드가 있으면 이 단계는 건너뛴다).
-
-```bash
-# 1) 와일드카드 DNS 레코드 (없으면 생성)
-curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-  --data '{"type":"A","name":"*","content":"192.0.2.1","proxied":true,"comment":"Leadpot SSR 렌더러(Workers Route 가 실제 라우팅) — SSR-LANDING-PLAN.md Phase 5"}'
-
-# 2) Workers 라우트 연결
 curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/workers/routes" \
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
   --data '{"pattern":"*.lead-pot.com/*","script":"leadpot-renderer"}'
