@@ -13,10 +13,20 @@
   - **✅ 완료 5번 — `app.lead-pot.com` → Cloudflare Pages 컷오버 (2026-09-07 15:31 UTC)**: 관리자 앱(Vite SPA)이 이제 Oracle VM 이 아니라 Cloudflare Pages(`leadpot-app` 프로젝트)에서 서빙된다. **VM 은 롤백용으로 아직 안 끔** — 문제 생기면 DNS `app.lead-pot.com` 을 도로 `A 129.225.198.2` 로 바꾸면 즉시 복구.
     - 겪은 함정 2개(상세는 핸드오프 문서 5번 참고): ① 예전 시도 때 다른 이름 Pages 프로젝트(`leadpot`)에 이미 걸려있던 잔여 커스텀 도메인 등록 때문에 "already added" 에러 — 그 프로젝트에서 도메인 바인딩 DELETE 후 재시도로 해결. ② 커스텀 도메인 등록 성공해도 DNS 를 자동으로 안 바꿔줌 — `app` A 레코드를 직접 CNAME(`leadpot-app.pages.dev`)으로 PUT 해야 검증이 진행됨(약 1~2분 후 `active`).
     - 검증: ETag 비교로 실제 Pages 콘텐츠 서빙 확인(VM 도 같은 커밋으로 빌드해서 파일 해시가 같아 `<title>`만으로는 구분 안 됨 — `curl -sI` 의 `ETag` 헤더가 `leadpot-app.pages.dev` 와 완전히 같은 것으로 확인).
-  - **🚨 4번 보류 — 구조적 충돌 발견, 아직 미해결(사용자 결정 대기)**: `*.lead-pot.com/*` 와일드카드 Workers 라우트를 걸면 (5번과 무관하게) **`app.lead-pot.com` 도 같이 가로채서 렌더러의 빈 placeholder 로 응답한다** — 실측으로 실제 장애 재현 후 라우트 즉시 삭제로 롤백함(라우트 id `984cb590d574478d9cf1ad981f99ac88` 는 삭제된 상태, 지금 존재하지 않음). 렌더러(`renderer/src/proxy.ts`)가 예약 호스트(`app`)를 만나면 그냥 통과시키기만 해서 실제 앱 콘텐츠가 없기 때문. 두 가지 해결책을 사용자에게 제시했고 아직 최종 답을 못 받음:
-    1. (권장) 렌더러가 `app` 요청을 Pages 콘텐츠로 서버사이드 fetch 해서 그대로 반환하도록 코드 수정 — 코드 변경 + 배포 + workers.dev 검증 먼저 필요.
-    2. 서브도메인 랜딩(SSR) 연결은 이번 범위에서 보류, `app` 이전(5번)만으로 세션 마무리.
-    상세 실행 순서·API 호출은 [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) §4-1 참고. **다음 세션은 여기서부터 — 4번 라우트를 절대 사용자 확인 없이 다시 걸지 말 것(이미 한 번 실제 장애 냄).**
+  - **✅ 4번 코드 해결책 구현 완료(2026-09-07, 원격 세션)** — 위 해결책 1번(권장안)을 `renderer/src/proxy.ts`
+    에 구현했다: `app`(`app.lead-pot.com`)을 더 이상 `RESERVED_HOSTS`(그냥 통과)로 두지 않고,
+    `proxyToAdminApp()` 이 요청을 `ADMIN_APP_ORIGIN`(기본값 `https://leadpot-app.pages.dev`)으로
+    서버사이드 리버스 프록시한다(메서드·헤더·바디 그대로 전달, 스트리밍 응답). 이러면 Cloudflare
+    라우팅 우선순위(Workers 라우트 vs Pages 커스텀 도메인)에 기대지 않고, **와일드카드 라우트가
+    `app.lead-pot.com` 을 가로채도 렌더러가 알아서 진짜 관리 앱 콘텐츠로 프록시**하므로 안전하다.
+    로컬(mock 오리진)로 검증: `app.lead-pot.com` GET/POST 둘 다 정상 프록시, 테넌트 서브도메인(`bali`)·
+    다른 예약 호스트(`www`)는 영향 없음 확인. `npx tsc --noEmit`·`next build` 통과.
+    **다음 세션(로컬)이 할 일**: 이 커밋을 `git pull` → push 하면 `deploy-renderer.yml` 이 자동으로
+    새 렌더러를 배포함 → 배포 후 `https://leadpot-renderer.<계정>.workers.dev/` 에 `Host: app.lead-pot.com`
+    으로 curl 해서 관리 앱 콘텐츠가 프록시되는지 먼저 확인(로컬/workers.dev 에서, 아직 실제 도메인은
+    안 건드림) → 문제없으면 [PHASE5-CLOUDFLARE-HANDOFF.md](PHASE5-CLOUDFLARE-HANDOFF.md) §4-2 대로
+    와일드카드 Workers 라우트 연결 → 연결 직후 `app.lead-pot.com` 실제 도메인 재확인(이번엔 안 깨질
+    것으로 예상 — 다만 실측 확인 필수, 문제 있으면 라우트만 즉시 삭제).
   - 이 세션에서 GitHub CLI(`gh`)를 winget 으로 설치해 브라우저 device-flow 로 로그인해둠 — PATH 에는 없음, `/c/Program Files/GitHub CLI/gh.exe` 로 실행.
 - **✅ 죽은 워크플로 정리 — `deploy-backend.yml` 삭제(2026-09-07)**: VM 백엔드 배포가 2026-09-02 부터
   계속 실패 중인 걸 발견(내가 만든 문제 아님 — 그 전 커밋 배포 때도 이미 실패했음을 로그로 확인).
