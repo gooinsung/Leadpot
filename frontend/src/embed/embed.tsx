@@ -1,6 +1,9 @@
 import { createRoot } from "react-dom/client";
 import { getPublicForm, recordVisit } from "../api/client";
-import { PublicFormView, initPixels, parseUtm } from "@leadpot/public-ui";
+import { PublicFormView, initPixels, parseUtm, setAppBaseUrl } from "@leadpot/public-ui";
+
+// 동의문서 '보기'가 앱 도메인 절대 URL을 만들 때 쓴다(site.ts 주석) — 고객 사이트에 임베드되므로 필수.
+if (import.meta.env.VITE_APP_BASE_URL) setAppBaseUrl(import.meta.env.VITE_APP_BASE_URL);
 // 스타일 레이어를 개별 인라인으로 가져온다(구조: styles/README.md).
 // tokens 만 :root→:host 로 치환하므로 따로 두고, 나머지는 그대로 이어붙인다.
 // tokens·base·components·layout·public·landing·form-builder·calculator 는 @leadpot/public-ui 로 옮겨져

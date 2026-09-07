@@ -27,7 +27,8 @@ export {
 } from "./components/formRenderers/formStyle";
 
 export { parseUtm } from "./lib/utm";
+export { sanitizeHtml } from "./lib/sanitizeHtml";
 export { initPixels, firePixelLead, type PixelConfig } from "./lib/pixels";
-export { currentSubdomain, appBaseUrl, consentDocUrl, publicSiteUrl } from "./lib/site";
+export { currentSubdomain, appBaseUrl, setAppBaseUrl, consentDocUrl, publicSiteUrl } from "./lib/site";
 export { findCalculator, CALCULATORS } from "./lib/calculators/registry";
 export type { CalcView, CalculatorDef } from "./lib/calculators/types";

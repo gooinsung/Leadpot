@@ -19,12 +19,18 @@ function blockStyle(b: LandingBlock): CSSProperties {
   return { ...base, marginLeft: px(b.mx), marginRight: px(b.mx) };
 }
 
-/** 공개 랜딩 렌더(모바일 최적화). 블록 렌더 + 인라인 리드폼 / CTA 오버레이. 데이터 로딩은 상위 페이지가 담당. */
-export function LandingView({ landing }: { landing: PublicLanding }) {
+/**
+ * 공개 랜딩 렌더(모바일 최적화). 블록 렌더 + 인라인 리드폼 / CTA 오버레이. 데이터 로딩은 상위 페이지가 담당.
+ *
+ * `initialLive` — SSR 렌더러가 서버에서 이미 가져온 실시간 집계를 넘길 때 쓴다(docs/SSR-LANDING-PLAN.md §6-2).
+ * 주면 마운트 시 다시 API 를 부르지 않는다(불필요한 재요청·깜빡임 방지). 생략하면(기존 CSR 경로) 지금처럼
+ * 마운트 후 `getLandingLive` 를 호출해 채운다.
+ */
+export function LandingView({ landing, initialLive = null }: { landing: PublicLanding; initialLive?: LandingLive | null }) {
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
   const [fullscreenForm, setFullscreenForm] = useState<FormDetail | null>(null);
   const innerRef = useRef<HTMLDivElement>(null);
-  const [live, setLive] = useState<LandingLive | null>(null);
+  const [live, setLive] = useState<LandingLive | null>(initialLive);
 
   // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
   useEffect(() => {
@@ -45,9 +51,9 @@ export function LandingView({ landing }: { landing: PublicLanding }) {
   const hasToast = contentHtml.includes('data-lp-live="recent-toast"');
 
   useEffect(() => {
-    if (!needsLive) return;
+    if (!needsLive || initialLive) return; // 서버가 이미 값을 내려줬으면 다시 안 부른다
     getLandingLive(landing.id).then(setLive).catch(() => {});
-  }, [needsLive, landing.id]);
+  }, [needsLive, landing.id, initialLive]);
 
   // 실시간 값 하이드레이션: HTML 블록 안 data-lp-live 마커 텍스트를 실제 값으로 채운다.
   useEffect(() => {

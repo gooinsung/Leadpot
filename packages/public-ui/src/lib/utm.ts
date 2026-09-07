@@ -16,6 +16,10 @@
  *
  * 호출처: 공개 폼 제출(PublicFormView) · 방문 기록(PublicFormPage·PublicSitePage·embed).
  * 리드와 방문에 같은 값이 남도록 **이 함수 하나만** 쓴다(예전엔 PublicFormView 에 복사본이 있었다).
+ *
+ * ⚠️ 방문·이벤트 기록은 브라우저에서만 일어난다(SSR 렌더러도 하이드레이션 후 클라이언트에서 호출) —
+ * 그래서 인자를 생략하면 지금처럼 `window.location.search` 를 읽는다. `search` 를 명시하면
+ * (예: SSR 쪽에서 요청 URL의 쿼리스트링을 넘길 때) `window` 없이도 순수 함수로 쓸 수 있다.
  */
 
 /** 표준 UTM — `utm_` 접두어를 떼고 저장하는 키. */
@@ -24,8 +28,9 @@ const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
 /** 자체 광고 파라미터 — 이름 그대로 저장하는 키. */
 const AD_KEYS = ["media_from", "campaign_name", "ads_name"] as const;
 
-export function parseUtm(): Record<string, string> {
-  const p = new URLSearchParams(window.location.search);
+export function parseUtm(search?: string): Record<string, string> {
+  const qs = search ?? (typeof window !== "undefined" ? window.location.search : "");
+  const p = new URLSearchParams(qs);
   const utm: Record<string, string> = {};
   for (const k of UTM_KEYS) {
     const v = p.get(`utm_${k}`);

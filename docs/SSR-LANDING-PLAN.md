@@ -316,22 +316,45 @@ API 호출 자체는 CPU 시간에 안 잡히지만(I/O 대기라 무관), 페�
 - [ ] ✅ **회귀 검증**: `tsc -b` · `npm run build`(앱+embed) · `vitest` · 공개 폼/랜딩/임베드 육안 확인
 - [ ] 여기서 커밋 — 이 시점의 동작은 지금과 100% 같아야 한다
 
-### Phase 2 — SSR 안전성 정리 (운영 영향 없음)
-- [ ] `utm.ts`·`site.ts` 의 `window` 의존 제거(인자화) — §5-3
-- [ ] `HtmlBlock` 에 **서버 렌더 경로** 추가 — 마크업은 서버에서, `<script>` 는 클라이언트에서 실행 (§5-4)
-- [ ] ⚠️ 서버가 그린 마크업을 클라이언트가 `innerHTML` 로 덮어써 **깜빡이지 않도록** 분기 (§5-4)
-- [ ] 정화(sanitize) 함수 — `google_ads_safe` 랜딩에만 적용할 수 있게 **옵션으로** 구현 (§5-5)
-- [ ] `LandingView` 가 실시간 값을 **props 로도** 받도록(서버 주입용) — §6-2
-- [ ] ✅ 회귀 검증 반복 — **스크립트를 쓰는 기존 랜딩이 그대로 동작하는지 반드시 확인**
+### Phase 2 — SSR 안전성 정리 (운영 영향 없음) — ✅ 완료 2026-09-07
+
+- [x] `utm.ts`·`site.ts` 의 `window` 의존 제거(인자화) — §5-3
+      `parseUtm(search?)`·`currentSubdomain(hostname?)` 인자화, `site.ts` 의 `import.meta.env.VITE_APP_BASE_URL`
+      직접 참조(Next.js 번들러가 못 읽음)를 `setAppBaseUrl()` 주입 패턴으로 교체(`api/client.ts` 의
+      `setApiBaseUrl` 과 동일 패턴). `frontend/src/main.tsx`·`embed/embed.tsx` 가 진입점에서 한 번 호출.
+- [x] 정화(sanitize) 함수 — `google_ads_safe` 랜딩에만 적용할 수 있게 **옵션으로** 구현 (§5-5)
+      `packages/public-ui/src/lib/sanitizeHtml.ts` 신설(정규식 기반, Workers/Node 어디서나 의존성 없이 동작).
+      `<script>`·`<iframe>`·인라인 이벤트 핸들러·`javascript:` 링크 제거. 테스트 8개(sanitizeHtml.test.ts).
+- [x] `LandingView` 가 실시간 값을 **props 로도** 받도록(`initialLive`, 서버 주입용) — §6-2
+- [ ] ⚠️ **`HtmlBlock` 서버 렌더 경로 자체는 Phase 3 로 미룬다** — 마크업은 서버에서, `<script>` 는
+      클라이언트에서 실행하고 "서버가 그린 마크업을 클라이언트가 innerHTML 로 덮어써 깜빡이지 않게"
+      분기하는 작업(§5-4)은, **렌더러 없이는 실제로 검증할 방법이 없다.** 지금 모든 기존 고객 랜딩이
+      쓰는 컴포넌트를 추측만으로 고쳐 배포하는 리스크가 더 크다고 판단해, Phase 3(렌더러 실제 제작)
+      때 서버·클라이언트 왕복을 직접 확인하며 넣는다.
+      ⚠️ **추가로 발견한 것**: `data-lp-live` 실시간 숫자는 지금 **DOM 조작**(`querySelectorAll`+
+      `textContent`)으로 채워진다 — 이건 크롤러에게 보이는 **원본 HTML 문자열 자체**에는 반영되지
+      않는다(`initialLive` props 는 CSR 쪽 재요청만 줄여줄 뿐, 크롤러 문제는 안 풀린다). 진짜 해결은
+      **렌더러가 HTML 블록 문자열을 파싱해서 서버에서 직접 치환**해야 하는데, 이건 Node 호환 HTML
+      파서 선택이 필요한 Phase 3 고유 작업이다(마침 `google_ads_safe` 정화도 같은 파서가 있으면
+      더 견고해진다 — 지금의 정규식 기반보다 나음). Phase 3 계획에 반영.
+- [x] ✅ 회귀 검증 — `tsc -b`·`npm run build`(앱+embed, 번들 크기 그대로)·vitest **89개**
+      (frontend 20 + public-ui 69, sanitizeHtml 8개 추가) 전부 통과
 
 ### Phase 3 — 렌더러 앱 신설 (로컬까지)
 - [ ] `renderer/` Next.js 앱 생성 + OpenNext Cloudflare 어댑터
 - [ ] 라우트: `app/[identifier]/page.tsx` — `Host` 헤더에서 서브도메인 추출
 - [ ] 서버 데이터 로딩: `/api/public/sites/{sub}/{id}` + 필요 시 `/live`
       → **`CF-Connecting-IP`·`User-Agent` 전달** (§6-1) 🔴
+- [ ] **Node 호환 HTML 파서 도입** (Phase 2 에서 발견 — `linkedom` 등, Cloudflare Workers 에서 동작 확인 필요):
+      - `data-lp-live` 마커를 **문자열 단계에서** 실제 값으로 치환(현재의 DOM 조작 방식은 크롤러가
+        보는 원본 HTML 에는 반영이 안 됨 — Phase 2 발견 사항)
+      - `google_ads_safe` 정화를 이 파서로 다시 구현(정규식보다 견고하게) — `sanitizeHtml.ts` 교체 검토
+      - `HtmlBlock` 서버 렌더 경로 + 클라이언트 하이드레이션 분기(Phase 2 에서 미룬 것, §5-4) 구현
 - [ ] 메타데이터: 랜딩별 `<title>`·`og:*`·`description` (§1-4)
 - [ ] 404 처리: 없는 서브도메인/식별자 → 기존 `SiteNotFound` 와 동일하게
-- [ ] ✅ 로컬 검증: `curl` 로 **JS 없이** 본문이 보이는지, 실시간 숫자가 이미 박혀 있는지
+- [ ] ✅ 로컬 검증: `curl` 로 **JS 없이** 본문이 보이는지, 실시간 숫자가 이미 박혀 있는지(문자열에 직접),
+      스크립트 쓰는 기존 랜딩이 하이드레이션 후 정상 동작하는지, `google_ads_safe` 랜딩은 스크립트가
+      안 나오는지
 
 ### Phase 4 — "구글 광고용" 옵션 (백엔드 + 편집기)
 - [ ] **Flyway V41** `landing_pages.google_ads_safe` 추가 (기본 `false`)
