@@ -58,15 +58,15 @@
 |---|---|---|
 | 프론트엔드 | **React + Vite (TypeScript) SPA** | **Oracle VM 의 Nginx**(`app.lead-pot.com`, GitHub Actions 가 rsync, §6) — 추후 **Railway 또는 Cloudflare Pages**로 이전 예정(미정, 둘 중 하나) |
 | 백엔드 | **Spring Boot (REST API) + Docker** | **Railway**(싱가포르, `api.lead-pot.com`) — 2026-08-09 Oracle VM에서 컷오버 완료 |
-| DB | **PostgreSQL** | **Neon**(외부 호스팅, 무료) |
+| DB | **PostgreSQL** | **Railway Postgres**(Railway 가 직접 호스팅, 백엔드와 같은 프로젝트) — Neon 은 비용 문제로 삭제하고 이전 완료(2026-09-07 확인) |
 | 파일 저장 | 초기: VM 디스크 → 후기: Cloudflare R2 / S3 | — |
 | 인증 | **JWT** (Spring Security + BCrypt) | — |
 | 결제(후기) | PortOne(아임포트) / 토스페이먼츠 | — |
 
 **이식성 원칙 (중요)**: 백엔드는 Docker 컨테이너로, DB는 표준 PostgreSQL로 유지한다.
 → 나중에 유료 VPS(Hetzner)·Google Cloud Run·AWS 등 어디로든 코드 수정 거의 없이 이전 가능해야 한다.
-특정 플랫폼 전용 기능(락인)에 의존하지 않는다. (실제로 백엔드·DB가 Oracle VM → Railway/Neon 으로
-코드 거의 안 건드리고 옮겨간 것이 이 원칙 덕분이다.)
+특정 플랫폼 전용 기능(락인)에 의존하지 않는다. (실제로 백엔드가 Oracle VM → Railway 로,
+DB 가 Neon → Railway Postgres 로 코드 거의 안 건드리고 옮겨간 것이 이 원칙 덕분이다.)
 
 ---
 
@@ -84,10 +84,13 @@ Cloudflare DNS(프록시, 무료 SSL)
         └─ api.lead-pot.com ─▶ Railway(싱가포르) ─▶ Spring Boot(Docker)
                                                           │
                                                           ▼
-                                              Neon(PostgreSQL, 외부 호스팅)
+                                          Railway Postgres(같은 프로젝트, 같은 리전)
 ```
 
-- 프론트: `app.lead-pot.com` (Oracle VM Nginx) / 백엔드: `api.lead-pot.com` (Railway) / DB: Neon
+- 프론트: `app.lead-pot.com` (Oracle VM Nginx) / 백엔드: `api.lead-pot.com` (Railway) / DB: Railway Postgres
+  (⚠️ 예전엔 Neon 이었으나 비용 문제로 삭제 → Railway 자체 Postgres 로 이전, 2026-09-07 확인.
+  같은 프로젝트·같은 리전이라 [HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) P1 이
+  노리던 "DB 왕복 지연 해소" 목표에 오히려 더 잘 맞는 구성이 됐다 — 문서 갱신 필요, 아래 §6 참고)
 - 서로 다른 오리진 → **CORS 설정 필수** (허용 오리진을 환경변수로 관리)
 - 시크릿/키는 **절대 코드·git에 커밋하지 않는다.** 프론트·VM 은 `.env`(git 무시), 백엔드는 **Railway Variables**로만 관리(§6).
 
@@ -173,19 +176,24 @@ npm run dev
 >   **VM 을 내리는 날 Railway 에서 `APP_LEAD_AUTO_APPROVE_ENABLED=true` 로 켜는 것을 잊지 말 것** ⭐
 >   §2·§3 은 2026-08-20 에 실제 구성으로 갱신 완료 — 프론트 이전이 끝나면 이 §6 표와 §2·§3 을 다시 갱신한다.
 
-**`main` 에 push 하면 아래 두 워크플로가 경로별로 자동 실행된다(+ Railway 가 백엔드를 따로 배포한다). 수동 배포는 필요 없다.**
+**`main` 에 push 하면 아래 워크플로가 경로별로 자동 실행된다(+ Railway 가 백엔드를 따로 배포한다). 수동 배포는 필요 없다.**
 
 | 워크플로 | 트리거 경로 | 하는 일 | 소요 | 다운타임 |
 |---|---|---|---|---|
 | [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | 러너에서 `npm run build`(`VITE_API_BASE_URL=https://api.lead-pot.com` 주입) → rsync 로 VM `/var/www/leadpot/` | 1~2분 | **없음** (해시 자산 먼저 올리고 `index.html` 을 마지막에 교체) |
-| [deploy-backend.yml](.github/workflows/deploy-backend.yml) | `backend/**`·`docker-compose.prod.yml` | **러너에서 테스트+`bootJar`** → jar 을 VM 으로 `scp` → SSH `git pull` → `docker compose -f docker-compose.prod.yml up -d --build`(jar COPY 만) → `/api/health` 가 `UP` 될 때까지 대기 | **2~3분** | **약 1분** |
 
-- 필요한 저장소 시크릿: `VM_SSH_KEY` · `VM_HOST` · `VM_USER`.
-- ⚠️ **백엔드 배포는 약 1분 끊긴다**(컨테이너가 하나뿐이라 내리고 올린다). 무중단은 서버 업그레이드 후 과제.
-- ⚠️ **로컬과 배포의 Dockerfile 이 다르다.** 로컬 `docker compose up` = `backend/Dockerfile`(컨테이너 안에서 빌드) / 배포 = `backend/Dockerfile.runtime`(만들어진 jar 만 COPY). **합치지 말 것** — 상세는 DEPLOY.md 부록 C-3.
-- ⚠️ **`docker-compose.prod.yml` 을 손으로 돌리면 실패한다** — `backend/build/libs/app.jar` 이 먼저 있어야 한다.
-- ⚠️ **시크릿은 자동 배포 대상이 아니다.** VM 의 `~/Leadpot/.env`(gitignore)에만 있어 값이 바뀌면 SSH 로 직접 고치고 재기동해야 한다.
-- DB 는 **Neon**(외부 호스팅 Postgres)이다. VM 안에 Postgres 컨테이너를 띄우지 않는다.
+- 백엔드(`api.lead-pot.com`)는 **Railway 가 자체 GitHub 연동으로 독립 배포**한다 — 이 저장소의
+  워크플로가 아니다. `backend/**` push 시 Railway 대시보드에서 자동으로 빌드·배포되고, 환경변수는
+  Railway Variables 로 관리한다(무중단 롤링 배포).
+- DB 는 **Railway Postgres**다(Railway 가 직접 호스팅, 예전 Neon 은 삭제됨 — 위 §2·§3 참고).
+  VM 안에 Postgres 컨테이너를 띄우지 않는다.
+- 🗑️ **`deploy-backend.yml`(VM 에 백엔드를 따로 배포하던 옛 워크플로)은 2026-09-07 삭제했다.**
+  VM `~/Leadpot/.env` 가 가리키던 Neon 접속정보가 Neon 삭제로 죽어서, VM 컨테이너가 뜨자마자
+  Flyway DB 연결에 실패하고 매번 헬스체크 타임아웃으로 실패하고 있었다(2026-09-02 부터, GitHub
+  Actions 로그로 확인). 실제 트래픽은 Railway 만 받으니 서비스 영향은 없었다 — 그냥 항상 빨간
+  X 만 뜨는 죽은 워크플로였던 것. VM 은 이제 프론트 정적 파일 서빙만 한다. `backend/Dockerfile.runtime`·
+  `docker-compose.prod.yml`(이 워크플로 전용이었던 배포 산출물)은 아직 저장소에 남아있다 —
+  정리 여부는 [SSR-LANDING-PLAN.md](docs/SSR-LANDING-PLAN.md) Phase 5(VM 완전 종료) 때 같이 결정.
 
 ---
 

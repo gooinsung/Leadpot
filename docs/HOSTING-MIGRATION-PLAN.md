@@ -310,7 +310,10 @@ DNS 전환 기간에는 **VM 과 Railway 두 백엔드가 같은 Neon DB 를 동
 
 ### Phase C — 정리
 
-- [ ] `.github/workflows/deploy-backend.yml` 삭제 (Railway 가 대체)
+- [x] `.github/workflows/deploy-backend.yml` 삭제 (Railway 가 대체) — **2026-09-07 완료.** 예정보다
+      일찍 지웠다: VM 의 Neon 접속정보가 Neon 삭제로 죽어서(비용 문제로 Neon → Railway Postgres 전환,
+      §0 P1 참고) 이 워크플로가 2026-09-02 부터 매번 실패만 하고 있었다(서비스엔 영향 없었음 —
+      Railway 가 이미 독립적으로 배포 중이었으므로). 고쳐서 살릴 이유가 없어 곧바로 삭제.
 - [ ] `.github/workflows/deploy-frontend.yml` 삭제 (Pages 가 대체)
 - [ ] `backend/Dockerfile.runtime` 삭제 (jar 전송 방식 전용이라 쓸모 없어짐) · `docker-compose.prod.yml` 처리 결정
 - [ ] `deploy/nginx-leadpot-api.conf` — 기록용으로 남기고 "구 구성" 주석
