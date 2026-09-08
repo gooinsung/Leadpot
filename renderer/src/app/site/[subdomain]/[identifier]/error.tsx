@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { resolveSite, LandingView, type PublicLanding } from "@leadpot/public-ui";
+import { normalizeIdentifier } from "@/lib/decode-identifier";
 
 /**
  * SSR 실패 시 SPA 셸로 자동 폴백(§5-5, Phase 4) — 전면 SSR 의 유일한 안전장치.
@@ -30,7 +31,7 @@ export default function SiteError({ error }: { error: Error & { digest?: string 
       setFailed(true);
       return;
     }
-    resolveSite(sub, id)
+    resolveSite(sub, normalizeIdentifier(id))
       .then(setLanding)
       .catch(() => setFailed(true));
   }, [error, params]);

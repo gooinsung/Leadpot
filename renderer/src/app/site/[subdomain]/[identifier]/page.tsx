@@ -10,6 +10,7 @@ import {
   type ForwardedRequestContext,
   type PublicLanding,
 } from "@leadpot/public-ui";
+import { normalizeIdentifier } from "@/lib/decode-identifier";
 
 // 서버 쪽 @leadpot/public-ui 모듈 인스턴스 설정 — 클라이언트 쪽은 ApiBaseInit.tsx 가 따로 한다.
 setApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080");
@@ -54,7 +55,7 @@ export default async function SiteLandingPage({ params }: { params: Promise<Para
   const { subdomain, identifier } = await params;
   const ctx = await forwardedContext();
 
-  const landing = await loadLanding(subdomain, identifier, ctx);
+  const landing = await loadLanding(subdomain, normalizeIdentifier(identifier), ctx);
   const live = needsLiveData(landing.content) ? await getLandingLive(landing.id, ctx).catch(() => null) : null;
 
   return (
@@ -93,7 +94,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   // 실측(SPA 폴백 검증 중)에서 generateMetadata 와 페이지 컴포넌트가 실제로 각각 별도 네트워크
   // 호출을 하는 걸 확인했다 — 메모이제이션에 기대지 말 것. 응답이 가벼워서 랜딩당 요청 2회는 감수한다.
   const ctx = await forwardedContext();
-  const landing = await resolveSite(subdomain, identifier, ctx).catch(() => null);
+  const landing = await resolveSite(subdomain, normalizeIdentifier(identifier), ctx).catch(() => null);
   if (!landing) {
     // 존재하지 않거나(또는 IP 차단으로 숨겨진) 페이지는 검색엔진이 색인하면 안 된다.
     // ⚠️ 여기서 robots 를 따로 지정할 필요가 없다 — page.tsx 의 notFound() 가 렌더하는
