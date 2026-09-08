@@ -179,8 +179,19 @@
   padding: 15px 14px;
   border-radius: 14px;
   border-color: var(--pub-input-border);
-  background: var(--pub-input-bg);
+  background-color: var(--pub-input-bg);
   color: var(--pub-input-text);
+}
+/* select 는 안드로이드 Chrome 등 일부 브라우저가 배경색 위에 OS 다크모드 위젯 색을 얹어 보여줄
+   때가 있다(카드 배경 컨셉을 켠 랜딩에서 실측 확인, 2026-09-08) — appearance:none 으로 브라우저
+   기본 렌더링을 걷어내고 커스텀 화살표를 직접 그려서, 카드가 무슨 색이든 입력창은 항상
+   --pub-input-bg/--pub-input-text 그대로 보이게 한다. */
+:is(.public-form-card, .landing-public) select.input {
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236f6a75'/%3E%3C/svg%3E");
+  padding-right: 40px;
 }
 :is(.public-form-card, .landing-public) .input:focus {
   border-color: var(--pub-accent);
