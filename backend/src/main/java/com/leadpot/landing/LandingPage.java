@@ -53,6 +53,10 @@ public class LandingPage {
     @Column(name = "google_ads_safe", nullable = false)
     private boolean googleAdsSafe = false;
 
+    /** 정리용 폴더(V42). null 이면 미분류. {@link com.leadpot.folder.FolderKind#LANDING} 트리를 참조. */
+    @Column(name = "folder_id")
+    private Long folderId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -124,6 +128,14 @@ public class LandingPage {
 
     public void setGoogleAdsSafe(boolean googleAdsSafe) {
         this.googleAdsSafe = googleAdsSafe;
+    }
+
+    public Long getFolderId() {
+        return folderId;
+    }
+
+    public void setFolderId(Long folderId) {
+        this.folderId = folderId;
     }
 
     public Instant getCreatedAt() {

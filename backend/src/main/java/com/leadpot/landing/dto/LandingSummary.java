@@ -10,9 +10,10 @@ public record LandingSummary(
         String title,
         String slug,
         String status,
+        Long folderId,
         Instant updatedAt) {
 
     public static LandingSummary from(LandingPage l) {
-        return new LandingSummary(l.getId(), l.getTitle(), l.getSlug(), l.getStatus(), l.getUpdatedAt());
+        return new LandingSummary(l.getId(), l.getTitle(), l.getSlug(), l.getStatus(), l.getFolderId(), l.getUpdatedAt());
     }
 }

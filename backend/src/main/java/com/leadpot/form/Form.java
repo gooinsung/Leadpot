@@ -107,6 +107,10 @@ public class Form {
     @Column(name = "tracking_config")
     private Map<String, Object> trackingConfig;
 
+    /** 정리용 폴더(V42). null 이면 미분류. {@link com.leadpot.folder.FolderKind#FORM} 트리를 참조. */
+    @Column(name = "folder_id")
+    private Long folderId;
+
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<FormBlock> blocks = new ArrayList<>();
@@ -334,6 +338,14 @@ public class Form {
 
     public void setTrackingConfig(Map<String, Object> trackingConfig) {
         this.trackingConfig = trackingConfig;
+    }
+
+    public Long getFolderId() {
+        return folderId;
+    }
+
+    public void setFolderId(Long folderId) {
+        this.folderId = folderId;
     }
 
     public List<FormBlock> getBlocks() {

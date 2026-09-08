@@ -3,12 +3,14 @@ import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
 import { HtmlBlock, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
+import { ConceptColorField } from "../components/ConceptColorField";
 import {
   ApiError,
   createLanding,
   getForm,
   getLanding,
   listForms,
+  updateForm,
   updateLanding,
   type FormDetail,
   type FormSummary,
@@ -117,6 +119,22 @@ export function LandingEditPage() {
       getForm(fid).then((d) => setFormDetails((prev) => ({ ...prev, [fid]: d }))).catch(() => {});
     });
   }, [blocks, formDetails]);
+
+  /**
+   * 랜딩 편집기에서 연결된 리드폼의 카드 배경 컨셉을 바로 바꾼다(V42, 사용자 결정 — 리드폼
+   * 편집기를 오가지 않아도 되게). 그 리드폼의 styleConfig 만 patch 해서 즉시 저장하고,
+   * 미리보기가 바로 반영되도록 로컬 formDetails 도 갱신한다.
+   */
+  async function onQuickConcept(formId: number, bgColor: string) {
+    const detail = formDetails[formId];
+    if (!detail) return;
+    try {
+      const updated = await updateForm(formId, { ...detail, styleConfig: { ...(detail.styleConfig ?? {}), bgColor: bgColor || undefined } });
+      setFormDetails((prev) => ({ ...prev, [formId]: updated }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "카드 배경 컨셉을 저장하지 못했습니다.");
+    }
+  }
 
   function patch(i: number, p: Partial<LandingBlock>) {
     setDirty(true);
@@ -267,6 +285,13 @@ export function LandingEditPage() {
                           {forms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                         </select>
                       </div>
+                      {b.formId != null && formDetails[b.formId as number] && (
+                        <ConceptColorField
+                          label="이 리드폼의 카드 배경 컨셉 (화이트·블랙·블루)"
+                          value={(formDetails[b.formId as number].styleConfig?.bgColor as string) || ""}
+                          onChange={(v) => onQuickConcept(b.formId as number, v)}
+                        />
+                      )}
                       <div className="field">
                         <label>노출 방식</label>
                         <select className="input" value={(b.trigger as string) ?? "inline"} onChange={(e) => patch(i, { trigger: e.target.value })}>

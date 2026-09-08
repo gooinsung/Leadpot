@@ -30,4 +30,5 @@
 @import "@leadpot/public-ui/src/styles/features/public.css";
 @import "./styles/features/leads.css";
 @import "./styles/features/advertiser.css";
+@import "./styles/features/folders.css";
 @import "@leadpot/public-ui/src/styles/features/calculator.css";

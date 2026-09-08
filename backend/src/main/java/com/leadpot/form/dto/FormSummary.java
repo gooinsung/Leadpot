@@ -13,6 +13,7 @@ public record FormSummary(
         String category,
         FormType formType,
         int blockCount,
+        Long folderId,
         Instant updatedAt) {
 
     public static FormSummary from(Form form) {
@@ -22,6 +23,7 @@ public record FormSummary(
                 form.getCategory(),
                 form.getFormType(),
                 form.getBlocks().size(),
+                form.getFolderId(),
                 form.getUpdatedAt());
     }
 }

@@ -283,11 +283,18 @@ export interface FormSummary {
   category: string | null;
   formType: FormType;
   blockCount: number;
+  /** 정리용 폴더(V42). null = 미분류. */
+  folderId: number | null;
   updatedAt: string;
 }
 
 export function listForms(): Promise<FormSummary[]> {
   return request<FormSummary[]>("/api/forms");
+}
+
+/** 리드폼을 폴더로 옮긴다(드래그앤드롭). folderId 를 null 로 보내면 미분류로 되돌린다. */
+export function moveFormFolder(id: number, folderId: number | null): Promise<FormDetail> {
+  return request<FormDetail>(`/api/forms/${id}/folder`, { method: "PATCH", body: { folderId } });
 }
 
 export function getForm(id: number): Promise<FormDetail> {
@@ -989,10 +996,40 @@ export interface LandingSummary {
   title: string;
   slug: string;
   status: string;
+  /** 정리용 폴더(V42). null = 미분류. */
+  folderId: number | null;
   updatedAt: string;
 }
 export function listLandings(): Promise<LandingSummary[]> {
   return request<LandingSummary[]>("/api/landings");
+}
+
+/** 랜딩을 폴더로 옮긴다(드래그앤드롭). folderId 를 null 로 보내면 미분류로 되돌린다. */
+export function moveLandingFolder(id: number, folderId: number | null): Promise<LandingDetail> {
+  return request<LandingDetail>(`/api/landings/${id}/folder`, { method: "PATCH", body: { folderId } });
+}
+
+// ---------- 리드폼·랜딩페이지 폴더(V42, 계층형) ----------
+export type FolderKind = "LANDING" | "FORM";
+export interface FolderItem {
+  id: number;
+  kind: FolderKind;
+  parentId: number | null;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export function listFolders(kind: FolderKind): Promise<FolderItem[]> {
+  return request<FolderItem[]>(`/api/folders?kind=${kind}`);
+}
+export function createFolder(input: { kind: FolderKind; parentId: number | null; name: string }): Promise<FolderItem> {
+  return request<FolderItem>("/api/folders", { method: "POST", body: input });
+}
+export function renameFolder(id: number, input: { name: string; parentId: number | null }): Promise<FolderItem> {
+  return request<FolderItem>(`/api/folders/${id}`, { method: "PUT", body: input });
+}
+export function deleteFolder(id: number): Promise<void> {
+  return request<void>(`/api/folders/${id}`, { method: "DELETE" });
 }
 export function getLanding(id: number): Promise<LandingDetail> {
   return request<LandingDetail>(`/api/landings/${id}`);

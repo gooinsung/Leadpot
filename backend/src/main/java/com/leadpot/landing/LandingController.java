@@ -8,6 +8,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.leadpot.folder.dto.FolderAssignRequest;
 import com.leadpot.landing.dto.LandingRequest;
 import com.leadpot.landing.dto.LandingResponse;
 import com.leadpot.landing.dto.LandingSummary;
@@ -65,6 +67,13 @@ public class LandingController {
     public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         landingService.delete(userId(jwt), id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 폴더로 옮기기(드래그앤드롭). */
+    @PatchMapping("/{id}/folder")
+    public LandingResponse moveFolder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestBody FolderAssignRequest request) {
+        return landingService.moveFolder(userId(jwt), id, request.folderId());
     }
 
     private Long userId(Jwt jwt) {

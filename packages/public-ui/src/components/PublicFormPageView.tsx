@@ -4,6 +4,7 @@ import { recordVisit, type FormDetail } from "../api/client";
 import { initPixels } from "../lib/pixels";
 import { parseUtm } from "../lib/utm";
 import { PublicFormView } from "./PublicFormView";
+import { resolveCardConcept } from "./formRenderers/formStyle";
 
 /**
  * 단독 공개 리드폼 페이지(`/f/{id}`)의 렌더 + 방문 기록 + 픽셀 초기화를 한데 묶은 컴포넌트.
@@ -27,7 +28,7 @@ export function PublicFormPageView({ form }: { form: FormDetail }) {
 
   return (
     <div className="public-form">
-      <div className="public-form-card">
+      <div className="public-form-card" style={resolveCardConcept(form)}>
         <PublicFormView form={form} trackingConfig={form.trackingConfig} />
       </div>
     </div>

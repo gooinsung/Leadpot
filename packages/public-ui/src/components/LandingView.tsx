@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } fr
 import { getLandingLive, recordEvent, recordEventBeacon, recordVisit, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
-import { resolveStyle } from "./formRenderers/formStyle";
+import { resolveCardConcept, resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
 import { initPixels, mergeFormPixels, googleOnlyPixels } from "../lib/pixels";
@@ -209,7 +209,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
               );
             }
             return (
-              <div key={i} className="landing-form-card" style={ms}>
+              <div key={i} className="landing-form-card" style={{ ...ms, ...resolveCardConcept(form) }}>
                 <PublicFormView form={form} landingPageId={landing.id} trackingConfig={form.trackingConfig} />
               </div>
             );
@@ -220,7 +220,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
 
       {overlayForm && (
         <div className="landing-overlay" onClick={() => setOverlayForm(null)}>
-          <div className="landing-overlay-card" onClick={(e) => e.stopPropagation()}>
+          <div className="landing-overlay-card" style={resolveCardConcept(overlayForm)} onClick={(e) => e.stopPropagation()}>
             <button className="landing-overlay-close" type="button" onClick={() => setOverlayForm(null)} aria-label="닫기">×</button>
             <PublicFormView form={overlayForm} landingPageId={landing.id} trackingConfig={overlayForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
           </div>
@@ -228,7 +228,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
       )}
 
       {fullscreenForm && (
-        <div className="landing-fullscreen">
+        <div className="landing-fullscreen" style={resolveCardConcept(fullscreenForm)}>
           <button className="landing-fullscreen-close" type="button" onClick={() => setFullscreenForm(null)} aria-label="닫기">×</button>
           <div className="landing-fullscreen-inner">
             <PublicFormView form={fullscreenForm} landingPageId={landing.id} trackingConfig={fullscreenForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />

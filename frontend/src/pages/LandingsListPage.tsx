@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
-import { deleteLanding, listLandings, type LandingSummary } from "../api/client";
+import { deleteLanding, listFolders, listLandings, moveLandingFolder, type FolderItem, type LandingSummary } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { publicSiteUrl } from "@leadpot/public-ui";
 import { TopBar } from "../components/TopBar";
@@ -9,16 +9,51 @@ import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
 import { runBulk, useSelection } from "../lib/useSelection";
 import { AdUrlBuilder } from "../components/AdUrlBuilder";
+import { FolderTree, type FolderSelection } from "../components/FolderTree";
 
 export function LandingsListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const sub = user?.subdomain ?? "";
   const [items, setItems] = useState<LandingSummary[]>([]);
+  const [folders, setFolders] = useState<FolderItem[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
   // 광고 URL 빌더 대상 랜딩(null = 닫힘). 입력값은 저장하지 않아 서버 상태가 없다.
   const [adUrlTarget, setAdUrlTarget] = useState<LandingSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const paging = usePaging(items, 10);
+
+  const filtered = useMemo(() => {
+    if (selectedFolder === null) return items;
+    if (selectedFolder === "unfiled") return items.filter((l) => l.folderId == null);
+    return items.filter((l) => l.folderId === selectedFolder);
+  }, [items, selectedFolder]);
+  const folderCounts = useMemo(() => {
+    const c: Record<number, number> = {};
+    for (const l of items) if (l.folderId != null) c[l.folderId] = (c[l.folderId] ?? 0) + 1;
+    return c;
+  }, [items]);
+  const paging = usePaging(filtered, 10);
+
+  async function loadFolders() {
+    try {
+      setFolders(await listFolders("LANDING"));
+    } catch {
+      /* 폴더 로드 실패는 무시 — 목록 자체는 계속 보여준다 */
+    }
+  }
+
+  async function onDropOnFolder(folderId: number | null) {
+    if (draggingId == null) return;
+    const id = draggingId;
+    setDraggingId(null);
+    try {
+      await moveLandingFolder(id, folderId);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "폴더 이동에 실패했습니다.");
+    }
+  }
 
   // 전체선택 + 일괄 삭제 (2026-08-08)
   const sel = useSelection(paging.pageItems.map((l) => l.id));
@@ -45,6 +80,7 @@ export function LandingsListPage() {
   }
   useEffect(() => {
     load();
+    loadFolders();
   }, []);
 
   async function onDelete(id: number, title: string) {
@@ -79,52 +115,78 @@ export function LandingsListPage() {
             <button className="btn btn-primary" onClick={() => navigate("/landings/new")}>첫 랜딩 만들기</button>
           </div>
         ) : (
-          <>
-          {sel.count > 0 && (
-            <div className="il-bulk" style={{ paddingBottom: 10 }}>
-              <span className="bulk-count">{sel.count}개 선택</span>
-              <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 삭제</button>
-              <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
+          <div className="folders-layout">
+            <FolderTree
+              kind="LANDING"
+              folders={folders}
+              selected={selectedFolder}
+              onSelect={setSelectedFolder}
+              onReload={loadFolders}
+              onDropItem={onDropOnFolder}
+              counts={folderCounts}
+            />
+            <div>
+              {sel.count > 0 && (
+                <div className="il-bulk" style={{ paddingBottom: 10 }}>
+                  <span className="bulk-count">{sel.count}개 선택</span>
+                  <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 삭제</button>
+                  <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
+                </div>
+              )}
+              {filtered.length === 0 ? (
+                <div className="card card-pad empty-state">
+                  <p>이 폴더에는 랜딩이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="card card-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th className="sel-col">
+                            <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
+                          </th>
+                          <th>제목</th><th>공개 주소</th><th>상태</th><th>수정일</th><th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paging.pageItems.map((l) => (
+                          <tr
+                            key={l.id}
+                            className={`row-click row-draggable ${draggingId === l.id ? "dragging" : ""}`}
+                            draggable
+                            onDragStart={() => setDraggingId(l.id)}
+                            onDragEnd={() => setDraggingId(null)}
+                            onClick={() => navigate(`/landings/${l.id}/edit`)}
+                          >
+                            <td className="sel-col" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" checked={sel.selected.has(l.id)} onChange={() => sel.toggle(l.id)} aria-label="선택" />
+                            </td>
+                            <td>{l.title}</td>
+                            <td className="num">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
+                            <td><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
+                            <td className="num">{new Date(l.updatedAt).toLocaleString("ko-KR")}</td>
+                            <td onClick={(e) => e.stopPropagation()}>
+                              {l.status === "published" && sub && (
+                                <>
+                                  <button className="btn btn-ghost btn-sm" onClick={() => window.open(publicSiteUrl(sub, l.id), "_blank")}>공개 열기</button>
+                                  <button className="btn btn-ghost btn-sm" onClick={() => setAdUrlTarget(l)} title="매체·캠페인·광고 이름을 붙인 주소를 만듭니다">광고 URL</button>
+                                </>
+                              )}
+                              <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/p/${l.slug}`, "_blank")}>미리보기</button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/landings/${l.id}/edit`)}>편집</button>
+                              <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(l.id, l.title)}>삭제</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="개" />
+                </>
+              )}
             </div>
-          )}
-          <div className="card card-table">
-            <table>
-              <thead>
-                <tr>
-                  <th className="sel-col">
-                    <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
-                  </th>
-                  <th>제목</th><th>공개 주소</th><th>상태</th><th>수정일</th><th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {paging.pageItems.map((l) => (
-                  <tr key={l.id} className="row-click" onClick={() => navigate(`/landings/${l.id}/edit`)}>
-                    <td className="sel-col" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={sel.selected.has(l.id)} onChange={() => sel.toggle(l.id)} aria-label="선택" />
-                    </td>
-                    <td>{l.title}</td>
-                    <td className="num">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
-                    <td><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
-                    <td className="num">{new Date(l.updatedAt).toLocaleString("ko-KR")}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      {l.status === "published" && sub && (
-                        <>
-                          <button className="btn btn-ghost btn-sm" onClick={() => window.open(publicSiteUrl(sub, l.id), "_blank")}>공개 열기</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setAdUrlTarget(l)} title="매체·캠페인·광고 이름을 붙인 주소를 만듭니다">광고 URL</button>
-                        </>
-                      )}
-                      <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/p/${l.slug}`, "_blank")}>미리보기</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/landings/${l.id}/edit`)}>편집</button>
-                      <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(l.id, l.title)}>삭제</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
-          <Pagination total={paging.total} page={paging.page} pages={paging.pages} pageSize={paging.pageSize} onPage={paging.setPage} onPageSize={paging.setPageSize} unit="개" />
-          </>
         )}
       </main>
 

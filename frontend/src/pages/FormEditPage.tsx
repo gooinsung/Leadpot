@@ -28,6 +28,7 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { WebhookLeadPanel } from "../components/WebhookLeadPanel";
+import { ConceptColorField } from "../components/ConceptColorField";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import {
@@ -310,6 +311,7 @@ export function FormEditPage() {
   const [submitLabel, setSubmitLabel] = useState(DEFAULT_SUBMIT_LABEL);
   const [buttonColor, setButtonColor] = useState("#12b886");
   const [accentColor, setAccentColor] = useState("#3a43c0");
+  const [bgColor, setBgColor] = useState(""); // 카드 배경 컨셉(V42). 빈 값 = 화이트(기본)
   const [successMode, setSuccessMode] = useState<"message" | "redirect">("message");
   const [successTitle, setSuccessTitle] = useState("신청이 완료되었습니다");
   const [successMessage, setSuccessMessage] = useState("빠른 시일 내에 연락드리겠습니다.");
@@ -418,6 +420,7 @@ export function FormEditPage() {
         setSubmitLabel((f.submitButtonConfig?.label as string) || DEFAULT_SUBMIT_LABEL);
         setButtonColor((f.styleConfig?.buttonColor as string) || "#12b886");
         setAccentColor((f.styleConfig?.accentColor as string) || "#3a43c0");
+        setBgColor((f.styleConfig?.bgColor as string) || "");
         const sc = f.successConfig;
         setSuccessMode((sc?.mode as "message" | "redirect") || "message");
         setSuccessTitle((sc?.title as string) || "신청이 완료되었습니다");
@@ -693,7 +696,7 @@ export function FormEditPage() {
     consentConfig: { items: consentItems },
     submitButtonConfig: { label: submitLabel },
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
-    styleConfig: { buttonColor, accentColor },
+    styleConfig: { buttonColor, accentColor, bgColor: bgColor || undefined },
     typeConfig: { contactMessage, contactDescription },
     settingsConfig: {
       allowSameIp,
@@ -1087,6 +1090,7 @@ export function FormEditPage() {
               <SectionHead title="디자인 · 색상" open={!collapsed.design} onToggle={() => toggleSection("design")} />
               <ColorField label="제출 버튼 색" value={buttonColor} onChange={setButtonColor} />
               <ColorField label="리드폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
+              <ConceptColorField label="카드 배경 컨셉 (화이트·블랙·블루)" value={bgColor} onChange={setBgColor} />
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }} {...sec("success")}>
