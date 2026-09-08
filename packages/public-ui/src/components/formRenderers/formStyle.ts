@@ -65,25 +65,28 @@ function mix(hexA: string, hexB: string, weight: number): string {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**
- * 리드폼 카드 배경 컨셉(V42, `styleConfig.bgColor`) — 지정돼 있으면 카드 배경·테두리·글자색을
- * 이 색 하나로 유도해 CSS 변수 오버라이드를 만든다. 표준 토큰(`--surface`·`--text`·...)과
- * 공개 화면 전용 토큰(`--pub-surface`·`--pub-ink`·...) 둘 다 덮어써야 한다 — 공개 랜딩/리드폼
- * CSS 가 상황에 따라 둘 중 하나를 참조하기 때문(features/public.css·landing.css 참고).
- * 카드 엘리먼트에 인라인 스타일로 얹으면 그 안의 모든 자손(입력창·버튼·텍스트)이 자동으로
- * 이 색 위에서 읽기 쉬운 톤을 따라간다 — 개별 요소를 하나하나 덮어쓸 필요가 없다.
+ * 리드폼 카드 배경 컨셉(V42, `styleConfig.bgColor`) — 지정돼 있으면 카드 자체의 배경·테두리·
+ * (입력창이 아닌) 글자색을 이 색 하나로 유도해 CSS 변수 오버라이드를 만든다. 표준 토큰
+ * (`--surface`·`--text`·...)과 공개 화면 전용 토큰(`--pub-surface`·`--pub-ink`·...) 둘 다
+ * 덮어써야 한다 — 공개 랜딩/리드폼 CSS 가 상황에 따라 둘 중 하나를 참조하기 때문
+ * (features/public.css·landing.css 참고).
+ *
+ * ⚠️ 입력창(`.input`)은 **일부러 안 건드린다** — `--surface-2`/`--pub-surface-2` 를 그대로
+ * 두면 `.input` 이 참조하는 `--pub-input-bg`/`--pub-input-text`(features/public.css) 가 카드
+ * 배경과 무관하게 항상 밝은 기본값을 유지한다. 카드가 어두워도 입력창은 원래 모습 그대로 —
+ * 사용자 결정(2026-09-08): "입력폼(입력창)은 그대로, 카드 겉면 배경만 바뀌면 된다".
  */
 export function resolveCardConcept(form: FormInput): Record<string, string> | undefined {
   const bg = ((form.styleConfig?.bgColor as string) || "").trim();
   if (!HEX_RE.test(bg)) return undefined;
   const text = textOn(bg);
-  const surface2 = mix(bg, text, 0.08);
-  const muted = mix(bg, text, 0.62);
-  const border = mix(bg, text, 0.18);
+  // 흐린 텍스트(질문 설명·동의 문구 등)는 어두운/컬러 배경 위에서도 잘 읽히도록 밝게 유지한다
+  // (0.62 로는 너무 흐려서 안 보인다는 실측 피드백, 2026-09-08).
+  const muted = mix(bg, text, 0.78);
+  const border = mix(bg, text, 0.22);
   return {
     "--surface": bg,
     "--pub-surface": bg,
-    "--surface-2": surface2,
-    "--pub-surface-2": surface2,
     "--text": text,
     "--pub-ink": text,
     "--muted": muted,

@@ -34,6 +34,12 @@
   --pub-border: #efe7dc;
   --pub-radius: 18px;
   --pub-shadow: 0 8px 24px -16px rgba(90, 72, 168, 0.45);
+  /* 입력창 전용 배경·글자색 — 리드폼 카드 배경 컨셉(V42, resolveCardConcept)이 절대 건드리지
+     않는 고정 토큰이다. 카드 겉면이 블랙·블루로 바뀌어도 입력창 내부는 항상 이 밝은 기본
+     모습 그대로 유지된다(사용자 결정: "입력폼은 그대로, 카드 배경만"). */
+  --pub-input-bg: #f6f2ec;
+  --pub-input-text: #2c2a30;
+  --pub-input-border: var(--pub-border);
 
   /* 표준 토큰 재정의 — 기존 컴포넌트가 그대로 Daylight 가 된다(다크에서도 라이트로 고정) */
   --bg: var(--pub-bg);
@@ -172,8 +178,9 @@
   font-size: 16px;
   padding: 15px 14px;
   border-radius: 14px;
-  border-color: var(--pub-border);
-  background: var(--pub-surface-2, var(--surface-2));
+  border-color: var(--pub-input-border);
+  background: var(--pub-input-bg);
+  color: var(--pub-input-text);
 }
 :is(.public-form-card, .landing-public) .input:focus {
   border-color: var(--pub-accent);
