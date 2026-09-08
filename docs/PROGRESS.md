@@ -8,6 +8,51 @@
 
 ## 📍 지금 위치
 
+- **✅ 랜딩페이지 배경 컬러(화이트·블랙·블루+커스텀) — 최종 landing-level 아키텍처로 배포 완료(2026-09-08, 원격 세션, 사용자 지시)**:
+  사용자가 "리드폼 색깔컨셉(랜딩이랑 리드폼에서 수정 가능하도록)"을 요청. **화면을 실제로 켜본
+  뒤 요구사항이 4번 뒤집힌 기능**이라 최종 아키텍처만 남기고 기록한다:
+  1. 카드 자체(입력창·라벨) 배경/글자색을 물들임 → 대비 나쁘고 "입력폼 안이 아니라 겉면 때문에
+     만든 기능"이라 반려.
+  2. 카드는 물들이되 `.input`만 전용 토큰으로 보호 → select 만 브라우저 위젯이 계속 어둡게 보임
+     (appearance:none 으로 임시 수정) → 사용자가 전제 자체를 정정: "카드 안이 아니라 카드
+     바깥 패딩 영역 색깔".
+  3. 카드를 감싸는 `.landing-form-concept-frame` 프레임 신설 → 실제로 보니 "그냥 외곽선만 있는
+     것처럼" 너무 얇고 안 보임.
+  4. **AskUserQuestion으로 명확히 선택지 제시(진작 했어야 했음) → 사용자 최종 결정: "랜딩페이지
+     전체 배경으로 해. 대신 '입력폼'에 하지 말고 랜딩페이지 자체에 '랜딩페이지 배경 컬러'로
+     선택할 수 있게 해"** — Form 레벨(`styleConfig.bgColor`)이 아니라 **Landing 레벨**(새 엔티티
+     필드)로 완전히 이동, 카드 하나가 아니라 **랜딩페이지 전체**를 칠함.
+  - **최종 구현(커밋 `c28f44b`)**: `LandingPage.bgColor` 컬럼 신설(V43 마이그레이션, null=화이트
+    기본). `LandingRequest`/`LandingResponse`/`PublicLandingResponse`에 `bgColor` 추가.
+    `LandingView.tsx`에서 `.landing-public-inner`(⚠️ `.landing-public` 아님 — 모바일 375~480px,
+    전체 트래픽의 99%에서 inner가 `min-height:100vh`+`width:100%`로 뷰포트 전체를 덮어 바깥만
+    칠하면 안 보임)에 `background` 인라인 스타일로 적용. `LandingEditPage.tsx` 미리보기
+    (`.lp-preview-device.in-frame`)에도 동일 적용. `resolveConceptBg()`(`formStyle.ts`)는
+    `{ bgColor }` 형태 아무 대상이나 받도록 시그니처 단순화(랜딩 전용으로 전환).
+  - **완전히 되돌린 것들**: `FormEditPage.tsx`의 `bgColor`/`ConceptColorField`/미리보기 프레임
+    분기, `.preview-concept-frame`/`.landing-form-concept-frame`/`--overlay` CSS, `.input` 전용
+    토큰(`--pub-input-*`)과 select `appearance:none` 땜빵, `PublicFormPageView.tsx`의 배경 적용
+    (단독 `/f/{id}`는 Landing 컨텍스트가 없어 이 기능 대상 아님) — 전부 리드폼이 아닌 랜딩
+    레벨로 옮겼으므로 리드폼 쪽 코드는 원래 모습 그대로 복귀.
+  - **검증**: public-ui vitest 81개, frontend `tsc -b`+`vite build`+vitest 20개, renderer
+    `next build`, backend `compileJava` 전부 통과.
+  - **배포**: 커밋 `c28f44b`, `main` 직접 push. 3개 워크플로(Deploy Frontend/Renderer/Cloudflare
+    Pages) 트리거 확인, 진행 중이었음 — **다음 세션은 success 여부 재확인부터**. 실제 화면에서
+    "랜딩페이지 배경 컬러"가 편집기 미리보기·공개 랜딩 양쪽에서 전체 배경으로 잘 반영되는지
+    최종 확인은 사용자 쪽에서 필요(이 세션은 실제 도메인 접근 불가).
+
+- **✅ 리드폼·랜딩페이지 폴더(계층형) 기능 배포 완료(2026-09-08, 원격 세션, 사용자 지시)**:
+  "폴더 만들 수 있는 기능... 폴더도 depth를 만들어서... 폴더 선택은 필수는 아니고... 폴더 생성
+  이모티콘 만들고 드래그앤드롭으로 폴더 이동" 요청 반영.
+  - 백엔드: `folders` 테이블 신설(V42, `owner_id`/`kind`(LANDING·FORM)/`parent_id` 자기참조
+    FK/`name`), `landing_pages`·`forms`에 `folder_id`(on delete set null) 추가. CRUD는
+    `FolderController`/`FolderService`(소유권 체크 + 순환 참조 방지 `isDescendant` 검사)로 구현 —
+    깊이 제한 없음(사용자가 한번 "뎁스 1개만" 요청했다가 직접 확인 후 "이미 작업돼있네"로 철회,
+    깊이 제한 코드는 넣지 않음).
+  - 프론트: `FolderTree.tsx`(사이드바 트리, 펼침/접기, "📁 새 폴더" 생성, 더블클릭 이름변경,
+    드래그앤드롭 이동, "전체"/"미분류" 특수 노드), `LandingsListPage`/`FormsListPage`에 연동.
+  - **검증·배포**: 커밋 `2b433da`, `main` push, 3개 워크플로 success 확인.
+
 - **✅ "구글 광고용"(googleAdsSafe) 랜딩은 구글 픽셀만 로드하도록 제한(2026-09-08, 원격 세션, 사용자 지시)**:
   사용자가 "구글 랜딩은 구글 픽셀만 들어가게 해달라"고 요청. 확인해보니 `googleAdsSafe`를 켜도
   HTML 블록 스크립트만 제거될 뿐, 그 랜딩에 연결된 리드폼에 메타·틱톡·카카오·당근·토스 픽셀이
