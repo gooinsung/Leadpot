@@ -8,6 +8,20 @@
 
 ## 📍 지금 위치
 
+- **✅ "구글 광고용"(googleAdsSafe) 랜딩은 구글 픽셀만 로드하도록 제한(2026-09-08, 원격 세션, 사용자 지시)**:
+  사용자가 "구글 랜딩은 구글 픽셀만 들어가게 해달라"고 요청. 확인해보니 `googleAdsSafe`를 켜도
+  HTML 블록 스크립트만 제거될 뿐, 그 랜딩에 연결된 리드폼에 메타·틱톡·카카오·당근·토스 픽셀이
+  설정돼 있으면 전부 같이 로드되고 있었음.
+  - **수정**: `pixels.ts`에 `googleOnlyPixels()` 추가(google/googleAds 키만 남기고 나머지 제거),
+    `LandingView.tsx`에서 `landing.googleAdsSafe`가 true면 `initPixels()` 호출 전에 이 필터를 거침.
+  - **함께 확인**: IP 차단(서버 로직)과 스크롤 깊이 추적(1st-party 분석)은 스크립트 삽입이 아니라
+    광고 정책 위반 신호와 무관하다고 판단해 **그대로 유지**(사용자도 "googleAdsSafe만 확실히
+    켜기"로 결정, 위 §2026-09-08 픽셀 회귀 기록 참고).
+  - **검증**: public-ui vitest 81개 통과(신규 `pixels.test.ts` 6개 포함), frontend `tsc -b` 통과,
+    renderer `next build` 정상 컴파일.
+  - **배포**: 커밋 `323a196`, `main` 직접 push. `Deploy Renderer`·`Deploy Frontend (Cloudflare
+    Pages)`·`Deploy Frontend`(레거시 VM) 트리거 확인 — 완료 여부는 다음 세션/체크에서 재확인.
+
 - **✅ 공개 랜딩 광고 픽셀·방문 기록 회귀 수정·배포 완료(2026-09-08, 원격 세션, 사용자 긴급 지시)**:
   사용자가 "메타·당근 픽셀이 안 잡힌다"고 보고. 조사 결과 **SSR 전환(Phase 1~3, 2026-09-07) 때
   생긴 회귀**로 확인됨 — `recordVisit`+`initPixels`(픽셀 스크립트 초기화) 로직이 옛 CSR 래퍼
