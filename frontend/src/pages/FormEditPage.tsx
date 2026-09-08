@@ -28,7 +28,6 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { WebhookLeadPanel } from "../components/WebhookLeadPanel";
-import { ConceptColorField } from "../components/ConceptColorField";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import {
@@ -311,7 +310,6 @@ export function FormEditPage() {
   const [submitLabel, setSubmitLabel] = useState(DEFAULT_SUBMIT_LABEL);
   const [buttonColor, setButtonColor] = useState("#12b886");
   const [accentColor, setAccentColor] = useState("#3a43c0");
-  const [bgColor, setBgColor] = useState(""); // 카드 배경 컨셉(V42). 빈 값 = 화이트(기본)
   const [successMode, setSuccessMode] = useState<"message" | "redirect">("message");
   const [successTitle, setSuccessTitle] = useState("신청이 완료되었습니다");
   const [successMessage, setSuccessMessage] = useState("빠른 시일 내에 연락드리겠습니다.");
@@ -420,7 +418,6 @@ export function FormEditPage() {
         setSubmitLabel((f.submitButtonConfig?.label as string) || DEFAULT_SUBMIT_LABEL);
         setButtonColor((f.styleConfig?.buttonColor as string) || "#12b886");
         setAccentColor((f.styleConfig?.accentColor as string) || "#3a43c0");
-        setBgColor((f.styleConfig?.bgColor as string) || "");
         const sc = f.successConfig;
         setSuccessMode((sc?.mode as "message" | "redirect") || "message");
         setSuccessTitle((sc?.title as string) || "신청이 완료되었습니다");
@@ -696,7 +693,7 @@ export function FormEditPage() {
     consentConfig: { items: consentItems },
     submitButtonConfig: { label: submitLabel },
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
-    styleConfig: { buttonColor, accentColor, bgColor: bgColor || undefined },
+    styleConfig: { buttonColor, accentColor },
     typeConfig: { contactMessage, contactDescription },
     settingsConfig: {
       allowSameIp,
@@ -1090,7 +1087,6 @@ export function FormEditPage() {
               <SectionHead title="디자인 · 색상" open={!collapsed.design} onToggle={() => toggleSection("design")} />
               <ColorField label="제출 버튼 색" value={buttonColor} onChange={setButtonColor} />
               <ColorField label="리드폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
-              <ConceptColorField label="카드 배경 컨셉 (화이트·블랙·블루)" value={bgColor} onChange={setBgColor} />
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }} {...sec("success")}>
@@ -1549,19 +1545,10 @@ export function FormEditPage() {
 
           <div className="preview-panel">
             <div className="card-h">미리보기</div>
-            {bgColor ? (
-              <div className="preview-concept-frame" style={{ background: bgColor }}>
-                <div className="preview-frame">
-                  {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
-                  <FormRenderer form={formData} />
-                </div>
-              </div>
-            ) : (
-              <div className="preview-frame">
-                {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
-                <FormRenderer form={formData} />
-              </div>
-            )}
+            <div className="preview-frame">
+              {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
+              <FormRenderer form={formData} />
+            </div>
             {/* 계산기 폼은 접수 후 '완료 안내' 대신 계산 결과가 나온다 — 미리보기도 그걸 보여준다. */}
             <div className="card-h" style={{ marginTop: 18 }}>{calculator ? "접수 후 결과 화면" : "완료 화면"}</div>
             <div className="preview-frame">

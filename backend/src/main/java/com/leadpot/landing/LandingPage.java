@@ -57,6 +57,10 @@ public class LandingPage {
     @Column(name = "folder_id")
     private Long folderId;
 
+    /** 랜딩페이지 전체 배경 컬러(V43, hex). null/빈 값 = 화이트(기본). */
+    @Column(name = "bg_color", length = 9)
+    private String bgColor;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -136,6 +140,15 @@ public class LandingPage {
 
     public void setFolderId(Long folderId) {
         this.folderId = folderId;
+    }
+
+    public String getBgColor() {
+        return bgColor;
+    }
+
+    /** 빈 문자열은 null 로 — "화이트(기본)"과 "설정 안 함"을 같은 값으로 취급. */
+    public void setBgColor(String bgColor) {
+        this.bgColor = bgColor == null || bgColor.isBlank() ? null : bgColor.trim();
     }
 
     public Instant getCreatedAt() {

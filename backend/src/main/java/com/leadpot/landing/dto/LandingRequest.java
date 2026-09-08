@@ -13,7 +13,8 @@ public record LandingRequest(
         String status,
         @Size(max = 120) String slug,
         Map<String, Object> tracking,
-        Boolean googleAdsSafe) {
+        Boolean googleAdsSafe,
+        @Size(max = 9) String bgColor) {
 
     public List<Map<String, Object>> contentOrEmpty() {
         return content == null ? List.of() : content;

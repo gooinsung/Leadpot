@@ -15,5 +15,6 @@ public record PublicLandingResponse(
         List<Map<String, Object>> content,
         Map<Long, FormResponse> forms,
         Map<String, Object> tracking,
-        boolean googleAdsSafe) {
+        boolean googleAdsSafe,
+        String bgColor) {
 }

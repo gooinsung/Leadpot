@@ -982,6 +982,8 @@ export interface LandingInput {
   tracking?: Record<string, unknown> | null; // 광고 픽셀 {google,meta,tiktok,kakao,daangn}
   /** 켜면 공개 렌더 시 HTML 블록의 스크립트·iframe 을 제거한다(구글 광고용, V41). */
   googleAdsSafe?: boolean;
+  /** 랜딩페이지 전체 배경 컬러(V43). 빈 값/null = 화이트(기본). */
+  bgColor?: string | null;
 }
 export interface LandingDetail extends LandingInput {
   id: number;

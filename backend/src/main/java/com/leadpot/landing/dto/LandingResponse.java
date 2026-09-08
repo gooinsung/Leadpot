@@ -16,12 +16,13 @@ public record LandingResponse(
         Map<String, Object> tracking,
         boolean googleAdsSafe,
         Long folderId,
+        String bgColor,
         Instant createdAt,
         Instant updatedAt) {
 
     public static LandingResponse from(LandingPage l) {
         return new LandingResponse(
                 l.getId(), l.getTitle(), l.getSlug(), l.getContent(), l.getStatus(), l.getTracking(),
-                l.isGoogleAdsSafe(), l.getFolderId(), l.getCreatedAt(), l.getUpdatedAt());
+                l.isGoogleAdsSafe(), l.getFolderId(), l.getBgColor(), l.getCreatedAt(), l.getUpdatedAt());
     }
 }

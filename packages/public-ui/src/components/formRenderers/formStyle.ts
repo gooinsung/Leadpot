@@ -47,18 +47,16 @@ export function textOn(hex: string): string {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**
- * 리드폼 카드 "바깥" 배경 컨셉(V42, `styleConfig.bgColor`) — 카드(입력창·라벨 등)는 항상
- * 기본 모습 그대로 두고, 카드를 감싸는 프레임의 배경색으로만 쓴다.
+ * 랜딩페이지 전체 배경 컬러(V43, `landing_pages.bg_color`) — 화이트(기본)·블랙·블루 프리셋 +
+ * 커스텀. 입력폼(카드)이 아니라 랜딩페이지 자체의 설정이라 `bgColor` 를 직접 속성으로 갖는
+ * 대상(`PublicLanding`)이면 무엇이든 받는다.
  *
- * ⚠️ 처음엔 카드 자체의 배경·글자색을 이 색으로 물들이는 방식으로 만들었다가(--surface/--text
- * CSS 변수 오버라이드), 실제로 켜본 사용자 피드백으로 두 번 뒤집힌 결정이다(2026-09-08):
- * "카드 안(입력창)이 아니라 카드 바깥 패딩 영역 색깔을 바꿔달라." → 카드는 그대로,
- * 이 함수가 반환하는 색은 카드를 감싸는 프레임(`.landing-form-concept-frame` 등)의
- * `background` 로만 쓴다 — 카드 내부 어떤 것도 상속받아 물들지 않는다(background 는
- * CSS 상속 속성이 아니므로 자식 요소에 영향이 없다).
+ * ⚠️ 원래는 리드폼 `styleConfig.bgColor`(카드 배경 컨셉)였다가, 실제로 켜본 사용자 피드백으로
+ * 여러 번 뒤집힌 끝에(2026-09-08) "입력폼이 아니라 랜딩페이지 자체에 배경 컬러"로 최종 결정됐다
+ * — 그래서 랜딩의 `bgColor` 를 직접 읽는다(중첩된 styleConfig 가 아니다).
  */
-export function resolveConceptBg(form: FormInput): string | undefined {
-  const bg = ((form.styleConfig?.bgColor as string) || "").trim();
+export function resolveConceptBg(target: { bgColor?: string | null }): string | undefined {
+  const bg = (target.bgColor || "").trim();
   return HEX_RE.test(bg) ? bg : undefined;
 }
 

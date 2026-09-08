@@ -149,18 +149,6 @@
   box-shadow: var(--shadow);
 }
 
-/* 카드 배경 컨셉(V42, styleConfig.bgColor) — 카드 자신(입력창·라벨 등)은 손대지 않고,
-   카드를 감싸는 이 프레임의 배경만 지정한 색으로 채운다(사용자 결정, 2026-09-08:
-   "카드 안이 아니라 바깥 패딩 영역"). 프레임 안에서는 카드 자신의 기본 여백(margin)을
-   0으로 눌러 이중 여백이 생기지 않게 한다. */
-.landing-form-concept-frame {
-  margin: 16px 20px;
-  padding: 14px;
-  border-radius: 20px;
-}
-.landing-form-concept-frame .landing-form-card {
-  margin: 0;
-}
 /* CTA 오버레이(배경 블러 + 모달) */
 .landing-overlay {
   position: fixed;
@@ -199,25 +187,9 @@
   from { transform: translateY(24px); opacity: 0.6; }
   to { transform: none; opacity: 1; }
 }
-/* 오버레이(모달)용 컨셉 프레임 — .landing-overlay 의 직계 자식 자리를 그대로 대신 차지한다. */
-.landing-form-concept-frame--overlay {
-  width: 100%;
-  max-width: 480px;
-  margin: 0;
-  padding: 10px;
-  border-radius: 20px 20px 0 0;
-  animation: overlayUp 0.2s ease;
-}
-.landing-form-concept-frame--overlay .landing-overlay-card {
-  border-radius: 14px 14px 0 0;
-  max-height: calc(92vh - 20px);
-  animation: none; /* 바깥 프레임이 이미 애니메이션하므로 카드는 따로 안 움직인다 */
-}
 @media (min-width: 640px) {
   .landing-overlay { align-items: center; }
   .landing-overlay-card { border-radius: 18px; }
-  .landing-form-concept-frame--overlay { border-radius: 20px; }
-  .landing-form-concept-frame--overlay .landing-overlay-card { border-radius: 14px; }
 }
 
 /* 풀스크린 스텝 진행(CTA → 화면 전체를 채우는 스텝형 리드폼) — 오버레이(하단시트)와 달리
