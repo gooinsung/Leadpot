@@ -1,11 +1,13 @@
 "use client";
-import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { getLandingLive, recordEvent, recordEventBeacon, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { getLandingLive, recordEvent, recordEventBeacon, recordVisit, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
 import { resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
+import { initPixels, mergeFormPixels } from "../lib/pixels";
+import { parseUtm } from "../lib/utm";
 
 /**
  * 블록 여백(위/아래/좌우, px) → 인라인 스타일.
@@ -33,6 +35,23 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
   const [fullscreenForm, setFullscreenForm] = useState<FormDetail | null>(null);
   const [live, setLive] = useState<LandingLive | null>(initialLive);
+
+  /**
+   * 방문 기록 + 광고 픽셀 초기화(페이지 로드 1회).
+   *
+   * ⚠️ SSR 전환(2026-09) 때 옛 CSR 래퍼(`PublicSitePage.tsx`)에만 있던 이 로직이 새 SSR 진입점
+   * (`renderer/.../site/[subdomain]/[identifier]/page.tsx`)으로 옮겨지지 않아, 실서비스 랜딩에서
+   * 방문 기록·광고 픽셀(메타·당근 등)이 전혀 발사되지 않는 회귀가 있었다(2026-09-08 발견).
+   * 페이지별 래퍼가 각자 기억해서 불러야 하는 구조가 원인이었으므로, 공유 컴포넌트인 여기에
+   * 내장해 재발을 막는다 — `LandingView`를 쓰는 곳(SSR 렌더러·CSR 래퍼)은 아무것도 더 안 해도 된다.
+   */
+  const visited = useRef(false);
+  useEffect(() => {
+    if (visited.current) return;
+    visited.current = true;
+    recordVisit({ landingPageId: landing.id, utm: parseUtm() });
+    initPixels(mergeFormPixels(landing.forms));
+  }, [landing.id]);
 
   // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
   useEffect(() => {

@@ -162,6 +162,24 @@ export function initPixels(cfg: unknown): void {
   }
 }
 
+/**
+ * 랜딩에 포함된 리드폼들의 픽셀 설정을 하나로 합친다(키별 첫 유효값 우선) — 랜딩 PageView 1회 발사용.
+ * 픽셀은 랜딩이 아니라 '포함된 리드폼'에 설정하므로(`FormEditPage`의 `PixelFields`), 랜딩 진입 시엔
+ * 포함된 모든 폼의 설정을 합쳐서 한 번만 로드한다(전환 Lead 는 각 폼 제출 시 그 폼 자신의 설정으로
+ * `PublicFormView` 가 개별 발사).
+ */
+export function mergeFormPixels(forms: Record<string, { trackingConfig?: unknown }>): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const form of Object.values(forms)) {
+    const t = form.trackingConfig;
+    if (!t || typeof t !== "object") continue;
+    for (const [k, v] of Object.entries(t as Record<string, unknown>)) {
+      if (v != null && String(v).trim() !== "" && merged[k] == null) merged[k] = v;
+    }
+  }
+  return merged;
+}
+
 /** 리드 제출 성공 시: 각 플랫폼 전환(Lead) 이벤트 발사. */
 export function firePixelLead(cfg: unknown): void {
   if (!cfg) return;
