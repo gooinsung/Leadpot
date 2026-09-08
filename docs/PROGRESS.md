@@ -8,6 +8,34 @@
 
 ## 📍 지금 위치
 
+- **✅ 한글 슬러그 랜딩 접속 불가 버그 수정·배포 완료(2026-09-08, 원격 세션, 사용자 긴급 지시)**:
+  사용자가 `the-law.lead-pot.com/개인회생성지`(당근광고용, 구글광고와 무관) 접속 시
+  "페이지를 불러오지 못했습니다" 오류를 보고. 원인 조사 중 처음엔 Cloudflare Workers 무료 티어
+  CPU 시간 제한(§6-4, 10ms) 초과를 의심했으나, **`wrangler dev`(workerd, 실제 프로덕션과 같은
+  런타임)로 로컬에서 직접 재현·반증** — 무거운 콘텐츠 자체는 CPU 문제없이 정상 렌더됨.
+  - **진짜 원인**: `renderer/src/proxy.ts` 의 서브도메인 rewrite 를 거친 요청에서, 한글 등 비ASCII
+    슬러그가 페이지 본문 컴포넌트(`SiteLandingPage`)에는 **URL-인코딩된 채로**(`%EA%B0%9C...`)
+    `params.identifier` 로 전달되는데(반면 같은 페이지의 `generateMetadata` 는 정상적으로
+    디코딩된 원문을 받음 — 같은 요청인데 Next 내부적으로 불일치), `resolveSite()` 가 여기에
+    `encodeURIComponent` 를 한 번 더 걸어 **이중 인코딩**(`%25EA%25B0...`)된 문자열로 백엔드를
+    조회해 항상 실패. `error.tsx` 클라이언트 폴백도 같은 `identifier` 로 같은 호출을 하므로
+    동일하게 실패해 폴백조차 못 뜨고 실패 메시지만 표시됐다.
+  - **영향 범위**: 비ASCII(한글 등) 슬러그를 쓰는 랜딩만 해당. 숫자 ID(`/37`·`/38` 등 구글광고용)는
+    인코딩해도 문자가 안 바뀌어 원래부터 영향 없었음 — 그래서 구글 광고 재심사 이슈와는 별개 버그.
+  - **수정**: `renderer/src/lib/decode-identifier.ts` 신설(`normalizeIdentifier()` — 방어적으로
+    한 번 디코딩, 이미 디코딩된 값엔 무해한 no-op), `site/[subdomain]/[identifier]/page.tsx`·
+    `error.tsx` 양쪽 적용.
+  - **검증**: 실제 문제 랜딩(id=30, "the-law4", 무거운 HTML/CSS/JS 위젯 2개 포함)의 응답을 그대로
+    재현한 스텁 API + 로컬 `wrangler dev`(workerd) 조합으로 수정 전(이중 인코딩으로 엉뚱한
+    콘텐츠 노출 확인) / 수정 후(정상 콘텐츠 200 OK, 실제 위젯 마크업까지 그대로 렌더 확인) 비교 완료.
+  - **배포**: 커밋 `6f705b1`, `main`·`claude/google-display-ad-rejection-cuxgd0` 양쪽 push 완료
+    (`deploy-renderer.yml` 트리거 예상). **이 세션은 실제 도메인 접근 불가라 배포 후 실제
+    `the-law.lead-pot.com/개인회생성지` 브라우저 최종 확인은 못 함** — 다음 이어받는 사람/사용자가
+    확인할 것.
+  - **미해결**: 구글 광고 거절("시스템 우회"/"손상된 사이트")은 `/37`·`/38` 자체는 curl·Search
+    Console 실시간 테스트로 정상 SSR 렌더 확인됨(위 §2026-09-06 기록) — 이 슬러그 버그와는 무관한
+    별개 이슈로 남아있음. 재심사 상태·"검토됨" 날짜 확인 등 계속 필요.
+
 - **✅ `/f/{id}` 단독 공개 폼도 SSR 로 통일(2026-09-08, 원격 세션, 사용자 승인 후 자율 진행)**:
   Phase 5 실배포·검증까지 끝난 뒤 사용자가 "안 쓰는 페이지도 굳이 CSR 로 남겨둘 이유 없다"고
   판단해 마지막 남은 공개 렌더링 경로도 SSR로 옮겼다(`docs/SSR-LANDING-PLAN.md` §11 #7).
@@ -114,16 +142,21 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> **바로 이어서 할 일: SSR-LANDING-PLAN.md Phase 5** — Cloudflare 배포.
-> ⚠️ 여기부터는 **사용자의 실제 Cloudflare 계정 작업이 필요**하다(§8) — 이 세션(샌드박스)은 계정
-> 인증·DNS·R2 버킷 생성 등을 할 수 없다. 사용자 확인/작업이 필요하면 멈추고 물어볼 것.
-> - Cloudflare 에 렌더러 배포(`*.workers.dev` 로 먼저 검증) — R2 캐시 바인딩은 계정 필요해 비워둔 상태
-> - Cloudflare Pages 프로젝트 생성(`frontend`) → `*.pages.dev` 로 먼저 검증
-> - 와일드카드 DNS·SSL 구성, `app.lead-pot.com`→Pages·`*.lead-pot.com`→렌더러 순으로 전환(되돌리기
->   지점 2개, 문제 시 DNS 만 되돌리면 복구)
-> - 두 전환 안정화 확인 후 Oracle VM 종료
-> - 사용자 지시("페이즈 7까지 계속 진행해. 내 확인 필요할때만 말해주고")에 따라 Phase 4까지는 자율
->   진행했고, Phase 5는 계정 작업이 필요해 사용자 확인이 필요한 지점.
+> **바로 이어서 할 일**:
+> 1. **한글 슬러그 버그 실도메인 최종 확인**(위 §2026-09-08 기록) — `deploy-renderer.yml`
+>    (커밋 `6f705b1`) 성공 확인 후, 실제 `the-law.lead-pot.com/개인회생성지`(당근광고) 브라우저 접속이
+>    정상 렌더되는지 확인. 안 되면 이 커밋만 되돌리면 복구(그 전엔 CSR 시절부터 있던 문제일 수도
+>    있어 완전한 신규 회귀는 아님).
+> 2. **구글 광고 거절 재확인** — `/37`·`/38` 은 SSR·Search Console 실시간 테스트로 기술적으로는
+>    정상 확인됨(§2026-09-06). 그런데도 "시스템 우회"/"손상된 사이트" 거절이 계속되면: (a) 광고
+>    관리자에서 "검토됨" 날짜가 SSR 배포(Phase 5, 2026-09-07 15:52 UTC) **이후**인지 확인(그 전
+>    날짜면 그냥 재심사를 기다리거나 재제출), (b) 그래도 거절되면 구글 광고 고객센터에 Search
+>    Console 실시간 테스트 결과를 근거로 직접 문의 고려.
+> 3. Cloudflare 네이티브 "Workers Builds" Git 연동(우리가 안 쓰는 중복 배포 경로, `npx wrangler
+>    versions upload` 실패 로그의 원인) 비활성화 — Workers & Pages → `leadpot-renderer` →
+>    Settings → Builds. 실서비스엔 영향 없는 정리 항목.
+> 4. 안정화 확인되면 SSR-LANDING-PLAN.md §7 Phase 6(관찰 기간 종료) → Phase 7 마무리(Oracle VM
+>    종료, `deploy-frontend.yml` 삭제, HOSTING-MIGRATION-PLAN "완료" 갱신).
 
 > ## 📋 2026-09-06 — **구글 광고 거절 원인 분석 + 공개 랜딩 SSR 계획 수립 / 버그 2건 배포 완료**
 >
