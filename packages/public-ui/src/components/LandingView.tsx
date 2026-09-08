@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } fr
 import { getLandingLive, recordEvent, recordEventBeacon, recordVisit, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
-import { resolveCardConcept, resolveStyle } from "./formRenderers/formStyle";
+import { resolveConceptBg, resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
 import { initPixels, mergeFormPixels, googleOnlyPixels } from "../lib/pixels";
@@ -208,27 +208,46 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
                 </Fragment>
               );
             }
-            return (
-              <div key={i} className="landing-form-card" style={{ ...ms, ...resolveCardConcept(form) }}>
-                <PublicFormView form={form} landingPageId={landing.id} trackingConfig={form.trackingConfig} />
-              </div>
-            );
+            {
+              // 카드 배경 컨셉(V42) — 카드 자체는 그대로 두고, 카드를 감싸는 프레임의
+              // 배경으로만 쓴다(사용자 결정, 2026-09-08: "카드 안이 아니라 바깥 패딩 색깔").
+              // 컨셉이 없으면 기존과 완전히 동일한 구조(클래스+ms 를 카드 자신에 직접)를 유지한다 —
+              // 프레임 div 를 새로 감싸면 블록 여백(mt/mb/mx) 계산이 달라져 기존 랜딩이 밀릴 수 있다.
+              const conceptBg = resolveConceptBg(form);
+              const formView = <PublicFormView form={form} landingPageId={landing.id} trackingConfig={form.trackingConfig} />;
+              if (!conceptBg) return <div key={i} className="landing-form-card" style={ms}>{formView}</div>;
+              return (
+                <div key={i} className="landing-form-concept-frame" style={{ ...ms, background: conceptBg }}>
+                  <div className="landing-form-card">{formView}</div>
+                </div>
+              );
+            }
           }
           return null;
         })}
       </div>
 
-      {overlayForm && (
-        <div className="landing-overlay" onClick={() => setOverlayForm(null)}>
-          <div className="landing-overlay-card" style={resolveCardConcept(overlayForm)} onClick={(e) => e.stopPropagation()}>
+      {overlayForm && (() => {
+        const conceptBg = resolveConceptBg(overlayForm);
+        const card = (
+          <div className="landing-overlay-card" onClick={(e) => e.stopPropagation()}>
             <button className="landing-overlay-close" type="button" onClick={() => setOverlayForm(null)} aria-label="닫기">×</button>
             <PublicFormView form={overlayForm} landingPageId={landing.id} trackingConfig={overlayForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
           </div>
-        </div>
-      )}
+        );
+        return (
+          <div className="landing-overlay" onClick={() => setOverlayForm(null)}>
+            {conceptBg ? (
+              <div className="landing-form-concept-frame landing-form-concept-frame--overlay" style={{ background: conceptBg }} onClick={(e) => e.stopPropagation()}>
+                {card}
+              </div>
+            ) : card}
+          </div>
+        );
+      })()}
 
       {fullscreenForm && (
-        <div className="landing-fullscreen" style={resolveCardConcept(fullscreenForm)}>
+        <div className="landing-fullscreen">
           <button className="landing-fullscreen-close" type="button" onClick={() => setFullscreenForm(null)} aria-label="닫기">×</button>
           <div className="landing-fullscreen-inner">
             <PublicFormView form={fullscreenForm} landingPageId={landing.id} trackingConfig={fullscreenForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />

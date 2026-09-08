@@ -1549,10 +1549,19 @@ export function FormEditPage() {
 
           <div className="preview-panel">
             <div className="card-h">미리보기</div>
-            <div className="preview-frame">
-              {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
-              <FormRenderer form={formData} />
-            </div>
+            {bgColor ? (
+              <div className="preview-concept-frame" style={{ background: bgColor }}>
+                <div className="preview-frame">
+                  {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
+                  <FormRenderer form={formData} />
+                </div>
+              </div>
+            ) : (
+              <div className="preview-frame">
+                {requirePhone && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
+                <FormRenderer form={formData} />
+              </div>
+            )}
             {/* 계산기 폼은 접수 후 '완료 안내' 대신 계산 결과가 나온다 — 미리보기도 그걸 보여준다. */}
             <div className="card-h" style={{ marginTop: 18 }}>{calculator ? "접수 후 결과 화면" : "완료 화면"}</div>
             <div className="preview-frame">

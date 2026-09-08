@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
-import { HtmlBlock, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
+import { HtmlBlock, resolveConceptBg, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
 import { ConceptColorField } from "../components/ConceptColorField";
 import {
   ApiError,
@@ -388,11 +388,14 @@ export function LandingEditPage() {
                         </div>
                       );
                     }
-                    return (
-                      <div key={i} className="landing-form-card" style={ms}>
-                        {detail ? <FormRenderer form={detail} /> : <Loading label="리드폼 미리보기 불러오는 중…" />}
-                      </div>
-                    );
+                    {
+                      // 카드 배경 컨셉(V42) 미리보기 — 실제 공개 렌더(LandingView)와 같은 규칙:
+                      // 카드는 그대로, 카드를 감싸는 프레임 배경만 지정한 색으로.
+                      const conceptBg = detail ? resolveConceptBg(detail) : undefined;
+                      const card = <div className="landing-form-card">{detail ? <FormRenderer form={detail} /> : <Loading label="리드폼 미리보기 불러오는 중…" />}</div>;
+                      if (!conceptBg) return <div key={i} className="landing-form-card" style={ms}>{detail ? <FormRenderer form={detail} /> : <Loading label="리드폼 미리보기 불러오는 중…" />}</div>;
+                      return <div key={i} className="landing-form-concept-frame" style={{ ...ms, background: conceptBg }}>{card}</div>;
+                    }
                   }
                   return null;
                 })}

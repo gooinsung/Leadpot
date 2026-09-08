@@ -4,7 +4,7 @@ import { recordVisit, type FormDetail } from "../api/client";
 import { initPixels } from "../lib/pixels";
 import { parseUtm } from "../lib/utm";
 import { PublicFormView } from "./PublicFormView";
-import { resolveCardConcept } from "./formRenderers/formStyle";
+import { resolveConceptBg } from "./formRenderers/formStyle";
 
 /**
  * 단독 공개 리드폼 페이지(`/f/{id}`)의 렌더 + 방문 기록 + 픽셀 초기화를 한데 묶은 컴포넌트.
@@ -26,9 +26,11 @@ export function PublicFormPageView({ form }: { form: FormDetail }) {
     initPixels(form.trackingConfig);
   }, [form.id, form.trackingConfig]);
 
+  // 카드 배경 컨셉(V42) — 카드는 그대로 두고, 카드가 놓인 페이지 배경(바깥 여백)만 이 색으로.
+  const conceptBg = resolveConceptBg(form);
   return (
-    <div className="public-form">
-      <div className="public-form-card" style={resolveCardConcept(form)}>
+    <div className="public-form" style={conceptBg ? { background: conceptBg } : undefined}>
+      <div className="public-form-card">
         <PublicFormView form={form} trackingConfig={form.trackingConfig} />
       </div>
     </div>

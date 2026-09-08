@@ -44,56 +44,22 @@ export function textOn(hex: string): string {
   return lum > 150 ? "#14172a" : "#ffffff";
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const c = (hex || "").replace("#", "");
-  const n = parseInt(c.length === 3 ? c.split("").map((x) => x + x).join("") : c, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
-  return `#${c(r)}${c(g)}${c(b)}`;
-}
-
-/** hexA·hexB 를 weight(0~1) 비율로 섞는다 — 배경색 하나로 테두리·흐린 텍스트 톤을 만들 때 쓴다. */
-function mix(hexA: string, hexB: string, weight: number): string {
-  const [r1, g1, b1] = hexToRgb(hexA);
-  const [r2, g2, b2] = hexToRgb(hexB);
-  return rgbToHex(r1 + (r2 - r1) * weight, g1 + (g2 - g1) * weight, b1 + (b2 - b1) * weight);
-}
-
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**
- * 리드폼 카드 배경 컨셉(V42, `styleConfig.bgColor`) — 지정돼 있으면 카드 자체의 배경·테두리·
- * (입력창이 아닌) 글자색을 이 색 하나로 유도해 CSS 변수 오버라이드를 만든다. 표준 토큰
- * (`--surface`·`--text`·...)과 공개 화면 전용 토큰(`--pub-surface`·`--pub-ink`·...) 둘 다
- * 덮어써야 한다 — 공개 랜딩/리드폼 CSS 가 상황에 따라 둘 중 하나를 참조하기 때문
- * (features/public.css·landing.css 참고).
+ * 리드폼 카드 "바깥" 배경 컨셉(V42, `styleConfig.bgColor`) — 카드(입력창·라벨 등)는 항상
+ * 기본 모습 그대로 두고, 카드를 감싸는 프레임의 배경색으로만 쓴다.
  *
- * ⚠️ 입력창(`.input`)은 **일부러 안 건드린다** — `--surface-2`/`--pub-surface-2` 를 그대로
- * 두면 `.input` 이 참조하는 `--pub-input-bg`/`--pub-input-text`(features/public.css) 가 카드
- * 배경과 무관하게 항상 밝은 기본값을 유지한다. 카드가 어두워도 입력창은 원래 모습 그대로 —
- * 사용자 결정(2026-09-08): "입력폼(입력창)은 그대로, 카드 겉면 배경만 바뀌면 된다".
+ * ⚠️ 처음엔 카드 자체의 배경·글자색을 이 색으로 물들이는 방식으로 만들었다가(--surface/--text
+ * CSS 변수 오버라이드), 실제로 켜본 사용자 피드백으로 두 번 뒤집힌 결정이다(2026-09-08):
+ * "카드 안(입력창)이 아니라 카드 바깥 패딩 영역 색깔을 바꿔달라." → 카드는 그대로,
+ * 이 함수가 반환하는 색은 카드를 감싸는 프레임(`.landing-form-concept-frame` 등)의
+ * `background` 로만 쓴다 — 카드 내부 어떤 것도 상속받아 물들지 않는다(background 는
+ * CSS 상속 속성이 아니므로 자식 요소에 영향이 없다).
  */
-export function resolveCardConcept(form: FormInput): Record<string, string> | undefined {
+export function resolveConceptBg(form: FormInput): string | undefined {
   const bg = ((form.styleConfig?.bgColor as string) || "").trim();
-  if (!HEX_RE.test(bg)) return undefined;
-  const text = textOn(bg);
-  // 흐린 텍스트(질문 설명·동의 문구 등)는 어두운/컬러 배경 위에서도 잘 읽히도록 밝게 유지한다
-  // (0.62 로는 너무 흐려서 안 보인다는 실측 피드백, 2026-09-08).
-  const muted = mix(bg, text, 0.78);
-  const border = mix(bg, text, 0.22);
-  return {
-    "--surface": bg,
-    "--pub-surface": bg,
-    "--text": text,
-    "--pub-ink": text,
-    "--muted": muted,
-    "--pub-muted": muted,
-    "--border": border,
-    "--pub-border": border,
-  };
+  return HEX_RE.test(bg) ? bg : undefined;
 }
 
 /** CHOICE 질문의 답변 방식 중 "선택지 목록에서 고르는" 유형(카드형·목록형) 전체. */
