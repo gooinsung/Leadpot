@@ -10,6 +10,7 @@
 
 export interface PixelConfig {
   google?: string; // gtag ID (G-XXXX / AW-XXXX)
+  googleAds?: string; // Google Ads 전환(send_to) — 'AW-123456/LABEL'
   meta?: string; // Meta(Facebook) Pixel ID
   metaEvent?: string; // 메타 전환 이벤트(Lead | CompleteRegistration | SubmitApplication | Contact | Schedule), 기본 Lead
   tiktok?: string; // TikTok Pixel ID
@@ -178,6 +179,20 @@ export function mergeFormPixels(forms: Record<string, { trackingConfig?: unknown
     }
   }
   return merged;
+}
+
+/**
+ * "구글 광고용" 랜딩(googleAdsSafe)에서 구글(GA4/Google Ads) 픽셀만 남기고 다른 매체
+ * (메타·틱톡·카카오·당근·토스) 픽셀 설정은 제거한다 — 구글 광고 심사용 페이지에 다른 매체
+ * 스크립트가 함께 실려 나가지 않게 하기 위함.
+ */
+export function googleOnlyPixels(cfg: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const google = val(cfg, "google");
+  const googleAds = val(cfg, "googleAds");
+  if (google) out.google = google;
+  if (googleAds) out.googleAds = googleAds;
+  return out;
 }
 
 /** 리드 제출 성공 시: 각 플랫폼 전환(Lead) 이벤트 발사. */

@@ -6,7 +6,7 @@ import { PublicFormView } from "./PublicFormView";
 import { resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
-import { initPixels, mergeFormPixels } from "../lib/pixels";
+import { initPixels, mergeFormPixels, googleOnlyPixels } from "../lib/pixels";
 import { parseUtm } from "../lib/utm";
 
 /**
@@ -44,13 +44,17 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
    * 방문 기록·광고 픽셀(메타·당근 등)이 전혀 발사되지 않는 회귀가 있었다(2026-09-08 발견).
    * 페이지별 래퍼가 각자 기억해서 불러야 하는 구조가 원인이었으므로, 공유 컴포넌트인 여기에
    * 내장해 재발을 막는다 — `LandingView`를 쓰는 곳(SSR 렌더러·CSR 래퍼)은 아무것도 더 안 해도 된다.
+   *
+   * `googleAdsSafe` 랜딩은 구글(GA4/Google Ads) 픽셀만 로드한다 — 메타·틱톡·카카오·당근·토스
+   * 스크립트가 구글 심사용 페이지에 함께 실려 나가지 않도록(사용자 결정, 2026-09-08).
    */
   const visited = useRef(false);
   useEffect(() => {
     if (visited.current) return;
     visited.current = true;
     recordVisit({ landingPageId: landing.id, utm: parseUtm() });
-    initPixels(mergeFormPixels(landing.forms));
+    const pixelCfg = mergeFormPixels(landing.forms);
+    initPixels(landing.googleAdsSafe ? googleOnlyPixels(pixelCfg) : pixelCfg);
   }, [landing.id]);
 
   // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
