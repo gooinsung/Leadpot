@@ -8,6 +8,28 @@
 
 ## 📍 지금 위치
 
+- **✅ 공개 랜딩 광고 픽셀·방문 기록 회귀 수정·배포 완료(2026-09-08, 원격 세션, 사용자 긴급 지시)**:
+  사용자가 "메타·당근 픽셀이 안 잡힌다"고 보고. 조사 결과 **SSR 전환(Phase 1~3, 2026-09-07) 때
+  생긴 회귀**로 확인됨 — `recordVisit`+`initPixels`(픽셀 스크립트 초기화) 로직이 옛 CSR 래퍼
+  (`frontend/src/pages/PublicSitePage.tsx`)에만 있었는데, 실서비스가 쓰는 새 SSR 진입점
+  (`renderer/.../site/[subdomain]/[identifier]/page.tsx` → 공유 컴포넌트 `LandingView.tsx`)으로
+  이 로직이 옮겨지지 않아 **랜딩페이지에서 픽셀이 전혀 초기화되지 않고 있었음**(리드 제출 시
+  전환 이벤트를 쏘는 `firePixelLead`는 있었지만, `window.fbq`/`window.karrotPixel` 자체가 안
+  만들어져 있어 조용히 no-op).
+  - **수정**: `packages/public-ui/src/lib/pixels.ts`에 `mergeFormPixels` 유틸 추가,
+    `LandingView.tsx`(SSR·CSR 공용)에 마운트 1회 `recordVisit`+`initPixels` 내장 — 앞으로
+    `LandingView`를 쓰는 곳은 렌더링 방식과 무관하게 자동으로 픽셀이 동작함. 중복 방지를 위해
+    `PublicSitePage.tsx`의 옛 로직은 제거.
+  - **검증**: public-ui vitest 75개 통과, frontend `tsc -b` 통과, renderer `next build` 정상 컴파일.
+  - **배포**: 커밋 `a2f4914`, `claude/leadpot-google-ads-rejection-h3izh8` → `main` 병합 후 push,
+    `Deploy Renderer`·`Deploy Frontend (Cloudflare Pages)`·`Deploy Frontend`(레거시 VM) 3개 워크플로
+    전부 success 확인(2026-09-08 07:51 UTC). **실제 도메인에서 메타/당근 픽셀 발사 최종 확인은
+    사용자 쪽에서 필요**(이 세션은 실제 도메인 접근 불가).
+  - 같은 세션에서 구글 광고 거절 원인 재점검도 진행 — `googleAdsSafe` 옵션은 랜딩별 opt-in(기본
+    꺼짐)이므로, 실제 광고에 쓰는 랜딩에 이 체크박스가 켜져 있는지 별도 확인 필요(아래 §2026-09-06
+    기록·"다음에 할 일" 참고). IP 차단 규칙 존재 여부도 함께 확인 권장(과도한 대역 차단은 구글
+    리뷰어를 막아 "시스템 우회"로 재발할 수 있음).
+
 - **✅ 한글 슬러그 랜딩 접속 불가 버그 수정·배포 완료(2026-09-08, 원격 세션, 사용자 긴급 지시)**:
   사용자가 `the-law.lead-pot.com/개인회생성지`(당근광고용, 구글광고와 무관) 접속 시
   "페이지를 불러오지 못했습니다" 오류를 보고. 원인 조사 중 처음엔 Cloudflare Workers 무료 티어
