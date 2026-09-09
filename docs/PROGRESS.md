@@ -8,6 +8,30 @@
 
 ## 📍 지금 위치
 
+- **✅ 카카오 픽셀 전환 이벤트 선택 기능 추가 — 배포 완료(2026-09-09, 사용자 지시)**:
+  사용자 질문("카카오는 전환이벤트 뭐로 설정돼있어?")에서 시작 — 기존엔 `completeRegistration`
+  (회원가입 완료)으로 **고정** 전송이었는데, 카카오 픽셀 SDK 는 `participation`(참여·잠재고객)
+  등 더 많은 표준 이벤트를 제공하고 리드팟 폼 대부분이 상담신청·문의 성격이라 이쪽이 더 맞는
+  경우가 많음을 확인 → 사용자 승인 후 메타·당근·토스와 동일한 패턴으로 구현.
+  - **구현**: `PixelFields.tsx`에 `KAKAO_EVENTS`(completeRegistration/participation) +
+    `KAKAO_EVENT_DEFAULT="completeRegistration"` 추가, `EVENT_PICKERS`에 등록(토글·클리어 로직은
+    기존 제네릭 코드가 그대로 처리). `pixels.ts`(`packages/public-ui/src/lib/`, 최근 모노레포
+    구조 변경으로 `frontend`에서 이동됨)의 `firePixelLead`에서 `completeRegistration()` 하드코딩을
+    `cfg.kakaoEvent`(미설정 시 `completeRegistration`) 기반 동적 메서드 호출로 교체 — 토스 패턴과
+    동일.
+  - **하위호환**: 기존에 설정된 리드폼은 `kakaoEvent` 필드가 없으므로 기본값으로 폴백,
+    동작 변화 없음.
+  - **검증**: `frontend`·`packages/public-ui` 양쪽 `tsc --noEmit` 통과, `public-ui` vitest 81개
+    전부 통과. UI 클릭 테스트는 로그인 계정이 없어 못 함(사용자에게 확인 요청함).
+  - **배포**: 로컬 main 이 origin 대비 47커밋 뒤처져 있어 먼저 stash→`git pull --ff-only`(대규모
+    모노레포 재구조화 반영: `frontend/src/lib/pixels.ts` 등 공개 UI 코드가 `packages/public-ui/`로
+    이동, `renderer`(Next.js SSR) 앱 신설, npm workspaces 도입)→stash pop(자동 병합 성공)→커밋
+    `259366c`→`main` push. `Deploy Frontend` #139·`Deploy Frontend (Cloudflare Pages)` #14·
+    `Deploy Renderer (Cloudflare Workers)` #16 **3개 모두 성공** 확인(GitHub Actions, 초 단위로
+    완료).
+  - **다음에 할 일**: 실제 리드폼 편집 화면 "광고 픽셀" 섹션에서 카카오 체크 시 이벤트 드롭다운이
+    뜨는지, 실제 카카오 픽셀 헬퍼로 `participation` 선택 시 그 이벤트가 발사되는지 실사용 확인.
+
 - **✅ 랜딩페이지 배경 컬러(화이트·블랙·블루+커스텀) — 최종 landing-level 아키텍처로 배포 완료(2026-09-08, 원격 세션, 사용자 지시)**:
   사용자가 "리드폼 색깔컨셉(랜딩이랑 리드폼에서 수정 가능하도록)"을 요청. **화면을 실제로 켜본
   뒤 요구사항이 4번 뒤집힌 기능**이라 최종 아키텍처만 남기고 기록한다:
