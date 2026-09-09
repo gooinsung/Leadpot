@@ -8,6 +8,20 @@
 
 ## 📍 지금 위치
 
+- **✅ 틱톡 픽셀 전환 이벤트도 리드폼별로 선택 가능하게 추가(2026-09-09, 원격 세션, 사용자 지시)**:
+  메타·당근·토스·카카오처럼 리드폼 편집 화면에서 고를 수 있게 확장 — 기존엔 `SubmitForm`으로
+  고정 전송이었음. 틱톡은 카카오·토스와 달리 메서드가 갈리지 않고 메타처럼 `ttq.track(이벤트명)`
+  하나로 이벤트명을 실어 보내는 방식이라 그 패턴을 그대로 따름.
+  - **구현**: `PixelFields.tsx`에 `TIKTOK_EVENTS`(SubmitForm/CompleteRegistration/Contact/
+    Subscribe) + `TIKTOK_EVENT_DEFAULT="SubmitForm"` 추가, `EVENT_PICKERS`에 등록. `pixels.ts`의
+    `firePixelLead`에서 `ttq.track("SubmitForm")` 하드코딩을 `cfg.tiktokEvent`(미설정 시
+    SubmitForm) 기반으로 교체.
+  - **하위호환**: 기존 리드폼은 `tiktokEvent` 필드가 없어 기본값(SubmitForm)으로 폴백, 동작
+    변화 없음. 백엔드 변경 없음(`trackingConfig`는 `Map<String,Object>` opaque JSONB라 새 키
+    추가에 스키마 변경 불필요 — 카카오/토스 때와 동일).
+  - **검증**: `public-ui`·`frontend` 양쪽 `tsc --noEmit`+vitest(81개+20개) 통과, `renderer`
+    `next build` 정상 컴파일.
+
 - **✅ 공개 랜딩 URL 구조 변경 — 고객별 서브도메인 폐지, `go.lead-pot.com/{sub}/{id}` 고정 호스트로
   전환(2026-09-09, 원격 세션, 사용자 명시적 지시)**: 구글 광고 gTech 담당자가 "손상된 사이트"로
   `the-law.lead-pot.com`(고객 1명의 서브도메인)을 콕 집어 악성 호스트로 판정한다는 회신을 받음.

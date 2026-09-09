@@ -58,6 +58,21 @@ export const DAANGN_EVENTS: { value: string; label: string }[] = [
 export const DAANGN_EVENT_DEFAULT = "Purchase";
 
 /**
+ * 틱톡 전환 이벤트 — 값은 틱톡 픽셀 SDK 의 `ttq.track(이벤트명)` 에 그대로 넘기는 표준 이벤트명이다
+ * (메타처럼 하나의 track() 함수에 이름을 실어 보내는 방식 — 카카오·토스처럼 이벤트마다 메서드가
+ * 갈리지 않는다). 틱톡 공식 표준 이벤트 중 리드폼에 맞는 것만 담았다(구매·장바구니·콘텐츠조회
+ * 계열은 리드폼과 안 맞아 뺐다).
+ */
+export const TIKTOK_EVENTS: { value: string; label: string }[] = [
+  { value: "SubmitForm", label: "SubmitForm — 양식 제출" },
+  { value: "CompleteRegistration", label: "CompleteRegistration — 등록 완료" },
+  { value: "Contact", label: "Contact — 문의·연락" },
+  { value: "Subscribe", label: "Subscribe — 구독" },
+];
+/** 미설정 리드폼의 기본 틱톡 전환 이벤트(기존 고정 동작과 하위호환). pixels.ts 기본값과 반드시 같아야 한다. */
+export const TIKTOK_EVENT_DEFAULT = "SubmitForm";
+
+/**
  * 카카오 전환 이벤트 — 값은 카카오 픽셀 SDK 가 실제로 호출하는 메서드명 그 자체다
  * (토스처럼 이벤트마다 메서드가 다르다). SDK 가 제공하는 표준 이벤트 중 리드폼에 맞는 것만 담았다 —
  * purchase 는 금액·수량이 필요해 빼고(메타 Purchase 를 뺀 이유와 동일), 장바구니·위시리스트·검색·
@@ -90,6 +105,13 @@ export const TOSS_EVENT_DEFAULT = "lead";
 
 /** 전환 이벤트를 고를 수 있는 플랫폼만 여기 둔다(나머지는 표준 이벤트가 하나로 고정). */
 const EVENT_PICKERS: Record<string, { field: string; label: string; options: typeof META_EVENTS; def: string; help: string }> = {
+  tiktok: {
+    field: "tiktokEvent",
+    label: "틱톡 전환 이벤트",
+    options: TIKTOK_EVENTS,
+    def: TIKTOK_EVENT_DEFAULT,
+    help: "리드 제출 시 틱톡에 보낼 표준 이벤트입니다. 광고 그룹의 최적화 이벤트와 같아야 성과로 잡힙니다.",
+  },
   meta: {
     field: "metaEvent",
     label: "메타 전환 이벤트",
@@ -229,8 +251,8 @@ export function PixelFields({
 
       <p className="dash-sub" style={{ fontSize: 12, marginTop: 10 }}>
         선택한 픽셀은 공개 페이지에 삽입되어 <b>방문(PageView)</b>과 <b>리드 제출 시 전환</b>을 각 플랫폼에 전송합니다.
-        전환 이벤트를 고를 수 있는 곳은 메타·당근·토스·카카오입니다 — 구글은 <code>generate_lead</code>(+Ads 전환라벨),
-        틱톡은 <code>SubmitForm</code>으로 고정 전송됩니다.
+        전환 이벤트를 고를 수 있는 곳은 메타·틱톡·당근·토스·카카오입니다 — 구글만 <code>generate_lead</code>
+        (+Ads 전환라벨)으로 고정 전송됩니다.
         <br />
         ⚠️ 미리보기 주소(<code>/p/…</code>)에서는 픽셀이 발사되지 않습니다. 테스트는 공개 URL에서 하세요.
       </p>

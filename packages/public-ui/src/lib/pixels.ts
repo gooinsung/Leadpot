@@ -14,6 +14,7 @@ export interface PixelConfig {
   meta?: string; // Meta(Facebook) Pixel ID
   metaEvent?: string; // 메타 전환 이벤트(Lead | CompleteRegistration | SubmitApplication | Contact | Schedule), 기본 Lead
   tiktok?: string; // TikTok Pixel ID
+  tiktokEvent?: string; // 틱톡 전환 이벤트 — ttq.track() 에 그대로 넘기는 표준 이벤트명(SubmitForm | CompleteRegistration | Contact | Subscribe), 기본 SubmitForm
   kakao?: string; // Kakao 픽셀 트랙 ID
   kakaoEvent?: string; // 카카오 전환 이벤트 — 호출할 메서드명 그 자체(completeRegistration | participation), 기본 completeRegistration
   daangn?: string; // 당근(Karrot) 픽셀 ID
@@ -214,7 +215,11 @@ export function firePixelLead(cfg: unknown): void {
   try { if (google && w.gtag) w.gtag("event", "generate_lead"); } catch { /* ignore */ }
   // Google Ads 전환: send_to=AW-ID/LABEL 로 conversion 이벤트 발사(광고 전환 카운트).
   try { if (googleAds && w.gtag) w.gtag("event", "conversion", { send_to: googleAds }); } catch { /* ignore */ }
-  try { if (tiktok && w.ttq) w.ttq.track("SubmitForm"); } catch { /* ignore */ }
+  // 틱톡은 메타처럼 track() 하나에 이벤트명을 실어 보낸다 — 리드폼별로 고른 이벤트를 그대로 전달.
+  // 미설정이면 SubmitForm(기존 고정 동작과 하위호환) — components/PixelFields.tsx 의
+  // TIKTOK_EVENT_DEFAULT 와 반드시 같아야 한다.
+  const tiktokEvent = val(cfg, "tiktokEvent") || "SubmitForm";
+  try { if (tiktok && w.ttq) w.ttq.track(tiktokEvent); } catch { /* ignore */ }
   // 카카오는 토스처럼 이벤트마다 메서드가 다르다 — 리드폼별로 고른 메서드명을 그대로 호출한다.
   // 미설정이면 completeRegistration(기존 기본값과 하위호환) — components/PixelFields.tsx 의
   // KAKAO_EVENT_DEFAULT 와 반드시 같아야 한다.
