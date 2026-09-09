@@ -58,6 +58,19 @@ export const DAANGN_EVENTS: { value: string; label: string }[] = [
 export const DAANGN_EVENT_DEFAULT = "Purchase";
 
 /**
+ * 카카오 전환 이벤트 — 값은 카카오 픽셀 SDK 가 실제로 호출하는 메서드명 그 자체다
+ * (토스처럼 이벤트마다 메서드가 다르다). SDK 가 제공하는 표준 이벤트 중 리드폼에 맞는 것만 담았다 —
+ * purchase 는 금액·수량이 필요해 빼고(메타 Purchase 를 뺀 이유와 동일), 장바구니·위시리스트·검색·
+ * 콘텐츠조회 계열도 리드폼과 안 맞아 뺐다.
+ */
+export const KAKAO_EVENTS: { value: string; label: string }[] = [
+  { value: "completeRegistration", label: "completeRegistration — 회원가입 완료" },
+  { value: "participation", label: "participation — 참여·잠재고객(상담신청·예약·응모)" },
+];
+/** 미설정 리드폼의 기본 카카오 전환 이벤트(기존 고정 동작과 하위호환). pixels.ts 기본값과 반드시 같아야 한다. */
+export const KAKAO_EVENT_DEFAULT = "completeRegistration";
+
+/**
  * 토스애즈 전환 이벤트 — 값은 토스 픽셀 SDK 가 실제로 호출하는 메서드명 그 자체다
  * (다른 플랫폼과 달리 이벤트마다 메서드가 다르다 — `TossPixel(id).lead()`, `.signUp()` 등,
  * 하나의 track() 함수에 이름을 실어 보내는 방식이 아니다). 공식 문서 전체 이벤트 중
@@ -90,6 +103,13 @@ const EVENT_PICKERS: Record<string, { field: string; label: string; options: typ
     options: DAANGN_EVENTS,
     def: DAANGN_EVENT_DEFAULT,
     help: "리드 제출 시 당근에 보낼 전환 이벤트입니다. 당근 광고 관리자에서 설정한 전환 유형과 같아야 성과로 잡힙니다.",
+  },
+  kakao: {
+    field: "kakaoEvent",
+    label: "카카오 전환 이벤트",
+    options: KAKAO_EVENTS,
+    def: KAKAO_EVENT_DEFAULT,
+    help: "리드 제출 시 카카오에 보낼 전환 이벤트입니다. 상담신청·문의 같은 리드폼이면 participation이, 회원가입 폼이면 completeRegistration이 더 정확합니다.",
   },
   toss: {
     field: "tossEvent",
@@ -209,8 +229,8 @@ export function PixelFields({
 
       <p className="dash-sub" style={{ fontSize: 12, marginTop: 10 }}>
         선택한 픽셀은 공개 페이지에 삽입되어 <b>방문(PageView)</b>과 <b>리드 제출 시 전환</b>을 각 플랫폼에 전송합니다.
-        전환 이벤트를 고를 수 있는 곳은 메타·당근·토스입니다 — 구글은 <code>generate_lead</code>(+Ads 전환라벨),
-        틱톡은 <code>SubmitForm</code>, 카카오는 가입완료로 고정 전송됩니다.
+        전환 이벤트를 고를 수 있는 곳은 메타·당근·토스·카카오입니다 — 구글은 <code>generate_lead</code>(+Ads 전환라벨),
+        틱톡은 <code>SubmitForm</code>으로 고정 전송됩니다.
         <br />
         ⚠️ 미리보기 주소(<code>/p/…</code>)에서는 픽셀이 발사되지 않습니다. 테스트는 공개 URL에서 하세요.
       </p>

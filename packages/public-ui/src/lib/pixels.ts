@@ -15,6 +15,7 @@ export interface PixelConfig {
   metaEvent?: string; // 메타 전환 이벤트(Lead | CompleteRegistration | SubmitApplication | Contact | Schedule), 기본 Lead
   tiktok?: string; // TikTok Pixel ID
   kakao?: string; // Kakao 픽셀 트랙 ID
+  kakaoEvent?: string; // 카카오 전환 이벤트 — 호출할 메서드명 그 자체(completeRegistration | participation), 기본 completeRegistration
   daangn?: string; // 당근(Karrot) 픽셀 ID
   daangnEvent?: string; // 당근 전환 이벤트(Purchase | Lead | SubmitApplication), 기본 Purchase
   toss?: string; // 토스애즈 전환 코드(픽셀 ID)
@@ -214,7 +215,11 @@ export function firePixelLead(cfg: unknown): void {
   // Google Ads 전환: send_to=AW-ID/LABEL 로 conversion 이벤트 발사(광고 전환 카운트).
   try { if (googleAds && w.gtag) w.gtag("event", "conversion", { send_to: googleAds }); } catch { /* ignore */ }
   try { if (tiktok && w.ttq) w.ttq.track("SubmitForm"); } catch { /* ignore */ }
-  try { if (kakao && w.kakaoPixel) w.kakaoPixel(kakao).completeRegistration(); } catch { /* ignore */ }
+  // 카카오는 토스처럼 이벤트마다 메서드가 다르다 — 리드폼별로 고른 메서드명을 그대로 호출한다.
+  // 미설정이면 completeRegistration(기존 기본값과 하위호환) — components/PixelFields.tsx 의
+  // KAKAO_EVENT_DEFAULT 와 반드시 같아야 한다.
+  const kakaoEvent = val(cfg, "kakaoEvent") || "completeRegistration";
+  try { if (kakao && w.kakaoPixel) (w.kakaoPixel(kakao) as any)[kakaoEvent]?.(); } catch { /* ignore */ }
   // 당근은 전환 이벤트를 리드폼별로 고를 수 있다(구매/잠재고객/서비스신청).
   // 미설정이면 Purchase — components/PixelFields.tsx 의 DAANGN_EVENT_DEFAULT 와 같아야 한다.
   const daangnEvent = val(cfg, "daangnEvent") || "Purchase";
