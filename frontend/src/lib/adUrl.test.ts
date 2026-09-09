@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AD_PARAM_KEYS, buildAdUrl } from "./adUrl";
 import { parseUtm } from "@leadpot/public-ui";
 
-const BASE = "https://bali.lead-pot.com/17";
+const BASE = "https://go.lead-pot.com/bali/17";
 
 describe("buildAdUrl", () => {
   it("값이 있는 파라미터만 붙인다", () => {

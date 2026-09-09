@@ -198,7 +198,7 @@ export function LandingEditPage() {
               autoCapitalize="none"
             />
             <span className="field-optional" style={{ marginTop: 6, fontSize: 12, overflowWrap: "anywhere" }}>
-              공개 URL: <code>{user?.subdomain ?? "내서브도메인"}.lead-pot.com/{slug.trim() || "자동생성"}</code>
+              공개 URL: <code>go.lead-pot.com/{user?.subdomain ?? "내서브도메인"}/{slug.trim() || "자동생성"}</code>
               {" "}(랜딩번호로도 접속 가능)
             </span>
           </div>

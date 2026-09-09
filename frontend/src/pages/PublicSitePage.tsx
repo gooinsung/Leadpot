@@ -17,7 +17,14 @@ function mergeFormPixels(forms: PublicLanding["forms"]): Record<string, unknown>
   return merged;
 }
 
-/** 공개 사이트 페이지: {subdomain}.도메인/{랜딩번호|슬러그}. published 만 열림. 방문 1회 기록. */
+/**
+ * 공개 사이트 페이지: {subdomain}.도메인/{랜딩번호|슬러그}. published 만 열림. 방문 1회 기록.
+ *
+ * ⚠️ 운영 트래픽은 더 이상 이 경로를 안 탄다(2026-09-09~ go.lead-pot.com/{sub}/{id} 로 전환,
+ * 서브도메인 호스트는 렌더러가 301 리다이렉트만 함, `renderer/src/proxy.ts`). 이 페이지는
+ * `bali.localhost:5173` 같은 **로컬 개발 편의용**(App.tsx 의 `currentSubdomain()` 호스트 감지)으로만
+ * 남아있다 — 렌더러(`next dev`)를 안 띄우고 frontend 단독으로 빠르게 확인할 때 쓴다.
+ */
 export function PublicSitePage({ subdomain }: { subdomain: string }) {
   const { identifier } = useParams();
   const [landing, setLanding] = useState<PublicLanding | null>(null);

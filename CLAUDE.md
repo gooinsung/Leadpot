@@ -57,7 +57,7 @@
 | 구성 | 선택 | 지금 배포처 |
 |---|---|---|
 | 관리 앱(로그인·대시보드·빌더) | **React + Vite (TypeScript) SPA** | **Cloudflare Pages**(`app.lead-pot.com`, 프로젝트 `leadpot-app`) — 2026-09-07 Oracle VM 에서 컷오버 완료 |
-| 공개 랜딩(`{sub}.lead-pot.com`) | **Next.js(App Router) SSR** | **Cloudflare Workers**(OpenNext 어댑터, `renderer/`, 워커 `leadpot-renderer`) — 2026-09-07 신설·전환 완료. 관리 앱과 컴포넌트를 `packages/public-ui` 로 공유 |
+| 공개 랜딩(`go.lead-pot.com/{sub}/{id}`) | **Next.js(App Router) SSR** | **Cloudflare Workers**(OpenNext 어댑터, `renderer/`, 워커 `leadpot-renderer`) — 2026-09-07 신설·전환, 2026-09-09 고정 호스트(§6-6)로 전환. 관리 앱과 컴포넌트를 `packages/public-ui` 로 공유 |
 | 백엔드 | **Spring Boot (REST API) + Docker** | **Railway**(싱가포르, `api.lead-pot.com`) — 2026-08-09 Oracle VM에서 컷오버 완료 |
 | DB | **PostgreSQL** | **Railway Postgres**(Railway 가 직접 호스팅, 백엔드와 같은 프로젝트) — Neon 은 비용 문제로 삭제하고 이전 완료(2026-09-07 확인) |
 | 파일 저장 | 초기: VM 디스크 → 후기: Cloudflare R2 / S3 | — |
@@ -87,9 +87,13 @@ Cloudflare DNS(프록시, 무료 SSL)
         │
         ├─ app.lead-pot.com ─▶ Cloudflare Pages ─▶ React SPA(정적 파일, 관리 앱)
         │
-        ├─ {sub}.lead-pot.com/* (와일드카드 Workers 라우트)
+        ├─ *.lead-pot.com/* (와일드카드 Workers 라우트)
         │        └─▶ Cloudflare Workers(leadpot-renderer, Next.js SSR)
-        │                 ├─ 서브도메인 있음 → 공개 랜딩 SSR 렌더
+        │                 ├─ Host="go" → go.lead-pot.com/{sub}/{id} 공개 랜딩 SSR 렌더(고정 호스트,
+        │                 │   2026-09-09~. 예전엔 고객마다 다른 서브도메인을 썼으나, 구글 광고 심사가
+        │                 │   특정 고객 서브도메인을 "손상된 사이트"로 오판한 사고 이후 폐지 — §6-6)
+        │                 ├─ Host="{sub}"(구 서브도메인) → go.lead-pot.com/{sub}/... 로 301 리다이렉트만
+        │                 │   (콘텐츠 직접 서빙 안 함 — 전환기 한시적, 이미 뿌려진 광고 URL 보호용)
         │                 └─ Host="app" → 관리 앱(Pages)으로 리버스 프록시
         │                    (renderer/src/proxy.ts proxyToAdminApp() — 와일드카드 라우트가
         │                    app 도 가로채는 것에 대한 안전장치, §6-5 실제 장애 참고)
@@ -100,8 +104,9 @@ Cloudflare DNS(프록시, 무료 SSL)
                                           Railway Postgres(같은 프로젝트, 같은 리전)
 ```
 
-- 관리 앱: `app.lead-pot.com`(Cloudflare Pages) / 공개 랜딩: `{sub}.lead-pot.com`(Cloudflare Workers
-  SSR) / 백엔드: `api.lead-pot.com`(Railway) / DB: Railway Postgres
+- 관리 앱: `app.lead-pot.com`(Cloudflare Pages) / 공개 랜딩: `go.lead-pot.com/{sub}/{id}`(고정
+  호스트, Cloudflare Workers SSR — 구 서브도메인 `{sub}.lead-pot.com` 은 301 리다이렉트만 함, §6-6)
+  / 백엔드: `api.lead-pot.com`(Railway) / DB: Railway Postgres
   (⚠️ DB 는 예전엔 Neon 이었으나 비용 문제로 삭제 → Railway 자체 Postgres 로 이전, 2026-09-07 확인.
   같은 프로젝트·같은 리전이라 [HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) P1 이
   노리던 "DB 왕복 지연 해소" 목표에 오히려 더 잘 맞는 구성이 됐다)
@@ -113,6 +118,22 @@ Cloudflare DNS(프록시, 무료 SSL)
   들어온다. 그래서 렌더러가 `app` 요청을 관리 앱으로 리버스 프록시하도록 코드로 방어해뒀다
   (`renderer/src/proxy.ts`) — 이 방어가 없으면 실제 장애가 난다(2026-09-07 실측, 상세는
   [PHASE5-CLOUDFLARE-HANDOFF.md](docs/PHASE5-CLOUDFLARE-HANDOFF.md) §4-1).
+- 🔴 **(§6-6) 공개 랜딩은 고객별 서브도메인이 아니라 `go.lead-pot.com/{sub}/{id}` 고정 호스트를
+  쓴다(2026-09-09~)**. 이유: 구글 광고 심사(gTech)가 "손상된 사이트"로 고객 1명의 서브도메인
+  (`the-law.lead-pot.com`)을 콕 집어 악성 호스트로 판정한 사고 — Safe Browsing 등 보안/평판
+  시스템은 URL이 아니라 **호스트 단위**로 신뢰도를 매기는데, 고객마다 새 서브도메인(=새 호스트)을
+  발급하는 구조에서는 신규 고객마다 매번 평판 0에서 시작하고, 그중 한 명이 의심스러운 콘텐츠를
+  올리면 그 호스트 전체(그 고객의 다른 랜딩 포함)가 같이 낙인 찍힌다. 전부 고정 호스트 하나 밑의
+  경로로 옮기면 모든 광고가 "평판을 꾸준히 쌓아가는 사이트 1개"에서 나가게 된다.
+  - DNS/SSL 추가 설정 **없음** — `go`도 기존 와일드카드(`*.lead-pot.com` DNS + Workers 라우트)에
+    자동으로 포함되므로 순수 코드 변경만으로 끝남(`renderer/src/proxy.ts` 의 `PUBLIC_SITE_HOST`).
+  - 구 서브도메인 URL(`{sub}.lead-pot.com/{id}`)은 당분간 살려두되 301 리다이렉트만 한다 — 이미
+    실행 중인 광고 Final URL이 즉시 깨지지 않게 하려는 전환기 조치. **사용자가 각 광고 플랫폼
+    (구글 광고·당근 등)에서 Final URL 을 새 `go.lead-pot.com/{sub}/{id}` 형식으로 직접 갱신해야
+    한다** — 리다이렉트는 임시 안전망일 뿐 영구 해결책이 아니다(Google Ads 는 리다이렉트 체인
+    자체를 "시스템 우회" 로 볼 수도 있어 근본 해결이 아님).
+  - `packages/public-ui` 의 `publicSiteUrl()` 이 새 형식을 만든다 — 관리 앱(랜딩 목록·편집기의
+    "공개 URL"·"공개 열기"·광고 URL 빌더)이 자동으로 새 URL을 보여준다.
 
 ---
 
@@ -136,10 +157,11 @@ dbcart/
 │   ├─ vite.config.ts
 │   └─ package.json
 ├─ renderer/                  # 공개 랜딩 SSR 렌더러 — Next.js(App Router) + OpenNext Cloudflare
-│   │                           어댑터. Cloudflare Workers(leadpot-renderer)에 배포. {sub}.lead-pot.com
-│   │                           만 처리(관리 앱과 무관) — 자세한 배경은 docs/SSR-LANDING-PLAN.md
+│   │                           어댑터. Cloudflare Workers(leadpot-renderer)에 배포. go.lead-pot.com/
+│   │                           {sub}/{id}(고정 호스트, §6-6)와 app.lead-pot.com/f/{id} 만 처리
+│   │                           (관리 앱과 무관) — 자세한 배경은 docs/SSR-LANDING-PLAN.md
 │   ├─ src/app/                # site/[subdomain]/[identifier] 라우트 + robots.ts
-│   ├─ src/proxy.ts            # 서브도메인 라우팅(구 middleware) + app 리버스 프록시 안전장치
+│   ├─ src/proxy.ts            # go/구서브도메인/app 호스트 라우팅(구 middleware) + app 리버스 프록시
 │   └─ wrangler.jsonc
 ├─ packages/public-ui/        # frontend·renderer 가 공유하는 공개 렌더링 컴포넌트·API 클라이언트
 │   │                           (LandingView·PublicFormView·HtmlBlock 등) — npm workspaces 패키지.
@@ -194,7 +216,7 @@ npm run dev
 | 워크플로 | 트리거 경로 | 하는 일 | 배포처 |
 |---|---|---|---|
 | [deploy-frontend-cloudflare.yml](.github/workflows/deploy-frontend-cloudflare.yml) | `frontend/**`·`packages/public-ui/**` | `npm run build`(`VITE_API_BASE_URL` 주입) → `cloudflare/pages-action` | Cloudflare Pages(`leadpot-app`, `app.lead-pot.com`) |
-| [deploy-renderer.yml](.github/workflows/deploy-renderer.yml) | `renderer/**`·`packages/public-ui/**` | `npm run deploy`(OpenNext 빌드 + `wrangler deploy`) | Cloudflare Workers(`leadpot-renderer`, `{sub}.lead-pot.com`) |
+| [deploy-renderer.yml](.github/workflows/deploy-renderer.yml) | `renderer/**`·`packages/public-ui/**` | `npm run deploy`(OpenNext 빌드 + `wrangler deploy`) | Cloudflare Workers(`leadpot-renderer`, `go.lead-pot.com/{sub}/{id}` + 구 서브도메인 301 리다이렉트) |
 | [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | rsync 로 Oracle VM `/var/www/leadpot/` | Oracle VM(**이제 실제 트래픽 안 받음** — 관찰 기간 동안의 롤백 안전망일 뿐, 정리 예정) |
 
 - 필요한 저장소 시크릿: `CLOUDFLARE_API_TOKEN`(Workers Scripts:Edit + Cloudflare Pages:Edit +

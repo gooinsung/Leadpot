@@ -8,6 +8,40 @@
 
 ## 📍 지금 위치
 
+- **✅ 공개 랜딩 URL 구조 변경 — 고객별 서브도메인 폐지, `go.lead-pot.com/{sub}/{id}` 고정 호스트로
+  전환(2026-09-09, 원격 세션, 사용자 명시적 지시)**: 구글 광고 gTech 담당자가 "손상된 사이트"로
+  `the-law.lead-pot.com`(고객 1명의 서브도메인)을 콕 집어 악성 호스트로 판정한다는 회신을 받음.
+  Safe Browsing 투명성 보고서로 직접 확인해도 해당 호스트·R2 이미지 버킷 모두 "안전하지 않은
+  콘텐츠 없음"으로 나와, 콘텐츠 자체보다 **"고객마다 새 서브도메인(=새 호스트)을 발급하는 구조
+  자체가 신뢰도 판정에 불리하다"**고 판단해 서브도메인 방식을 아예 없애기로 결정.
+  - **새 구조**: `go.lead-pot.com/{subdomain}/{identifier}` — subdomain 문자열(DB 컬럼 그대로)은
+    유지하되 DNS 라벨이 아니라 URL 경로로만 씀. 모든 광고가 "평판을 꾸준히 쌓는 사이트 1개"에서
+    나가게 됨.
+  - **인프라 변경 없음**: `go` 도 기존 와일드카드(`*.lead-pot.com` DNS + Workers 라우트)에 자동
+    포함되어 Cloudflare 대시보드 작업 불필요 — 순수 코드 변경.
+  - **`renderer/src/proxy.ts`**: `PUBLIC_SITE_HOST="go"` 신설. `go.lead-pot.com/{sub}/{id}` →
+    `/site/{sub}/{id}` 재작성(서브도메인 시절과 완전히 같은 페이지 재사용, 백엔드 API 계약도
+    안 바뀜). 구 서브도메인 호스트(`{sub}.lead-pot.com`)는 콘텐츠를 안 주고 새 호스트로 **301
+    리다이렉트**만 함(전환기 조치 — 이미 뿌려진 광고 Final URL이 즉시 안 깨지게).
+  - **`packages/public-ui/src/lib/site.ts`**: `publicSiteUrl()` 이 새 형식을 만들도록 수정 —
+    관리 앱의 "공개 URL 예시"(대시보드)·"공개 URL"(랜딩 편집기)·"공개 열기"·광고 URL 빌더가 전부
+    자동으로 새 URL을 보여줌(`DashboardPage.tsx`·`LandingEditPage.tsx`·`LandingsListPage.tsx`).
+  - **로컬 검증**(`next dev` + 스텁 API, workerd 아님 — 이건 로직 확인용이라 Node dev 로 충분):
+    - `go.localhost:3100/bali/12` → 200, 정상 렌더
+    - `bali.localhost:3100/12?utm=test` → 301, `Location: go.localhost:3100/bali/12?utm=test`(쿼리
+      보존 확인)
+    - `go.localhost:3100/bali`(식별자 없음) → 404
+    - 한글 슬러그도 새 경로·구 리다이렉트 양쪽 다 정상 확인(2026-09-08 수정한 `normalizeIdentifier()`
+      가 이 새 라우팅 경로에서도 그대로 방어)
+    - `tsc --noEmit`(renderer·public-ui·frontend) + `vitest`(public-ui 75개·frontend 20개) +
+      `next build`(renderer) 전부 통과
+  - **⚠️ 사용자가 직접 해야 하는 일 — 각 광고 플랫폼 Final URL 갱신**: 301 리다이렉트는 전환기
+    안전망일 뿐 영구 해결책이 아니다(구글이 리다이렉트 체인 자체를 "시스템 우회"로 볼 수도 있음).
+    구글 광고·당근광고 등에서 실제 캠페인 Final URL을 `the-law.lead-pot.com/37` 같은 구 형식에서
+    `go.lead-pot.com/the-law/37` 새 형식으로 **직접 업데이트**해야 진짜 해결됨.
+  - **이 세션은 실제 도메인 접근 불가** — 배포 후 실제 `go.lead-pot.com/the-law/37` 브라우저 접속,
+    구글 광고 재심사 요청, gTech 티켓 회신까지는 다음 이어받는 사람/사용자가 진행.
+
 - **✅ 한글 슬러그 랜딩 접속 불가 버그 수정·배포 완료(2026-09-08, 원격 세션, 사용자 긴급 지시)**:
   사용자가 `the-law.lead-pot.com/개인회생성지`(당근광고용, 구글광고와 무관) 접속 시
   "페이지를 불러오지 못했습니다" 오류를 보고. 원인 조사 중 처음엔 Cloudflare Workers 무료 티어
