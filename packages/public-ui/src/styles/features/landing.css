@@ -148,6 +148,7 @@
   background: var(--surface);
   box-shadow: var(--shadow);
 }
+
 /* CTA 오버레이(배경 블러 + 모달) */
 .landing-overlay {
   position: fixed;

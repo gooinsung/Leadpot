@@ -13,6 +13,9 @@ import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
 import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
+import com.leadpot.folder.Folder;
+import com.leadpot.folder.FolderKind;
+import com.leadpot.folder.FolderRepository;
 import com.leadpot.form.FormRepository;
 import com.leadpot.form.dto.FormResponse;
 import com.leadpot.landing.dto.LandingLiveResponse;
@@ -34,15 +37,17 @@ public class LandingService {
     private final UserRepository userRepository;
     private final LeadRepository leadRepository;
     private final SiteIpBlockService siteIpBlockService;
+    private final FolderRepository folderRepository;
 
     public LandingService(LandingPageRepository landingRepository, FormRepository formRepository,
             UserRepository userRepository, LeadRepository leadRepository,
-            SiteIpBlockService siteIpBlockService) {
+            SiteIpBlockService siteIpBlockService, FolderRepository folderRepository) {
         this.landingRepository = landingRepository;
         this.formRepository = formRepository;
         this.userRepository = userRepository;
         this.leadRepository = leadRepository;
         this.siteIpBlockService = siteIpBlockService;
+        this.folderRepository = folderRepository;
     }
 
     /**
@@ -120,6 +125,7 @@ public class LandingService {
         landing.setStatus(status(req.status()));
         landing.setTracking(req.tracking());
         landing.setGoogleAdsSafe(req.googleAdsSafeOrDefault());
+        landing.setBgColor(req.bgColor());
         landingRepository.save(landing);
         return LandingResponse.from(landing);
     }
@@ -136,6 +142,7 @@ public class LandingService {
         landing.setStatus(status(req.status()));
         landing.setTracking(req.tracking());
         landing.setGoogleAdsSafe(req.googleAdsSafeOrDefault());
+        landing.setBgColor(req.bgColor());
         return LandingResponse.from(landing);
     }
 
@@ -203,12 +210,27 @@ public class LandingService {
             }
         }
         return new PublicLandingResponse(landing.getId(), landing.getTitle(), landing.getContent(), forms,
-                landing.getTracking(), landing.isGoogleAdsSafe());
+                landing.getTracking(), landing.isGoogleAdsSafe(), landing.getBgColor());
     }
 
     private LandingPage load(Long ownerId, Long id) {
         return landingRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new NotFoundException("랜딩을 찾을 수 없습니다."));
+    }
+
+    /** 폴더로 옮기기(드래그앤드롭). folderId 가 null 이면 미분류로 되돌린다. */
+    @Transactional
+    public LandingResponse moveFolder(Long ownerId, Long id, Long folderId) {
+        LandingPage landing = load(ownerId, id);
+        if (folderId != null) {
+            Folder folder = folderRepository.findByIdAndOwnerId(folderId, ownerId)
+                    .orElseThrow(() -> new NotFoundException("폴더를 찾을 수 없습니다."));
+            if (folder.getKind() != FolderKind.LANDING) {
+                throw new InvalidSubmissionException("랜딩은 랜딩용 폴더로만 옮길 수 있습니다.");
+            }
+        }
+        landing.setFolderId(folderId);
+        return LandingResponse.from(landing);
     }
 
     private String status(String s) {

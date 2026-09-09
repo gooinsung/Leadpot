@@ -10,7 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
+import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
+import com.leadpot.folder.Folder;
+import com.leadpot.folder.FolderKind;
+import com.leadpot.folder.FolderRepository;
 import com.leadpot.form.dto.FormBlockDto;
 import com.leadpot.form.dto.FormRequest;
 import com.leadpot.form.dto.FormResponse;
@@ -32,17 +36,35 @@ public class FormService {
     private final com.leadpot.lead.LeadRepository leadRepository;
     private final com.leadpot.ipblock.IpBlockRepository ipBlockRepository;
     private final com.leadpot.ipblock.IpBlockHitRepository ipBlockHitRepository;
+    private final FolderRepository folderRepository;
 
     public FormService(FormRepository formRepository, SiteIpBlockService siteIpBlockService,
             UserRepository userRepository, com.leadpot.lead.LeadRepository leadRepository,
             com.leadpot.ipblock.IpBlockRepository ipBlockRepository,
-            com.leadpot.ipblock.IpBlockHitRepository ipBlockHitRepository) {
+            com.leadpot.ipblock.IpBlockHitRepository ipBlockHitRepository,
+            FolderRepository folderRepository) {
         this.formRepository = formRepository;
         this.siteIpBlockService = siteIpBlockService;
         this.userRepository = userRepository;
         this.leadRepository = leadRepository;
         this.ipBlockRepository = ipBlockRepository;
         this.ipBlockHitRepository = ipBlockHitRepository;
+        this.folderRepository = folderRepository;
+    }
+
+    /** 폴더로 옮기기(드래그앤드롭). folderId 가 null 이면 미분류로 되돌린다. */
+    @Transactional
+    public FormResponse moveFolder(Long ownerId, Long id, Long folderId) {
+        Form form = load(ownerId, id);
+        if (folderId != null) {
+            Folder folder = folderRepository.findByIdAndOwnerId(folderId, ownerId)
+                    .orElseThrow(() -> new NotFoundException("폴더를 찾을 수 없습니다."));
+            if (folder.getKind() != FolderKind.FORM) {
+                throw new InvalidSubmissionException("리드폼은 리드폼용 폴더로만 옮길 수 있습니다.");
+            }
+        }
+        form.setFolderId(folderId);
+        return FormResponse.from(form);
     }
 
     @Transactional(readOnly = true)

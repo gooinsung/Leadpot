@@ -25,6 +25,7 @@ public record FormResponse(
         Map<String, Object> styleConfig,
         Map<String, Object> settingsConfig,
         Map<String, Object> trackingConfig,
+        Long folderId,
         List<FormBlockDto> blocks,
         Instant createdAt,
         Instant updatedAt) {
@@ -64,6 +65,7 @@ public record FormResponse(
                 form.getStyleConfig(),
                 settingsConfig,
                 form.getTrackingConfig(),
+                form.getFolderId(),
                 blocks,
                 form.getCreatedAt(),
                 form.getUpdatedAt());

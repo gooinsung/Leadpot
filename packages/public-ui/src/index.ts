@@ -20,6 +20,7 @@ export {
   descEmphasisLevel,
   isChoiceAnswerType,
   isMultiAnswerType,
+  resolveConceptBg,
   resolveStyle,
   resolveSubmitLabel,
   textOn,

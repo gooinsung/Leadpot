@@ -42,6 +42,111 @@
   - **이 세션은 실제 도메인 접근 불가** — 배포 후 실제 `go.lead-pot.com/the-law/37` 브라우저 접속,
     구글 광고 재심사 요청, gTech 티켓 회신까지는 다음 이어받는 사람/사용자가 진행.
 
+- **✅ 카카오 픽셀 전환 이벤트 선택 기능 추가 — 배포 완료(2026-09-09, 사용자 지시)**:
+  사용자 질문("카카오는 전환이벤트 뭐로 설정돼있어?")에서 시작 — 기존엔 `completeRegistration`
+  (회원가입 완료)으로 **고정** 전송이었는데, 카카오 픽셀 SDK 는 `participation`(참여·잠재고객)
+  등 더 많은 표준 이벤트를 제공하고 리드팟 폼 대부분이 상담신청·문의 성격이라 이쪽이 더 맞는
+  경우가 많음을 확인 → 사용자 승인 후 메타·당근·토스와 동일한 패턴으로 구현.
+  - **구현**: `PixelFields.tsx`에 `KAKAO_EVENTS`(completeRegistration/participation) +
+    `KAKAO_EVENT_DEFAULT="completeRegistration"` 추가, `EVENT_PICKERS`에 등록(토글·클리어 로직은
+    기존 제네릭 코드가 그대로 처리). `pixels.ts`(`packages/public-ui/src/lib/`, 최근 모노레포
+    구조 변경으로 `frontend`에서 이동됨)의 `firePixelLead`에서 `completeRegistration()` 하드코딩을
+    `cfg.kakaoEvent`(미설정 시 `completeRegistration`) 기반 동적 메서드 호출로 교체 — 토스 패턴과
+    동일.
+  - **하위호환**: 기존에 설정된 리드폼은 `kakaoEvent` 필드가 없으므로 기본값으로 폴백,
+    동작 변화 없음.
+  - **검증**: `frontend`·`packages/public-ui` 양쪽 `tsc --noEmit` 통과, `public-ui` vitest 81개
+    전부 통과. UI 클릭 테스트는 로그인 계정이 없어 못 함(사용자에게 확인 요청함).
+  - **배포**: 로컬 main 이 origin 대비 47커밋 뒤처져 있어 먼저 stash→`git pull --ff-only`(대규모
+    모노레포 재구조화 반영: `frontend/src/lib/pixels.ts` 등 공개 UI 코드가 `packages/public-ui/`로
+    이동, `renderer`(Next.js SSR) 앱 신설, npm workspaces 도입)→stash pop(자동 병합 성공)→커밋
+    `259366c`→`main` push. `Deploy Frontend` #139·`Deploy Frontend (Cloudflare Pages)` #14·
+    `Deploy Renderer (Cloudflare Workers)` #16 **3개 모두 성공** 확인(GitHub Actions, 초 단위로
+    완료).
+  - **다음에 할 일**: 실제 리드폼 편집 화면 "광고 픽셀" 섹션에서 카카오 체크 시 이벤트 드롭다운이
+    뜨는지, 실제 카카오 픽셀 헬퍼로 `participation` 선택 시 그 이벤트가 발사되는지 실사용 확인.
+
+- **✅ 랜딩페이지 배경 컬러(화이트·블랙·블루+커스텀) — 최종 landing-level 아키텍처로 배포 완료(2026-09-08, 원격 세션, 사용자 지시)**:
+  사용자가 "리드폼 색깔컨셉(랜딩이랑 리드폼에서 수정 가능하도록)"을 요청. **화면을 실제로 켜본
+  뒤 요구사항이 4번 뒤집힌 기능**이라 최종 아키텍처만 남기고 기록한다:
+  1. 카드 자체(입력창·라벨) 배경/글자색을 물들임 → 대비 나쁘고 "입력폼 안이 아니라 겉면 때문에
+     만든 기능"이라 반려.
+  2. 카드는 물들이되 `.input`만 전용 토큰으로 보호 → select 만 브라우저 위젯이 계속 어둡게 보임
+     (appearance:none 으로 임시 수정) → 사용자가 전제 자체를 정정: "카드 안이 아니라 카드
+     바깥 패딩 영역 색깔".
+  3. 카드를 감싸는 `.landing-form-concept-frame` 프레임 신설 → 실제로 보니 "그냥 외곽선만 있는
+     것처럼" 너무 얇고 안 보임.
+  4. **AskUserQuestion으로 명확히 선택지 제시(진작 했어야 했음) → 사용자 최종 결정: "랜딩페이지
+     전체 배경으로 해. 대신 '입력폼'에 하지 말고 랜딩페이지 자체에 '랜딩페이지 배경 컬러'로
+     선택할 수 있게 해"** — Form 레벨(`styleConfig.bgColor`)이 아니라 **Landing 레벨**(새 엔티티
+     필드)로 완전히 이동, 카드 하나가 아니라 **랜딩페이지 전체**를 칠함.
+  - **최종 구현(커밋 `c28f44b`)**: `LandingPage.bgColor` 컬럼 신설(V43 마이그레이션, null=화이트
+    기본). `LandingRequest`/`LandingResponse`/`PublicLandingResponse`에 `bgColor` 추가.
+    `LandingView.tsx`에서 `.landing-public-inner`(⚠️ `.landing-public` 아님 — 모바일 375~480px,
+    전체 트래픽의 99%에서 inner가 `min-height:100vh`+`width:100%`로 뷰포트 전체를 덮어 바깥만
+    칠하면 안 보임)에 `background` 인라인 스타일로 적용. `LandingEditPage.tsx` 미리보기
+    (`.lp-preview-device.in-frame`)에도 동일 적용. `resolveConceptBg()`(`formStyle.ts`)는
+    `{ bgColor }` 형태 아무 대상이나 받도록 시그니처 단순화(랜딩 전용으로 전환).
+  - **완전히 되돌린 것들**: `FormEditPage.tsx`의 `bgColor`/`ConceptColorField`/미리보기 프레임
+    분기, `.preview-concept-frame`/`.landing-form-concept-frame`/`--overlay` CSS, `.input` 전용
+    토큰(`--pub-input-*`)과 select `appearance:none` 땜빵, `PublicFormPageView.tsx`의 배경 적용
+    (단독 `/f/{id}`는 Landing 컨텍스트가 없어 이 기능 대상 아님) — 전부 리드폼이 아닌 랜딩
+    레벨로 옮겼으므로 리드폼 쪽 코드는 원래 모습 그대로 복귀.
+  - **검증**: public-ui vitest 81개, frontend `tsc -b`+`vite build`+vitest 20개, renderer
+    `next build`, backend `compileJava` 전부 통과.
+  - **배포**: 커밋 `c28f44b`, `main` 직접 push. 3개 워크플로(Deploy Frontend/Renderer/Cloudflare
+    Pages) 트리거 확인, 진행 중이었음 — **다음 세션은 success 여부 재확인부터**. 실제 화면에서
+    "랜딩페이지 배경 컬러"가 편집기 미리보기·공개 랜딩 양쪽에서 전체 배경으로 잘 반영되는지
+    최종 확인은 사용자 쪽에서 필요(이 세션은 실제 도메인 접근 불가).
+
+- **✅ 리드폼·랜딩페이지 폴더(계층형) 기능 배포 완료(2026-09-08, 원격 세션, 사용자 지시)**:
+  "폴더 만들 수 있는 기능... 폴더도 depth를 만들어서... 폴더 선택은 필수는 아니고... 폴더 생성
+  이모티콘 만들고 드래그앤드롭으로 폴더 이동" 요청 반영.
+  - 백엔드: `folders` 테이블 신설(V42, `owner_id`/`kind`(LANDING·FORM)/`parent_id` 자기참조
+    FK/`name`), `landing_pages`·`forms`에 `folder_id`(on delete set null) 추가. CRUD는
+    `FolderController`/`FolderService`(소유권 체크 + 순환 참조 방지 `isDescendant` 검사)로 구현 —
+    깊이 제한 없음(사용자가 한번 "뎁스 1개만" 요청했다가 직접 확인 후 "이미 작업돼있네"로 철회,
+    깊이 제한 코드는 넣지 않음).
+  - 프론트: `FolderTree.tsx`(사이드바 트리, 펼침/접기, "📁 새 폴더" 생성, 더블클릭 이름변경,
+    드래그앤드롭 이동, "전체"/"미분류" 특수 노드), `LandingsListPage`/`FormsListPage`에 연동.
+  - **검증·배포**: 커밋 `2b433da`, `main` push, 3개 워크플로 success 확인.
+
+- **✅ "구글 광고용"(googleAdsSafe) 랜딩은 구글 픽셀만 로드하도록 제한(2026-09-08, 원격 세션, 사용자 지시)**:
+  사용자가 "구글 랜딩은 구글 픽셀만 들어가게 해달라"고 요청. 확인해보니 `googleAdsSafe`를 켜도
+  HTML 블록 스크립트만 제거될 뿐, 그 랜딩에 연결된 리드폼에 메타·틱톡·카카오·당근·토스 픽셀이
+  설정돼 있으면 전부 같이 로드되고 있었음.
+  - **수정**: `pixels.ts`에 `googleOnlyPixels()` 추가(google/googleAds 키만 남기고 나머지 제거),
+    `LandingView.tsx`에서 `landing.googleAdsSafe`가 true면 `initPixels()` 호출 전에 이 필터를 거침.
+  - **함께 확인**: IP 차단(서버 로직)과 스크롤 깊이 추적(1st-party 분석)은 스크립트 삽입이 아니라
+    광고 정책 위반 신호와 무관하다고 판단해 **그대로 유지**(사용자도 "googleAdsSafe만 확실히
+    켜기"로 결정, 위 §2026-09-08 픽셀 회귀 기록 참고).
+  - **검증**: public-ui vitest 81개 통과(신규 `pixels.test.ts` 6개 포함), frontend `tsc -b` 통과,
+    renderer `next build` 정상 컴파일.
+  - **배포**: 커밋 `323a196`, `main` 직접 push. `Deploy Renderer`·`Deploy Frontend (Cloudflare
+    Pages)`·`Deploy Frontend`(레거시 VM) 트리거 확인 — 완료 여부는 다음 세션/체크에서 재확인.
+
+- **✅ 공개 랜딩 광고 픽셀·방문 기록 회귀 수정·배포 완료(2026-09-08, 원격 세션, 사용자 긴급 지시)**:
+  사용자가 "메타·당근 픽셀이 안 잡힌다"고 보고. 조사 결과 **SSR 전환(Phase 1~3, 2026-09-07) 때
+  생긴 회귀**로 확인됨 — `recordVisit`+`initPixels`(픽셀 스크립트 초기화) 로직이 옛 CSR 래퍼
+  (`frontend/src/pages/PublicSitePage.tsx`)에만 있었는데, 실서비스가 쓰는 새 SSR 진입점
+  (`renderer/.../site/[subdomain]/[identifier]/page.tsx` → 공유 컴포넌트 `LandingView.tsx`)으로
+  이 로직이 옮겨지지 않아 **랜딩페이지에서 픽셀이 전혀 초기화되지 않고 있었음**(리드 제출 시
+  전환 이벤트를 쏘는 `firePixelLead`는 있었지만, `window.fbq`/`window.karrotPixel` 자체가 안
+  만들어져 있어 조용히 no-op).
+  - **수정**: `packages/public-ui/src/lib/pixels.ts`에 `mergeFormPixels` 유틸 추가,
+    `LandingView.tsx`(SSR·CSR 공용)에 마운트 1회 `recordVisit`+`initPixels` 내장 — 앞으로
+    `LandingView`를 쓰는 곳은 렌더링 방식과 무관하게 자동으로 픽셀이 동작함. 중복 방지를 위해
+    `PublicSitePage.tsx`의 옛 로직은 제거.
+  - **검증**: public-ui vitest 75개 통과, frontend `tsc -b` 통과, renderer `next build` 정상 컴파일.
+  - **배포**: 커밋 `a2f4914`, `claude/leadpot-google-ads-rejection-h3izh8` → `main` 병합 후 push,
+    `Deploy Renderer`·`Deploy Frontend (Cloudflare Pages)`·`Deploy Frontend`(레거시 VM) 3개 워크플로
+    전부 success 확인(2026-09-08 07:51 UTC). **실제 도메인에서 메타/당근 픽셀 발사 최종 확인은
+    사용자 쪽에서 필요**(이 세션은 실제 도메인 접근 불가).
+  - 같은 세션에서 구글 광고 거절 원인 재점검도 진행 — `googleAdsSafe` 옵션은 랜딩별 opt-in(기본
+    꺼짐)이므로, 실제 광고에 쓰는 랜딩에 이 체크박스가 켜져 있는지 별도 확인 필요(아래 §2026-09-06
+    기록·"다음에 할 일" 참고). IP 차단 규칙 존재 여부도 함께 확인 권장(과도한 대역 차단은 구글
+    리뷰어를 막아 "시스템 우회"로 재발할 수 있음).
+
 - **✅ 한글 슬러그 랜딩 접속 불가 버그 수정·배포 완료(2026-09-08, 원격 세션, 사용자 긴급 지시)**:
   사용자가 `the-law.lead-pot.com/개인회생성지`(당근광고용, 구글광고와 무관) 접속 시
   "페이지를 불러오지 못했습니다" 오류를 보고. 원인 조사 중 처음엔 Cloudflare Workers 무료 티어

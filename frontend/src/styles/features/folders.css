@@ -1,0 +1,110 @@
+/* ============================================================
+   Leadpot · features/folders.css — 리드폼·랜딩 폴더 트리(K-폴더)
+   FolderTree.tsx 전용. 목록 페이지의 좌측 사이드바로 쓴다.
+   ============================================================ */
+.folders-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .folders-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.folder-tree {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+  position: sticky;
+  top: 12px;
+}
+.folder-tree-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+.folder-tree-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--text);
+  user-select: none;
+}
+.folder-row:hover {
+  background: var(--surface-2);
+}
+.folder-row.on {
+  background: var(--indigo-soft);
+  color: var(--indigo-ink);
+  font-weight: 600;
+}
+.folder-row.drop-over {
+  outline: 2px dashed var(--indigo);
+  outline-offset: -2px;
+  background: var(--indigo-soft);
+}
+.folder-icon {
+  flex: none;
+  font-size: 14px;
+}
+.folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-count {
+  flex: none;
+  font-size: 11px;
+  color: var(--muted);
+}
+.folder-row-actions {
+  flex: none;
+  display: none;
+  gap: 2px;
+}
+.folder-row:hover .folder-row-actions {
+  display: flex;
+}
+.folder-mini-btn {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.folder-mini-btn:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.folder-mini-btn.danger:hover {
+  color: var(--rose);
+}
+
+/* 드래그 가능한 목록 행 — 살짝 잡을 수 있다는 느낌만 */
+.row-draggable {
+  cursor: grab;
+}
+.row-draggable.dragging {
+  opacity: 0.5;
+}

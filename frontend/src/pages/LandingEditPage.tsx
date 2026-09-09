@@ -3,6 +3,7 @@ import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
 import { HtmlBlock, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
+import { ConceptColorField } from "../components/ConceptColorField";
 import {
   ApiError,
   createLanding,
@@ -59,6 +60,7 @@ export function LandingEditPage() {
   const [status, setStatus] = useState("published");
   const [slug, setSlug] = useState(""); // 공개 주소. 비우면 서버가 자동 생성(신규). 편집 시 현재 slug 로드.
   const [googleAdsSafe, setGoogleAdsSafe] = useState(false); // 켜면 HTML 블록 스크립트를 공개 렌더에서 제거(구글 광고용)
+  const [bgColor, setBgColor] = useState(""); // 랜딩페이지 전체 배경 컬러(V43). 빈 값 = 화이트(기본)
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
@@ -95,6 +97,7 @@ export function LandingEditPage() {
         setStatus(l.status);
         setSlug(l.slug ?? "");
         setGoogleAdsSafe(!!l.googleAdsSafe);
+        setBgColor(l.bgColor ?? "");
         setBlocks(l.content ?? []);
       })
       .catch(() => setError("랜딩을 불러오지 못했습니다."))
@@ -150,7 +153,7 @@ export function LandingEditPage() {
     setError("");
     setSaving(true);
     try {
-      const payload = { title, content: blocks, status, slug: slug.trim() || undefined, googleAdsSafe };
+      const payload = { title, content: blocks, status, slug: slug.trim() || undefined, googleAdsSafe, bgColor: bgColor || undefined };
       if (isNew) await createLanding(payload);
       else await updateLanding(Number(id), payload);
       setDirty(false);
@@ -216,6 +219,13 @@ export function LandingEditPage() {
               메타·당근·카카오 등 다른 매체 랜딩에는 이 옵션을 켜지 마세요.
             </p>
           )}
+          <div style={{ marginTop: 12 }}>
+            <ConceptColorField
+              label="랜딩페이지 배경 컬러 (화이트·블랙·블루)"
+              value={bgColor}
+              onChange={(v) => { setBgColor(v); setDirty(true); }}
+            />
+          </div>
         </div>
 
         <div className="edit-grid">
@@ -322,7 +332,7 @@ export function LandingEditPage() {
                 예전처럼 박스만 좁히면 @media 가 브라우저 창 폭을 봐서 미리보기만 어긋났다. */}
             <div className={`lp-preview-stage ${device}`}>
               <DevicePreviewFrame width={device === "mobile" ? 375 : 1280} fitHeight={previewH}>
-              <div className="lp-preview-device in-frame">
+              <div className="lp-preview-device in-frame" style={bgColor ? { background: bgColor } : undefined}>
                 {blocks.length === 0 && <p className="dash-sub" style={{ padding: 24, textAlign: "center" }}>블록을 추가하면 미리보기가 표시됩니다.</p>}
                 {blocks.map((b, i) => {
                   const ms = blockStyle(b);
@@ -363,11 +373,7 @@ export function LandingEditPage() {
                         </div>
                       );
                     }
-                    return (
-                      <div key={i} className="landing-form-card" style={ms}>
-                        {detail ? <FormRenderer form={detail} /> : <Loading label="리드폼 미리보기 불러오는 중…" />}
-                      </div>
-                    );
+                    return <div key={i} className="landing-form-card" style={ms}>{detail ? <FormRenderer form={detail} /> : <Loading label="리드폼 미리보기 불러오는 중…" />}</div>;
                   }
                   return null;
                 })}

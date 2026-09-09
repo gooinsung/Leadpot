@@ -10,10 +10,12 @@
 
 export interface PixelConfig {
   google?: string; // gtag ID (G-XXXX / AW-XXXX)
+  googleAds?: string; // Google Ads 전환(send_to) — 'AW-123456/LABEL'
   meta?: string; // Meta(Facebook) Pixel ID
   metaEvent?: string; // 메타 전환 이벤트(Lead | CompleteRegistration | SubmitApplication | Contact | Schedule), 기본 Lead
   tiktok?: string; // TikTok Pixel ID
   kakao?: string; // Kakao 픽셀 트랙 ID
+  kakaoEvent?: string; // 카카오 전환 이벤트 — 호출할 메서드명 그 자체(completeRegistration | participation), 기본 completeRegistration
   daangn?: string; // 당근(Karrot) 픽셀 ID
   daangnEvent?: string; // 당근 전환 이벤트(Purchase | Lead | SubmitApplication), 기본 Purchase
   toss?: string; // 토스애즈 전환 코드(픽셀 ID)
@@ -162,6 +164,38 @@ export function initPixels(cfg: unknown): void {
   }
 }
 
+/**
+ * 랜딩에 포함된 리드폼들의 픽셀 설정을 하나로 합친다(키별 첫 유효값 우선) — 랜딩 PageView 1회 발사용.
+ * 픽셀은 랜딩이 아니라 '포함된 리드폼'에 설정하므로(`FormEditPage`의 `PixelFields`), 랜딩 진입 시엔
+ * 포함된 모든 폼의 설정을 합쳐서 한 번만 로드한다(전환 Lead 는 각 폼 제출 시 그 폼 자신의 설정으로
+ * `PublicFormView` 가 개별 발사).
+ */
+export function mergeFormPixels(forms: Record<string, { trackingConfig?: unknown }>): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const form of Object.values(forms)) {
+    const t = form.trackingConfig;
+    if (!t || typeof t !== "object") continue;
+    for (const [k, v] of Object.entries(t as Record<string, unknown>)) {
+      if (v != null && String(v).trim() !== "" && merged[k] == null) merged[k] = v;
+    }
+  }
+  return merged;
+}
+
+/**
+ * "구글 광고용" 랜딩(googleAdsSafe)에서 구글(GA4/Google Ads) 픽셀만 남기고 다른 매체
+ * (메타·틱톡·카카오·당근·토스) 픽셀 설정은 제거한다 — 구글 광고 심사용 페이지에 다른 매체
+ * 스크립트가 함께 실려 나가지 않게 하기 위함.
+ */
+export function googleOnlyPixels(cfg: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const google = val(cfg, "google");
+  const googleAds = val(cfg, "googleAds");
+  if (google) out.google = google;
+  if (googleAds) out.googleAds = googleAds;
+  return out;
+}
+
 /** 리드 제출 성공 시: 각 플랫폼 전환(Lead) 이벤트 발사. */
 export function firePixelLead(cfg: unknown): void {
   if (!cfg) return;
@@ -181,7 +215,11 @@ export function firePixelLead(cfg: unknown): void {
   // Google Ads 전환: send_to=AW-ID/LABEL 로 conversion 이벤트 발사(광고 전환 카운트).
   try { if (googleAds && w.gtag) w.gtag("event", "conversion", { send_to: googleAds }); } catch { /* ignore */ }
   try { if (tiktok && w.ttq) w.ttq.track("SubmitForm"); } catch { /* ignore */ }
-  try { if (kakao && w.kakaoPixel) w.kakaoPixel(kakao).completeRegistration(); } catch { /* ignore */ }
+  // 카카오는 토스처럼 이벤트마다 메서드가 다르다 — 리드폼별로 고른 메서드명을 그대로 호출한다.
+  // 미설정이면 completeRegistration(기존 기본값과 하위호환) — components/PixelFields.tsx 의
+  // KAKAO_EVENT_DEFAULT 와 반드시 같아야 한다.
+  const kakaoEvent = val(cfg, "kakaoEvent") || "completeRegistration";
+  try { if (kakao && w.kakaoPixel) (w.kakaoPixel(kakao) as any)[kakaoEvent]?.(); } catch { /* ignore */ }
   // 당근은 전환 이벤트를 리드폼별로 고를 수 있다(구매/잠재고객/서비스신청).
   // 미설정이면 Purchase — components/PixelFields.tsx 의 DAANGN_EVENT_DEFAULT 와 같아야 한다.
   const daangnEvent = val(cfg, "daangnEvent") || "Purchase";

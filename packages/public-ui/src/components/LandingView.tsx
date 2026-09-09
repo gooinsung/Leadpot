@@ -1,11 +1,13 @@
 "use client";
-import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { getLandingLive, recordEvent, recordEventBeacon, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { getLandingLive, recordEvent, recordEventBeacon, recordVisit, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { PublicFormView } from "./PublicFormView";
-import { resolveStyle } from "./formRenderers/formStyle";
+import { resolveConceptBg, resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
+import { initPixels, mergeFormPixels, googleOnlyPixels } from "../lib/pixels";
+import { parseUtm } from "../lib/utm";
 
 /**
  * 블록 여백(위/아래/좌우, px) → 인라인 스타일.
@@ -33,6 +35,27 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
   const [fullscreenForm, setFullscreenForm] = useState<FormDetail | null>(null);
   const [live, setLive] = useState<LandingLive | null>(initialLive);
+
+  /**
+   * 방문 기록 + 광고 픽셀 초기화(페이지 로드 1회).
+   *
+   * ⚠️ SSR 전환(2026-09) 때 옛 CSR 래퍼(`PublicSitePage.tsx`)에만 있던 이 로직이 새 SSR 진입점
+   * (`renderer/.../site/[subdomain]/[identifier]/page.tsx`)으로 옮겨지지 않아, 실서비스 랜딩에서
+   * 방문 기록·광고 픽셀(메타·당근 등)이 전혀 발사되지 않는 회귀가 있었다(2026-09-08 발견).
+   * 페이지별 래퍼가 각자 기억해서 불러야 하는 구조가 원인이었으므로, 공유 컴포넌트인 여기에
+   * 내장해 재발을 막는다 — `LandingView`를 쓰는 곳(SSR 렌더러·CSR 래퍼)은 아무것도 더 안 해도 된다.
+   *
+   * `googleAdsSafe` 랜딩은 구글(GA4/Google Ads) 픽셀만 로드한다 — 메타·틱톡·카카오·당근·토스
+   * 스크립트가 구글 심사용 페이지에 함께 실려 나가지 않도록(사용자 결정, 2026-09-08).
+   */
+  const visited = useRef(false);
+  useEffect(() => {
+    if (visited.current) return;
+    visited.current = true;
+    recordVisit({ landingPageId: landing.id, utm: parseUtm() });
+    const pixelCfg = mergeFormPixels(landing.forms);
+    initPixels(landing.googleAdsSafe ? googleOnlyPixels(pixelCfg) : pixelCfg);
+  }, [landing.id]);
 
   // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
   useEffect(() => {
@@ -143,10 +166,17 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
     recordEvent({ landingPageId: landing.id, eventType: "click", target });
   }
 
+  // 랜딩페이지 전체 배경 컬러(V43, styleConfig 아닌 랜딩 자체 설정) — 사용자 결정(2026-09-08):
+  // "입력폼이 아니라 랜딩페이지 자체에 배경 컬러를 선택할 수 있게".
+  // ⚠️ .landing-public 이 아니라 .landing-public-inner 에 적용해야 한다 — 모바일(≈375~480px,
+  // 이 서비스 방문의 99%)에서는 inner 가 폭 100%·min-height:100vh 로 뷰포트 전체를 덮어버려서,
+  // 바깥(.landing-public)만 칠하면 안쪽 흰 배경에 완전히 가려져 아무 것도 안 보이게 된다.
+  const pageBg = resolveConceptBg(landing);
+
   return (
     <div className="landing-public" onClickCapture={handleContentClick}>
       {hasToast && live && <RecentToast recent={live.recent} />}
-      <div className="landing-public-inner">
+      <div className="landing-public-inner" style={pageBg ? { background: pageBg } : undefined}>
         {landing.content.map((b, i) => {
           const ms = blockStyle(b);
           if (b.type === "IMAGE") {

@@ -44,6 +44,22 @@ export function textOn(hex: string): string {
   return lum > 150 ? "#14172a" : "#ffffff";
 }
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * 랜딩페이지 전체 배경 컬러(V43, `landing_pages.bg_color`) — 화이트(기본)·블랙·블루 프리셋 +
+ * 커스텀. 입력폼(카드)이 아니라 랜딩페이지 자체의 설정이라 `bgColor` 를 직접 속성으로 갖는
+ * 대상(`PublicLanding`)이면 무엇이든 받는다.
+ *
+ * ⚠️ 원래는 리드폼 `styleConfig.bgColor`(카드 배경 컨셉)였다가, 실제로 켜본 사용자 피드백으로
+ * 여러 번 뒤집힌 끝에(2026-09-08) "입력폼이 아니라 랜딩페이지 자체에 배경 컬러"로 최종 결정됐다
+ * — 그래서 랜딩의 `bgColor` 를 직접 읽는다(중첩된 styleConfig 가 아니다).
+ */
+export function resolveConceptBg(target: { bgColor?: string | null }): string | undefined {
+  const bg = (target.bgColor || "").trim();
+  return HEX_RE.test(bg) ? bg : undefined;
+}
+
 /** CHOICE 질문의 답변 방식 중 "선택지 목록에서 고르는" 유형(카드형·목록형) 전체. */
 const CHOICE_ANSWER_TYPES = new Set(["single", "multi", "list_single", "list_multi"]);
 /** 위 중에서도 다중 선택이 가능한 유형. */
