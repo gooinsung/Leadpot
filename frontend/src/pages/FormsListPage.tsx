@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteForm, listFolders, listForms, moveFormFolder, type FolderItem, type FormSummary } from "../api/client";
@@ -14,6 +14,10 @@ export function FormsListPage() {
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
+  // 체크박스·버튼을 누른 채 살짝 움직이면 tr의 draggable이 하이재킹해 체크가 안 먹는 문제 방지용
+  // (드래그는 tr 전체에 걸려 있어, 브라우저가 mousedown 지점에서 가장 가까운 draggable 조상을 찾다가
+  // input/button까지 끌고 가버린다 — 실제 mousedown 대상을 기록해뒀다가 dragstart에서 걸러낸다).
+  const dragOriginRef = useRef<EventTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -164,7 +168,15 @@ export function FormsListPage() {
                             key={f.id}
                             className={`row-click row-draggable ${draggingId === f.id ? "dragging" : ""}`}
                             draggable
-                            onDragStart={() => setDraggingId(f.id)}
+                            onMouseDownCapture={(e) => { dragOriginRef.current = e.target; }}
+                            onDragStart={(e) => {
+                              const origin = dragOriginRef.current;
+                              if (origin instanceof HTMLElement && origin.closest("input, button, a")) {
+                                e.preventDefault();
+                                return;
+                              }
+                              setDraggingId(f.id);
+                            }}
                             onDragEnd={() => setDraggingId(null)}
                             onClick={() => navigate(`/forms/${f.id}/edit`)}
                           >
