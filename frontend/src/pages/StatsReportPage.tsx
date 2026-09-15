@@ -92,7 +92,7 @@ export function StatsReportPage() {
       {has("utm") && (
         <section className="report-section">
           <h2>유입별 (광고 URL 파라미터)</h2>
-          {["media_from", "campaign_name", "ads_name"].map((key) => {
+          {["media_from", "campaign_name", "adset_name", "ads_name"].map((key) => {
             const rows = stats.byUtmTables.find((t) => t.key === key)?.rows ?? [];
             return (
               <div className="card card-pad" key={key} style={{ marginBottom: 14 }}>

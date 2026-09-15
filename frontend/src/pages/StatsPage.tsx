@@ -18,8 +18,8 @@ import { toast } from "../lib/toast";
 
 type Preset = "today" | "7d" | "30d" | "custom";
 
-/** 유입별 비교 표의 축(자체 파라미터 3종) — 백엔드 byUtmTables 와 같은 키. */
-const UTM_TABLE_KEYS = ["media_from", "campaign_name", "ads_name"] as const;
+/** 유입별 비교 표의 축(자체 파라미터 4종) — 백엔드 byUtmTables 와 같은 키. */
+const UTM_TABLE_KEYS = ["media_from", "campaign_name", "adset_name", "ads_name"] as const;
 
 /**
  * 보고서 섹션 — 키는 백엔드 StatsExportService·보고서 화면(StatsReportPage)과 계약이다.
@@ -28,7 +28,7 @@ const UTM_TABLE_KEYS = ["media_from", "campaign_name", "ads_name"] as const;
 const REPORT_SECTIONS: { key: string; label: string }[] = [
   { key: "summary", label: "요약(방문·리드·전환율)" },
   { key: "trend", label: "일별 추이" },
-  { key: "utm", label: "유입별(매체·캠페인·광고)" },
+  { key: "utm", label: "유입별(매체·캠페인·광고세트·광고)" },
   { key: "landing", label: "랜딩페이지별" },
   { key: "form", label: "리드폼별" },
   { key: "device", label: "기기·환경" },
@@ -299,9 +299,10 @@ export function StatsPage() {
               <BarCard title="OS" data={stats.byOs} />
               <BarCard title="브라우저" data={stats.byBrowser} />
               <BarCard title="상태" data={stats.byStatus} />
-              {/* 자체 광고 파라미터(광고 URL 빌더 3종) — 표준 UTM 카드보다 앞에(우리 도구가 만든 축이 주 지표) */}
+              {/* 자체 광고 파라미터(광고 URL 빌더 4종) — 표준 UTM 카드보다 앞에(우리 도구가 만든 축이 주 지표) */}
               <BarCard title="광고 매체 (media_from)" data={stats.byMediaFrom} />
               <BarCard title="캠페인 이름 (campaign_name)" data={stats.byCampaignName} />
+              <BarCard title="광고세트 이름 (adset_name)" data={stats.byAdsetName} />
               <BarCard title="광고 이름 (ads_name)" data={stats.byAdsName} />
               <BarCard title="UTM 소스" data={stats.byUtmSource} />
               <BarCard title="UTM 매체" data={stats.byUtmMedium} />

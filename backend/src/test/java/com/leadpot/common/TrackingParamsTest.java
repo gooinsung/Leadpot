@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class TrackingParamsTest {
 
     @Test
-    @DisplayName("표준 UTM 5개 + 광고 파라미터 3개는 그대로 저장된다")
+    @DisplayName("표준 UTM 5개 + 광고 파라미터 4개는 그대로 저장된다")
     void keepsAllowedKeys() {
         Map<String, Object> raw = new LinkedHashMap<>();
         raw.put("source", "meta");
@@ -28,6 +28,7 @@ class TrackingParamsTest {
         raw.put("content", "banner-a");
         raw.put("media_from", "danggun");
         raw.put("campaign_name", "test-campaign");
+        raw.put("adset_name", "adset-a");
         raw.put("ads_name", "소재A");
 
         Map<String, Object> clean = TrackingParams.sanitize(raw);
@@ -87,11 +88,12 @@ class TrackingParamsTest {
     void outputOrderIsStable() {
         Map<String, Object> reversed = new LinkedHashMap<>();
         reversed.put("ads_name", "소재A");
+        reversed.put("adset_name", "adset-a");
         reversed.put("campaign_name", "캠페인");
         reversed.put("media_from", "meta");
 
         Map<String, Object> clean = TrackingParams.sanitize(reversed);
 
-        assertThat(clean.keySet()).containsExactly("media_from", "campaign_name", "ads_name");
+        assertThat(clean.keySet()).containsExactly("media_from", "campaign_name", "adset_name", "ads_name");
     }
 }

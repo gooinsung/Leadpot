@@ -14,15 +14,16 @@ public record StatsResponse(
         List<Count> byUtmSource,
         List<Count> byUtmMedium,
         List<Count> byUtmCampaign,
-        // 자체 광고 파라미터(광고 URL 빌더가 붙이는 3종) — 표준 UTM 과 병행 수집된다
+        // 자체 광고 파라미터(광고 URL 빌더가 붙이는 4종) — 표준 UTM 과 병행 수집된다
         List<Count> byMediaFrom,      // media_from (광고 매체)
         List<Count> byCampaignName,   // campaign_name (캠페인 이름)
+        List<Count> byAdsetName,      // adset_name (광고세트 이름)
         List<Count> byAdsName,        // ads_name (광고 이름)
         List<Count> byReferer,     // 유입 경로(호스트) 상위
         List<Count> byStatus,      // 리드 상태 분포(신규/상담중/완료/불량)
         List<EntityCount> byLanding,
         List<EntityCount> byForm,
-        /** 유입별 비교 표(자체 파라미터 3키) — 값별 방문·리드·전환율. 행 클릭 → 유입 필터. */
+        /** 유입별 비교 표(자체 파라미터 4키) — 값별 방문·리드·전환율. 행 클릭 → 유입 필터. */
         List<UtmTable> byUtmTables,
         Funnel funnel,             // 전환 퍼널: 방문 → 폼 열기 → 접수 (I4)
         List<Count> byEvent,       // 요소 클릭 집계(대상별 총 클릭 수) (I5)

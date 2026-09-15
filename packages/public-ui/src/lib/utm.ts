@@ -5,7 +5,7 @@
  *  - 표준 UTM `utm_source`·`utm_medium`·`utm_campaign`·`utm_term`·`utm_content`
  *    → 접두어를 떼고 `source`·`medium`·... 로 저장한다(기존 데이터와 같은 형태).
  *    GA4·메타·구글·네이버가 아는 표준 이름이라 같은 URL 로 외부 리포트와 대조할 수 있다.
- *  - 자체 광고 파라미터 `media_from`(매체)·`campaign_name`(캠페인)·`ads_name`(광고)
+ *  - 자체 광고 파라미터 `media_from`(매체)·`campaign_name`(캠페인)·`adset_name`(광고세트)·`ads_name`(광고)
  *    → 이름 그대로 저장한다. 광고 URL 빌더(랜딩 목록)가 붙여주는 값이다.
  *
  * ⚠️ 자체 파라미터 이름은 **표준 UTM 저장 키와 겹치지 않게** 골랐다.
@@ -26,7 +26,7 @@
 const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
 
 /** 자체 광고 파라미터 — 이름 그대로 저장하는 키. */
-const AD_KEYS = ["media_from", "campaign_name", "ads_name"] as const;
+const AD_KEYS = ["media_from", "campaign_name", "adset_name", "ads_name"] as const;
 
 export function parseUtm(search?: string): Record<string, string> {
   const qs = search ?? (typeof window !== "undefined" ? window.location.search : "");

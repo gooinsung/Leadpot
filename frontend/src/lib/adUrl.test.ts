@@ -39,8 +39,12 @@ describe("buildAdUrl", () => {
   });
 
   it("붙는 순서는 AD_PARAM_KEYS 순서로 고정된다", () => {
-    const url = buildAdUrl(BASE, { ads_name: "c", campaign_name: "b", media_from: "a" });
-    expect(url).toBe(`${BASE}?media_from=a&campaign_name=b&ads_name=c`);
+    const url = buildAdUrl(BASE, { ads_name: "c", campaign_name: "b", media_from: "a", adset_name: "z" });
+    expect(url).toBe(`${BASE}?media_from=a&campaign_name=b&adset_name=z&ads_name=c`);
+  });
+
+  it("광고세트 이름(adset_name)도 값이 있으면 붙는다", () => {
+    expect(buildAdUrl(BASE, { adset_name: "adset-20s" })).toBe(`${BASE}?adset_name=adset-20s`);
   });
 });
 
@@ -66,7 +70,7 @@ describe("빌더 → 수집 왕복", () => {
   }
 
   it("만든 주소를 parseUtm 이 그대로 되읽는다", () => {
-    const values = { media_from: "danggun", campaign_name: "여름-캠페인", ads_name: "소재 A" };
+    const values = { media_from: "danggun", campaign_name: "여름-캠페인", adset_name: "20대-세트", ads_name: "소재 A" };
     const url = buildAdUrl(BASE, values);
 
     withSearch(new URL(url).search, () => {
@@ -92,6 +96,6 @@ describe("빌더 → 수집 왕복", () => {
   });
 });
 
-it("키 목록이 3개로 유지된다 — 늘릴 때는 utm.ts·TrackingParams 도 함께 고쳐야 한다", () => {
-  expect(AD_PARAM_KEYS).toEqual(["media_from", "campaign_name", "ads_name"]);
+it("키 목록이 4개로 유지된다 — 늘릴 때는 utm.ts·TrackingParams 도 함께 고쳐야 한다", () => {
+  expect(AD_PARAM_KEYS).toEqual(["media_from", "campaign_name", "adset_name", "ads_name"]);
 });

@@ -29,11 +29,11 @@ public final class TrackingParams {
      * 방문자가 URL 에 무엇을 붙였든 페이지는 정상 동작해야 한다).
      *
      * <p>앞 5개는 표준 UTM({@code utm_source} 등에서 접두어를 뗀 형태, 기존 데이터와 호환).
-     * 뒤 3개는 광고 URL 빌더가 붙이는 자체 파라미터다 — 표준 UTM 과 이름이 겹치지 않게 골랐다.
+     * 뒤 4개는 광고 URL 빌더가 붙이는 자체 파라미터다 — 표준 UTM 과 이름이 겹치지 않게 골랐다.
      */
     public static final List<String> ALLOWED_KEYS = List.of(
             "source", "medium", "campaign", "term", "content",
-            "media_from", "campaign_name", "ads_name");
+            "media_from", "campaign_name", "adset_name", "ads_name");
 
     /** 값 길이 상한. 광고 매체·캠페인 이름에 200자를 넘길 이유가 없다. */
     private static final int MAX_VALUE_LENGTH = 200;

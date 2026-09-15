@@ -1083,22 +1083,23 @@ export interface StatsOverview {
   byUtmSource: StatCount[];
   byUtmMedium: StatCount[];
   byUtmCampaign: StatCount[];
-  /** 자체 광고 파라미터(광고 URL 빌더 3종) — 표준 UTM 과 병행 수집 */
+  /** 자체 광고 파라미터(광고 URL 빌더 4종) — 표준 UTM 과 병행 수집 */
   byMediaFrom: StatCount[];
   byCampaignName: StatCount[];
+  byAdsetName: StatCount[];
   byAdsName: StatCount[];
   byReferer: StatCount[];
   byStatus: StatCount[];
   byLanding: StatEntityCount[];
   byForm: StatEntityCount[];
-  /** 유입별 비교 표(자체 파라미터 3키) — 값별 방문·리드·전환율. 행 클릭 → 유입 필터 */
+  /** 유입별 비교 표(자체 파라미터 4키) — 값별 방문·리드·전환율. 행 클릭 → 유입 필터 */
   byUtmTables: StatUtmTable[];
   funnel: StatFunnel;
   byEvent: StatCount[];
   journey: StatJourney;
 }
 export interface StatUtmTable {
-  key: string; // media_from | campaign_name | ads_name
+  key: string; // media_from | campaign_name | adset_name | ads_name
   rows: { value: string; uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number }[];
 }
 export interface StatFunnel {
