@@ -538,14 +538,18 @@ API 호출 자체는 CPU 시간에 안 잡히지만(I/O 대기라 무관), 페�
 
 ## 12. 진행 체크리스트 (이어받는 세션용)
 
+> 2026-09-15 갱신 — §7 의 실제 상태와 맞췄다(예전엔 이 표만 `[ ]` 로 남아 혼동을 줬다).
+
 ```
-[x] 0  어댑터·와일드카드 확인 남음 / §11 결정 완료(전부 확정, 2026-09-07)
-[ ] 1  packages/public-ui 추출 → 프론트 회귀 검증 (운영 영향 0)
-[ ] 2  SSR 안전성(window 제거 · HtmlBlock 서버렌더[스크립트는 살림] · 깜빡임 방지 · live props화)
-[ ] 3  renderer(Next.js) 신설 → 로컬에서 "JS 없이 본문 보임" 확인
-[ ] 4  V41 google_ads_safe + 편집기 체크박스 + SSR 실패 시 자동 폴백
-[ ] 5  Cloudflare 배포(렌더러=Workers + 관리앱=Pages) → 임시 도메인 검증
-       → app.lead-pot.com 전환 ⭐1 → *.lead-pot.com 라우트 전환 ⭐2
-[ ] 6  §9 검증 전부 + 🔴 IP 차단 테스트 + 구글 이의신청 → 2~3일 관찰 → Oracle VM 종료
-[ ] 7  CLAUDE.md·HOSTING-MIGRATION-PLAN(Phase B 완료 처리)·PROGRESS 갱신
+[x] 0  어댑터(OpenNext)·와일드카드 확인 / §11 결정 전부 확정 (2026-09-07)
+[x] 1  packages/public-ui 추출 → 프론트 회귀 검증 (운영 영향 0)
+[x] 2  SSR 안전성(window 제거 · sanitizeHtml 신설 · live props화)
+[x] 3  renderer(Next.js 16 + OpenNext) 신설 → 로컬에서 "JS 없이 본문 보임" 확인
+[x] 4  V41 google_ads_safe + 편집기 체크박스 + SSR 실패 시 SPA 자동 폴백
+[x] 5  Cloudflare 배포 → app.lead-pot.com=Pages ⭐1 → *.lead-pot.com=Workers ⭐2 (2026-09-07)
+       + /f/{id} 도 SSR 통일(2026-09-08) + go 고정 호스트 전환(2026-09-09, §6-6)
+[ ] 6  §9-B 나머지 회귀 확인(스텝폼·계산기·동의문서·오버레이·픽셀·🔴IP차단·방문통계)
+       + §9-C(/f/{id} 실도메인·embed.js) + 구글 재심사(각 광고 플랫폼 Final URL 갱신은 사용자 몫)
+[ ] 7  Oracle VM 종료 + deploy-frontend.yml 삭제 + HOSTING-MIGRATION-PLAN "완료" 처리
+       (CLAUDE.md·PROGRESS·ROADMAP·ARCHITECTURE 는 2026-09-15 갱신 완료)
 ```

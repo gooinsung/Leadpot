@@ -1,7 +1,9 @@
 # docs/ROADMAP.md — Leadpot 1차 개발 로드맵
 
-> 이어받는 사람은 이 문서로 **현재 진행상황과 다음 할 일**을 파악한다.
-> 기능 정의는 [SPEC.md](SPEC.md), 전체 기능/선택은 [BACKLOG.md](BACKLOG.md), 실제 디비카트 구조는 [DBCART-ANALYSIS.md](DBCART-ANALYSIS.md) 참고.
+> 이 문서는 **Phase 단위 진행상황**의 정본이다. 상태가 바뀌면 [../CLAUDE.md](../CLAUDE.md) §8 요약표도 함께 갱신한다.
+> **"지금 당장 뭘 이어서 하나"는 [PROGRESS.md](PROGRESS.md)** 가 정본이다 — 이어받을 땐 거기부터 읽는다.
+> 코드 위치는 [ARCHITECTURE.md](ARCHITECTURE.md), 기능 정의는 [SPEC.md](SPEC.md),
+> 전체 기능/선택은 [BACKLOG.md](BACKLOG.md), 실제 디비카트 구조는 [DBCART-ANALYSIS.md](DBCART-ANALYSIS.md) 참고.
 
 ## 프로젝트 = Leadpot (리드팟)
 
@@ -39,7 +41,9 @@
 | **6** | 마케팅·트래킹 | I1(픽셀)·I4(퍼널)·I5(클릭)·I6(여정분석)·**I3 SEO**(SSR 렌더러 메타태그, 2026-09-07) ✅ | ✅ |
 | **7** | 알림 🔒 | 텔레그램·구글시트 ✅(H3 대체) / H3 카카오 알림톡은 준비물 필요 | 🔄 |
 | **8** | **광고주 하위계정 포털** | A1~A7 **전부 완료** — 초대·권한부여(1폼:1광고주)·리드열람/상태변경·전용로그인/비번재설정·텔레그램(A5)·엑셀+감사이력(A4)·실시간(A6)·리포트·화이트라벨·미리보기(A7) → [ADVERTISER-PORTAL-PLAN.md](ADVERTISER-PORTAL-PLAN.md) | ✅ |
-| **9** | **UI/UX 개선** | U0 CSS구조화·U1 통합인박스·U2 사이드패널+일괄작업·U3 가독성 ✅ / 남음: U4 내비·U5 상태UX·U6 광고주포털·U7 비주얼 → [UIUX-PLAN.md](UIUX-PLAN.md) | 🔄 진행중 |
+| **9** | **UI/UX 개선** | U0~U7 **전부 완료** — 관리 화면 **Cockpit**(잉크 LNB·밀도 토글·스티키 필터바) / 공개 화면 **Daylight**(따뜻한 종이·큰 탭 타깃·라이트 고정) / 광고주 **Task-First** → [UIUX-PLAN.md](UIUX-PLAN.md) | ✅ |
+| **10** | **공개 랜딩 SSR 전환 + Cloudflare 이전** | `packages/public-ui` 공유 패키지 추출 · `renderer/`(Next.js+OpenNext) 신설 · `google_ads_safe` 옵션 · SSR 실패 시 SPA 자동 폴백 · **app→Pages / \*→Workers 컷오버 완료**(2026-09-07) · `/f/{id}` 도 SSR 통일 · **`go` 고정 호스트 전환**(2026-09-09) → [SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) | 🔄 배포 완료, §9-B 회귀 확인 잔여 |
+| **11** | **인프라 이전**(별도 축) | 백엔드 Oracle VM → **Railway**(2026-08-09) · DB Neon → **Railway Postgres**(2026-08-18) · 프론트 → **Cloudflare Pages**(2026-09-07) → [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md)·[DB-MIGRATION-RAILWAY.md](DB-MIGRATION-RAILWAY.md) | 🔄 Oracle VM 종료만 남음 |
 
 ### Phase별 검증 기준
 - **0**: 배포된 React 화면에서 `api.도메인/api/health` 호출 성공(CORS 포함)
@@ -55,10 +59,10 @@
 ## 작업 방식 (매 Phase 공통)
 
 0. **착수 전 기획 재검증(필수)**: 관련 기획 문서 재정독 → 이 Phase 계획이 현실적·타당한지 재점검 → 의문/리스크 있으면 사용자와 조정 후 착수. (CLAUDE.md "각 Phase 착수 전 필수 절차" 참고)
-1. 브랜치 생성 → 구현 → 로컬 검증(`docker-compose up` + `npm run dev`)
+1. 브랜치 생성 → 구현 → 로컬 검증(`docker compose up -d db` + `bootRun` + `npm run dev`)
 2. 원자적 커밋(한국어) + 관련 문서 갱신
-3. 배포(push→CF Pages 자동빌드 / VM 컨테이너 재기동) → 스모크 테스트
-4. Phase 검증 통과 시 다음으로. 이 문서의 상태표(⬜/🔄/✅) 갱신
+3. PR → `main` 병합 → **경로별 GitHub Actions 자동 배포**(Pages·Workers) + Railway 자체 배포 → 스모크 테스트
+4. Phase 검증 통과 시 다음으로. 이 문서의 상태표(⬜/🔄/✅)와 CLAUDE.md §8 요약표를 함께 갱신
 
 ## 현재 진행 상황
 
@@ -84,6 +88,10 @@
 - [x] **I3 SEO**(메타·OG — SSR 렌더러 `generateMetadata`, 2026-09-07). 사이트맵은 멀티테넌트
       구조상(서브도메인마다 다른 소유자) 전역 사이트맵 개념이 안 맞아 범위에서 제외.
 - [x] **D3 서브도메인 관리** — 앱-사이드 구현·**검증 완료**(브랜치 `feature/d3-subdomain`, 미병합). 결정: 루트=404 / 식별자=번호+슬러그 / `/p/{slug}`=소유자 미리보기. DB=Neon 공유. 배포용 와일드카드 DNS·SSL은 사용자 리소스(나중). → PROGRESS 참고.
-- [ ] 사용자 리소스 필요: 연동(구글시트/텔레그램/카톡) · SMS 본인인증 · 클라우드 배포/SSL · 도메인/와일드카드SSL(D2·D3 배포분) · 결제(L)
+- [x] **인프라 이전 완료**(2026-08~09): 백엔드 → Railway · DB → Railway Postgres · 프론트 → Cloudflare Pages · 공개 랜딩 → Cloudflare Workers(SSR). Oracle VM 종료만 남음.
+- [x] **공개 랜딩 SSR 전환**(Phase 10) — 구글 광고 "시스템 우회" 거절의 구조적 원인 제거. `go.lead-pot.com/{sub}/{id}` 고정 호스트로 전환(2026-09-09).
+- [ ] **남은 것**: 커스텀 도메인(D2) · 결제/구독(L) · 팀 CRM(F) · 파티(G) · 업종별 템플릿(B6) · 휴대폰 본인인증(M5) · SSR 회귀 확인 잔여분 · GO-LIVE 점검표 미완 항목
 
-> 준비물(사용자 계정 작업): GitHub(완료), Docker Desktop(재부팅 후 완료), Oracle Cloud VM, Cloudflare 계정, 도메인(선택), 이메일 발송(비번재설정용).
+> 준비물(사용자 계정 작업): GitHub ✅ · Cloudflare ✅ · Railway ✅ · 도메인(`lead-pot.com`) ✅ ·
+> R2(이미지) ✅ · 솔라피(문자·알림톡) ✅ · 구글 서비스계정(시트) ✅ /
+> 아직 없는 것: PG(결제), 휴대폰 본인인증 업체, 이메일 발송 인프라(현재 비번재설정은 문자로 대체).

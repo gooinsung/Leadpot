@@ -2,7 +2,13 @@
 
 > 이 문서는 **누구나 · 어디서나 · 이 작업을 이어서 할 수 있도록** 하는 프로젝트의 최상위 규칙이다.
 > 작업을 시작하기 전에 반드시 이 문서를 먼저 읽는다. 규칙이 바뀌면 이 문서를 갱신한다.
-> **이어받을 때**: 이 문서 → [docs/ROADMAP.md](docs/ROADMAP.md)(진행상황) → [docs/SPEC.md](docs/SPEC.md) 순서로 읽는다.
+>
+> **이어받을 때 읽는 순서**:
+> [docs/PROGRESS.md](docs/PROGRESS.md)(지금 위치·다음 할 일) → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)(코드 지도)
+> → 이 문서(규칙) → [docs/ROADMAP.md](docs/ROADMAP.md)(Phase) → [docs/SPEC.md](docs/SPEC.md)(명세)
+>
+> 🤖 **AI 에이전트(Codex 등)는 [AGENTS.md](AGENTS.md) 를 먼저 읽는다** — 이 문서의 요약 + 진입점이다.
+> 규칙이 바뀌면 **AGENTS.md 와 이 문서를 같은 커밋에서 함께** 고친다.
 
 - **서비스명**: Leadpot (리드팟)
 - **저장소**: https://github.com/gooinsung/Leadpot
@@ -139,14 +145,23 @@ Cloudflare DNS(프록시, 무료 SSL)
 
 ## 4. 저장소 구조 (모노레포)
 
+> 📖 **모듈·DB 테이블·API 엔드포인트·화면 라우트 전체 지도는
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 에 있다.** 아래는 뼈대만.
+
 ```
-dbcart/
-├─ CLAUDE.md                  # (이 파일) 작업 규칙
+Leadpot/
+├─ AGENTS.md                  # AI 에이전트 진입점 (이 문서의 요약)
+├─ CLAUDE.md                  # (이 파일) 작업 규칙 정본
 ├─ README.md                  # 프로젝트 소개 + 빠른 시작
+├─ package.json               # npm workspaces 루트 (frontend·renderer·packages/*)
 ├─ docs/
-│   ├─ FEATURES.md            # 디비카트 전체 기능 카탈로그
+│   ├─ PROGRESS.md            # ⭐ 진행 기록(지금 위치·다음 할 일) — 이어받기의 시작점
+│   ├─ ARCHITECTURE.md        # ⭐ 코드베이스 지도(모듈·DB·API·라우트·동기화 지점)
+│   ├─ ROADMAP.md             # Phase 진행 상황
 │   ├─ SPEC.md                # 우리 서비스 기능 명세
-│   └─ DECISIONS.md           # (선택) 의사결정 로그 상세
+│   ├─ FEATURES.md            # 디비카트 전체 기능 카탈로그
+│   ├─ BACKLOG.md             # 기능 선택 목록(1차/백로그)
+│   └─ *-PLAN.md              # 주제별 실행 계획(SSR·광고주포털·메시징·웹훅·호스팅 이전 등)
 ├─ frontend/                  # 관리 앱 — React + Vite (TypeScript) SPA. Cloudflare Pages 배포
 │   ├─ src/
 │   │   ├─ pages/             # 화면(대시보드/로그인/빌더 등 — 공개 랜딩 렌더링은 renderer/ 가 담당)
@@ -166,18 +181,22 @@ dbcart/
 ├─ packages/public-ui/        # frontend·renderer 가 공유하는 공개 렌더링 컴포넌트·API 클라이언트
 │   │                           (LandingView·PublicFormView·HtmlBlock 등) — npm workspaces 패키지.
 │   │                           크롤러가 보는 화면과 실사용자가 보는 화면이 갈라지지 않게 하는 핵심.
-├─ backend/                   # Spring Boot (Gradle)
-│   ├─ src/main/java/com/dbcart/
-│   │   ├─ auth/              # 회원가입·로그인·JWT
-│   │   ├─ landing/           # 랜딩페이지 CRUD + 공개 데이터
-│   │   ├─ lead/              # 폼 제출 수신 + 리드 조회/내보내기
-│   │   ├─ team/              # 팀 CRM (후기)
-│   │   └─ common/            # 공통(config, 예외, security)
-│   ├─ src/main/resources/
+├─ backend/                   # Spring Boot (Gradle) — 도메인별 패키지
+│   ├─ src/main/java/com/leadpot/
+│   │   ├─ auth/              # 회원가입·로그인·JWT·비번재설정·서브도메인
+│   │   ├─ form/ landing/     # 리드폼·랜딩 CRUD + 공개 데이터
+│   │   ├─ lead/              # ⭐ 리드 접수·조회·상태·메모·내보내기 (lead/webhook = 외부 수신)
+│   │   ├─ advertiser/        # 광고주 하위계정(초대·권한·포털·감사)
+│   │   ├─ admin/             # 운영자(계정·문자권한·감사)
+│   │   ├─ stats/ visit/ event/  # 통계·방문·상호작용 이벤트
+│   │   ├─ sms/ integration/  # 문자·알림톡(솔라피) · 텔레그램·구글시트·아웃바운드 웹훅
+│   │   ├─ ipblock/ consent/ htmlcomponent/ folder/
+│   │   └─ common/            # 공통(security, error, upload, ClientIp, TrackingParams)
+│   ├─ src/main/resources/db/migration/   # ⭐ Flyway V1~V43 = 스키마 정본
 │   ├─ build.gradle
 │   └─ Dockerfile
-├─ docker-compose.yml         # 로컬: spring + postgres 동시 기동
-└─ .github/workflows/         # (선택) CI/CD
+├─ docker-compose.yml         # 로컬: postgres:18 + 백엔드
+└─ .github/workflows/         # 경로별 자동 배포(§6)
 ```
 
 ---
@@ -287,20 +306,30 @@ test:     테스트
 
 ## 8. 개발 로드맵 (Phase)
 
-MVP까지가 Phase 0~3. 이후 단계적 확장.
+> ⚠️ **상태표 정본은 [docs/ROADMAP.md](docs/ROADMAP.md) 다.** 아래는 요약이며, 상태가 바뀌면
+> ROADMAP 과 **함께** 갱신한다. (예전엔 이 표가 초안 그대로 `⬜ 예정` 으로 방치돼 실제 진행
+> 상황과 정반대였다 — 2026-09-15 바로잡음.)
+
+**MVP(Phase 0~5)와 그 이후 확장까지 대부분 완료됐고, 실서비스 운영 중이다.**
 
 | Phase | 내용 | 상태 |
-|---|---|---|
-| **0** | 스캐폴딩 & 배포 파이프라인 (hello world 배포 검증) | ⬜ 예정 |
-| **1** | 인증(회원가입/로그인 JWT) & 대시보드 골격 | ⬜ |
-| **2** | 랜딩 CRUD + 공개 렌더 + 폼 제출/리드 수집 (핵심 루프) | ⬜ |
-| **3** | 리드 대시보드 + CSV 내보내기 **(MVP 완성)** | ⬜ |
-| **4** | 랜딩페이지 빌더(블록 에디터 + 이미지 업로드) | ⬜ |
-| **5** | 팀 CRM(팀플): 팀원·DB 자동배정·진행상태·통계 | ⬜ |
-| **6** | 업종별 템플릿 | ⬜ |
-| **7** | 결제/구독(PortOne·토스), 마케팅 트래킹·통계·보안 고도화 | ⬜ |
+|---|---|:---:|
+| **0** | 셋업 & 배포 파이프라인 (app·api.lead-pot.com + CI/CD) | ✅ |
+| **1** | 인증 & 계정 (JWT·다계정·접근권한·SSL·비번재설정) | ✅ |
+| **2** | 폼 빌더 ★핵심 (BASIC/STEP·콘텐츠블록·동의·디자인·외부임베드) | ✅ |
+| **3** | 랜딩 빌더 & 폼 연결 (블록 방식·인라인/오버레이/풀스크린 CTA) | ✅ |
+| **4** | 공개 페이지 & 수집 (공개URL·방문자정보·서브도메인) | 🔄 D2 커스텀 도메인만 남음 |
+| **5** | 리드 관리 & 통계 (목록·상태·CSV·휴지통·중복·IP차단·통계) | ✅ |
+| **6** | 마케팅·트래킹 (픽셀·전환퍼널·클릭·여정분석·SEO) | ✅ |
+| **7** | 알림 (텔레그램·구글시트·문자·**카카오 알림톡**) | ✅ |
+| **8** | 광고주 하위계정 포털 (초대·권한·리드열람·리포트·화이트라벨) | ✅ |
+| **9** | UI/UX 개선 (U0~U7 — 관리=Cockpit / 공개=Daylight) | ✅ |
+| **10** | 공개 랜딩 **SSR 전환 + Cloudflare 이전** | 🔄 배포 완료, 회귀 확인 잔여 |
 
-> 각 Phase는 끝에 "검증(스모크 테스트)"을 통과해야 완료로 본다. 상세 검증 항목은 실행 계획(plan) 참고.
+**아직 안 한 것**: 결제·구독(L), 팀 CRM(F), 파티(G), 업종별 템플릿(B6), 휴대폰 본인인증(M5),
+커스텀 도메인(D2). 상세는 [docs/BACKLOG.md](docs/BACKLOG.md).
+
+> 각 Phase는 끝에 "검증(스모크 테스트)"을 통과해야 완료로 본다. 상세 검증 항목은 ROADMAP·실행 계획 참고.
 
 ---
 
@@ -322,7 +351,12 @@ MVP까지가 Phase 0~3. 이후 단계적 확장.
 ## 10. 이어받는 사람을 위한 빠른 안내
 
 1. **가장 먼저 [docs/PROGRESS.md](docs/PROGRESS.md)를 읽는다** → "다음에 할 일"부터 이어서 시작.
-2. 배경이 필요하면 이 문서 → `docs/ROADMAP.md` → `docs/SPEC.md` → `docs/FEATURES.md` 순으로 읽는다.
-3. `docker-compose up` + `frontend`에서 `npm run dev`로 로컬을 띄운다.
-4. 새 작업은 작업 브랜치에서, 원자적 커밋으로, 문서 갱신과 함께 진행한다.
-5. **작업을 멈출 때 반드시 `docs/PROGRESS.md`를 갱신·커밋한다** (진행 기록 규칙).
+2. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)로 코드 위치를 잡는다** — 모듈·DB 테이블·API
+   엔드포인트·화면 라우트가 전부 거기 있다. 특히 **§9 "같이 고쳐야 하는 곳"** 은 손대기 전에 확인.
+3. 배경이 필요하면 이 문서 → `docs/ROADMAP.md` → `docs/SPEC.md` → `docs/FEATURES.md` 순으로 읽는다.
+4. `docker compose up -d db` + 백엔드 `bootRun` + `frontend`에서 `npm run dev`로 로컬을 띄운다(§5).
+5. 새 작업은 작업 브랜치에서, 원자적 커밋으로, 문서 갱신과 함께 진행한다.
+6. **작업을 멈출 때 반드시 `docs/PROGRESS.md`를 갱신·커밋한다** (진행 기록 규칙).
+
+> ⚠️ **git log 로 과거를 추적할 수 없다** — 저장소 클론이 **shallow**(2026-09-01 이후만)인 경우가
+> 많다. 그 이전 경위는 전부 `docs/PROGRESS.md` 에만 있다.

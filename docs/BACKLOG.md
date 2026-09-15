@@ -84,7 +84,7 @@
 
 ### I. 마케팅 · 트래킹
 - [x] **I1. 광고 픽셀 설치** — 구글·메타·틱톡·카카오·당근·**토스애즈**(2026-08-20 추가) 광고 추적 코드 심기. `frontend/src/lib/pixels.ts`(공개 페이지 로드 시 PageView + 리드 제출 시 전환 발사) + `components/PixelFields.tsx`(리드폼 설정 UI). 메서드명은 공식 문서(toss-ads.gitbook.io/guide/tracking/tosspixel, 사용자가 원문 붙여넣어 대조 확인) 기준 검증됨. **토스도 메타·당근처럼 전환 이벤트를 리드폼별로 선택 가능**(`TOSS_EVENTS` — lead/signUp/subscribe/preRegister/viewLimit/applyScreening, 기본 lead). 값 자체가 실제 호출 메서드명(다른 플랫폼과 달리 이벤트마다 메서드가 다른 SDK 구조라 그렇게 설계). ⬜ 남은 것: 실제 전환 코드로 "토스 픽셀 도우미"(브라우저 확장) 실동작 검증 · `lead_type`/`event_id` 등 선택 파라미터는 아직 안 보냄(필요 시 추가).
-- [x] **I2. UTM 추적** — 표준 UTM 5개(`utm_source`·`medium`·`campaign`·`term`·`content`) + 자체 광고 파라미터 4개(`media_from`·`campaign_name`·`adset_name`·`ads_name`, 2026-09-15 `adset_name`/광고세트 추가) 를 리드·방문에 저장(`leads.utm`/`visits.utm` JSONB). 리드 상세 패널·CSV 표시, 백엔드 화이트리스트 관문(`TrackingParams`), 랜딩 목록의 **광고 URL 빌더**. ⬜ **남은 것: 리드 목록의 출처 열·필터** — 저장은 되는데 목록에서 걸러낼 수가 없다
+- [x] **I2. UTM 추적** — 표준 UTM 5개(`utm_source`·`medium`·`campaign`·`term`·`content`) + 자체 광고 파라미터 4개(`media_from`·`campaign_name`·`adset_name`·`ads_name`, 2026-09-15 `adset_name`/광고세트 추가) 를 리드·방문에 저장(`leads.utm`/`visits.utm` JSONB). 리드 상세 패널·CSV 표시, 백엔드 화이트리스트 관문(`TrackingParams`), 랜딩 목록의 **광고 URL 빌더**. ✅ 리드 목록의 **출처 칩 + 유입 faceted 필터**(인박스·폼별, `GET /api/leads/utm-facets` + `frontend/src/lib/tracking.ts`)도 완료(2026-08-18). ✅ 통계 집계·비교표·엑셀 보고서에도 4개 키 전부 반영됨(J3 참고)
 - [x] **I3. 검색엔진 등록(SEO)** — 공개 랜딩 SSR 렌더러(`renderer/`)의 `generateMetadata` 에서
       랜딩별 `<title>`·`description`(첫 TEXT 블록에서 추출)·`og:*`·`twitter:*`·`canonical` 생성,
       존재하지 않거나 IP 차단된 페이지는 Next 내장 404 폴백이 자동으로 `noindex` 처리.
@@ -97,7 +97,7 @@
 ### J. 통계 · 분석
 - [ ] **J1. 접속 통계** — 방문자 수, 기간별 추이
 - [x] **J2. 유입 경로** — `referer`(호스트) + 기기/OS/브라우저를 리드·방문에 저장하고 통계에 집계(`byReferer`·`byDevice`·`byOs`·`byBrowser`)
-- [x] **J3. UTM 캠페인 통계** — 통계 페이지에 'UTM 소스·매체·캠페인' 막대 카드(`byUtmSource`/`byUtmMedium`/`byUtmCampaign`). ⬜ **남은 것: 자체 파라미터 3개는 아직 집계에 없다**(표준 UTM 만 카드가 있다)
+- [x] **J3. UTM 캠페인 통계** — 통계 페이지에 'UTM 소스·매체·캠페인' 막대 카드(`byUtmSource`/`byUtmMedium`/`byUtmCampaign`). ✅ **자체 광고 파라미터 4개도 전부 집계에 들어감**(2026-08-18 카드 3종 + 2026-09-15 광고세트 추가): 상세 막대 카드(`byMediaFrom`/`byCampaignName`/`byAdsetName`/`byAdsName`) + **유입별 비교 표**(값별 방문·리드·전환율, 행 클릭 시 페이지 전체 재계산) + 엑셀 보고서 시트 4종(`StatsExportService`)
 - [ ] **J4. 전환율 대시보드** — 방문 대비 신청률 한눈에
 
 ### K. 보안 · 차단

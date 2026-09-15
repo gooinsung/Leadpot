@@ -8,6 +8,34 @@
 
 ## 📍 지금 위치
 
+- **✅ 인수인계 문서 전면 정비 — `AGENTS.md`·`docs/ARCHITECTURE.md` 신설 + 낡은 문서 최신화
+  (2026-09-15, 원격 세션, 사용자 지시)**: 사용자가 이 프로젝트를 **GPT Codex 데스크탑에도 세팅**하기로
+  하면서 "파일만 보고 바로 이어갈 수 있게" 문서를 정비하라고 지시. 기존 문서(8.6k줄)와 전체 코드
+  (backend 239파일·frontend 83·public-ui 27·renderer 10)를 훑어 실제 코드와 문서가 어긋난 지점을
+  찾아 고쳤다.
+  - **🆕 [`AGENTS.md`](../AGENTS.md)(루트 신설)** — Codex 가 기본으로 읽는 파일. CLAUDE.md 의 요약 +
+    진입점. 최상위 지침(임의 진행 금지)·모바일 퍼스트·🚫하지 말 것(실제 사고 목록)·검증 없이 완료
+    금지·같이 고쳐야 하는 곳·컨벤션·로컬 실행·배포 주의를 담았다.
+    ⚠️ **규칙이 바뀌면 AGENTS.md 와 CLAUDE.md 를 같은 커밋에서 함께 고친다**(양쪽에 명시).
+  - **🆕 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)(신설)** — 그동안 없던 **코드베이스 지도**.
+    배포 토폴로지 + 🔴함정 3가지 / 저장소 경계(`packages/public-ui` 가 왜 있는지) / URL→코드 라우팅표 /
+    백엔드 도메인 패키지 지도 / 권한 모델 / **DB 테이블 전체(V1~V43, 제거된 것 포함)** / 화면 라우트 전체 /
+    **API 엔드포인트 전체** / 리드 접수 파이프라인 / **§9 같이 고쳐야 하는 곳** / 로컬 실행·검증 /
+    환경변수 전체 / 배포 / 미해결 목록.
+  - **갱신한 문서**:
+    | 문서 | 무엇이 틀려 있었나 |
+    |---|---|
+    | `README.md` | **"현재 상태: 기획/설계 문서화 완료, 다음 = Phase 0"** — 실서비스 운영 중인데 시작 전으로 적혀 있었다. 배포처도 Oracle VM·VM내 Postgres로 낡음 → 전면 재작성 |
+    | `CLAUDE.md` §8 | Phase 표가 **초안 그대로 전부 `⬜ 예정`** (실제는 대부분 ✅). §4 구조도 `dbcart/`·`com.dbcart`·없는 `team/` 패키지. 읽는 순서에 AGENTS·ARCHITECTURE 추가 |
+    | `docs/ROADMAP.md` | U0~U7 "진행중"(실제 완료), SSR·인프라 이전 Phase 자체가 없었음 → Phase 10·11 추가 |
+    | `docs/BACKLOG.md` | I2 "남은 것: 리드 목록 출처 열·필터"·J3 "자체 파라미터는 집계에 없다" — **둘 다 이미 완료**된 것 |
+    | `docs/GO-LIVE-CHECKLIST.md` | Neon·Oracle VM·Flyway V21 전제. DB 분리는 이미 해결됨. 오리진 방화벽 대상이 VM IP→Railway 로 바뀜 |
+    | `renderer/README.md` | 폐지된 `{sub}.lead-pot.com/{id}` 구조를 설명. `go` 고정 호스트·`proxyToAdminApp()`·한글 슬러그 방어 반영 |
+    | `docs/SSR-LANDING-PLAN.md` §12 | 체크리스트만 Phase 1~5 가 `[ ]` 로 남아 §7(완료)과 모순 |
+  - **검증**: 문서 변경만이라 코드 영향 없음. 링크 경로·인용한 파일 경로는 실제 파일과 대조 확인.
+  - **⚠️ 다음 세션이 알아야 할 것**: 이 저장소 클론은 **shallow**(2026-09-01 이후만)라 `git log` 로
+    과거를 못 본다 — 그 이전 경위는 **이 PROGRESS.md 에만** 있다. AGENTS·ARCHITECTURE 양쪽에 명시해뒀다.
+
 - **✅ 광고 URL 빌더에 '광고세트' 파라미터 추가 (2026-09-15, 원격 세션, 사용자 지시)**:
   기존 자체 광고 파라미터가 매체(`media_from`)·캠페인(`campaign_name`)·광고(`ads_name`) 3개뿐이라
   캠페인과 광고 사이 단위(메타 '광고세트'·구글 '광고그룹')를 구분할 수 없었음. 새 키
@@ -32,6 +60,11 @@
     프론트 `npx vitest run`(21개) · `tsc -b` · 백엔드 `TrackingParamsTest`(6개) 확인.
     `StatsUtmTest` 등 `@SpringBootTest`(DB 필요) 항목은 이 세션 환경에 Docker 데몬이 없어
     실행 못 함 — 다음에 이어받으면 로컬(docker postgres)에서 `./gradlew test` 전체 통과 확인 필요.
+  - **✅ 배포 완료**: PR [#12](https://github.com/gooinsung/Leadpot/pull/12) → `main` 스쿼시 병합
+    (커밋 `8f9b763`). `Deploy Frontend (Cloudflare Pages)`·`Deploy Renderer (Cloudflare Workers)`·
+    `Deploy Frontend`(레거시 VM) **3개 워크플로 전부 success**(2026-09-15 13:32 UTC).
+    ⚠️ 백엔드(`TrackingParams.ALLOWED_KEYS`)는 **Railway 가 따로 배포**하므로 대시보드에서 별도 확인
+    필요 — 이게 나가야 `adset_name` 값이 실제로 **저장**된다(그 전까지는 URL 에 붙어도 서버가 버린다).
   - **⬜ 남은 것**: 실제 화면(광고 URL 빌더 모달·통계 페이지)에서 광고세트 입력→URL 생성→제출
     →통계 카드 반영까지 브라우저로 육안 확인 — 이 세션엔 브라우저 없어 못 함.
 
@@ -336,21 +369,27 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
-> **바로 이어서 할 일**:
-> 1. **한글 슬러그 버그 실도메인 최종 확인**(위 §2026-09-08 기록) — `deploy-renderer.yml`
->    (커밋 `6f705b1`) 성공 확인 후, 실제 `the-law.lead-pot.com/개인회생성지`(당근광고) 브라우저 접속이
->    정상 렌더되는지 확인. 안 되면 이 커밋만 되돌리면 복구(그 전엔 CSR 시절부터 있던 문제일 수도
->    있어 완전한 신규 회귀는 아님).
-> 2. **구글 광고 거절 재확인** — `/37`·`/38` 은 SSR·Search Console 실시간 테스트로 기술적으로는
->    정상 확인됨(§2026-09-06). 그런데도 "시스템 우회"/"손상된 사이트" 거절이 계속되면: (a) 광고
->    관리자에서 "검토됨" 날짜가 SSR 배포(Phase 5, 2026-09-07 15:52 UTC) **이후**인지 확인(그 전
->    날짜면 그냥 재심사를 기다리거나 재제출), (b) 그래도 거절되면 구글 광고 고객센터에 Search
->    Console 실시간 테스트 결과를 근거로 직접 문의 고려.
-> 3. Cloudflare 네이티브 "Workers Builds" Git 연동(우리가 안 쓰는 중복 배포 경로, `npx wrangler
->    versions upload` 실패 로그의 원인) 비활성화 — Workers & Pages → `leadpot-renderer` →
->    Settings → Builds. 실서비스엔 영향 없는 정리 항목.
-> 4. 안정화 확인되면 SSR-LANDING-PLAN.md §7 Phase 6(관찰 기간 종료) → Phase 7 마무리(Oracle VM
->    종료, `deploy-frontend.yml` 삭제, HOSTING-MIGRATION-PLAN "완료" 갱신).
+> **처음 이어받는다면**: [AGENTS.md](../AGENTS.md)(규칙) → 이 문서 → [ARCHITECTURE.md](ARCHITECTURE.md)(코드 지도) 순서.
+
+> **바로 이어서 할 일** (2026-09-15 갱신):
+> 1. **사용자 작업 — 광고 플랫폼 Final URL 갱신** 🔴 가장 중요.
+>    `go.lead-pot.com/{sub}/{id}` 고정 호스트로 바꾼 뒤(2026-09-09) 구 서브도메인은 **301 리다이렉트만**
+>    하는 임시 안전망이다. 구글 광고·당근 등에서 실제 캠페인 Final URL 을 새 형식으로 **직접 갱신**해야
+>    근본 해결이다(구글은 리다이렉트 체인 자체를 "시스템 우회"로 볼 수도 있다).
+> 2. **구글 광고 재심사 상태 확인** — 광고 관리자에서 "검토됨" 날짜가 SSR 배포(2026-09-07 15:52 UTC)
+>    및 고정 호스트 전환(2026-09-09) **이후**인지 확인. 그래도 거절되면 Search Console 실시간 테스트
+>    결과를 근거로 gTech 티켓에 회신.
+> 3. **광고세트(`adset_name`) 실화면 확인** — Railway 백엔드 배포 완료 여부부터 확인(그게 나가야 값이
+>    실제로 저장된다) → 빌더에서 광고세트 입력 → 생성된 URL 로 제출 → 리드 상세·통계 카드에 반영되는지.
+> 4. **SSR 회귀 확인 잔여분**([SSR-LANDING-PLAN.md](SSR-LANDING-PLAN.md) §9-B·§9-C) — 스텝폼·계산기·
+>    동의문서 인라인·오버레이/풀스크린 CTA·픽셀 발사·**🔴 IP 차단 실동작**·방문/스크롤/이탈 통계 ·
+>    `/f/{id}` 실도메인 · 외부 임베드 `embed.js`. **브라우저가 있는 세션이나 사용자가 해야 한다.**
+> 5. **정리 작업** — Cloudflare 네이티브 "Workers Builds" Git 연동 비활성화(중복 배포 경로) ·
+>    안정화 확인 후 **Oracle VM 종료** + `deploy-frontend.yml`·`backend/Dockerfile.runtime`·
+>    `docker-compose.prod.yml` 삭제 + HOSTING-MIGRATION-PLAN "완료" 갱신.
+> 6. **밀린 숙제** — [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) 미완 항목. 특히 🔴 오리진 직접 접근
+>    차단(Railway 공개 주소 우회 시 IP 위조 가능) · 비번 변경 시 리프레시 토큰 무효화(`token_version`) ·
+>    Railway Postgres 백업·복구 실제로 해보기.
 
 > ## 📋 2026-09-06 — **구글 광고 거절 원인 분석 + 공개 랜딩 SSR 계획 수립 / 버그 2건 배포 완료**
 >
