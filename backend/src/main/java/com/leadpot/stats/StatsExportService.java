@@ -40,6 +40,7 @@ public class StatsExportService {
                 case "utm" -> {
                     sheets.put("유입-광고 매체", utm(stats, "media_from"));
                     sheets.put("유입-캠페인 이름", utm(stats, "campaign_name"));
+                    sheets.put("유입-광고세트 이름", utm(stats, "adset_name"));
                     sheets.put("유입-광고 이름", utm(stats, "ads_name"));
                 }
                 case "landing" -> sheets.put("랜딩페이지별", entity(stats.byLanding()));

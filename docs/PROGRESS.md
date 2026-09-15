@@ -8,6 +8,33 @@
 
 ## 📍 지금 위치
 
+- **✅ 광고 URL 빌더에 '광고세트' 파라미터 추가 (2026-09-15, 원격 세션, 사용자 지시)**:
+  기존 자체 광고 파라미터가 매체(`media_from`)·캠페인(`campaign_name`)·광고(`ads_name`) 3개뿐이라
+  캠페인과 광고 사이 단위(메타 '광고세트'·구글 '광고그룹')를 구분할 수 없었음. 새 키
+  `adset_name`(광고세트 이름)을 `campaign_name`과 `ads_name` 사이에 추가 — 순서는 실제 광고
+  플랫폼 계층(캠페인 > 광고세트 > 광고, `docs/PROGRESS.md`의 메타 `{{adset.name}}` 조사 결과와
+  일치)을 따름.
+  - **네 곳을 함께 고침** (기존 "세 곳이 일치해야 한다" 규칙 — 이제 네 곳):
+    `frontend/src/lib/adUrl.ts`(`AD_PARAM_KEYS`) · `packages/public-ui/src/lib/utm.ts`(`AD_KEYS`,
+    수집) · `backend/.../common/TrackingParams.java`(`ALLOWED_KEYS`, 저장 관문) ·
+    `frontend/src/components/AdUrlBuilder.tsx`(입력 폼 라벨).
+  - **통계까지 확장**: `frontend/src/lib/tracking.ts`(필터 라벨) · 백엔드 `StatsResponse.java`
+    (`byAdsetName` 필드) · `StatsService.java`(`utmTable`·`leadCounts` 호출 추가) ·
+    `StatsExportService.java`(엑셀 "유입-광고세트 이름" 시트) · 프론트 `client.ts`(`StatUtmTable`
+    타입) · `StatsPage.tsx`(유입별 표 탭 + BarCard) · `StatsReportPage.tsx`(보고서 섹션).
+  - **⚠️ 이전 결정과의 관계**: `docs/PROGRESS.md`의 "결정된 사항(다시 논의하지 말 것)"에
+    "커스텀 파라미터를 계정별로 등록하는 화이트리스트 화면은 만들지 않는다 — 키를 3개로 못 박아
+    코드 상수로 관리"라는 항목이 있음. 이번 변경은 그 결정(계정별 등록 UI를 만들지 않고 코드
+    상수로 고정 관리)을 유지한 채 **고정 키 개수만 3→4로 늘린 것** — 등록 화면·마이그레이션
+    추가 없음.
+  - **테스트**: `frontend/src/lib/adUrl.test.ts`(4개 키 검증 갱신) ·
+    `backend/.../common/TrackingParamsTest.java`(`adset_name` 포함 검증 갱신) 통과.
+    프론트 `npx vitest run`(21개) · `tsc -b` · 백엔드 `TrackingParamsTest`(6개) 확인.
+    `StatsUtmTest` 등 `@SpringBootTest`(DB 필요) 항목은 이 세션 환경에 Docker 데몬이 없어
+    실행 못 함 — 다음에 이어받으면 로컬(docker postgres)에서 `./gradlew test` 전체 통과 확인 필요.
+  - **⬜ 남은 것**: 실제 화면(광고 URL 빌더 모달·통계 페이지)에서 광고세트 입력→URL 생성→제출
+    →통계 카드 반영까지 브라우저로 육안 확인 — 이 세션엔 브라우저 없어 못 함.
+
 - **✅ 리드폼/랜딩 목록 — 체크박스 클릭 시 드래그가 가로채 체크가 안 먹던 버그 수정
   (2026-09-14, 원격 세션, 사용자 버그 리포트)**: `FormsListPage`·`LandingsListPage`의 목록 행
   `<tr>` 전체에 `draggable`이 걸려 있어, 체크박스(선택)나 액션 버튼을 누른 채 아주 살짝만

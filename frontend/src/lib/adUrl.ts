@@ -12,7 +12,7 @@
  * 백엔드 `TrackingParams.ALLOWED_KEYS`(저장 관문). 한 곳만 고치면
  * URL 에는 붙지만 저장되지 않거나, 반대로 저장 경로가 열려 있는데 아무도 안 보낸다.
  */
-export const AD_PARAM_KEYS = ["media_from", "campaign_name", "ads_name"] as const;
+export const AD_PARAM_KEYS = ["media_from", "campaign_name", "adset_name", "ads_name"] as const;
 
 export type AdParamKey = (typeof AD_PARAM_KEYS)[number];
 

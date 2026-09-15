@@ -9,10 +9,11 @@
  * 키를 늘리면 `lib/adUrl.ts`·`lib/utm.ts`·백엔드와 함께 여기 라벨도 추가한다.
  */
 
-/** 필터 드롭다운·상세에 보이는 키 라벨. 순서 = 드롭다운 표시 순서(자체 3개 먼저). */
+/** 필터 드롭다운·상세에 보이는 키 라벨. 순서 = 드롭다운 표시 순서(자체 4개 먼저). */
 export const TRACKING_KEY_LABELS: Record<string, string> = {
   media_from: "광고 매체",
   campaign_name: "캠페인 이름",
+  adset_name: "광고세트 이름",
   ads_name: "광고 이름",
   source: "소스(utm)",
   medium: "매체(utm)",
@@ -56,7 +57,7 @@ export interface UtmFacet {
 }
 
 /**
- * facet 키를 화면 표시 순서({@link TRACKING_KEY_LABELS} — 자체 3개 먼저)로 정렬한다.
+ * facet 키를 화면 표시 순서({@link TRACKING_KEY_LABELS} — 자체 4개 먼저)로 정렬한다.
  * 서버(`/api/leads/utm-facets`)는 저장 화이트리스트 순서(표준 UTM 먼저)로 주므로
  * 인박스도 폼별 목록과 같은 순서가 되도록 이걸 거친다. 모르는 키는 뒤로.
  */

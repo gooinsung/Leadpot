@@ -98,6 +98,7 @@ public class StatsService {
         List<StatsResponse.UtmTable> utmTables = List.of(
                 utmTable("media_from", leads, visits),
                 utmTable("campaign_name", leads, visits),
+                utmTable("adset_name", leads, visits),
                 utmTable("ads_name", leads, visits));
 
         // 유입 필터 — 그 유입의 리드·방문만 남긴다. "(없음)" 은 파라미터 없는(오가닉) 것.
@@ -143,6 +144,7 @@ public class StatsService {
                 leadCounts(leads, l -> utm(l.getUtm(), "campaign")),
                 leadCounts(leads, l -> utm(l.getUtm(), "media_from")),
                 leadCounts(leads, l -> utm(l.getUtm(), "campaign_name")),
+                leadCounts(leads, l -> utm(l.getUtm(), "adset_name")),
                 leadCounts(leads, l -> utm(l.getUtm(), "ads_name")),
                 topReferers(leads),
                 leadCounts(leads, statusLabeler(leads)),

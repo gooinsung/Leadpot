@@ -31,6 +31,11 @@ const LABELS: Record<AdParamKey, { label: string; placeholder: string; hint: str
     placeholder: "summer-sale",
     hint: "묶어서 보고 싶은 단위. 매체 계정의 캠페인 이름과 맞추면 대조하기 쉽다.",
   },
+  adset_name: {
+    label: "광고세트 이름",
+    placeholder: "adset-20s",
+    hint: "캠페인 안의 세부 단위(메타 '광고세트'·구글 '광고그룹'). 타겟팅·소재 그룹별 성과를 볼 때 쓴다.",
+  },
   ads_name: {
     label: "광고 이름",
     placeholder: "banner-a",
