@@ -115,12 +115,12 @@
     box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  /* 2-1. 윗줄: 배지 + 최종 확인시간 */
+  /* 2-1. 윗줄: 배지 + 그 아래 최종 확인시간 (가운데 정렬) */
   .lpfc-row-top {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 4px;
   }
 
   .lpfc-badge {
@@ -154,14 +154,15 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* 2-2. 가운데: 현재 접수 / 남은 자리 (가로 배치 → 카드가 낮아진다) */
+  /* 2-2. 가운데: 현재 접수 한 덩어리만 (가운데 정렬) */
   .lpfc-row-mid {
     flex: 1;
     min-height: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    justify-content: center;
+    gap: 2px;
   }
 
   .lpfc-col-label {
@@ -169,19 +170,20 @@
     font-weight: 700;
     letter-spacing: -0.2px;
     color: var(--lpfc-muted);
-    margin-bottom: 2px;
+    text-align: center;
   }
 
   .lpfc-count-line {
     display: flex;
     align-items: baseline;
+    justify-content: center;
     gap: 5px;
     line-height: 1;
   }
 
   .lpfc-current {
     color: #ffffff;
-    font-size: clamp(38px, 11.5vw, 56px);
+    font-size: clamp(42px, 13vw, 62px);
     font-weight: 900;
     line-height: 0.9;
     letter-spacing: -2.5px;
@@ -197,24 +199,13 @@
     letter-spacing: -0.5px;
   }
 
-  .lpfc-col-right { text-align: right; }
-
   .lpfc-remaining {
     color: var(--lpfc-sky);
-    font-size: clamp(26px, 7.8vw, 38px);
+    font-size: 1.2em;
     font-weight: 900;
-    line-height: 1;
-    letter-spacing: -1.5px;
     font-variant-numeric: tabular-nums;
     display: inline-block;
-    text-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
-    animation: lpfc-pulse 1.6s ease-in-out infinite;
-  }
-
-  .lpfc-remaining-unit {
-    font-size: 0.52em;
-    font-weight: 800;
-    margin-left: 1px;
+    animation: lpfc-glow 1.6s ease-in-out infinite;
   }
 
   /* 2-3. 아랫줄: 진행바 */
@@ -250,7 +241,7 @@
 
   .lpfc-caption-hot {
     color: var(--lpfc-sky-soft);
-    animation: lpfc-blink 1.4s infinite;
+    white-space: nowrap;
   }
 
   /* =========================================================
@@ -367,9 +358,9 @@
     50% { opacity: 0.35; }
   }
 
-  @keyframes lpfc-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.06); }
+  @keyframes lpfc-glow {
+    0%, 100% { text-shadow: 0 0 8px rgba(56, 189, 248, 0.45); }
+    50% { text-shadow: 0 0 16px rgba(56, 189, 248, 0.95); }
   }
 
   @keyframes lpfc-pop {
@@ -396,7 +387,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .lpfc-header-dot, .lpfc-badge-dot, .lpfc-footer-dot, .lpfc-remaining,
-    .lpfc-caption-hot, .lpfc-animate-pop, .lpfc-animate-flash {
+    .lpfc-animate-pop, .lpfc-animate-flash {
       animation: none !important;
     }
   }
@@ -420,16 +411,10 @@
     </div>
 
     <div class="lpfc-row-mid">
-      <div>
-        <div class="lpfc-col-label">현재 접수</div>
-        <div class="lpfc-count-line">
-          <span class="lpfc-current" data-lpfc="current">0</span>
-          <span class="lpfc-total">/ <span data-lpfc="total">0</span>명</span>
-        </div>
-      </div>
-      <div class="lpfc-col-right">
-        <div class="lpfc-col-label">남은 자리</div>
-        <div class="lpfc-remaining" data-lpfc="remaining">0<span class="lpfc-remaining-unit">명</span></div>
+      <div class="lpfc-col-label">현재 접수</div>
+      <div class="lpfc-count-line">
+        <span class="lpfc-current" data-lpfc="current">0</span>
+        <span class="lpfc-total">/ <span data-lpfc="total">0</span>명</span>
       </div>
     </div>
 
@@ -439,7 +424,7 @@
       </div>
       <div class="lpfc-caption">
         <span>접수율 <span data-lpfc="percent">0</span>%</span>
-        <span class="lpfc-caption-hot">● 마감 임박</span>
+        <span class="lpfc-caption-hot">남은 자리 <span class="lpfc-remaining" data-lpfc="remaining">0</span>명</span>
       </div>
     </div>
   </div>
@@ -546,7 +531,7 @@
 
     if (ui.current) ui.current.textContent = current;
     if (ui.total) ui.total.textContent = total;
-    if (ui.remaining) ui.remaining.innerHTML = remaining + '<span class="lpfc-remaining-unit">명</span>';
+    if (ui.remaining) ui.remaining.textContent = remaining;
     if (ui.bar) ui.bar.style.width = percent + '%';
     if (ui.percent) ui.percent.textContent = percent;
     // 헤더는 "선착순 (현재/전체)명 모집!" — 남은 자리로 바꾸고 싶으면 current 대신 remaining 을 넣는다.
