@@ -34,7 +34,7 @@ export function PublicLandingPage() {
           padding: "8px 12px",
         }}
       >
-        소유자 미리보기 · 이 주소는 공개용이 아닙니다. 공개는 go.lead-pot.com URL을 사용하세요.
+        소유자 미리보기 · 이 주소는 공개용이 아닙니다. 공개는 서브도메인 URL을 사용하세요.
         <br />
         <b>여기서는 광고 픽셀이 발사되지 않습니다</b> — 제출하면 리드는 실제로 쌓이지만 PageView·전환은 잡히지 않습니다.
         픽셀 테스트는 공개 URL에서 하세요.

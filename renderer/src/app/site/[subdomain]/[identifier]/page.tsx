@@ -104,9 +104,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     return { title: "페이지를 찾을 수 없습니다" };
   }
 
-  // 공개 랜딩 고정 호스트(go.lead-pot.com/{sub}/{id}) 기준 — 구 서브도메인 호스트는 여기로
-  // 301 리다이렉트만 하므로(proxy.ts), 실제로 색인·공유되는 정식 URL은 이거 하나뿐이다.
-  const url = `https://go.lead-pot.com/${subdomain}/${identifier}`;
+  // 공개 랜딩 본 호스트({sub}.lead-pot.com/{id}) 기준 — 구 고정 호스트(go.lead-pot.com)는
+  // 여기로 302 리다이렉트만 하므로(proxy.ts), 색인·공유되는 정식 URL은 이거 하나뿐이다.
+  const url = `https://${subdomain}.lead-pot.com/${identifier}`;
   const description = toDescription(landing.content);
   const image = firstImage(landing.content);
 
