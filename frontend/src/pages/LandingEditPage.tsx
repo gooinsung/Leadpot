@@ -59,7 +59,16 @@ export function LandingEditPage() {
   const [title, setTitle] = useState("새 랜딩");
   const [status, setStatus] = useState("published");
   const [slug, setSlug] = useState(""); // 공개 주소. 비우면 서버가 자동 생성(신규). 편집 시 현재 slug 로드.
-  const [googleAdsSafe, setGoogleAdsSafe] = useState(false); // 켜면 HTML 블록 스크립트를 공개 렌더에서 제거(구글 광고용)
+  /**
+   * 켜면 HTML 블록의 스크립트·iframe 을 공개 렌더에서 제거한다(V41 `sanitizeHtml`).
+   *
+   * ⚠️ **편집 UI 는 2026-09-22 에 제거했다(사용자 지시)** — 구글 광고 심사를 통과시키려고 넣은
+   * 옵션인데 끝내 승인이 나지 않아 구글 광고를 포기했고, 마케터에게는 켤 이유가 없는 체크박스만
+   * 남아 혼란스러웠다. **기능(정화 로직·구글 전용 픽셀 필터)은 그대로 살려둔다** — 이미 켜둔
+   * 랜딩이 있을 수 있고, 되살릴 때 체크박스만 다시 붙이면 되게 하려는 것이다.
+   * 그래서 서버 값을 그대로 읽어(`setGoogleAdsSafe`) 저장 때 되돌려보내기만 한다(값 보존).
+   */
+  const [googleAdsSafe, setGoogleAdsSafe] = useState(false);
   const [bgColor, setBgColor] = useState(""); // 랜딩페이지 전체 배경 컬러(V43). 빈 값 = 화이트(기본)
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
@@ -201,24 +210,10 @@ export function LandingEditPage() {
               autoCapitalize="none"
             />
             <span className="field-optional" style={{ marginTop: 6, fontSize: 12, overflowWrap: "anywhere" }}>
-              공개 URL: <code>go.lead-pot.com/{user?.subdomain ?? "내서브도메인"}/{slug.trim() || "자동생성"}</code>
+              공개 URL: <code>{user?.subdomain ?? "내서브도메인"}.lead-pot.com/{slug.trim() || "자동생성"}</code>
               {" "}(랜딩번호로도 접속 가능)
             </span>
           </div>
-          <label className="block-full-toggle" style={{ marginTop: 12 }}>
-            <input
-              type="checkbox"
-              checked={googleAdsSafe}
-              onChange={(e) => { setGoogleAdsSafe(e.target.checked); setDirty(true); }}
-            />
-            <span>구글 광고용(HTML 블록 스크립트가 실행되지 않습니다)</span>
-          </label>
-          {googleAdsSafe && (
-            <p className="field-optional" style={{ marginTop: 4, fontSize: 12 }}>
-              카운트다운·플로팅배너 등 HTML 블록에 넣은 &lt;script&gt; 가 공개 페이지에서 제거됩니다.
-              메타·당근·카카오 등 다른 매체 랜딩에는 이 옵션을 켜지 마세요.
-            </p>
-          )}
           <div style={{ marginTop: 12 }}>
             <ConceptColorField
               label="랜딩페이지 배경 컬러 (화이트·블랙·블루)"

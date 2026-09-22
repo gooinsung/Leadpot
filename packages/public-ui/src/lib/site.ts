@@ -9,15 +9,13 @@
  * `hostname` 인자로 넘겨서 쓴다. 인자를 생략하면(브라우저) 지금처럼 `window.location.hostname` 을 읽는다.
  */
 
-/** 서브도메인으로 취급하지 않는 예약 호스트(관리자/시스템/공개 랜딩 고정 호스트). */
-const RESERVED_HOSTS = new Set(["www", "app", "api", "admin", "dashboard", "go"]);
-
 /**
- * 공개 랜딩 전용 고정 호스트 — 2026-09-09부터 고객마다 다른 서브도메인 대신 이 호스트 밑에서
- * 경로로 구분한다: `go.lead-pot.com/{subdomain}/{identifier}`. {@link renderer/src/proxy.ts} 의
- * `PUBLIC_SITE_HOST` 와 반드시 같은 값을 유지한다.
+ * 서브도메인으로 취급하지 않는 예약 호스트(관리자/시스템/구 공개 랜딩 고정 호스트).
+ * `go` 는 2026-09-09~09-22 사이 공개 랜딩 고정 호스트였다 — 지금은 콘텐츠를 서빙하지 않고
+ * 본 호스트로 302 리다이렉트만 하지만(`renderer/src/proxy.ts`), 고객 서브도메인으로 오해되면
+ * 안 되므로 예약 목록에는 계속 남겨둔다.
  */
-const PUBLIC_SITE_HOST = "go";
+const RESERVED_HOSTS = new Set(["www", "app", "api", "admin", "dashboard", "go"]);
 
 export function currentSubdomain(hostname?: string): string | null {
   const host = hostname ?? (typeof window !== "undefined" ? window.location.hostname : "");
@@ -81,12 +79,14 @@ export function consentDocUrl(documentId: number | string): string {
 
 /**
  * 현재 접속 호스트를 기준으로 공개 사이트 절대 URL을 만든다.
- * 관리자 호스트의 선행 라벨(app/www/admin 등)은 제거하고, 공개 랜딩 고정 호스트({@link
- * PUBLIC_SITE_HOST})를 붙인 뒤 subdomain·identifier 를 **경로**로 붙인다(2026-09-09~ — 예전엔
- * subdomain 을 서브도메인 라벨로 붙였으나, 구글 광고 심사가 고객별 서브도메인을 "손상된 사이트"로
- * 오판한 사고 이후 경로 방식으로 전환했다. `renderer/src/proxy.ts` 의 `PUBLIC_SITE_HOST` 참고).
- * - localhost:5173 → http://go.localhost:5173/{subdomain}/{identifier}
- * - app.lead-pot.com → https://go.lead-pot.com/{subdomain}/{identifier}
+ * 관리자 호스트의 선행 라벨(app/www/admin 등)은 제거하고 subdomain 을 라벨로 붙인다.
+ * - localhost:5173 → http://{subdomain}.localhost:5173/{identifier}
+ * - app.lead-pot.com → https://{subdomain}.lead-pot.com/{identifier}
+ *
+ * ⚠️ 2026-09-09~09-22 에는 `go.lead-pot.com/{sub}/{id}` 고정 호스트 형식을 만들었다(구글 광고가
+ * 고객 서브도메인을 "손상된 사이트"로 오판한 사고 대응). 그 뒤로도 구글 승인은 끝내 나지 않아
+ * 가설이 검증되지 않았고, 서브도메인 주소가 고객 신뢰도 면에서 낫다는 판단으로 되돌렸다
+ * (사용자 지시, 2026-09-22). 구 `go` 주소는 `renderer/src/proxy.ts` 가 302 로 받아준다.
  */
 export function publicSiteUrl(subdomain: string, identifier: string | number): string {
   const { protocol, hostname, port } = window.location;
@@ -96,5 +96,5 @@ export function publicSiteUrl(subdomain: string, identifier: string | number): s
     base = parts.slice(1).join(".");
   }
   const portPart = port ? `:${port}` : "";
-  return `${protocol}//${PUBLIC_SITE_HOST}.${base}${portPart}/${subdomain}/${identifier}`;
+  return `${protocol}//${subdomain}.${base}${portPart}/${identifier}`;
 }

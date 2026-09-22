@@ -5,22 +5,32 @@ import type { NextRequest } from "next/server";
  * 호스트 기반 라우팅. Next.js는 파일시스템 기반 라우팅이라 호스트를 직접 구분하지 못하므로,
  * 여기서 Host 헤더를 읽어 내부 경로로 바꿔준다.
  *
- * - `go.lead-pot.com/{sub}/{identifier}` → 공개 랜딩 고정 호스트(2026-09-09~, 아래
- *   `PUBLIC_SITE_HOST` 참고) → `/site/{sub}/{identifier}` 로 재작성.
- * - `{sub}.lead-pot.com/{identifier}` → 구 서브도메인 호스트(전환기 한시적 지원) →
- *   `go.lead-pot.com/{sub}/{identifier}` 로 301 리다이렉트만 하고 콘텐츠는 안 준다.
+ * - `{sub}.lead-pot.com/{identifier}` → 공개 랜딩 **본 호스트** → `/site/{sub}/{identifier}` 로 재작성.
+ * - `go.lead-pot.com/{sub}/{identifier}` → 구 고정 호스트(2026-09-09~09-22 한시 운영) →
+ *   `{sub}.lead-pot.com/{identifier}` 로 **302 리다이렉트**만 하고 콘텐츠는 안 준다.
+ *
+ * ⚠️ **2026-09-22 방향 전환**: 2026-09-09에 구글 광고 심사(gTech)가 고객 서브도메인을 "손상된
+ * 사이트"로 오판한 사고 때문에 `go.lead-pot.com/{sub}/{id}` 고정 호스트로 옮겼었다. 그러나 그
+ * 뒤로도 구글 승인은 끝내 나지 않았고(= 서브도메인이 원인이라는 가설이 검증되지 않았다),
+ * 서브도메인 주소가 고객 신뢰도 면에서 낫다는 판단으로 **사용자 지시에 따라 되돌렸다**.
+ * 구 `go` 주소는 이미 각 광고 플랫폼 Final URL에 박혀 있으므로 계속 살려두되 리다이렉트만 한다.
+ *
+ * 🔴 **왜 301이 아니라 302인가**: 2주 사이 URL 구조를 두 번 뒤집었다. 301(영구)은 브라우저가
+ * 사실상 무기한 캐시하므로, 지난 전환 때 심어둔 `{sub}→go` 301 캐시를 가진 브라우저가 이번
+ * `go→{sub}` 리다이렉트와 만나면 무한 루프(ERR_TOO_MANY_REDIRECTS)가 된다. 여기서 또 301을
+ * 심으면 다음에 손댈 수 없으므로 302(임시)로 둔다. 공개 랜딩은 재방문이 거의 없어 캐시 이득도
+ * 사실상 없다.
  *
  * 예약 호스트 판정은 frontend `@leadpot/public-ui` 의 `currentSubdomain()`(lib/site.ts) 과
- * 반드시 같게 유지한다 — 여기 목록이 어긋나면 app/api 같은 관리용 호스트가 실수로 이
- * 렌더러의 "구 서브도메인" 경로로 잘못 빠질 수 있다.
+ * 반드시 같게 유지한다 — 여기 목록이 어긋나면 app/api 같은 관리용 호스트가 실수로 고객
+ * 서브도메인으로 잘못 해석될 수 있다.
  *
  * ⚠️ **"Cloudflare 가 app/api/www 를 걸러줄 것"이라는 가정은 틀렸다(2026-09-08 실제 장애로 확인)**.
  * Workers 라우트 `*.lead-pot.com/*` 는 와일드카드라 `app.lead-pot.com` 도 그대로 매칭해서 이
  * 워커로 들여보낸다 — DNS/커스텀 도메인 설정과 무관하게, 라우트가 걸려 있는 한 항상 그렇다.
- * 그래서 `app` 은 더 이상 "플레이스홀더만 보여주고 끝"이 아니라, 아래 `proxyToAdminApp()` 로
- * 실제 관리 앱(Cloudflare Pages)에 그대로 리버스 프록시한다 — Cloudflare 라우팅 우선순위에
- * 기대지 않고 코드로 확실하게 보장한다. `api`·`www`·`admin`·`dashboard` 는 실제 서비스 중인
- * 랜딩 콘텐츠가 없어 플레이스홀더로 충분하다(운영에서 이 호스트로 들어올 일이 없다).
+ * 그래서 `app` 은 아래 `proxyToAdminApp()` 로 실제 관리 앱(Cloudflare Pages)에 그대로 리버스
+ * 프록시한다 — Cloudflare 라우팅 우선순위에 기대지 않고 코드로 확실하게 보장한다.
+ * `api`·`www`·`admin`·`dashboard` 는 실제 서비스 중인 랜딩 콘텐츠가 없어 플레이스홀더로 충분하다.
  */
 const RESERVED_HOSTS = new Set(["www", "api", "admin", "dashboard", "go"]);
 
@@ -28,20 +38,13 @@ const RESERVED_HOSTS = new Set(["www", "api", "admin", "dashboard", "go"]);
 const ADMIN_APP_ORIGIN = process.env.ADMIN_APP_ORIGIN || "https://leadpot-app.pages.dev";
 
 /**
- * 공개 랜딩 전용 고정 호스트 — 예전엔 고객마다 다른 서브도메인({sub}.lead-pot.com)을 썼지만,
- * 2026-09-09부터 전부 이 호스트 밑에서 **경로**로 구분한다: `go.lead-pot.com/{sub}/{identifier}`.
+ * 구 공개 랜딩 고정 호스트 — 2026-09-09~09-22 사이에만 본 호스트였다. 지금은 콘텐츠를 서빙하지
+ * 않고 `{sub}.도메인/{identifier}` 로 302 리다이렉트만 한다({@link redirectToSubdomainHost}).
  *
- * 🔴 **왜 바꿨나**: 구글 광고 심사가 "손상된 사이트"로 `the-law.lead-pot.com`(고객 1명의 서브도메인)을
- * 콕 집어 악성 호스트로 판정한 사고(2026-09) 때문. 구글 등 보안/평판 시스템은 URL 단위가 아니라
- * "호스트" 단위로 신뢰도를 매기는데, 고객마다 새 서브도메인(=새 호스트)을 발급하는 구조에서는
- * 신규 고객마다 매번 평판 0에서 시작하고, 그중 한 명이라도 의심스러운 콘텐츠를 올리면 그 호스트
- * 전체(그 고객의 다른 모든 랜딩 포함)가 같이 낙인 찍힌다. 전부 고정 호스트 하나 밑의 경로로 옮기면
- * 구글 입장에서 우리는 "평판을 꾸준히 쌓아가는 사이트 1개"가 된다.
- *
- * 기존 서브도메인 호스트는 당분간 살려두되(이미 뿌려진 광고 URL 보호), 콘텐츠를 직접 서빙하지
- * 않고 이 호스트로 301 리다이렉트만 한다({@link redirectToPublicSiteHost}).
+ * 없애지 않는 이유: 이 기간에 구글 광고·당근광고 등의 캠페인 Final URL이 이미 이 형식
+ * (`go.lead-pot.com/{sub}/{id}`)으로 갱신됐다. 지우면 실행 중인 광고가 즉시 깨진다.
  */
-const PUBLIC_SITE_HOST = "go";
+const LEGACY_PUBLIC_SITE_HOST = "go";
 
 function extractSubdomain(host: string): string | null {
   const hostname = host.split(":")[0];
@@ -84,33 +87,26 @@ async function proxyToAdminApp(request: NextRequest): Promise<Response> {
 }
 
 /**
- * `go.lead-pot.com/{subdomain}/{identifier...}` 를 `/site/{subdomain}/{identifier...}` 로
- * 재작성한다 — 서브도메인 시절과 내부적으로 완전히 같은 페이지(`site/[subdomain]/[identifier]`)를
- * 그대로 재사용한다(백엔드 API 계약도 `resolveSite(subdomain, identifier)` 그대로 안 바뀜).
+ * 구 고정 호스트 `go.도메인/{subdomain}/{identifier...}` 로 들어온 요청을 본 호스트
+ * `{subdomain}.도메인/{identifier...}` 로 302 리다이렉트한다(쿼리스트링 보존 — 광고 URL의
+ * utm/gclid 가 날아가면 통계가 끊긴다).
+ *
+ * 식별자가 없는 `/{subdomain}` 이나 루트 `/` 도 그대로 넘긴다 — 목적지에서 재작성을 거쳐
+ * 매칭되는 라우트가 없어 Next 기본 404 가 되며, 이는 서브도메인 시절과 같은 결과다.
  */
-function rewritePublicSiteHost(request: NextRequest): Response {
-  const segments = request.nextUrl.pathname.split("/").filter(Boolean);
-  const [subdomain, ...rest] = segments;
-  // "/" 또는 "/{subdomain}" 만 있고 식별자가 없음 — 매칭되는 라우트가 없어 Next 기본 404.
+function redirectToSubdomainHost(request: NextRequest, host: string): Response {
+  const [subdomain, ...rest] = request.nextUrl.pathname.split("/").filter(Boolean);
+  // "go.도메인/" — 보낼 서브도메인 자체가 없다. 재작성 없이 통과시켜 플레이스홀더/404 로 둔다.
   if (!subdomain) return NextResponse.next();
-  const url = request.nextUrl.clone();
-  url.pathname = `/site/${subdomain}/${rest.join("/")}`;
-  return NextResponse.rewrite(url);
-}
 
-/**
- * 구 서브도메인 호스트({sub}.lead-pot.com)로 들어온 요청을 새 고정 호스트로 301 리다이렉트한다
- * (전환기 한시적 조치 — 이미 뿌려진 광고 Final URL이 당장 깨지지 않도록).
- */
-function redirectToPublicSiteHost(request: NextRequest, host: string, subdomain: string): Response {
   const [hostname, port] = host.split(":");
-  // "the-law.lead-pot.com" → "lead-pot.com" (첫 라벨만 벗겨낸다 — publicSiteUrl() 과 같은 방식)
+  // "go.lead-pot.com" → "lead-pot.com" (첫 라벨만 벗겨낸다 — publicSiteUrl() 과 같은 방식)
   const base = hostname.split(".").slice(1).join(".");
   const portPart = port ? `:${port}` : "";
-  const target = new URL(`${request.nextUrl.protocol}//${PUBLIC_SITE_HOST}.${base}${portPart}`);
-  target.pathname = `/${subdomain}${request.nextUrl.pathname}`;
+  const target = new URL(`${request.nextUrl.protocol}//${subdomain}.${base}${portPart}`);
+  target.pathname = `/${rest.join("/")}`;
   target.search = request.nextUrl.search;
-  return NextResponse.redirect(target, 301);
+  return NextResponse.redirect(target, 302);
 }
 
 export async function proxy(request: NextRequest) {
@@ -131,9 +127,9 @@ export async function proxy(request: NextRequest) {
     return proxyToAdminApp(request);
   }
 
-  // "go.lead-pot.com" — 공개 랜딩 전용 고정 호스트(2026-09-09~). 경로의 첫 세그먼트가 subdomain.
-  if (firstLabel === PUBLIC_SITE_HOST) {
-    return rewritePublicSiteHost(request);
+  // "go.lead-pot.com" — 구 고정 호스트. 콘텐츠를 직접 주지 않고 본 호스트로 302 리다이렉트.
+  if (firstLabel === LEGACY_PUBLIC_SITE_HOST) {
+    return redirectToSubdomainHost(request, host);
   }
 
   const subdomain = extractSubdomain(host);
@@ -142,8 +138,11 @@ export async function proxy(request: NextRequest) {
   // app/page.tsx(플레이스홀더) 또는 Next 기본 404 로 떨어지게 둔다.
   if (!subdomain) return NextResponse.next();
 
-  // 구 서브도메인 호스트 — 콘텐츠를 직접 서빙하지 않고 새 고정 호스트로 301 리다이렉트한다.
-  return redirectToPublicSiteHost(request, host, subdomain);
+  // "/12" → "/site/bali/12". 루트("/", 식별자 없음)는 재작성해도 매칭되는 라우트가 없어
+  // Next 기본 404 로 떨어진다 — frontend App.tsx 의 "루트는 404" 규칙과 동일한 결과.
+  const url = request.nextUrl.clone();
+  url.pathname = `/site/${subdomain}${request.nextUrl.pathname}`;
+  return NextResponse.rewrite(url);
 }
 
 export const config = {
