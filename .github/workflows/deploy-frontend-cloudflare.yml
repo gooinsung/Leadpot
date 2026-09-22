@@ -3,10 +3,9 @@ name: Deploy Frontend (Cloudflare Pages)
 # frontend/** 또는 packages/public-ui/** 가 바뀌어 main 에 push 되면 관리 앱을
 # Cloudflare Pages 로도 배포한다(docs/SSR-LANDING-PLAN.md Phase 5 — HOSTING-MIGRATION-PLAN 흡수).
 #
-# ⚠️ 검증 단계 워크플로다 — 기존 deploy-frontend.yml(Oracle VM 배포)과 나란히 돈다.
-# *.pages.dev 임시 도메인에서 정상 동작을 확인한 뒤에만 app.lead-pot.com DNS 를 이쪽으로 돌린다
-# (사용자 작업, §8). 그 전까지는 이 워크플로가 돌아도 기존 서비스(VM)에 아무 영향이 없다.
-# 안정화되면 deploy-frontend.yml 과 Oracle VM 을 정리하고 이 워크플로만 남긴다.
+# 🔴 **이게 app.lead-pot.com 의 실제 배포 경로다**(2026-09-07 컷오버 완료). 나란히 도는
+# deploy-frontend.yml(Oracle VM)은 트래픽을 안 받는 잔재이므로, 이 워크플로가 실패하면
+# 관리 앱은 배포되지 않는다 — VM 쪽이 성공해도 소용없다(2026-09-22 실제로 겪음).
 #
 # 필요한 저장소 시크릿(Settings → Secrets and variables → Actions → New repository secret):
 #   CLOUDFLARE_API_TOKEN   — Account: Cloudflare Pages:Edit 권한의 API 토큰
@@ -53,13 +52,14 @@ jobs:
           VITE_APP_BASE_URL: https://app.lead-pot.com
         run: npm run build
 
-      # projectName 이 없는 프로젝트면 첫 배포 때 자동으로 만들어진다. 실패하면 Cloudflare
-      # 대시보드에서 Workers & Pages → Create → Pages 로 같은 이름의 빈 프로젝트를 먼저 만들 것.
+      # ⚠️ 예전엔 `cloudflare/pages-action@v1` 을 썼는데 Cloudflare 가 그 저장소를 없애서
+      # 2026-09-22 배포가 "Unable to resolve action" 으로 죽었다. 서드파티 액션에 기대지 않고
+      # deploy-renderer.yml 과 같은 방식(npx wrangler 직접 호출)으로 통일한다 — wrangler 는
+      # 루트 node_modules 에 호이스팅돼 있어(renderer 의 devDependency) 버전이 고정된다.
+      #
+      # `--branch=main` 을 반드시 준다. 없으면 프리뷰 배포로 잡혀 app.lead-pot.com 이 안 바뀐다.
       - name: Cloudflare Pages 배포
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: leadpot-app
-          directory: frontend/dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy frontend/dist --project-name=leadpot-app --branch=main
