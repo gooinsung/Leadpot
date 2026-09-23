@@ -104,7 +104,12 @@ const FIELD_TYPES = [
   { value: "number", label: "숫자" },
   { value: "date", label: "날짜" },
   { value: "select", label: "선택박스" },
+  { value: "radio", label: "라디오버튼 (단일 선택)" },
+  { value: "checkbox", label: "체크박스 (중복 선택)" },
 ];
+
+/** 선택지 목록(options.choices)을 쓰는 기본형 필드 유형. */
+const CHOICE_FIELD_TYPES = ["select", "radio", "checkbox"];
 
 // 스텝형 단계의 답변 방식 (기본형 필드 유형과 동일 계열 + 카드/목록 선택)
 const ANSWER_TYPES = [
@@ -1646,7 +1651,7 @@ function DedupField({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial
   );
 }
 
-/** 선택박스(select) 필드의 선택지 목록 편집. block.options.choices(string[]) 에 저장. */
+/** 선택박스·라디오·체크박스 필드의 선택지 목록 편집. block.options.choices(string[]) 에 저장. */
 function SelectChoicesEditor({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial<FormBlock>) => void }) {
   const choices = ((block.options?.choices as string[]) ?? []);
   const defaultIndex = typeof block.options?.defaultIndex === "number" ? (block.options.defaultIndex as number) : null;
@@ -1721,10 +1726,13 @@ function BlockFields({
               <input type="checkbox" checked={Boolean(block.required)} onChange={(e) => onPatch({ required: e.target.checked })} /> 필수
             </label>
           </div>
-          <div className="field">
-            <label>플레이스홀더</label>
-            <input className="input" value={block.placeholder ?? ""} onChange={(e) => onPatch({ placeholder: e.target.value })} />
-          </div>
+          {/* 라디오·체크박스는 입력칸이 없어 플레이스홀더를 보여줄 자리가 없다. */}
+          {block.fieldType !== "radio" && block.fieldType !== "checkbox" && (
+            <div className="field">
+              <label>플레이스홀더</label>
+              <input className="input" value={block.placeholder ?? ""} onChange={(e) => onPatch({ placeholder: e.target.value })} />
+            </div>
+          )}
           <div className="field">
             <label>설명(선택)</label>
             <input className="input" value={(block.content?.description as string) ?? ""} onChange={(e) => onContent({ description: e.target.value })} />
@@ -1742,7 +1750,7 @@ function BlockFields({
               </select>
             </div>
           </div>
-          {block.fieldType === "select" && <SelectChoicesEditor block={block} onPatch={onPatch} />}
+          {CHOICE_FIELD_TYPES.includes(block.fieldType ?? "") && <SelectChoicesEditor block={block} onPatch={onPatch} />}
           <DedupField block={block} onPatch={onPatch} />
         </div>
       );

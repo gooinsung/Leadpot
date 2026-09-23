@@ -159,7 +159,7 @@ export function LeadsListPage() {
           fieldType: b.fieldType || "text",
           required: Boolean(b.required),
           placeholder: b.placeholder || undefined,
-          choices: b.fieldType === "select" ? ((b.options?.choices as string[] | undefined) ?? []) : undefined,
+          choices: b.fieldType === "select" || b.fieldType === "radio" || b.fieldType === "checkbox" ? ((b.options?.choices as string[] | undefined) ?? []) : undefined,
         });
       } else if (b.blockType === "CHOICE") {
         const q = (b.content?.question as string) || "";
@@ -491,7 +491,27 @@ export function LeadsListPage() {
                         {c.label}
                         {c.required && <span style={{ color: "var(--danger, #e53e3e)" }}> *</span>}
                       </label>
-                      {c.fieldType === "select" && c.choices && c.choices.length > 0 ? (
+                      {c.fieldType === "checkbox" && c.choices && c.choices.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {c.choices.map((choice) => {
+                            // 공개 폼과 같은 형식 — 고른 라벨을 선택지 순서대로 ", " 로 잇는다.
+                            const picked = (manualValues[c.label] ?? "").split(", ").filter(Boolean);
+                            return (
+                              <label key={choice} className="fr-check">
+                                <input
+                                  type="checkbox"
+                                  checked={picked.includes(choice)}
+                                  onChange={(e) => {
+                                    const next = c.choices!.filter((x) => (x === choice ? e.target.checked : picked.includes(x)));
+                                    setManualValues((v) => ({ ...v, [c.label]: next.join(", ") }));
+                                  }}
+                                />{" "}
+                                {choice}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (c.fieldType === "select" || c.fieldType === "radio") && c.choices && c.choices.length > 0 ? (
                         <select
                           className="input"
                           value={manualValues[c.label] ?? ""}

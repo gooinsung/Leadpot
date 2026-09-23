@@ -50,6 +50,38 @@ function collectCalcInputs(
   return raw;
 }
 
+/**
+ * 선택지를 펼쳐 보여주는 입력 항목(라디오=단일, 체크박스=중복).
+ * 선택 상태는 다른 항목처럼 `values` 에 두되, 라벨이 아니라 **선택지 인덱스를 "0,2"** 로 담는다 —
+ * 라벨에 쉼표가 들어가도 고른 것을 되짚을 수 있게. 접수할 때 {@link listFieldAnswer} 로 라벨로 바꾼다.
+ */
+function isListField(fieldType: string | null | undefined): boolean {
+  return fieldType === "radio" || fieldType === "checkbox";
+}
+
+function parsePicked(value: string): number[] {
+  return value ? value.split(",").map(Number).filter((n) => Number.isInteger(n) && n >= 0) : [];
+}
+
+/** 답변 값 — 고른 선택지 라벨을 선택지 순서대로 ", " 로 잇는다(스텝형 다중 선택과 같은 형식). */
+function listFieldAnswer(block: FormBlock, value: string): string {
+  const list = (block.options?.choices as string[]) ?? [];
+  return parsePicked(value).sort((a, b) => a - b).map((ci) => list[ci] || `선택지 ${ci + 1}`).join(", ");
+}
+
+/** FIELD 블록의 접수 값. 라디오·체크박스만 인덱스 → 라벨 변환을 거친다. */
+function fieldAnswer(block: FormBlock, value: string | undefined): string {
+  return isListField(block.fieldType) ? listFieldAnswer(block, value ?? "") : value ?? "";
+}
+
+/** FIELD 블록 검증. 라디오·체크박스는 형식이 없고 '골랐는가'만 본다. */
+function fieldBlockError(block: FormBlock, value: string | undefined): string | null {
+  if (isListField(block.fieldType)) {
+    return block.required && parsePicked(value ?? "").length === 0 ? `'${block.label || "이 항목"}' 항목을 선택해주세요.` : null;
+  }
+  return fieldError(block.fieldType || "text", value ?? "", !!block.required, block.label || "");
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEL_RE = /^[0-9+\-()\s]+$/;
 const NUMBER_RE = /^-?\d+(\.\d+)?$/;
@@ -128,10 +160,12 @@ export function PublicFormView({
     const initChoices: Record<number, number[]> = {};
     if (form.formType === "BASIC") {
       sorted.forEach((b, i) => {
-        if (b.blockType !== "FIELD" || b.fieldType !== "select") return;
+        if (b.blockType !== "FIELD") return;
+        if (b.fieldType !== "select" && !isListField(b.fieldType)) return;
         const list = (b.options?.choices as string[]) ?? [];
         const di = b.options?.defaultIndex;
-        if (typeof di === "number" && list[di] != null) initValues[`f${i}`] = list[di];
+        if (typeof di !== "number" || list[di] == null) return;
+        initValues[`f${i}`] = isListField(b.fieldType) ? String(di) : list[di];
       });
     } else {
       sorted.filter((b) => b.blockType === "CHOICE").forEach((b, i) => {
@@ -157,8 +191,8 @@ export function PublicFormView({
     const out: LeadAnswer[] = [];
     if (form.formType === "BASIC") {
       sorted.forEach((b, i) => {
-        if (b.blockType === "FIELD")
-          out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: values[`f${i}`] ?? "" });
+        if (b.blockType !== "FIELD") return;
+        out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: fieldAnswer(b, values[`f${i}`]) });
       });
     } else {
       const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
@@ -174,7 +208,7 @@ export function PublicFormView({
         out.push({ label: (b.content?.question as string) || `질문 ${i + 1}`, fieldType: answerType, value });
       });
       sorted.filter((b) => b.blockType === "FIELD").forEach((b, i) => {
-        out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: values[`c${i}`] ?? "" });
+        out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: fieldAnswer(b, values[`c${i}`]) });
       });
       // 계산 결과를 답변으로 함께 저장 — 이 label 이 구글시트 열 이름이자 문자 변수({{예상 탕감액}})가 된다.
       if (calculator && calcView) out.push(...calculator.toAnswers(calcView));
@@ -193,7 +227,7 @@ export function PublicFormView({
       for (let i = 0; i < sorted.length; i++) {
         const b = sorted[i];
         if (b.blockType !== "FIELD") continue;
-        const e = fieldError(b.fieldType || "text", values[`f${i}`] ?? "", !!b.required, b.label || "");
+        const e = fieldBlockError(b, values[`f${i}`]);
         if (e) return e;
       }
     } else {
@@ -213,7 +247,7 @@ export function PublicFormView({
       const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
       for (let i = 0; i < contactBlocks.length; i++) {
         const b = contactBlocks[i];
-        const e = fieldError(b.fieldType || "text", values[`c${i}`] ?? "", !!b.required, b.label || "");
+        const e = fieldBlockError(b, values[`c${i}`]);
         if (e) return e;
       }
     }
@@ -271,7 +305,14 @@ export function PublicFormView({
       {form.formType === "BASIC" ? (
         <form onSubmit={onSubmit}>
           {sorted.map((b, i) => (
-            <LiveBlock key={i} block={b} idx={i} value={values[`f${i}`] ?? ""} onChange={(v) => setVal(`f${i}`, v)} />
+            <LiveBlock
+              key={i}
+              block={b}
+              idx={i}
+              value={values[`f${i}`] ?? ""}
+              onChange={(v) => setVal(`f${i}`, v)}
+              accent={style.accentColor}
+            />
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
           {submitError && <p className="auth-error">{submitError}</p>}
@@ -302,7 +343,17 @@ export function PublicFormView({
   );
 }
 
-function LiveBlock({ block, idx, value, onChange }: { block: FormBlock; idx: number; value: string; onChange: (v: string) => void }) {
+type LiveFieldProps = {
+  block: FormBlock;
+  idx: number;
+  value: string;
+  onChange: (v: string) => void;
+  /** 라디오·체크박스의 선택 강조색. */
+  accent?: string;
+};
+
+function LiveBlock(props: LiveFieldProps) {
+  const { block } = props;
   switch (block.blockType) {
     case "IMAGE": {
       const url = block.content?.url as string | undefined;
@@ -315,14 +366,20 @@ function LiveBlock({ block, idx, value, onChange }: { block: FormBlock; idx: num
     case "DIVIDER":
       return <hr className="fr-divider" />;
     case "FIELD":
-      return <LiveField block={block} idx={idx} value={value} onChange={onChange} />;
+      return <LiveField {...props} />;
     default:
       return null;
   }
 }
 
-function LiveField({ block, idx, value, onChange }: { block: FormBlock; idx: number; value: string; onChange: (v: string) => void }) {
+function LiveField({ block, idx, value, onChange, accent }: LiveFieldProps) {
   const type = block.fieldType || "text";
+  const picked = isListField(type) ? parsePicked(value) : [];
+  /** 라디오는 하나만, 체크박스는 여러 개 — 이미 고른 체크박스를 누르면 해제한다. */
+  function pick(ci: number) {
+    const next = type === "checkbox" ? (picked.includes(ci) ? picked.filter((x) => x !== ci) : [...picked, ci]) : [ci];
+    onChange(next.join(","));
+  }
   const choices = (block.options?.choices as string[]) ?? [];
   const inputType = type === "email" ? "email" : type === "tel" ? "tel" : type === "number" ? "number" : type === "date" ? "date" : "text";
   return (
@@ -340,6 +397,21 @@ function LiveField({ block, idx, value, onChange }: { block: FormBlock; idx: num
           <option value="">{block.placeholder || "선택하세요"}</option>
           {choices.map((c, i) => <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>)}
         </select>
+      ) : isListField(type) ? (
+        <div className="sfr-list" id={`fld-${idx}`} role={type === "radio" ? "radiogroup" : "group"}>
+          {choices.map((c, i) => (
+            <label key={i} className={`sfr-list-item ${picked.includes(i) ? "sel" : ""}`}>
+              <input
+                type={type}
+                name={`fld-${idx}`}
+                checked={picked.includes(i)}
+                onChange={() => pick(i)}
+                style={{ accentColor: accent }}
+              />
+              <span className="sfr-list-t">{c || `선택지 ${i + 1}`}</span>
+            </label>
+          ))}
+        </div>
       ) : type === "tel" ? (
         <PhoneInput3 id={`fld-${idx}`} value={value} onChange={onChange} required={block.required} />
       ) : (
@@ -558,7 +630,7 @@ function StepFlow(props: {
             </p>
           )}
           {contactBlocks.map((b, i) => (
-            <LiveField key={i} block={b} idx={1000 + i} value={values[`c${i}`] ?? ""} onChange={(v) => setVal(`c${i}`, v)} />
+            <LiveField key={i} block={b} idx={1000 + i} value={values[`c${i}`] ?? ""} onChange={(v) => setVal(`c${i}`, v)} accent={style.accentColor} />
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
           {submitError && <p className="auth-error">{submitError}</p>}

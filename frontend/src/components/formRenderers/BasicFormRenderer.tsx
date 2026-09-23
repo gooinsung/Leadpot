@@ -11,7 +11,7 @@ export function BasicFormRenderer({ form }: { form: FormInput }) {
   return (
     <div className="fr">
       {blocks.map((b, i) => (
-        <BlockView key={b.id ?? i} block={b} />
+        <BlockView key={b.id ?? i} block={b} accent={s.accentColor} />
       ))}
 
       <ConsentView config={form.consentConfig} accent={s.accentColor} />
@@ -27,10 +27,10 @@ export function BasicFormRenderer({ form }: { form: FormInput }) {
   );
 }
 
-function BlockView({ block }: { block: FormBlock }) {
+function BlockView({ block, accent }: { block: FormBlock; accent: string }) {
   switch (block.blockType) {
     case "FIELD":
-      return <FieldView block={block} />;
+      return <FieldView block={block} accent={accent} />;
     case "IMAGE": {
       const url = block.content?.url as string | undefined;
       const alt = (block.content?.alt as string) || "";
@@ -55,7 +55,7 @@ function BlockView({ block }: { block: FormBlock }) {
   }
 }
 
-function FieldView({ block }: { block: FormBlock }) {
+function FieldView({ block, accent }: { block: FormBlock; accent: string }) {
   const type = block.fieldType || "text";
   const inputType =
     type === "email" ? "email" : type === "tel" || type === "phone010" ? "tel" : type === "number" ? "number" : type === "date" ? "date" : "text";
@@ -82,6 +82,16 @@ function FieldView({ block }: { block: FormBlock }) {
             <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>
           ))}
         </select>
+      ) : type === "radio" || type === "checkbox" ? (
+        <div className="sfr-list">
+          {choices.map((c, i) => (
+            <label key={i} className={`sfr-list-item ${i === di ? "sel" : ""}`}>
+              <input type={type} name={`fr-preview-${block.id ?? block.sortOrder}`} checked={i === di} onChange={() => {}} style={{ accentColor: accent }} />
+              <span className="sfr-list-t">{c || `선택지 ${i + 1}`}</span>
+            </label>
+          ))}
+          {choices.length === 0 && <p className="dash-sub">선택지를 추가하세요.</p>}
+        </div>
       ) : type === "tel" ? (
         <PhoneInput3 value="" onChange={() => {}} readOnly />
       ) : (
