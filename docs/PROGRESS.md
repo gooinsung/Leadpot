@@ -21,8 +21,8 @@
     `common/JsonCopies`(JSONB 값 깊은 복사). 프론트 `duplicateForm`·`duplicateLanding`(`api/client.ts`),
     `FormsListPage`·`LandingsListPage` 버튼.
   - **테스트**: 백엔드 단위 테스트 `CopyNamesTest`·`FormDuplicateTest`·`LandingDuplicateTest`(목 저장소, DB 불필요).
-    프론트 `tsc -b`·`vitest`(21개) 통과. 백엔드는 본 코드 컴파일(`compileJava`)까지 확인, 테스트 실행은
-    이 세션에서 Maven Central 429(요청 제한)로 테스트 의존성을 못 받아 **미확인** — 다음 세션에서 `./gradlew test` 로 확인할 것.
+    프론트 `tsc -b`·`vitest`(21개) 통과. 백엔드 `CopyNamesTest`(3)·`FormDuplicateTest`(4)·`LandingDuplicateTest`(2)
+    + 기존 `com.leadpot.form.*` 테스트 통과(`@SpringBootTest` 전체 스위트는 DB 필요로 미실행). 사용자 승인으로 main 병합·배포.
   - **⬜ 남은 것**: 실제 화면에서 복사 → 편집기 진입 → 저장까지 브라우저 육안 확인(이 세션엔 백엔드 DB 없음).
     일괄 선택 복사("선택 복사")는 요청 범위 밖이라 만들지 않음 — 필요하면 `runBulk` 로 쉽게 붙일 수 있다.
 
