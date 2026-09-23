@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
+import com.leadpot.common.CopyNames;
+import com.leadpot.common.JsonCopies;
 import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.folder.Folder;
@@ -144,6 +146,30 @@ public class LandingService {
         landing.setGoogleAdsSafe(req.googleAdsSafeOrDefault());
         landing.setBgColor(req.bgColor());
         return LandingResponse.from(landing);
+    }
+
+    /**
+     * 랜딩 복사(2026-09-23 사용자 결정). 블록·픽셀·배경색·구글광고용 설정을 그대로 복제하고,
+     * 제목 뒤에 " (복사본)", 새 주소(slug)를 자동 발급, 원본과 같은 폴더에 둔다.
+     * <ul>
+     * <li>상태는 <b>항상 비공개(draft)</b>로 시작한다 — 손보기 전 복사본이 실수로 광고에 노출되지 않게.</li>
+     * <li>FORM 블록은 <b>같은 리드폼을 그대로 가리킨다</b>(리드폼 재사용 M1) — 폼은 복제하지 않는다.
+     *     다른 폼으로 받고 싶으면 편집기에서 바꾸거나 리드폼 목록에서 따로 복사한다.</li>
+     * </ul>
+     */
+    @Transactional
+    public LandingResponse duplicate(Long ownerId, Long id) {
+        LandingPage src = load(ownerId, id);
+        String title = CopyNames.of(src.getTitle());
+        LandingPage copy = new LandingPage(ownerId, title, generateSlug(title));
+        copy.setContent(JsonCopies.list(src.getContent()));
+        copy.setStatus("draft");
+        copy.setTracking(JsonCopies.map(src.getTracking()));
+        copy.setGoogleAdsSafe(src.isGoogleAdsSafe());
+        copy.setBgColor(src.getBgColor());
+        copy.setFolderId(src.getFolderId());
+        landingRepository.save(copy);
+        return LandingResponse.from(copy);
     }
 
     @Transactional

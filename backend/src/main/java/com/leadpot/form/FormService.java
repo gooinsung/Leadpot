@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.leadpot.auth.User;
 import com.leadpot.auth.UserRepository;
+import com.leadpot.common.CopyNames;
+import com.leadpot.common.JsonCopies;
 import com.leadpot.common.error.InvalidSubmissionException;
 import com.leadpot.common.error.NotFoundException;
 import com.leadpot.folder.Folder;
@@ -137,6 +139,53 @@ public class FormService {
         formRepository.flush();
         form.addBlocks(toBlocks(req));
         return FormResponse.from(form);
+    }
+
+    /**
+     * 리드폼 복사 — 항목(블록)·디자인·동의·알림/문자·픽셀 설정을 그대로 복제한 새 리드폼을 만든다.
+     * 이름 뒤에 " (복사본)" 을 붙이고 원본과 같은 폴더에 둔다.
+     *
+     * <p><b>복사하지 않는 것</b>(2026-09-23 사용자 결정): 수집된 리드, 웹훅 수신 설정·토큰(원문을 모르고
+     * 같은 토큰을 두 폼이 공유할 수도 없다 — 복사본은 SELF 로 시작), 광고주 연결(grants), 폼별 IP 차단.
+     * 변수키(f1 …)는 원본 그대로 유지한다 — 설정 속 문자 템플릿이 같은 키를 가리키므로.
+     */
+    @Transactional
+    public FormResponse duplicate(Long ownerId, Long id) {
+        Form src = load(ownerId, id);
+        Form copy = new Form(ownerId, CopyNames.of(src.getName()), src.getFormType());
+        copy.setCategory(src.getCategory());
+        copy.setRequirePhoneVerification(src.isRequirePhoneVerification());
+        copy.setConsentConfig(JsonCopies.map(src.getConsentConfig()));
+        copy.setSubmitButtonConfig(JsonCopies.map(src.getSubmitButtonConfig()));
+        copy.setSuccessConfig(JsonCopies.map(src.getSuccessConfig()));
+        copy.setTypeConfig(JsonCopies.map(src.getTypeConfig()));
+        copy.setStyleConfig(JsonCopies.map(src.getStyleConfig()));
+        // 자동 승인 기준 시각은 복사본 생성 시각으로 새로 찍는다(원본의 since 를 물려받지 않음).
+        // 문자 권한 정리도 저장 경로(applySettings)와 똑같이 거친다.
+        Map<String, Object> settings = AutoApproveSettings.stamp(
+                null, JsonCopies.map(src.getSettingsConfig()), Instant.now());
+        copy.setSettingsConfig(sanitizeSmsSettings(ownerId, settings));
+        copy.setTrackingConfig(JsonCopies.map(src.getTrackingConfig()));
+        copy.setFolderId(src.getFolderId());
+        copy.replaceBlocks(src.getBlocks().stream().map(FormService::copyBlock).toList());
+        formRepository.save(copy);
+        return FormResponse.from(copy);
+    }
+
+    private static FormBlock copyBlock(FormBlock b) {
+        FormBlock c = new FormBlock();
+        c.setStepNo(b.getStepNo());
+        c.setSortOrder(b.getSortOrder());
+        c.setBlockType(b.getBlockType());
+        c.setFieldType(b.getFieldType());
+        c.setVarKey(b.getVarKey());
+        c.setLabel(b.getLabel());
+        c.setRequired(b.isRequired());
+        c.setUniqueCheck(b.isUniqueCheck());
+        c.setPlaceholder(b.getPlaceholder());
+        c.setOptions(JsonCopies.map(b.getOptions()));
+        c.setContent(JsonCopies.map(b.getContent()));
+        return c;
     }
 
     /**

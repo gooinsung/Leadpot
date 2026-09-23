@@ -69,6 +69,12 @@ public class LandingController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 복사 — 같은 내용의 새 랜딩(새 주소, 비공개 상태)을 만들어 돌려준다. */
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<LandingResponse> duplicate(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(landingService.duplicate(userId(jwt), id));
+    }
+
     /** 폴더로 옮기기(드래그앤드롭). */
     @PatchMapping("/{id}/folder")
     public LandingResponse moveFolder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
