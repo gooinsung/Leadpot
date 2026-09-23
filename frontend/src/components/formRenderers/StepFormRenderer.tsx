@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
+import { FieldView } from "./BasicFormRenderer";
 import {
-  PhoneInput3,
+  choiceAsField,
   descEmphasisClass,
-  isMultiAnswerType,
+  isCardAnswerType,
+  stepAnswerType,
   resolveStyle,
   resolveSubmitLabel,
   CalcGateView,
@@ -122,19 +124,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
           )}
           {contactBlocks.length === 0 && <p className="dash-sub">연락처 항목을 추가하세요.</p>}
           {contactBlocks.map((b, i) => (
-            <div className="field" key={b.id ?? i}>
-              <label>
-                {b.label || "(제목 없음)"} {b.required && <span className="req">*</span>}
-              </label>
-              {(b.content?.description as string) && (
-                <p className={`field-desc${descEmphasisClass(b.content?.descriptionEmphasis)}`}>{b.content?.description as string}</p>
-              )}
-              {b.fieldType === "tel" ? (
-                <PhoneInput3 value="" onChange={() => {}} readOnly />
-              ) : (
-                <input className="input" placeholder={b.placeholder ?? ""} readOnly />
-              )}
-            </div>
+            <FieldView key={b.id ?? i} block={b} accent={s.accentColor} />
           ))}
           <ConsentView config={form.consentConfig} accent={s.accentColor} />
         </div>
@@ -178,10 +168,9 @@ function ChoiceStep({
 }) {
   const question = (block.content?.question as string) || "(질문 없음)";
   const description = block.content?.description as string | undefined;
-  const answerType = (block.content?.answerType as string) || (block.content?.selectType as string) || "single";
-  const multi = isMultiAnswerType(answerType);
+  const answerType = stepAnswerType(block);
+  const multi = answerType === "multi";
   const options = (block.content?.options as ChoiceOption[]) || [];
-  const placeholder = (block.content?.placeholder as string) || "";
 
   return (
     <div>
@@ -193,7 +182,7 @@ function ChoiceStep({
           {description}
         </p>
       )}
-      {answerType === "single" || answerType === "multi" ? (
+      {isCardAnswerType(answerType) ? (
         <div className="sfr-options">
           {options.map((o, i) => (
             <button
@@ -209,37 +198,9 @@ function ChoiceStep({
           ))}
           {options.length === 0 && <p className="dash-sub">선택지를 추가하세요.</p>}
         </div>
-      ) : answerType === "list_single" || answerType === "list_multi" ? (
-        <div className="sfr-list">
-          {options.map((o, i) => (
-            <label key={i} className={`sfr-list-item ${selected.includes(i) ? "sel" : ""}`}>
-              <input
-                type={multi ? "checkbox" : "radio"}
-                name="sfr-list-preview"
-                checked={selected.includes(i)}
-                onChange={() => onToggle(i, multi)}
-                style={{ accentColor: accent }}
-              />
-              <span className="sfr-list-t">{o.label || `선택지 ${i + 1}`}</span>
-            </label>
-          ))}
-          {options.length === 0 && <p className="dash-sub">선택지를 추가하세요.</p>}
-        </div>
-      ) : answerType === "select" ? (
-        <div className="sfr-field">
-          <select className="input" value={options[selected[0]]?.label ?? ""} onChange={() => {}}>
-            <option value="" disabled>{placeholder || "선택하세요"}</option>
-            {options.map((o, i) => <option key={i} value={o.label}>{o.label || `선택지 ${i + 1}`}</option>)}
-          </select>
-        </div>
-      ) : answerType === "textarea" ? (
-        <div className="sfr-field">
-          <textarea className="input" rows={4} placeholder={placeholder} readOnly />
-        </div>
       ) : (
-        <div className="sfr-field">
-          <input className="input" type={answerType === "tel" ? "tel" : answerType === "email" ? "email" : answerType === "number" ? "number" : answerType === "date" ? "date" : "text"} placeholder={placeholder} readOnly />
-        </div>
+        // 카드형이 아니면 기본형과 같은 입력 미리보기 — 제목은 위 질문이 대신한다.
+        <FieldView block={choiceAsField(block)} accent={accent} bare />
       )}
     </div>
   );

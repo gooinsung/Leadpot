@@ -55,7 +55,12 @@ function BlockView({ block, accent }: { block: FormBlock; accent: string }) {
   }
 }
 
-function FieldView({ block, accent }: { block: FormBlock; accent: string }) {
+/**
+ * 입력 항목 미리보기. 기본형 항목·스텝형 질문(choiceAsField 로 변환)·스텝형 연락처 항목이 함께 쓴다 —
+ * 공개 폼의 LiveField 와 짝이다. 입력 유형을 늘리면 여기 분기 하나로 두 편집기에 반영된다.
+ * `bare` 는 항목명·설명을 빼고 입력만 그린다(스텝형 질문은 제목을 따로 그린다).
+ */
+export function FieldView({ block, accent, bare }: { block: FormBlock; accent: string; bare?: boolean }) {
   const type = block.fieldType || "text";
   const inputType =
     type === "email" ? "email" : type === "tel" || type === "phone010" ? "tel" : type === "number" ? "number" : type === "date" ? "date" : "text";
@@ -64,11 +69,13 @@ function FieldView({ block, accent }: { block: FormBlock; accent: string }) {
   const di = block.options?.defaultIndex;
   const defaultChoice = typeof di === "number" && choices[di] != null ? choices[di] : "";
   return (
-    <div className="field">
-      <label>
-        {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
-      </label>
-      {(block.content?.description as string) && (
+    <div className={bare ? "sfr-field" : "field"}>
+      {!bare && (
+        <label>
+          {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
+        </label>
+      )}
+      {!bare && (block.content?.description as string) && (
         <p className={`field-desc${descEmphasisClass(block.content?.descriptionEmphasis)}`}>{block.content?.description as string}</p>
       )}
       {type === "textarea" ? (

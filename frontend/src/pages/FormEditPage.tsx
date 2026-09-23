@@ -38,6 +38,11 @@ import {
   CompletionView,
   DEFAULT_SUBMIT_LABEL,
   descEmphasisLevel,
+  INPUT_FIELD_TYPES,
+  OPTION_FIELD_TYPES,
+  STEP_ANSWER_TYPES,
+  STEP_CARD_TYPES,
+  stepAnswerType,
   type CalculatorDef,
 } from "@leadpot/public-ui";
 
@@ -96,37 +101,10 @@ function defaultConsentItems(): ConsentItem[] {
   ];
 }
 
-const FIELD_TYPES = [
-  { value: "text", label: "한 줄 텍스트" },
-  { value: "tel", label: "연락처" },
-  { value: "email", label: "이메일" },
-  { value: "textarea", label: "여러 줄" },
-  { value: "number", label: "숫자" },
-  { value: "date", label: "날짜" },
-  { value: "select", label: "선택박스" },
-  { value: "radio", label: "라디오버튼 (단일 선택)" },
-  { value: "checkbox", label: "체크박스 (중복 선택)" },
-];
-
-/** 선택지 목록(options.choices)을 쓰는 기본형 필드 유형. */
-const CHOICE_FIELD_TYPES = ["select", "radio", "checkbox"];
-
-// 스텝형 단계의 답변 방식 (기본형 필드 유형과 동일 계열 + 카드/목록 선택)
-const ANSWER_TYPES = [
-  { value: "single", label: "단일 선택(카드)" },
-  { value: "multi", label: "다중 선택(카드)" },
-  { value: "list_single", label: "단일 선택(목록)" },
-  { value: "list_multi", label: "다중 선택(목록)" },
-  { value: "select", label: "선택박스" },
-  { value: "text", label: "텍스트" },
-  { value: "textarea", label: "장문" },
-  { value: "tel", label: "연락처" },
-  { value: "email", label: "이메일" },
-  { value: "number", label: "숫자" },
-  { value: "date", label: "날짜" },
-];
-const OPTION_ANSWER_TYPES = ["single", "multi", "list_single", "list_multi", "select"]; // 선택지 목록이 필요한 유형
-const OPTION_DESC_HIDDEN_TYPES = ["select", "list_single", "list_multi"]; // 선택지별 설명 입력이 필요 없는(카드가 아닌) 유형
+// 입력 유형은 기본형·스텝형이 같은 목록(@leadpot/public-ui 의 lib/fieldTypes)을 쓴다 —
+// 유형을 하나 늘리면 두 편집기에 함께 뜬다. 스텝형 답변 방식 = 카드형 + 이 목록.
+const OPTION_ANSWER_TYPES = [...STEP_CARD_TYPES.map((t) => t.value), ...OPTION_FIELD_TYPES]; // 선택지 목록이 필요한 유형
+const OPTION_DESC_HIDDEN_TYPES = OPTION_FIELD_TYPES; // 선택지별 설명은 카드형에만 보인다
 
 /** 접은 카드 기억용(브라우저에만 저장). 매번 다시 접지 않아도 되게 한다. */
 const COLLAPSE_KEY = "leadpot-form-edit-collapsed";
@@ -465,7 +443,7 @@ export function FormEditPage() {
               question: (b.content?.question as string) || "",
               description: (b.content?.description as string) || "",
               descriptionEmphasis: descEmphasisLevel(b.content?.descriptionEmphasis),
-              answerType: (b.content?.answerType as string) || (b.content?.selectType as string) || "single",
+              answerType: stepAnswerType(b), // 구 '목록형'(list_single/list_multi)은 라디오·체크박스로 열린다
               placeholder: (b.content?.placeholder as string) || "",
               required: b.content?.required === true,
               options: ((b.content?.options as { label: string; desc: string; value?: string }[]) || []).map((o) => ({
@@ -923,7 +901,7 @@ export function FormEditPage() {
                           disabled={!!s.calcInput}
                           onChange={(e) => patchStep(i, { answerType: e.target.value })}
                         >
-                          {ANSWER_TYPES.map((t) => (
+                          {STEP_ANSWER_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label}</option>
                           ))}
                         </select>
@@ -1717,7 +1695,7 @@ function BlockFields({
             <div className="field" style={{ flex: 1 }}>
               <label>유형</label>
               <select className="input" value={block.fieldType ?? "text"} onChange={(e) => onPatch({ fieldType: e.target.value })}>
-                {FIELD_TYPES.map((t) => (
+                {INPUT_FIELD_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
@@ -1750,7 +1728,7 @@ function BlockFields({
               </select>
             </div>
           </div>
-          {CHOICE_FIELD_TYPES.includes(block.fieldType ?? "") && <SelectChoicesEditor block={block} onPatch={onPatch} />}
+          {OPTION_FIELD_TYPES.includes(block.fieldType ?? "") && <SelectChoicesEditor block={block} onPatch={onPatch} />}
           <DedupField block={block} onPatch={onPatch} />
         </div>
       );

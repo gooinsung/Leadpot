@@ -1,3 +1,4 @@
+import { OPTION_FIELD_TYPES, choiceAsField } from "@leadpot/public-ui";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
@@ -159,14 +160,23 @@ export function LeadsListPage() {
           fieldType: b.fieldType || "text",
           required: Boolean(b.required),
           placeholder: b.placeholder || undefined,
-          choices: b.fieldType === "select" || b.fieldType === "radio" || b.fieldType === "checkbox" ? ((b.options?.choices as string[] | undefined) ?? []) : undefined,
+          choices: OPTION_FIELD_TYPES.includes(b.fieldType ?? "") ? ((b.options?.choices as string[] | undefined) ?? []) : undefined,
         });
       } else if (b.blockType === "CHOICE") {
         const q = (b.content?.question as string) || "";
         if (q && !seen.has(q)) {
           seen.add(q);
-          const at = (b.content?.answerType as string) || (b.content?.selectType as string) || "text";
-          out.push({ label: q, fieldType: at, required: Boolean(b.content?.required) });
+          // 스텝형 질문도 기본형 항목과 같은 입력으로 — 카드형은 단일=라디오, 다중=체크박스와 같은 값을 만든다.
+          const f = choiceAsField(b);
+          const at = f.fieldType === "single" ? "radio" : f.fieldType === "multi" ? "checkbox" : f.fieldType || "text";
+          const list = (f.options?.choices as string[] | undefined) ?? [];
+          out.push({
+            label: q,
+            fieldType: at,
+            required: Boolean(f.required),
+            placeholder: f.placeholder || undefined,
+            choices: OPTION_FIELD_TYPES.includes(at) ? list : undefined,
+          });
         }
       }
     }

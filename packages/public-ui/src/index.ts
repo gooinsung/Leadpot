@@ -18,8 +18,6 @@ export {
   DEFAULT_SUBMIT_LABEL,
   descEmphasisClass,
   descEmphasisLevel,
-  isChoiceAnswerType,
-  isMultiAnswerType,
   resolveConceptBg,
   resolveStyle,
   resolveSubmitLabel,
@@ -28,6 +26,20 @@ export {
   type ResolvedStyle,
 } from "./components/formRenderers/formStyle";
 
+export {
+  INPUT_FIELD_TYPES,
+  OPTION_FIELD_TYPES,
+  STEP_ANSWER_TYPES,
+  STEP_CARD_TYPES,
+  choiceAsField,
+  fieldAnswer,
+  fieldDefaultValue,
+  isCardAnswerType,
+  isListField,
+  normalizeAnswerType,
+  parsePicked,
+  stepAnswerType,
+} from "./lib/fieldTypes";
 export { parseUtm } from "./lib/utm";
 export { sanitizeHtml } from "./lib/sanitizeHtml";
 export { hydrateLiveMarkers } from "./lib/liveMarkers";

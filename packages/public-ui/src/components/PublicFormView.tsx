@@ -10,7 +10,17 @@ import {
   type LeadAnswer,
   type LeadConsent,
 } from "../api/client";
-import { descEmphasisClass, isChoiceAnswerType, isMultiAnswerType, resolveStyle, resolveSubmitLabel } from "./formRenderers/formStyle";
+import { descEmphasisClass, resolveStyle, resolveSubmitLabel } from "./formRenderers/formStyle";
+import {
+  choiceAsField,
+  fieldAnswer,
+  fieldBlockError,
+  fieldDefaultValue,
+  isCardAnswerType,
+  isListField,
+  parsePicked,
+  stepAnswerType,
+} from "../lib/fieldTypes";
 import { PhoneInput3 } from "./PhoneInput3";
 import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
 import { parseUtm } from "../lib/utm";
@@ -36,10 +46,11 @@ function collectCalcInputs(
   choiceBlocks.forEach((b, i) => {
     const key = b.content?.calcInput as string | undefined;
     if (!key) return;
-    const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
-    if (isChoiceAnswerType(answerType)) {
+    const answerType = stepAnswerType(b);
+    if (isCardAnswerType(answerType) || isListField(answerType)) {
       const opts = (b.content?.options as { label?: string; value?: string }[]) ?? [];
-      const picked = (choices[i] ?? []).map((oi) => opts[oi]?.value ?? opts[oi]?.label ?? "").filter(Boolean);
+      const idx = isCardAnswerType(answerType) ? choices[i] ?? [] : parsePicked(values[`s${i}`] ?? "");
+      const picked = idx.map((oi) => opts[oi]?.value ?? opts[oi]?.label ?? "").filter(Boolean);
       // 미선택은 키를 넣지 않는다 — 계산기가 '미입력'과 '0'을 구분해 전제 경고를 붙인다.
       if (picked.length) raw[key] = picked.join(",");
     } else {
@@ -48,56 +59,6 @@ function collectCalcInputs(
     }
   });
   return raw;
-}
-
-/**
- * 선택지를 펼쳐 보여주는 입력 항목(라디오=단일, 체크박스=중복).
- * 선택 상태는 다른 항목처럼 `values` 에 두되, 라벨이 아니라 **선택지 인덱스를 "0,2"** 로 담는다 —
- * 라벨에 쉼표가 들어가도 고른 것을 되짚을 수 있게. 접수할 때 {@link listFieldAnswer} 로 라벨로 바꾼다.
- */
-function isListField(fieldType: string | null | undefined): boolean {
-  return fieldType === "radio" || fieldType === "checkbox";
-}
-
-function parsePicked(value: string): number[] {
-  return value ? value.split(",").map(Number).filter((n) => Number.isInteger(n) && n >= 0) : [];
-}
-
-/** 답변 값 — 고른 선택지 라벨을 선택지 순서대로 ", " 로 잇는다(스텝형 다중 선택과 같은 형식). */
-function listFieldAnswer(block: FormBlock, value: string): string {
-  const list = (block.options?.choices as string[]) ?? [];
-  return parsePicked(value).sort((a, b) => a - b).map((ci) => list[ci] || `선택지 ${ci + 1}`).join(", ");
-}
-
-/** FIELD 블록의 접수 값. 라디오·체크박스만 인덱스 → 라벨 변환을 거친다. */
-function fieldAnswer(block: FormBlock, value: string | undefined): string {
-  return isListField(block.fieldType) ? listFieldAnswer(block, value ?? "") : value ?? "";
-}
-
-/** FIELD 블록 검증. 라디오·체크박스는 형식이 없고 '골랐는가'만 본다. */
-function fieldBlockError(block: FormBlock, value: string | undefined): string | null {
-  if (isListField(block.fieldType)) {
-    return block.required && parsePicked(value ?? "").length === 0 ? `'${block.label || "이 항목"}' 항목을 선택해주세요.` : null;
-  }
-  return fieldError(block.fieldType || "text", value ?? "", !!block.required, block.label || "");
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const TEL_RE = /^[0-9+\-()\s]+$/;
-const NUMBER_RE = /^-?\d+(\.\d+)?$/;
-
-/** 항목 유형별 유효성 검사. 에러 메시지(문자열) 또는 null(통과) 반환. */
-function fieldError(fieldType: string, value: string, required: boolean, label: string): string | null {
-  const v = (value ?? "").trim();
-  const name = label && label.trim() ? label : "이 항목";
-  if (!v) return required ? `'${name}' 항목을 입력해주세요.` : null;
-  if (fieldType === "email" && !EMAIL_RE.test(v)) return `'${name}' 이메일 형식이 올바르지 않습니다.`;
-  if (fieldType === "tel") {
-    const digits = v.replace(/\D/g, "");
-    if (!TEL_RE.test(v) || digits.length < 9 || digits.length > 15) return `'${name}' 연락처는 숫자로 올바르게 입력해주세요.`;
-  }
-  if (fieldType === "number" && !NUMBER_RE.test(v)) return `'${name}' 는 숫자만 입력할 수 있습니다.`;
-  return null;
 }
 
 /**
@@ -161,21 +122,20 @@ export function PublicFormView({
     if (form.formType === "BASIC") {
       sorted.forEach((b, i) => {
         if (b.blockType !== "FIELD") return;
-        if (b.fieldType !== "select" && !isListField(b.fieldType)) return;
-        const list = (b.options?.choices as string[]) ?? [];
-        const di = b.options?.defaultIndex;
-        if (typeof di !== "number" || list[di] == null) return;
-        initValues[`f${i}`] = isListField(b.fieldType) ? String(di) : list[di];
+        const v = fieldDefaultValue(b);
+        if (v != null) initValues[`f${i}`] = v;
       });
     } else {
       sorted.filter((b) => b.blockType === "CHOICE").forEach((b, i) => {
-        const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
-        const di = b.content?.defaultIndex;
-        if (typeof di !== "number") return;
-        const opts = (b.content?.options as { label?: string }[]) ?? [];
-        if (opts[di] == null) return;
-        if (isChoiceAnswerType(answerType)) initChoices[i] = [di];
-        else if (answerType === "select") initValues[`s${i}`] = opts[di].label ?? "";
+        if (isCardAnswerType(stepAnswerType(b))) {
+          const di = b.content?.defaultIndex;
+          const opts = (b.content?.options as { label?: string }[]) ?? [];
+          if (typeof di === "number" && opts[di] != null) initChoices[i] = [di];
+          return;
+        }
+        // 카드형이 아니면 기본형 입력 항목과 같은 규칙
+        const v = fieldDefaultValue(choiceAsField(b));
+        if (v != null) initValues[`s${i}`] = v;
       });
     }
     if (Object.keys(initValues).length) setValues((prev) => ({ ...initValues, ...prev }));
@@ -197,13 +157,13 @@ export function PublicFormView({
     } else {
       const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
       choiceBlocks.forEach((b, i) => {
-        const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
+        const answerType = stepAnswerType(b);
         let value: string;
-        if (isChoiceAnswerType(answerType)) {
+        if (isCardAnswerType(answerType)) {
           const opts = (b.content?.options as { label?: string }[]) ?? [];
           value = (choices[i] ?? []).map((oi) => opts[oi]?.label ?? `선택지 ${oi + 1}`).join(", ");
         } else {
-          value = values[`s${i}`] ?? "";
+          value = fieldAnswer(choiceAsField(b), values[`s${i}`]);
         }
         out.push({ label: (b.content?.question as string) || `질문 ${i + 1}`, fieldType: answerType, value });
       });
@@ -234,13 +194,11 @@ export function PublicFormView({
       const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
       for (let i = 0; i < choiceBlocks.length; i++) {
         const b = choiceBlocks[i];
-        const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
-        const required = b.content?.required === true;
-        const label = (b.content?.question as string) || "질문";
-        if (isChoiceAnswerType(answerType)) {
-          if (required && (choices[i] ?? []).length === 0) return `'${label}' 항목을 선택해주세요.`;
+        if (isCardAnswerType(stepAnswerType(b))) {
+          const label = (b.content?.question as string) || "질문";
+          if (b.content?.required === true && (choices[i] ?? []).length === 0) return `'${label}' 항목을 선택해주세요.`;
         } else {
-          const e = fieldError(answerType, values[`s${i}`] ?? "", required, label);
+          const e = fieldBlockError(choiceAsField(b), values[`s${i}`]);
           if (e) return e;
         }
       }
@@ -350,6 +308,8 @@ type LiveFieldProps = {
   onChange: (v: string) => void;
   /** 라디오·체크박스의 선택 강조색. */
   accent?: string;
+  /** 항목명·설명을 그리지 않는다 — 스텝형 질문처럼 제목을 바깥에서 따로 그릴 때. */
+  bare?: boolean;
 };
 
 function LiveBlock(props: LiveFieldProps) {
@@ -372,7 +332,11 @@ function LiveBlock(props: LiveFieldProps) {
   }
 }
 
-function LiveField({ block, idx, value, onChange, accent }: LiveFieldProps) {
+/**
+ * 입력 항목 하나. 기본형 항목·스텝형 질문(choiceAsField 로 변환)·스텝형 연락처 항목이 모두 이걸로 그려진다 —
+ * 입력 유형(lib/fieldTypes)을 늘리면 여기 분기 하나로 두 폼에 함께 반영된다.
+ */
+function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps) {
   const type = block.fieldType || "text";
   const picked = isListField(type) ? parsePicked(value) : [];
   /** 라디오는 하나만, 체크박스는 여러 개 — 이미 고른 체크박스를 누르면 해제한다. */
@@ -383,11 +347,13 @@ function LiveField({ block, idx, value, onChange, accent }: LiveFieldProps) {
   const choices = (block.options?.choices as string[]) ?? [];
   const inputType = type === "email" ? "email" : type === "tel" ? "tel" : type === "number" ? "number" : type === "date" ? "date" : "text";
   return (
-    <div className="field">
-      <label htmlFor={`fld-${idx}`}>
-        {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
-      </label>
-      {(block.content?.description as string) && (
+    <div className={bare ? "sfr-field" : "field"}>
+      {!bare && (
+        <label htmlFor={`fld-${idx}`}>
+          {block.label || "(제목 없음)"} {block.required && <span className="req">*</span>}
+        </label>
+      )}
+      {!bare && (block.content?.description as string) && (
         <p className={`field-desc${descEmphasisClass(block.content?.descriptionEmphasis)}`}>{block.content?.description as string}</p>
       )}
       {type === "textarea" ? (
@@ -496,10 +462,11 @@ function StepFlow(props: {
     });
     // 단일 선택(카드·목록)은 "다음"을 안 눌러도 고르면 바로 다음 단계로 넘어간다.
     // 선택 표시가 아주 잠깐 눈에 보이도록 최소한의 여유(100ms)만 둔다.
-    if (!multi) {
-      if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
-      autoAdvanceTimer.current = setTimeout(() => setStep((s) => s + 1), 100);
-    }
+    if (!multi) scheduleAdvance();
+  }
+  function scheduleAdvance() {
+    if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+    autoAdvanceTimer.current = setTimeout(() => setStep((s) => s + 1), 100);
   }
 
   // 필수 미응답·형식 오류 시 다음 단계로 진행 차단
@@ -511,17 +478,13 @@ function StepFlow(props: {
       setStep((s) => s + 1);
       return;
     }
-    const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
-    const required = b.content?.required === true;
-    const isChoice = isChoiceAnswerType(answerType);
-    if (isChoice) {
-      if (required && (choices[step] ?? []).length === 0) {
+    if (isCardAnswerType(stepAnswerType(b))) {
+      if (b.content?.required === true && (choices[step] ?? []).length === 0) {
         setStepError("이 항목을 선택해주세요.");
         return;
       }
     } else {
-      const label = (b.content?.question as string) || "";
-      const e = fieldError(answerType, values[`s${step}`] ?? "", required, label);
+      const e = fieldBlockError(choiceAsField(b), values[`s${step}`]);
       if (e) {
         setStepError(e);
         return;
@@ -548,12 +511,10 @@ function StepFlow(props: {
       {!isContact ? (
         (() => {
           const b = choiceBlocks[step];
-          const answerType = (b.content?.answerType as string) || (b.content?.selectType as string) || "single";
-          const multi = isMultiAnswerType(answerType);
+          const answerType = stepAnswerType(b);
+          const multi = answerType === "multi";
           const opts = (b.content?.options as { label?: string; desc?: string }[]) ?? [];
           const sel = choices[step] ?? [];
-          const placeholder = (b.content?.placeholder as string) || "";
-          const inputVal = values[`s${step}`] ?? "";
           return (
             <div>
               <h3 className="t-h3" style={{ marginBottom: 4 }}>
@@ -564,7 +525,7 @@ function StepFlow(props: {
                   {b.content?.description as string}
                 </p>
               )}
-              {answerType === "single" || answerType === "multi" ? (
+              {isCardAnswerType(answerType) ? (
                 <div className="sfr-options">
                   {opts.map((o, i) => (
                     <button key={i} type="button" className={`sfr-opt ${sel.includes(i) ? "sel" : ""}`} style={sel.includes(i) ? { borderColor: style.accentColor, background: `${style.accentColor}1f` } : undefined} onClick={() => toggle(step, i, multi)}>
@@ -573,36 +534,21 @@ function StepFlow(props: {
                     </button>
                   ))}
                 </div>
-              ) : answerType === "list_single" || answerType === "list_multi" ? (
-                <div className="sfr-list">
-                  {opts.map((o, i) => (
-                    <label key={i} className={`sfr-list-item ${sel.includes(i) ? "sel" : ""}`}>
-                      <input
-                        type={multi ? "checkbox" : "radio"}
-                        name={`sfr-list-${step}`}
-                        checked={sel.includes(i)}
-                        onChange={() => toggle(step, i, multi)}
-                        style={{ accentColor: style.accentColor }}
-                      />
-                      <span className="sfr-list-t">{o.label || `선택지 ${i + 1}`}</span>
-                    </label>
-                  ))}
-                </div>
-              ) : answerType === "select" ? (
-                <div className="sfr-field">
-                  <select className="input" value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)}>
-                    <option value="">{placeholder || "선택하세요"}</option>
-                    {opts.map((o, i) => <option key={i} value={o.label}>{o.label || `선택지 ${i + 1}`}</option>)}
-                  </select>
-                </div>
-              ) : answerType === "textarea" ? (
-                <div className="sfr-field">
-                  <textarea className="input" rows={4} placeholder={placeholder} value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)} />
-                </div>
               ) : (
-                <div className="sfr-field">
-                  <input className="input" type={answerType === "tel" ? "tel" : answerType === "email" ? "email" : answerType === "number" ? "number" : answerType === "date" ? "date" : "text"} inputMode={answerType === "tel" ? "tel" : answerType === "number" ? "numeric" : answerType === "email" ? "email" : undefined} placeholder={placeholder} value={inputVal} onChange={(e) => setVal(`s${step}`, e.target.value)} />
-                </div>
+                // 카드형이 아니면 기본형과 같은 입력 컴포넌트 — 제목은 위 질문이 대신한다.
+                <LiveField
+                  bare
+                  block={choiceAsField(b)}
+                  idx={2000 + step}
+                  value={values[`s${step}`] ?? ""}
+                  onChange={(v) => {
+                    setStepError("");
+                    setVal(`s${step}`, v);
+                    // 라디오는 단일 카드처럼 고르면 바로 다음 단계로 넘어간다.
+                    if (answerType === "radio") scheduleAdvance();
+                  }}
+                  accent={style.accentColor}
+                />
               )}
             </div>
           );

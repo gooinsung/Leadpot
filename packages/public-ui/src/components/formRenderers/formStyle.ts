@@ -60,18 +60,6 @@ export function resolveConceptBg(target: { bgColor?: string | null }): string | 
   return HEX_RE.test(bg) ? bg : undefined;
 }
 
-/** CHOICE 질문의 답변 방식 중 "선택지 목록에서 고르는" 유형(카드형·목록형) 전체. */
-const CHOICE_ANSWER_TYPES = new Set(["single", "multi", "list_single", "list_multi"]);
-/** 위 중에서도 다중 선택이 가능한 유형. */
-const MULTI_ANSWER_TYPES = new Set(["multi", "list_multi"]);
-
-export function isChoiceAnswerType(t: string): boolean {
-  return CHOICE_ANSWER_TYPES.has(t);
-}
-export function isMultiAnswerType(t: string): boolean {
-  return MULTI_ANSWER_TYPES.has(t);
-}
-
 /** 항목 설명 강조 단계. 레거시 데이터는 boolean(true=강조)이었다 — true 는 "redbold"로 취급. */
 export type DescEmphasis = "none" | "bold" | "red" | "redbold";
 export function descEmphasisLevel(v: unknown): DescEmphasis {
