@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
-import { deleteLanding, listFolders, listLandings, moveLandingFolder, type FolderItem, type LandingSummary } from "../api/client";
+import { deleteLanding, duplicateLanding, listFolders, listLandings, moveLandingFolder, type FolderItem, type LandingSummary } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { publicSiteUrl } from "@leadpot/public-ui";
 import { TopBar } from "../components/TopBar";
@@ -86,6 +86,16 @@ export function LandingsListPage() {
     load();
     loadFolders();
   }, []);
+
+  async function onDuplicate(id: number, title: string) {
+    try {
+      const copy = await duplicateLanding(id);
+      toast.success(`'${title}' 랜딩을 복사했습니다 → '${copy.title}' (비공개 상태)`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "복사에 실패했습니다.");
+    }
+  }
 
   async function onDelete(id: number, title: string) {
     if (!window.confirm(`'${title}' 랜딩을 삭제할까요?`)) return;
@@ -187,6 +197,7 @@ export function LandingsListPage() {
                               )}
                               <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/p/${l.slug}`, "_blank")}>미리보기</button>
                               <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/landings/${l.id}/edit`)}>편집</button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => onDuplicate(l.id, l.title)}>복사</button>
                               <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(l.id, l.title)}>삭제</button>
                             </td>
                           </tr>

@@ -8,6 +8,24 @@
 
 ## 📍 지금 위치
 
+- **✅ 리드폼·랜딩 복사 기능 (2026-09-23, 원격 세션, 사용자 지시)**: 리드폼 목록·랜딩 목록의 각 행에
+  **[복사]** 버튼 추가. 누르면 바로 "… (복사본)" 이 원본과 같은 폴더에 생긴다.
+  - **API**: `POST /api/forms/{id}/duplicate` · `POST /api/landings/{id}/duplicate` (201, 본인 것만 — 남의 id 는 404).
+  - **결정(사용자 확인, 다시 논의하지 말 것)**:
+    ① 랜딩 복사 시 FORM 블록은 **같은 리드폼을 그대로 가리킨다**(폼은 복제하지 않음 — M1 재사용 구조).
+    ② 내용·설정은 전부 복사하되, **랜딩 복사본은 항상 비공개(draft)** 로 시작하고 slug 는 새로 발급.
+    ③ 리드폼 복사에서 **제외**: 수집 리드 · 웹훅 수신 설정/토큰(복사본은 SELF) · 광고주 연결(grants) ·
+       폼별 IP 차단. 변수키(f1…)는 원본 그대로 유지(설정 속 문자 템플릿이 같은 키를 가리키므로).
+       자동 승인 기준 시각은 복사 시각으로 새로 찍고, 문자 권한 정리(`sanitizeSmsSettings`)도 저장 경로와 똑같이 거친다.
+  - **코드**: `FormService.duplicate`·`LandingService.duplicate` + 공통 헬퍼 `common/CopyNames`(이름 접미·255자 한도)·
+    `common/JsonCopies`(JSONB 값 깊은 복사). 프론트 `duplicateForm`·`duplicateLanding`(`api/client.ts`),
+    `FormsListPage`·`LandingsListPage` 버튼.
+  - **테스트**: 백엔드 단위 테스트 `CopyNamesTest`·`FormDuplicateTest`·`LandingDuplicateTest`(목 저장소, DB 불필요).
+    프론트 `tsc -b`·`vitest`(21개) 통과. 백엔드는 본 코드 컴파일(`compileJava`)까지 확인, 테스트 실행은
+    이 세션에서 Maven Central 429(요청 제한)로 테스트 의존성을 못 받아 **미확인** — 다음 세션에서 `./gradlew test` 로 확인할 것.
+  - **⬜ 남은 것**: 실제 화면에서 복사 → 편집기 진입 → 저장까지 브라우저 육안 확인(이 세션엔 백엔드 DB 없음).
+    일괄 선택 복사("선택 복사")는 요청 범위 밖이라 만들지 않음 — 필요하면 `runBulk` 로 쉽게 붙일 수 있다.
+
 - **✅ 공개 랜딩 URL 을 서브도메인으로 되돌림 + '구글 광고용' 체크박스 UI 제거
   (2026-09-22, 원격 세션, 사용자 명시적 지시)**: 2026-09-09 에 구글 광고 대응으로 고객별
   서브도메인을 폐지하고 `go.lead-pot.com/{sub}/{id}` 고정 호스트로 옮겼었는데(아래 09-09 항목),

@@ -62,6 +62,12 @@ public class FormController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 복사 — 같은 내용·설정의 새 리드폼을 만들어 돌려준다(리드·웹훅·광고주 연결은 제외). */
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<FormResponse> duplicate(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(formService.duplicate(userId(jwt), id));
+    }
+
     /** 폴더로 옮기기(드래그앤드롭). */
     @PatchMapping("/{id}/folder")
     public FormResponse moveFolder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,

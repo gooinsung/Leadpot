@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
-import { deleteForm, listFolders, listForms, moveFormFolder, type FolderItem, type FormSummary } from "../api/client";
+import { deleteForm, duplicateForm, listFolders, listForms, moveFormFolder, type FolderItem, type FormSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
@@ -84,6 +84,16 @@ export function FormsListPage() {
     load();
     loadFolders();
   }, []);
+
+  async function onDuplicate(id: number, name: string) {
+    try {
+      const copy = await duplicateForm(id);
+      toast.success(`'${name}' 리드폼을 복사했습니다 → '${copy.name}'`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "복사에 실패했습니다.");
+    }
+  }
 
   async function onDelete(id: number, name: string) {
     if (!window.confirm(`'${name}' 리드폼을 삭제할까요?`)) return;
@@ -199,6 +209,9 @@ export function FormsListPage() {
                               </button>
                               <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/edit`)}>
                                 편집
+                              </button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => onDuplicate(f.id, f.name)}>
+                                복사
                               </button>
                               <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(f.id, f.name)}>
                                 삭제

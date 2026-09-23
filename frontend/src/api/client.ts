@@ -313,6 +313,11 @@ export function deleteForm(id: number): Promise<void> {
   return request<void>(`/api/forms/${id}`, { method: "DELETE" });
 }
 
+/** 리드폼 복사 — 항목·설정을 복제한 새 리드폼("… (복사본)")을 만든다. 리드·웹훅·광고주 연결은 제외. */
+export function duplicateForm(id: number): Promise<FormDetail> {
+  return request<FormDetail>(`/api/forms/${id}/duplicate`, { method: "POST" });
+}
+
 // ---------- 웹훅으로 리드 수신 (범용 인바운드, V39) ----------
 // 벤더 무관 — Zapier·Make·LeadsBridge 등 무엇이든 이 URL 로 POST 하면 리드로 들어온다.
 // 매핑(원본 키 → 우리 항목)은 마케터가 이 화면에서 셀프서비스로 설정한다.
@@ -1044,6 +1049,10 @@ export function updateLanding(id: number, input: LandingInput): Promise<LandingD
 }
 export function deleteLanding(id: number): Promise<void> {
   return request<void>(`/api/landings/${id}`, { method: "DELETE" });
+}
+/** 랜딩 복사 — 새 주소·비공개(draft) 상태로 복제한다. 연결된 리드폼은 원본과 같은 것을 그대로 가리킨다. */
+export function duplicateLanding(id: number): Promise<LandingDetail> {
+  return request<LandingDetail>(`/api/landings/${id}/duplicate`, { method: "POST" });
 }
 // resolveSite 는 @leadpot/public-ui 것을 재-export(위)한다.
 
