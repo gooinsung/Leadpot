@@ -134,6 +134,44 @@ class InboxTest {
     }
 
     @Test
+    @DisplayName("세그먼트 숫자(전체·오늘·미확인)는 걸어둔 필터 안에서 센다 — 폼 필터")
+    void segmentCountsFollowFormFilter() {
+        Long aLead = leadService.inbox(owner.getId(), null, null, formA.getId(), null, null, null, null, null, false, 0, 25)
+                .items().get(0).id();
+        leadService.markSeen(owner.getId(), List.of(aLead), true);
+
+        InboxResponse.Counts c = leadService.inbox(owner.getId(), null, null, formA.getId(), null, null, null, null, null, false, 0, 25).counts();
+        assertThat(c.all()).isEqualTo(3);     // formA 만
+        assertThat(c.today()).isEqualTo(3);   // 방금 접수된 것들
+        assertThat(c.unseen()).isEqualTo(2);  // formA 에서 1건 확인
+        // 드롭다운 옵션 숫자는 전체 기준 그대로 — 다른 폼으로 바꿀 수 있어야 한다
+        assertThat(c.byForm()).anySatisfy(f -> {
+            assertThat(f.formName()).isEqualTo("시술 이벤트");
+            assertThat(f.count()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    @DisplayName("기간(시작일~종료일) 밖이면 전체·오늘·미확인이 모두 0, '오늘' 보기는 기간 안에서 좁힌다")
+    void segmentCountsFollowDateRange() {
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
+        String lastWeek = today.minusDays(7).toString();
+        String yesterday = today.minusDays(1).toString();
+
+        InboxResponse past = leadService.inbox(owner.getId(), null, null, formA.getId(), null, lastWeek, yesterday,
+                null, null, false, false, 0, 25);
+        assertThat(past.total()).isZero();
+        assertThat(past.counts().all()).isZero();
+        assertThat(past.counts().today()).isZero();
+        assertThat(past.counts().unseen()).isZero();
+
+        InboxResponse todayView = leadService.inbox(owner.getId(), null, null, formA.getId(), null, lastWeek, today.toString(),
+                null, null, false, true, 0, 25);
+        assertThat(todayView.total()).isEqualTo(3);
+        assertThat(todayView.counts().all()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("다른 마케터의 리드는 섞이지 않는다")
     void otherOwnerLeadsExcluded() {
         User other = userRepository.save(marketer("inbox-m2@test.local", "inbox-m2"));

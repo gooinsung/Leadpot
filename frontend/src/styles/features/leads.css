@@ -140,6 +140,17 @@
 .il-selects > a.btn {
   flex: none;
 }
+/* 기간 직접 지정 줄 — 시작일 ~ 종료일 */
+.il-dates { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.il-dates .input {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+.il-dates-sep { color: var(--muted); font-size: 12.5px; }
+.il-dates .btn { flex: none; }
 /* 세그먼트(전체/오늘/미확인) — 활성 = surface 배경 + 인디고 글자 + 얕은 그림자(가이드 §2) */
 .il-seg {
   display: inline-flex;

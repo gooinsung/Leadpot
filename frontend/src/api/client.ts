@@ -571,6 +571,8 @@ export interface InboxFilter {
   utmKey?: string;
   utmValue?: string;
   unseen?: boolean;
+  /** '오늘' 보기 — from/to 기간 안에서 오늘 접수분만. */
+  today?: boolean;
   page?: number;
   size?: number;
 }
@@ -627,6 +629,7 @@ export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {
     p.set("utmValue", filter.utmValue);
   }
   if (filter.unseen) p.set("unseen", "true");
+  if (filter.today) p.set("today", "true");
   if (filter.page != null) p.set("page", String(filter.page));
   if (filter.size != null) p.set("size", String(filter.size));
   const qs = p.toString();

@@ -60,7 +60,10 @@ export function LeadInboxPage() {
   const [formFilter, setFormFilter] = useState<number | null>(null);
   // 분야 필터(V34) — 폼에 지정한 업종 구분(개인회생 등)으로 거른다. "오늘 개인회생 전반" 용.
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [range, setRange] = useState<"all" | "7d" | "30d">("all");
+  // 기간 — 시작일·종료일(YYYY-MM-DD, 빈 값 = 열린 끝). 프리셋은 두 칸을 채워주는 지름길일 뿐이다.
+  const [rangePreset, setRangePreset] = useState<"all" | "7d" | "30d" | "custom">("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   // 유입 파라미터(출처) 필터 — "이름 선택 → 그 이름의 값 드롭다운" (faceted). '태그'와 별개 축.
   const [utmKey, setUtmKey] = useState("");
   const [utmValue, setUtmValue] = useState("");
@@ -96,9 +99,10 @@ export function LeadInboxPage() {
     try {
       const res = await getInbox({
         unseen: view === "unseen",
-        // '오늘' 세그먼트는 오늘 하루로 고정, 그 외에는 기간 셀렉트를 쓴다.
-        from: view === "today" ? today : range === "7d" ? daysAgo(6) : range === "30d" ? daysAgo(29) : undefined,
-        to: view === "today" ? today : range === "all" ? undefined : today,
+        // '오늘'은 기간을 덮어쓰지 않고 기간 안에서 좁힌다 — 세그먼트 숫자도 서버가 같은 필터 안에서 센다.
+        today: view === "today",
+        from: fromDate || undefined,
+        to: toDate || undefined,
         status: statusFilter || undefined,
         formId: formFilter ?? undefined,
         category: categoryFilter || undefined,
@@ -115,7 +119,7 @@ export function LeadInboxPage() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, statusFilter, formFilter, categoryFilter, range, utmKey, utmValue, q, page]);
+  }, [view, statusFilter, formFilter, categoryFilter, fromDate, toDate, utmKey, utmValue, q, page]);
 
   useEffect(() => {
     load();
@@ -157,7 +161,7 @@ export function LeadInboxPage() {
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [view, statusFilter, formFilter, categoryFilter, range, utmKey, utmValue, q]);
+  }, [view, statusFilter, formFilter, categoryFilter, fromDate, toDate, utmKey, utmValue, q]);
 
   const counts = data?.counts;
   const items = data?.items ?? [];
@@ -178,12 +182,29 @@ export function LeadInboxPage() {
     setStatusFilter("");
     setFormFilter(null);
     setCategoryFilter("");
-    setRange("all");
+    setRangePreset("all");
+    setFromDate("");
+    setToDate("");
     setUtmKey("");
     setUtmValue("");
     setQ("");
     setQInput("");
     setPage(1);
+  }
+
+  function applyPreset(p: typeof rangePreset) {
+    setRangePreset(p);
+    if (p === "all") {
+      setFromDate("");
+      setToDate("");
+    } else if (p === "7d") {
+      setFromDate(daysAgo(6));
+      setToDate(today);
+    } else if (p === "30d") {
+      setFromDate(daysAgo(29));
+      setToDate(today);
+    }
+    // custom: 지금 날짜를 그대로 두고 칸만 연다
   }
 
   function submitSearch(e: React.FormEvent) {
@@ -345,13 +366,14 @@ export function LeadInboxPage() {
               )}
               <select
                 className="input"
-                value={range}
-                onChange={(e) => setRange(e.target.value as typeof range)}
+                value={rangePreset}
+                onChange={(e) => applyPreset(e.target.value as typeof rangePreset)}
                 aria-label="기간 필터"
               >
                 <option value="all">전체 기간</option>
                 <option value="7d">최근 7일</option>
                 <option value="30d">최근 30일</option>
+                <option value="custom">직접 지정</option>
               </select>
               {/* 유입(출처) 필터 — 파라미터 이름을 고르면 그 이름의 값 드롭다운이 열린다.
                   유입 파라미터가 붙은 리드가 하나도 없으면 통째로 숨긴다. */}
@@ -384,6 +406,31 @@ export function LeadInboxPage() {
                 </>
               )}
             </div>
+            {/* 기간 직접 지정 — 시작일~종료일(둘 다 포함). 한쪽만 채우면 그쪽 끝만 막힌다. */}
+            {rangePreset !== "all" && (
+              <div className="il-dates">
+                <input
+                  className="input"
+                  type="date"
+                  value={fromDate}
+                  max={toDate || undefined}
+                  onChange={(e) => { setFromDate(e.target.value); setRangePreset("custom"); }}
+                  aria-label="시작일"
+                />
+                <span className="il-dates-sep">~</span>
+                <input
+                  className="input"
+                  type="date"
+                  value={toDate}
+                  min={fromDate || undefined}
+                  onChange={(e) => { setToDate(e.target.value); setRangePreset("custom"); }}
+                  aria-label="종료일"
+                />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => applyPreset("all")} aria-label="기간 해제">
+                  ×
+                </button>
+              </div>
+            )}
             <div className="il-seg" role="tablist" aria-label="보기">
               {(
                 [

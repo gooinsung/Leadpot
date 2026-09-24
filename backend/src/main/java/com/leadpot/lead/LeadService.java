@@ -219,14 +219,27 @@ public class LeadService {
     private static final int INBOX_DEFAULT_SIZE = 25;
     private static final int INBOX_MAX_SIZE = 100;
 
-    /**
-     * 통합 인박스: 내 <b>모든 리드폼의 활성 리드</b>를 한 스트림으로. 필터(상태·검색·출처폼·기간·미확인)·페이징.
-     * 왼쪽 rail 카운트는 <b>필터와 무관하게 전체 기준</b>으로 계산한다. "미확인" = 상태 {@code NEW}(신규).
-     */
+    /** {@link #inbox(Long, String, String, Long, String, String, String, String, String, boolean, boolean, Integer, Integer)} — '오늘' 보기 없이. */
     @Transactional(readOnly = true)
     public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
             String from, String to, String utmKey, String utmValue,
             boolean unseen, Integer page, Integer size) {
+        return inbox(ownerId, status, q, formId, category, from, to, utmKey, utmValue, unseen, false, page, size);
+    }
+
+    /**
+     * 통합 인박스: 내 <b>모든 리드폼의 활성 리드</b>를 한 스트림으로. 필터(상태·검색·출처폼·분야·기간·유입)·보기(오늘/미확인)·페이징.
+     *
+     * <p>세그먼트 숫자(전체·오늘·미확인)는 <b>지금 걸린 필터 안에서</b> 센다(2026-09-24 사용자 지시) —
+     * "A 리드폼 + 9/1~9/15" 로 걸러 두면 전체 = 그 조건의 리드 수, 오늘·미확인 = 그 안에서 다시 좁힌 수.
+     * '오늘'은 기간을 덮어쓰지 않고 기간 안에서 좁힌다(기간에 오늘이 없으면 0).
+     * 드롭다운 옵션 숫자(폼별·상태별·분야별)는 옵션 목록이라 전체 기준 그대로 둔다 — 걸러서 0 이 된 옵션이
+     * 사라지면 다른 값으로 바꿀 수가 없다.
+     */
+    @Transactional(readOnly = true)
+    public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
+            String from, String to, String utmKey, String utmValue,
+            boolean unseen, boolean today, Integer page, Integer size) {
         // 1) 내 폼(formId → 이름)
         Map<Long, String> nameById = new LinkedHashMap<>();
         for (FormSummary f : formService.list(ownerId)) {
@@ -242,10 +255,8 @@ public class LeadService {
         // 2) 전체 활성 리드(최신순)
         List<Lead> all = leadRepository.findByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(formIds);
 
-        // 3) 카운트 — 전체 기준(rail 숫자용). 키는 statusKey(고정 코드 | C{id}).
+        // 3) 드롭다운 옵션 카운트 — 전체 기준. 키는 statusKey(고정 코드 | C{id}).
         Instant todayStart = LocalDate.now(KST).atStartOfDay(KST).toInstant();
-        long unseenCount = 0;
-        long todayCount = 0;
         Map<Long, Long> perForm = new LinkedHashMap<>();
         formIds.forEach(id -> perForm.put(id, 0L));
         // 고정 4개는 항상 순서대로 보이게 0 으로 깔아둔다(빈 상태도 rail 에 나온다).
@@ -258,14 +269,6 @@ public class LeadService {
         for (Lead l : all) {
             String key = l.statusKey();
             byStatus.merge(key, 1L, Long::sum);
-            // 미확인 = 마케터가 아직 안 연 리드(V32). 상태(NEW)와 무관하다 —
-            // 상태는 광고주도 바꾸므로 '내가 봤는가'의 근거가 될 수 없다.
-            if (l.getSeenAt() == null) {
-                unseenCount++;
-            }
-            if (l.getCreatedAt() != null && !l.getCreatedAt().isBefore(todayStart)) {
-                todayCount++;
-            }
             perForm.merge(l.getFormId(), 1L, Long::sum);
         }
         // 분야별 카운트(전체 기준, V35) — 리드에 새겨진 분야만 센다(접수 시점 도장 + 일괄 지정분).
@@ -304,15 +307,16 @@ public class LeadService {
         boolean byUtm = !uk.isEmpty() && !uv.isEmpty();
         // 분야 필터(V35) — 리드에 새겨진 분야 기준. 지정 이전 접수분(null)은 잡히지 않는다.
         String cat = category == null ? "" : category.trim();
+        // 필터만 건 집합(scoped) → 세그먼트 숫자는 여기서 세고, 목록(filtered)은 여기에 보기(오늘/미확인)를 더 건다.
         List<Lead> filtered = new ArrayList<>();
+        long scopedCount = 0;
+        long unseenCount = 0;
+        long todayCount = 0;
         for (Lead l : all) {
             if (formId != null && !formId.equals(l.getFormId())) {
                 continue;
             }
             if (!cat.isEmpty() && !cat.equals(l.getCategory())) {
-                continue;
-            }
-            if (unseen && l.getSeenAt() != null) {
                 continue;
             }
             if (!st.isEmpty() && !st.equals(l.statusKey())) {
@@ -330,6 +334,20 @@ public class LeadService {
             if (!needle.isEmpty() && !matchesQuery(l, needle)) {
                 continue;
             }
+            scopedCount++;
+            // 미확인 = 마케터가 아직 안 연 리드(V32). 상태(NEW)와 무관하다 —
+            // 상태는 광고주도 바꾸므로 '내가 봤는가'의 근거가 될 수 없다.
+            boolean isUnseen = l.getSeenAt() == null;
+            boolean isToday = l.getCreatedAt() != null && !l.getCreatedAt().isBefore(todayStart);
+            if (isUnseen) {
+                unseenCount++;
+            }
+            if (isToday) {
+                todayCount++;
+            }
+            if ((unseen && !isUnseen) || (today && !isToday)) {
+                continue;
+            }
             filtered.add(l);
         }
 
@@ -345,7 +363,7 @@ public class LeadService {
                 .toList();
 
         return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
-                new InboxResponse.Counts(all.size(), unseenCount, todayCount, byForm, byCategory, byStatus, statusNames));
+                new InboxResponse.Counts(scopedCount, unseenCount, todayCount, byForm, byCategory, byStatus, statusNames));
     }
 
     /** "C{id}" → id. 형식이 아니면 null. */
