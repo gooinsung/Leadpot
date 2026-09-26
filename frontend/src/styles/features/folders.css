@@ -60,6 +60,27 @@
   outline-offset: -2px;
   background: var(--indigo-soft);
 }
+.folder-caret,
+.folder-caret-space {
+  flex: none;
+  width: 16px;
+  margin-right: -2px;
+}
+.folder-caret {
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.folder-caret:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
 .folder-icon {
   flex: none;
   font-size: 14px;
@@ -107,4 +128,56 @@
 }
 .row-draggable.dragging {
   opacity: 0.5;
+}
+
+/* 검색되는 드롭다운(SearchableSelect) — 랜딩 편집기의 '연결할 리드폼' 등 */
+.ss-root {
+  position: relative;
+}
+.ss-input {
+  width: 100%;
+  padding-right: 32px;
+}
+.ss-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 12px;
+  pointer-events: none;
+}
+.ss-list {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+}
+.ss-option {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ss-option.active {
+  background: var(--surface-2);
+}
+.ss-option.selected {
+  color: var(--indigo-ink);
+  font-weight: 600;
+}
+.ss-empty {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--muted);
 }

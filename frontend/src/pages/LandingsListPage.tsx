@@ -118,7 +118,7 @@ export function LandingsListPage() {
             <h1 className="dash-title">내 랜딩</h1>
             <p className="dash-sub">이미지·텍스트로 페이지를 구성하고 리드폼을 연결해 공개합니다.</p>
           </div>
-          <button className="btn btn-primary" onClick={() => navigate("/landings/new")}>+ 새 랜딩</button>
+          <button className="btn btn-primary" onClick={() => navigate(typeof selectedFolder === "number" ? `/landings/new?folder=${selectedFolder}` : "/landings/new")}>+ 새 랜딩</button>
         </div>
 
         {loading ? (
@@ -126,7 +126,7 @@ export function LandingsListPage() {
         ) : items.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 만든 랜딩이 없습니다.</p>
-            <button className="btn btn-primary" onClick={() => navigate("/landings/new")}>첫 랜딩 만들기</button>
+            <button className="btn btn-primary" onClick={() => navigate(typeof selectedFolder === "number" ? `/landings/new?folder=${selectedFolder}` : "/landings/new")}>첫 랜딩 만들기</button>
           </div>
         ) : (
           <div className="folders-layout">

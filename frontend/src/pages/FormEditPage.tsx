@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Loading } from "../components/Loading";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { FolderSelect } from "../components/FolderTree";
 import {
   ApiError,
   createForm,
+  moveFormFolder,
   getAdvertiserNotifyStatus,
   getForm,
   getSmsStatus,
@@ -261,6 +263,12 @@ export function FormEditPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
+  // 새로 만들 때 넣을 폴더. 목록에서 폴더를 고른 채 '새로 만들기'를 누르면 ?folder= 로 넘어온다.
+  const [searchParams] = useSearchParams();
+  const [newFolderId, setNewFolderId] = useState<number | null>(() => {
+    const f = Number(searchParams.get("folder"));
+    return Number.isInteger(f) && f > 0 ? f : null;
+  });
   // 마케터 수신번호의 기본값으로 쓴다(가입 때 입력한 내 연락처).
   const { user } = useAuth();
 
@@ -717,8 +725,14 @@ export function FormEditPage() {
     setError("");
     setSaving(true);
     try {
-      if (isNew) await createForm(formData);
-      else await updateForm(Number(id), formData);
+      if (isNew) {
+        const created = await createForm(formData);
+        if (newFolderId != null) {
+          await moveFormFolder(created.id, newFolderId).catch(() =>
+            toast.error("리드폼은 만들었지만 폴더에 넣지 못했습니다. 목록에서 끌어다 옮겨주세요."),
+          );
+        }
+      } else await updateForm(Number(id), formData);
       toast.success(isNew ? "리드폼을 만들었습니다." : "리드폼을 저장했습니다.");
       navigate("/forms");
     } catch (err) {
@@ -786,6 +800,7 @@ export function FormEditPage() {
             </div>
           </div>
           <div className="edit-actions">
+            {isNew && <FolderSelect kind="FORM" value={newFolderId} onChange={setNewFolderId} />}
             <button className="btn btn-ghost" onClick={() => navigate("/forms")}>취소</button>
             <button className="btn btn-primary" onClick={onSave} disabled={saving}>
               {saving ? "저장 중…" : "리드폼 저장"}
