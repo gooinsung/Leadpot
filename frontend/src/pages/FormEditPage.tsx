@@ -152,6 +152,8 @@ interface OutboundWebhookParam {
   source: "fixed" | "answer" | "builtin";
   value: string;
   varKey?: string;
+  /** true 면 값에서 숫자만 남겨 보낸다(예: 텐핑 {#ITEM_NOH#} — 하이픈 없는 연락처). */
+  digitsOnly?: boolean;
 }
 
 interface StepData {
@@ -1488,6 +1490,8 @@ export function FormEditPage() {
                             <option value="leadId">리드 번호</option>
                             <option value="submittedAt">접수 시각</option>
                             <option value="formName">리드폼 이름</option>
+                            <option value="userAgent">User-Agent(브라우저 정보)</option>
+                            <option value="referer">유입 경로(Referer)</option>
                           </select>
                         ) : (
                           <input
@@ -1497,6 +1501,16 @@ export function FormEditPage() {
                             value={p.value}
                             onChange={(e) => patchOutboundParam(i, { value: e.target.value })}
                           />
+                        )}
+                        {p.source === "answer" && (
+                          <label className="dash-sub" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, alignSelf: "center" }}>
+                            <input
+                              type="checkbox"
+                              checked={p.digitsOnly === true}
+                              onChange={(e) => patchOutboundParam(i, { digitsOnly: e.target.checked })}
+                            />
+                            숫자만(하이픈 제거)
+                          </label>
                         )}
                         <button className="btn btn-ghost btn-sm danger" onClick={() => removeOutboundParam(i)}>삭제</button>
                       </div>
