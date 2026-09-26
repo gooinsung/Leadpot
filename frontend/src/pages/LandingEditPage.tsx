@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Loading } from "../components/Loading";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { FolderSelect } from "../components/FolderTree";
+import { SearchableSelect } from "../components/SearchableSelect";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
 import { HtmlBlock, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
 import { ConceptColorField } from "../components/ConceptColorField";
@@ -10,6 +12,7 @@ import {
   getForm,
   getLanding,
   listForms,
+  moveLandingFolder,
   updateLanding,
   type FormDetail,
   type FormSummary,
@@ -54,6 +57,12 @@ export function LandingEditPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
+  // 새로 만들 때 넣을 폴더. 목록에서 폴더를 고른 채 '새로 만들기'를 누르면 ?folder= 로 넘어온다.
+  const [searchParams] = useSearchParams();
+  const [newFolderId, setNewFolderId] = useState<number | null>(() => {
+    const f = Number(searchParams.get("folder"));
+    return Number.isInteger(f) && f > 0 ? f : null;
+  });
 
   const { user } = useAuth();
   const [title, setTitle] = useState("새 랜딩");
@@ -72,6 +81,7 @@ export function LandingEditPage() {
   const [bgColor, setBgColor] = useState(""); // 랜딩페이지 전체 배경 컬러(V43). 빈 값 = 화이트(기본)
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
+  const formOptions = forms.map((f) => ({ value: f.id, label: f.name }));
   const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
   const [device, setDevice] = useState<"mobile" | "pc">("mobile");
   // 미리보기 높이는 화면에 맞춘다 — 기기 iframe 이 이 높이를 채우고 스크롤도 그 안에서만 일어난다.
@@ -163,8 +173,14 @@ export function LandingEditPage() {
     setSaving(true);
     try {
       const payload = { title, content: blocks, status, slug: slug.trim() || undefined, googleAdsSafe, bgColor: bgColor || undefined };
-      if (isNew) await createLanding(payload);
-      else await updateLanding(Number(id), payload);
+      if (isNew) {
+        const created = await createLanding(payload);
+        if (newFolderId != null) {
+          await moveLandingFolder(created.id, newFolderId).catch(() =>
+            toast.error("랜딩은 만들었지만 폴더에 넣지 못했습니다. 목록에서 끌어다 옮겨주세요."),
+          );
+        }
+      } else await updateLanding(Number(id), payload);
       setDirty(false);
       toast.success(isNew ? "랜딩을 만들었습니다." : "랜딩을 저장했습니다.");
       navigate("/landings");
@@ -187,6 +203,7 @@ export function LandingEditPage() {
             <input className="input form-name" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} />
           </div>
           <div className="edit-actions">
+            {isNew && <FolderSelect kind="LANDING" value={newFolderId} onChange={setNewFolderId} />}
             <select className="input" style={{ width: 110 }} value={status} onChange={(e) => { setStatus(e.target.value); setDirty(true); }}>
               <option value="published">공개</option>
               <option value="draft">비공개</option>
@@ -267,10 +284,12 @@ export function LandingEditPage() {
                     <>
                       <div className="field">
                         <label>연결할 리드폼</label>
-                        <select className="input" value={(b.formId as number) ?? ""} onChange={(e) => patch(i, { formId: e.target.value ? Number(e.target.value) : null })}>
-                          <option value="">리드폼 선택…</option>
-                          {forms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                        </select>
+                        <SearchableSelect
+                          value={(b.formId as number) ?? null}
+                          options={formOptions}
+                          onChange={(v) => patch(i, { formId: v })}
+                          placeholder="리드폼 선택… (클릭해서 이름으로 검색)"
+                        />
                       </div>
                       <div className="field">
                         <label>노출 방식</label>

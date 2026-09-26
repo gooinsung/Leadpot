@@ -116,7 +116,7 @@ export function FormsListPage() {
             <h1 className="dash-title">내 리드폼</h1>
             <p className="dash-sub">랜딩과 별개로 리드폼을 만들어 여러 곳에서 재사용합니다.</p>
           </div>
-          <button className="btn btn-primary" onClick={() => navigate("/forms/new")}>
+          <button className="btn btn-primary" onClick={() => navigate(typeof selectedFolder === "number" ? `/forms/new?folder=${selectedFolder}` : "/forms/new")}>
             + 새 리드폼 만들기
           </button>
         </div>
@@ -128,7 +128,7 @@ export function FormsListPage() {
         ) : forms.length === 0 ? (
           <div className="card card-pad empty-state">
             <p>아직 만든 리드폼이 없습니다.</p>
-            <button className="btn btn-primary" onClick={() => navigate("/forms/new")}>
+            <button className="btn btn-primary" onClick={() => navigate(typeof selectedFolder === "number" ? `/forms/new?folder=${selectedFolder}` : "/forms/new")}>
               첫 리드폼 만들기
             </button>
           </div>
