@@ -472,6 +472,8 @@ export interface Lead {
   browser: string | null;
   language: string | null;
   referer: string | null;
+  /** 리드가 접수된 랜딩페이지 id. null = 폼 직접 링크 등(랜딩 없음). */
+  landingPageId: number | null;
   utm: Record<string, unknown> | null;
   tags: string[] | null;
   /** 분야(V35) — 접수 시점 도장 또는 일괄 지정. null = 없음. */
