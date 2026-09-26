@@ -8,6 +8,15 @@
 
 ## 📍 지금 위치
 
+- **✅ 이미지 도메인 전환 r2.dev → img.lead-pot.com (2026-09-26, 원격 세션, 사용자 지시)**:
+  - **원인**: 업로드 이미지 공개 주소가 `pub-….r2.dev`(Cloudflare 개발용 — CDN 캐시 없음·속도 제한) → 랜딩 이미지가 느리게 뜸.
+  - **사용자가 한 일**: R2 버킷에 커스텀 도메인 `img.lead-pot.com` 연결 + Workers Routes 에 `img.lead-pot.com/*` → Worker None 예외
+    (와일드카드 렌더러 라우트가 가로채지 않게) + Railway `APP_STORAGE_R2_PUBLIC_BASE_URL=https://img.lead-pot.com`.
+  - **코드**: `common/upload/LegacyImageUrlFilter` — 공개 랜딩(`/api/public/sites/**`)·공개 리드폼(`/api/public/forms/**`) 응답에서
+    옛 r2.dev 앞부분을 새 도메인으로 치환(DB 는 안 고침, `app.storage.r2.legacy-public-base-url` 비우면 즉시 원복). 단위 테스트 3건.
+  - ⚠️ **R2 의 r2.dev 공개 접근은 아직 끄면 안 된다** — 관리 화면(편집기)은 DB 의 옛 주소를 그대로 쓴다. 끄려면 DB 일괄 치환 먼저.
+  - **남은 개선(사용자 확인 대기)**: 업로드 시 리사이즈·압축(가로 1080px), 첫 이미지 우선·나머지 lazy·자리 잡기.
+
 - **✅ 폴더 접기 · 만들 때 폴더 지정 · 랜딩의 리드폼 검색 (2026-09-26, 원격 세션, 사용자 지시)**:
   - **폴더 접기**: `FolderTree` 에서 하위 폴더가 있으면 ▸/▾ 로 접고 편다(랜딩·리드폼 목록 공통). 접힌 상태는 브라우저 localStorage(`leadpot.folderTree.collapsed.{kind}`)에 기억.
   - **만들 때 폴더 지정**: 새 랜딩·새 리드폼 화면 상단에 폴더 드롭다운(`FolderSelect`). 목록에서 폴더를 고른 채 '새로 만들기'를 누르면 `?folder=` 로 그 폴더가 기본 선택.
