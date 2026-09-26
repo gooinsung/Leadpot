@@ -124,7 +124,10 @@ public class OutboundWebhookService {
 
     /**
      * {@code outboundWebhookParams}(파라미터명·값 소스 목록)를 이 리드 값으로 채운다.
-     * source: {@code fixed}(고정값) · {@code answer}(varKey 로 답변 찾기) · {@code builtin}(ip·leadId·submittedAt·formName).
+     * source: {@code fixed}(고정값) · {@code answer}(varKey 로 답변 찾기) ·
+     * {@code builtin}(ip·leadId·submittedAt·formName·userAgent·referer).
+     * {@code digitsOnly=true} 면 값에서 숫자만 남긴다 — 텐핑 {@code {#ITEM_NOH#}} 처럼
+     * 하이픈 없는 연락처를 요구하는 곳용(공개 폼 3칸 연락처는 {@code 010-1234-5678} 로 저장된다).
      */
     @SuppressWarnings("unchecked")
     private Map<String, String> buildParams(Form form, Lead lead) {
@@ -157,6 +160,9 @@ public class OutboundWebhookService {
                 case "builtin" -> builtinValue(str(m.get("value")), form, lead);
                 default -> str(m.get("value")); // fixed
             };
+            if (Boolean.TRUE.equals(m.get("digitsOnly"))) {
+                value = value.replaceAll("\\D", "");
+            }
             out.put(name, value);
         }
         return out;
@@ -168,6 +174,8 @@ public class OutboundWebhookService {
             case "leadId" -> String.valueOf(lead.getId());
             case "submittedAt" -> lead.getCreatedAt() != null ? lead.getCreatedAt().toString() : "";
             case "formName" -> nn(form.getName());
+            case "userAgent" -> nn(lead.getUserAgent());
+            case "referer" -> nn(lead.getReferer());
             default -> "";
         };
     }
