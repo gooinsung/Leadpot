@@ -421,6 +421,9 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
 /* 태그 편집(패널) */
 .ip-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ip-tag { display: inline-flex; align-items: center; gap: 6px; }
+.ip-utm-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ip-utm-tag { white-space: normal; overflow-wrap: anywhere; font-weight: 500; text-align: left; }
+.ip-utm-k { color: var(--muted); margin-right: 2px; }
 .ip-tag-input { width: 150px; height: 30px; padding: 2px 8px; font-size: 13px; }
 
 /* 사이드 패널 · 서랍 변형(drawer) — 일반 페이지(폼별 리드 목록)에서 우측에 겹쳐 뜬다.

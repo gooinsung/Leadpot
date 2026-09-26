@@ -10,6 +10,8 @@ import com.leadpot.lead.Lead;
 public record LeadResponse(
         Long id,
         Long formId,
+        /** 리드가 접수된 랜딩페이지 id. null = 랜딩 없이 폼 직접 링크(/f/{id}) 등. 상세의 '유입' URL 계산용. */
+        Long landingPageId,
         List<Map<String, Object>> answers,
         List<Map<String, Object>> consents,
         String status,
@@ -42,6 +44,7 @@ public record LeadResponse(
         return new LeadResponse(
                 l.getId(),
                 l.getFormId(),
+                l.getLandingPageId(),
                 l.getAnswers(),
                 l.getConsents(),
                 l.getStatus(),

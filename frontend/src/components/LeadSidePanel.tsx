@@ -20,7 +20,9 @@ import {
   type LeadStatusOption,
 } from "../api/client";
 import { leadStatusClass, pickName, pickPhone } from "../lib/leadDisplay";
-import { trackingKeyLabel } from "../lib/tracking";
+import { TRACKING_KEY_LABELS, trackingKeyLabel } from "../lib/tracking";
+import { useAuth } from "../lib/authContext";
+import { publicSiteUrl } from "@leadpot/public-ui";
 
 /** 확신 등급 배지 문구(V33). 등급 정의는 api/client.ts 의 AdvertiserActivityLevel 참고. */
 const ADV_LEVEL_LABEL: Record<string, string> = {
@@ -76,6 +78,7 @@ export function LeadSidePanel({
   onChanged,
   showFormLink,
 }: Props) {
+  const { user } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -246,6 +249,21 @@ export function LeadSidePanel({
     </div>
   );
 
+  /**
+   * '유입' = 리드가 들어온 실제 랜딩 주소. Referer 헤더는 브라우저 정책상 도메인까지만 오는 경우가
+   * 많아(https://sub.lead-pot.com/) 랜딩 id 로 주소를 만든다. 랜딩이 없으면(폼 직접 링크) Referer 로 대신한다.
+   */
+  const landingUrl = lead
+    ? lead.landingPageId != null && user?.subdomain
+      ? publicSiteUrl(user.subdomain, lead.landingPageId)
+      : lead.referer
+    : null;
+  /** 출처(유입 파라미터) — 키 라벨 순서(자체 파라미터 먼저)대로, 빈 값은 뺀다. */
+  const labelOrder = Object.keys(TRACKING_KEY_LABELS);
+  const utmEntries = Object.entries(lead?.utm ?? {})
+    .filter(([, v]) => v != null && String(v).trim() !== "")
+    .sort(([a], [b]) => (labelOrder.indexOf(a) + 1 || 99) - (labelOrder.indexOf(b) + 1 || 99));
+
   const visitorSection = lead && (
     <div className="card card-pad ip-answers">
       <div className="ip-section-label" style={{ marginTop: 0 }}>방문자</div>
@@ -257,13 +275,24 @@ export function LeadSidePanel({
         <span className="ip-k">IP · 언어</span>
         <span className="ip-v">{`${lead.submitterIp ?? "-"} · ${lead.language ?? "-"}`}</span>
       </div>
-      {lead.referer && (
-        <div className="ip-answer"><span className="ip-k">유입</span><span className="ip-v">{lead.referer}</span></div>
+      {landingUrl && (
+        <div className="ip-answer">
+          <span className="ip-k">유입</span>
+          <span className="ip-v">
+            <a href={landingUrl} target="_blank" rel="noreferrer">{landingUrl}</a>
+          </span>
+        </div>
       )}
-      {lead.utm && Object.keys(lead.utm).length > 0 && (
+      {utmEntries.length > 0 && (
         <div className="ip-answer">
           <span className="ip-k">출처</span>
-          <span className="ip-v">{Object.entries(lead.utm).map(([k, v]) => `${trackingKeyLabel(k)} ${v}`).join(" · ")}</span>
+          <span className="ip-v ip-utm-tags">
+            {utmEntries.map(([k, v]) => (
+              <span key={k} className="badge ip-utm-tag">
+                <span className="ip-utm-k">{trackingKeyLabel(k)}:</span> {String(v)}
+              </span>
+            ))}
+          </span>
         </div>
       )}
     </div>
