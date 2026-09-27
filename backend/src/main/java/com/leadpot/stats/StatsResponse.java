@@ -33,19 +33,20 @@ public record StatsResponse(
      * 요약 지표.
      * uniqueVisits = 고유 방문(IP 해시 distinct), totalVisits = 총 트래픽(중복 포함 전체 접속).
      * conversionRate = 리드/순방문 * 100 (순방문 0이면 0).
+     * revenue = 수익(원) — 기간 내 접수 리드(상태 무관)의 리드당 가치 합(V44, {@link com.leadpot.form.LeadValues}).
      */
-    public record Summary(long uniqueVisits, long totalVisits, long leads, double conversionRate) {
+    public record Summary(long uniqueVisits, long totalVisits, long leads, double conversionRate, long revenue) {
     }
 
     /** 일별: visits = 총 트래픽(중복 포함), leads = 접수. */
-    public record DayPoint(String date, long visits, long leads) {
+    public record DayPoint(String date, long visits, long leads, long revenue) {
     }
 
     public record Count(String key, long count) {
     }
 
     public record EntityCount(Long id, String name, long uniqueVisits, long totalVisits, long leads,
-            double conversionRate) {
+            double conversionRate, long revenue) {
     }
 
     /**
@@ -56,7 +57,8 @@ public record StatsResponse(
     public record UtmTable(String key, List<UtmRow> rows) {
     }
 
-    public record UtmRow(String value, long uniqueVisits, long totalVisits, long leads, double conversionRate) {
+    public record UtmRow(String value, long uniqueVisits, long totalVisits, long leads, double conversionRate,
+            long revenue) {
     }
 
     /**
@@ -77,5 +79,16 @@ public record StatsResponse(
 
     /** 스크롤 임계값(25/50/75/100) 하나의 도달 현황. */
     public record ScrollPoint(int depth, long reached, double rate) {
+    }
+
+    /**
+     * 수익 요약(가벼운 조회 — 리드만 읽는다). 대시보드의 오늘·이번 달 수익, 리드폼·랜딩 목록의 기간 수익용.
+     * byForm/byLanding 의 id 가 null 이면 '랜딩 없음(직접 리드폼)'.
+     */
+    public record Revenue(String from, String to, long leads, long revenue,
+            List<RevenueRow> byForm, List<RevenueRow> byLanding) {
+    }
+
+    public record RevenueRow(Long id, long leads, long revenue) {
     }
 }

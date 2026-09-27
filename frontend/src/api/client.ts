@@ -1077,6 +1077,8 @@ export interface StatDayPoint {
   date: string;
   visits: number;
   leads: number;
+  /** 수익(원) — 그날 접수 리드의 리드당 가치 합(V44) */
+  revenue: number;
 }
 export interface StatEntityCount {
   id: number | null;
@@ -1085,11 +1087,13 @@ export interface StatEntityCount {
   totalVisits: number;
   leads: number;
   conversionRate: number;
+  revenue: number;
 }
 export interface StatsOverview {
   from: string;
   to: string;
-  summary: { uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number };
+  /** revenue = 수익(원): 기간 내 접수 리드(상태 무관)의 리드당 가치 합 */
+  summary: { uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number; revenue: number };
   byDay: StatDayPoint[];
   byDevice: StatCount[];
   byOs: StatCount[];
@@ -1114,7 +1118,7 @@ export interface StatsOverview {
 }
 export interface StatUtmTable {
   key: string; // media_from | campaign_name | adset_name | ads_name
-  rows: { value: string; uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number }[];
+  rows: { value: string; uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number; revenue: number }[];
 }
 export interface StatFunnel {
   visits: number; // 순방문
@@ -1151,6 +1155,28 @@ export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
   }
   const qs = p.toString();
   return request<StatsOverview>(`/api/stats/overview${qs ? `?${qs}` : ""}`);
+}
+
+/** 수익 요약 — 합계 + 리드폼별·랜딩별(id null = 랜딩 없음). 대시보드·목록용 가벼운 조회. */
+export interface RevenueRow {
+  id: number | null;
+  leads: number;
+  revenue: number;
+}
+export interface RevenueSummary {
+  from: string;
+  to: string;
+  leads: number;
+  revenue: number;
+  byForm: RevenueRow[];
+  byLanding: RevenueRow[];
+}
+export function getRevenue(from?: string, to?: string): Promise<RevenueSummary> {
+  const p = new URLSearchParams();
+  if (from) p.set("from", from);
+  if (to) p.set("to", to);
+  const qs = p.toString();
+  return request<RevenueSummary>(`/api/stats/revenue${qs ? `?${qs}` : ""}`);
 }
 
 /**

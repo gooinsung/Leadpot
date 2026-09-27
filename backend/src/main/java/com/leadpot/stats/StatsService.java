@@ -95,11 +95,12 @@ public class StatsService {
                 .toList();
 
         // 유입별 비교 표는 유입 필터가 걸리기 전 데이터로 만든다 — 한 값을 골라도 표에서 다른 값과 비교할 수 있게.
+        Function<Lead, Long> utmValueFn = leadValueFn(ownerId);
         List<StatsResponse.UtmTable> utmTables = List.of(
-                utmTable("media_from", leads, visits),
-                utmTable("campaign_name", leads, visits),
-                utmTable("adset_name", leads, visits),
-                utmTable("ads_name", leads, visits));
+                utmTable("media_from", leads, visits, utmValueFn),
+                utmTable("campaign_name", leads, visits, utmValueFn),
+                utmTable("adset_name", leads, visits, utmValueFn),
+                utmTable("ads_name", leads, visits, utmValueFn));
 
         // 유입 필터 — 그 유입의 리드·방문만 남긴다. "(없음)" 은 파라미터 없는(오가닉) 것.
         if (utmKey != null && !utmKey.isBlank() && utmValue != null && !utmValue.isBlank()) {
@@ -121,6 +122,7 @@ public class StatsService {
         for (Form f : formRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId)) {
             formNames.put(f.getId(), f.getName());
         }
+        Function<Lead, Long> value = leadValueFn(ownerId);
         Map<Long, String> landingNames = new LinkedHashMap<>();
         for (LandingPage lp : landingRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId)) {
             landingNames.put(lp.getId(), lp.getTitle());
@@ -130,12 +132,14 @@ public class StatsService {
         long totalLeads = leads.size();
 
         long uniqueVisits = uniqueCount(visits);
+        long revenue = leads.stream().mapToLong(value::apply).sum();
 
         return new StatsResponse(
                 from.toString(),
                 to.toString(),
-                new StatsResponse.Summary(uniqueVisits, totalVisits, totalLeads, rate(totalLeads, uniqueVisits)),
-                byDay(leads, visits, from, to),
+                new StatsResponse.Summary(uniqueVisits, totalVisits, totalLeads, rate(totalLeads, uniqueVisits),
+                        revenue),
+                byDay(leads, visits, from, to, value),
                 leadCounts(leads, l -> blankTo(l.getDevice(), "기타")),
                 leadCounts(leads, l -> blankTo(l.getOs(), "기타")),
                 leadCounts(leads, l -> blankTo(l.getBrowser(), "기타")),
@@ -148,12 +152,67 @@ public class StatsService {
                 leadCounts(leads, l -> utm(l.getUtm(), "ads_name")),
                 topReferers(leads),
                 leadCounts(leads, statusLabeler(leads)),
-                byLanding(leads, visits, landingNames),
-                byForm(leads, visits, formNames),
+                byLanding(leads, visits, landingNames, value),
+                byForm(leads, visits, formNames, value),
                 utmTables,
                 funnel(uniqueVisits, events, totalLeads),
                 byEvent(events),
                 journey(uniqueVisits, events));
+    }
+
+    /**
+     * 한 리드의 가치(원) 함수 — 도장 값(V44)이 있으면 그것, 없으면(기능 도입 전 리드) 리드폼의 현재 단가.
+     * 상태와 무관하게 접수된 리드 전부를 센다(2026-09-27 사용자 확정).
+     */
+    private Function<Lead, Long> leadValueFn(Long ownerId) {
+        Map<Long, Long> current = new java.util.HashMap<>();
+        for (Form f : formRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId)) {
+            Long v = com.leadpot.form.LeadValues.of(f.getSettingsConfig());
+            if (v != null) current.put(f.getId(), v);
+        }
+        return l -> com.leadpot.form.LeadValues.effective(l.getLeadValue(), current.get(l.getFormId()));
+    }
+
+    /**
+     * 수익 요약(리드만 읽는 가벼운 집계). 기간 규칙은 {@link #overview} 와 같다(KST, 기본 30일, 최대 366일).
+     */
+    @Transactional(readOnly = true)
+    public StatsResponse.Revenue revenue(Long ownerId, LocalDate from, LocalDate to) {
+        LocalDate today = LocalDate.now(KST);
+        if (to == null) to = today;
+        if (from == null) from = to.minusDays(DEFAULT_DAYS - 1L);
+        if (from.isAfter(to)) {
+            LocalDate t = from; from = to; to = t;
+        }
+        if (from.isBefore(to.minusDays(MAX_DAYS - 1L))) {
+            from = to.minusDays(MAX_DAYS - 1L);
+        }
+        List<Lead> leads = leadRepository.findByOwnerBetween(ownerId,
+                from.atStartOfDay(KST).toInstant(), to.plusDays(1).atStartOfDay(KST).toInstant());
+        Function<Lead, Long> value = leadValueFn(ownerId);
+        long total = 0;
+        Map<Long, long[]> byForm = new LinkedHashMap<>();
+        Map<Long, long[]> byLanding = new LinkedHashMap<>();
+        for (Lead l : leads) {
+            long v = value.apply(l);
+            total += v;
+            long[] f = byForm.computeIfAbsent(nz(l.getFormId()), k -> new long[2]);
+            f[0]++;
+            f[1] += v;
+            long[] lp = byLanding.computeIfAbsent(nz(l.getLandingPageId()), k -> new long[2]);
+            lp[0]++;
+            lp[1] += v;
+        }
+        return new StatsResponse.Revenue(from.toString(), to.toString(), leads.size(), total,
+                revenueRows(byForm), revenueRows(byLanding));
+    }
+
+    private static List<StatsResponse.RevenueRow> revenueRows(Map<Long, long[]> m) {
+        return m.entrySet().stream()
+                .map(e -> new StatsResponse.RevenueRow(e.getKey() == -1L ? null : e.getKey(),
+                        e.getValue()[0], e.getValue()[1]))
+                .sorted((a, b) -> Long.compare(b.revenue(), a.revenue()))
+                .toList();
     }
 
     /** 상태 라벨 함수(통합 축 V29) — 등장한 커스텀 상태 이름을 한 번에 조회해 붙인다. */
@@ -230,10 +289,11 @@ public class StatsService {
     }
 
     /** 기간 내 각 날짜의 방문/리드 수(빈 날짜 0, 오름차순). */
-    private List<StatsResponse.DayPoint> byDay(List<Lead> leads, List<Visit> visits, LocalDate from, LocalDate to) {
-        Map<LocalDate, long[]> m = new LinkedHashMap<>(); // [visits, leads]
+    private List<StatsResponse.DayPoint> byDay(List<Lead> leads, List<Visit> visits, LocalDate from, LocalDate to,
+            Function<Lead, Long> value) {
+        Map<LocalDate, long[]> m = new LinkedHashMap<>(); // [visits, leads, revenue]
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
-            m.put(d, new long[2]);
+            m.put(d, new long[3]);
         }
         for (Visit v : visits) {
             if (v.getCreatedAt() == null) continue;
@@ -243,10 +303,13 @@ public class StatsService {
         for (Lead l : leads) {
             if (l.getCreatedAt() == null) continue;
             long[] c = m.get(l.getCreatedAt().atZone(KST).toLocalDate());
-            if (c != null) c[1]++;
+            if (c != null) {
+                c[1]++;
+                c[2] += value.apply(l);
+            }
         }
         List<StatsResponse.DayPoint> out = new ArrayList<>();
-        m.forEach((d, c) -> out.add(new StatsResponse.DayPoint(d.toString(), c[0], c[1])));
+        m.forEach((d, c) -> out.add(new StatsResponse.DayPoint(d.toString(), c[0], c[1], c[2])));
         return out;
     }
 
@@ -263,23 +326,30 @@ public class StatsService {
         return leadCounts(leads, l -> host(l.getReferer())).stream().limit(10).toList();
     }
 
-    private List<StatsResponse.EntityCount> byLanding(List<Lead> leads, List<Visit> visits, Map<Long, String> names) {
+    private List<StatsResponse.EntityCount> byLanding(List<Lead> leads, List<Visit> visits, Map<Long, String> names,
+            Function<Lead, Long> value) {
         return byEntity(leads, visits, l -> nz(l.getLandingPageId()), v -> nz(v.getLandingPageId()),
-                id -> id == -1L ? "랜딩 없음(직접 리드폼)" : names.getOrDefault(id, "(삭제된 랜딩)"));
+                id -> id == -1L ? "랜딩 없음(직접 리드폼)" : names.getOrDefault(id, "(삭제된 랜딩)"), value);
     }
 
-    private List<StatsResponse.EntityCount> byForm(List<Lead> leads, List<Visit> visits, Map<Long, String> names) {
+    private List<StatsResponse.EntityCount> byForm(List<Lead> leads, List<Visit> visits, Map<Long, String> names,
+            Function<Lead, Long> value) {
         return byEntity(leads, visits, l -> nz(l.getFormId()), v -> nz(v.getFormId()),
-                id -> id == -1L ? "리드폼 없음" : names.getOrDefault(id, "(삭제된 리드폼)"));
+                id -> id == -1L ? "리드폼 없음" : names.getOrDefault(id, "(삭제된 리드폼)"), value);
     }
 
     /** 대상(랜딩/리드폼)별 순방문/총트래픽/리드/전환율 집계. */
     private List<StatsResponse.EntityCount> byEntity(List<Lead> leads, List<Visit> visits,
-            Function<Lead, Long> leadKey, Function<Visit, Long> visitKey, Function<Long, String> nameFn) {
+            Function<Lead, Long> leadKey, Function<Visit, Long> visitKey, Function<Long, String> nameFn,
+            Function<Lead, Long> value) {
         Map<Long, List<Visit>> visitsByKey = new LinkedHashMap<>();
         Map<Long, Long> leadsByKey = new LinkedHashMap<>();
+        Map<Long, Long> revenueByKey = new LinkedHashMap<>();
         for (Visit v : visits) visitsByKey.computeIfAbsent(visitKey.apply(v), k -> new ArrayList<>()).add(v);
-        for (Lead l : leads) leadsByKey.merge(leadKey.apply(l), 1L, Long::sum);
+        for (Lead l : leads) {
+            leadsByKey.merge(leadKey.apply(l), 1L, Long::sum);
+            revenueByKey.merge(leadKey.apply(l), value.apply(l), Long::sum);
+        }
 
         java.util.Set<Long> keys = new java.util.LinkedHashSet<>();
         keys.addAll(visitsByKey.keySet());
@@ -292,7 +362,8 @@ public class StatsService {
                     long unique = uniqueCount(vs);
                     long le = leadsByKey.getOrDefault(key, 0L);
                     Long id = key == -1L ? null : key;
-                    return new StatsResponse.EntityCount(id, nameFn.apply(key), unique, total, le, rate(le, unique));
+                    return new StatsResponse.EntityCount(id, nameFn.apply(key), unique, total, le, rate(le, unique),
+                            revenueByKey.getOrDefault(key, 0L));
                 })
                 .sorted((a, b) -> Long.compare(b.leads() + b.totalVisits(), a.leads() + a.totalVisits()))
                 .toList();
@@ -302,11 +373,16 @@ public class StatsService {
      * 유입 파라미터 한 키의 값별 성과 표. 방문·리드 양쪽에 같은 키가 저장돼 있어
      * 값별 방문·전환율이 실제로 계산된다. 정렬은 리드 많은 순 → 방문 많은 순.
      */
-    private StatsResponse.UtmTable utmTable(String key, List<Lead> leads, List<Visit> visits) {
+    private StatsResponse.UtmTable utmTable(String key, List<Lead> leads, List<Visit> visits,
+            Function<Lead, Long> leadValue) {
         Map<String, List<Visit>> visitsByValue = new LinkedHashMap<>();
         Map<String, Long> leadsByValue = new LinkedHashMap<>();
+        Map<String, Long> revenueByValue = new LinkedHashMap<>();
         for (Visit v : visits) visitsByValue.computeIfAbsent(utm(v.getUtm(), key), k -> new ArrayList<>()).add(v);
-        for (Lead l : leads) leadsByValue.merge(utm(l.getUtm(), key), 1L, Long::sum);
+        for (Lead l : leads) {
+            leadsByValue.merge(utm(l.getUtm(), key), 1L, Long::sum);
+            revenueByValue.merge(utm(l.getUtm(), key), leadValue.apply(l), Long::sum);
+        }
 
         java.util.Set<String> values = new java.util.LinkedHashSet<>();
         values.addAll(visitsByValue.keySet());
@@ -318,7 +394,8 @@ public class StatsService {
                     long total = vs.size();
                     long unique = uniqueCount(vs);
                     long le = leadsByValue.getOrDefault(value, 0L);
-                    return new StatsResponse.UtmRow(value, unique, total, le, rate(le, unique));
+                    return new StatsResponse.UtmRow(value, unique, total, le, rate(le, unique),
+                            revenueByValue.getOrDefault(value, 0L));
                 })
                 .sorted((a, b) -> a.leads() == b.leads()
                         ? Long.compare(b.totalVisits(), a.totalVisits())

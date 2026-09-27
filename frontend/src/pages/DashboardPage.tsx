@@ -4,6 +4,7 @@ import {
   ApiError,
   getHealth,
   getInbox,
+  getRevenue,
   getStats,
   leadsCount,
   listForms,
@@ -35,6 +36,9 @@ export function DashboardPage() {
 
   // "오늘 들어온 리드" 미리보기(리디자인 §5) — 인박스 API 재사용, 4행 + 인박스 링크.
   const [todayLeads, setTodayLeads] = useState<InboxItem[] | null>(null);
+  // 수익(리드당 가치 합, V44) — 오늘 / 이번 달
+  const [todayRevenue, setTodayRevenue] = useState<number | null>(null);
+  const [monthRevenue, setMonthRevenue] = useState<number | null>(null);
   const [statusNames, setStatusNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -49,6 +53,12 @@ export function DashboardPage() {
     getStats({ from: today, to: today })
       .then((s) => setTodayVisits(s.summary.totalVisits))
       .catch(() => setTodayVisits(0));
+    getRevenue(today, today)
+      .then((r) => setTodayRevenue(r.revenue))
+      .catch(() => setTodayRevenue(0));
+    getRevenue(`${d.getFullYear()}-${p(d.getMonth() + 1)}-01`, today)
+      .then((r) => setMonthRevenue(r.revenue))
+      .catch(() => setMonthRevenue(0));
     getInbox({ from: today, to: today, size: 4 })
       .then((r) => {
         setTodayLeads(r.items);
@@ -104,6 +114,14 @@ export function DashboardPage() {
           <div className="kpi card row-click" onClick={() => navigate("/stats")}>
             <div className="k-label">오늘 유입</div>
             <div className="k-val">{num(todayVisits)}</div>
+          </div>
+          <div className="kpi card row-click" onClick={() => navigate("/stats")} title="오늘 접수된 리드의 리드당 가치 합">
+            <div className="k-label">오늘 수익</div>
+            <div className="k-val">{num(todayRevenue)}{todayRevenue != null && <span style={{ fontSize: 16 }}>원</span>}</div>
+          </div>
+          <div className="kpi card row-click" onClick={() => navigate("/stats")} title="이번 달 1일부터 오늘까지 접수된 리드의 리드당 가치 합">
+            <div className="k-label">이번 달 수익</div>
+            <div className="k-val">{num(monthRevenue)}{monthRevenue != null && <span style={{ fontSize: 16 }}>원</span>}</div>
           </div>
           <div className="kpi card row-click" onClick={() => navigate("/forms")}>
             <div className="k-label">리드폼</div>

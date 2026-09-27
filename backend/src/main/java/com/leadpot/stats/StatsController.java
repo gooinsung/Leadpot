@@ -41,6 +41,15 @@ public class StatsController {
         return statsService.overview(Long.valueOf(jwt.getSubject()), from, to, landingId, formId, utmKey, utmValue);
     }
 
+    /** 수익 요약 — 대시보드(오늘·이번 달)·리드폼/랜딩 목록(기간 수익)용 가벼운 조회. */
+    @GetMapping("/revenue")
+    public StatsResponse.Revenue revenue(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return statsService.revenue(Long.valueOf(jwt.getSubject()), from, to);
+    }
+
     /**
      * 통계 보고서 엑셀 — 화면 필터(기간·대상·유입) 그대로 + 섹션 선택.
      * body.sections 가 비어 있으면 전체 섹션. 섹션 키 목록은 {@link StatsExportService} 참고.
