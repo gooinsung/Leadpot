@@ -10,11 +10,13 @@ import { Pagination, usePaging } from "../components/Pagination";
 import { runBulk, useSelection } from "../lib/useSelection";
 import { AdUrlBuilder } from "../components/AdUrlBuilder";
 import { FolderTree, type FolderSelection } from "../components/FolderTree";
+import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/RevenuePeriod";
 
 export function LandingsListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const sub = user?.subdomain ?? "";
+  const revenue = useRevenueByEntity();
   const [items, setItems] = useState<LandingSummary[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(null);
@@ -160,7 +162,9 @@ export function LandingsListPage() {
                           <th className="sel-col">
                             <input type="checkbox" checked={sel.allSelected} onChange={sel.toggleAll} aria-label="전체 선택" />
                           </th>
-                          <th>제목</th><th>공개 주소</th><th>상태</th><th>수정일</th><th></th>
+                          <th>제목</th><th>공개 주소</th><th>상태</th>
+                          <th className="num"><RevenueHeader period={revenue.period} onChange={revenue.setPeriod} /></th>
+                          <th>수정일</th><th></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -187,6 +191,7 @@ export function LandingsListPage() {
                             <td>{l.title}</td>
                             <td className="num">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
                             <td><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
+                            <td className="num"><RevenueCell row={revenue.byLanding.get(l.id)} /></td>
                             <td className="num">{new Date(l.updatedAt).toLocaleString("ko-KR")}</td>
                             <td onClick={(e) => e.stopPropagation()}>
                               {l.status === "published" && sub && (

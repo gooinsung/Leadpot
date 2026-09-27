@@ -108,6 +108,13 @@ public class Lead {
     @Column(length = 50)
     private String category;
 
+    /**
+     * 리드당 가치(원, V44) — 접수 순간 리드폼 단가({@code settingsConfig.leadValue})를 새긴다.
+     * 분야와 같은 이유로 소급하지 않는다. null = 기능 도입 전 리드(통계는 폼의 현재 단가로 계산).
+     */
+    @Column(name = "lead_value")
+    private Long leadValue;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -319,6 +326,14 @@ public class Lead {
     /** 빈 문자열은 null 로(분야 드롭다운에 빈 항목 방지). */
     public void setCategory(String category) {
         this.category = category == null || category.isBlank() ? null : category.trim();
+    }
+
+    public Long getLeadValue() {
+        return leadValue;
+    }
+
+    public void setLeadValue(Long leadValue) {
+        this.leadValue = leadValue;
     }
 
     public List<String> getTags() {

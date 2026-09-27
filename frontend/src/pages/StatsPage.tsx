@@ -114,7 +114,7 @@ export function StatsPage() {
   }, [filter, from, to]);
 
   const empty = stats && stats.summary.totalVisits === 0 && stats.summary.leads === 0;
-  const buckets = useMemo(() => (stats ? bucketize(stats.byDay, grain) : []), [stats, grain]);
+  const buckets = useMemo(() => (stats ? bucketize(stats.byDay, grain, true) : []), [stats, grain]);
   // 유입별 표 — 값이 "(없음)"뿐인 축은 굳이 보여줄 게 없다(전부 오가닉). 탭에서 흐리게 표시.
   const utmTables = stats?.byUtmTables ?? [];
   const currentUtmRows = utmTables.find((t) => t.key === utmTab)?.rows ?? [];
@@ -234,7 +234,16 @@ export function StatsPage() {
               <div className="kpi card"><div className="k-label">총 트래픽<span className="k-hint">중복 포함</span></div><div className="k-val">{stats.summary.totalVisits.toLocaleString("ko-KR")}</div></div>
               <div className="kpi card"><div className="k-label">접수(리드)</div><div className="k-val">{stats.summary.leads.toLocaleString("ko-KR")}</div></div>
               <div className="kpi card"><div className="k-label">전환율<span className="k-hint">순 방문 대비</span></div><div className="k-val">{stats.summary.conversionRate}<span style={{ fontSize: 16 }}>%</span></div></div>
+              <div className="kpi card" title="기간 내 접수된 리드(상태 무관)의 리드당 가치 합. 리드당 가치는 리드폼 편집 화면에서 설정합니다.">
+                <div className="k-label">수익<span className="k-hint">리드당 가치 합</span></div>
+                <div className="k-val">{stats.summary.revenue.toLocaleString("ko-KR")}<span style={{ fontSize: 16 }}>원</span></div>
+              </div>
             </div>
+            {stats.summary.leads > 0 && stats.summary.revenue === 0 && (
+              <p className="dash-sub" style={{ marginTop: -8, marginBottom: 16, fontSize: 12.5 }}>
+                수익이 0원이면 리드폼에 리드당 가치가 설정되지 않은 것입니다 — 리드폼 편집 화면 상단 '리드당 가치'에 금액을 넣어주세요.
+              </p>
+            )}
 
             {empty && (
               <div className="card card-pad empty-state" style={{ marginBottom: 20 }}>
@@ -280,6 +289,7 @@ export function StatsPage() {
                 rows={currentUtmRows}
                 activeValue={utmSel?.key === utmTab ? utmSel.value : null}
                 onPick={(value) => setUtmSel(utmSel?.key === utmTab && utmSel.value === value ? null : { key: utmTab, value })}
+                showRevenue
               />
               <p className="dash-sub" style={{ marginTop: 10, fontSize: 12 }}>
                 행을 클릭하면 페이지 전체가 그 유입만으로 다시 계산됩니다. "(없음)" = 파라미터 없이 들어온 방문·리드(직접 유입 등).
@@ -288,8 +298,8 @@ export function StatsPage() {
 
             {/* 랜딩별 / 리드폼별 */}
             <div className="stats-grid">
-              <EntityTable title="랜딩페이지별" rows={stats.byLanding} onPick={(id) => setTarget(id == null ? "all" : `landing:${id}`)} />
-              <EntityTable title="리드폼별" rows={stats.byForm} onPick={(id) => setTarget(id == null ? "all" : `form:${id}`)} />
+              <EntityTable title="랜딩페이지별" rows={stats.byLanding} onPick={(id) => setTarget(id == null ? "all" : `landing:${id}`)} showRevenue />
+              <EntityTable title="리드폼별" rows={stats.byForm} onPick={(id) => setTarget(id == null ? "all" : `form:${id}`)} showRevenue />
             </div>
 
             {/* 상세 dimension (리드 기준) */}

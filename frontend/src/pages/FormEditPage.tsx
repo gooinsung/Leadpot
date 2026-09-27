@@ -275,6 +275,8 @@ export function FormEditPage() {
   const [name, setName] = useState("새 리드폼");
   // 분야(업종 구분: 개인회생·장기렌트 등, V34) — 인박스에서 분야로 거른다. '태그'(리드 손태그)와 별개.
   const [category, setCategory] = useState("");
+  /** 리드당 가치(원) — 숫자만(쉼표 없이) 보관. 빈 문자열 = 미설정. 접수 순간 리드에 새겨져 수익 집계에 쓰인다(V44). */
+  const [leadValue, setLeadValue] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]); // 내 폼들의 기존 분야(datalist)
   const [formType, setFormType] = useState<FormType>("BASIC");
 
@@ -405,6 +407,10 @@ export function FormEditPage() {
       .then((f) => {
         setName(f.name);
         setCategory(f.category ?? "");
+        {
+          const lv = Number(f.settingsConfig?.leadValue);
+          setLeadValue(Number.isFinite(lv) && lv > 0 ? String(Math.floor(lv)) : "");
+        }
         setFormType(f.formType);
         const items = f.consentConfig?.items as ConsentItem[] | undefined;
         setConsentItems(items && items.length ? items : defaultConsentItems());
@@ -695,6 +701,7 @@ export function FormEditPage() {
     styleConfig: { buttonColor, accentColor },
     typeConfig: { contactMessage, contactDescription },
     settingsConfig: {
+      leadValue: leadValue ? Number(leadValue) : null,
       allowSameIp,
       ipDedupDays,
       autoApproveEnabled,
@@ -782,7 +789,7 @@ export function FormEditPage() {
           <div>
             <p className="eyebrow">{isNew ? "새 리드폼" : "리드폼 편집"}</p>
             <input className="input form-name" value={name} onChange={(e) => setName(e.target.value)} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
               <span className="dash-sub" style={{ fontSize: 12.5, flex: "none" }}>분야</span>
               <input
                 className="input"
@@ -797,6 +804,17 @@ export function FormEditPage() {
               <datalist id="form-category-options">
                 {categoryOptions.map((c) => <option key={c} value={c} />)}
               </datalist>
+              <span className="dash-sub" style={{ fontSize: 12.5, flex: "none", marginLeft: 8 }}>리드당 가치</span>
+              <input
+                className="input"
+                style={{ width: 130, fontSize: 13.5, padding: "6px 10px", textAlign: "right" }}
+                inputMode="numeric"
+                value={leadValue ? Number(leadValue).toLocaleString("ko-KR") : ""}
+                onChange={(e) => setLeadValue(e.target.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 9))}
+                placeholder="예: 10,000"
+                title="리드 1건의 가치(원). 이 리드폼으로 리드가 접수될 때마다 이 금액이 수익으로 잡힙니다(통계·대시보드). 나중에 바꿔도 이미 들어온 리드의 수익은 그대로입니다."
+              />
+              <span className="dash-sub" style={{ fontSize: 12.5, flex: "none" }}>원</span>
             </div>
           </div>
           <div className="edit-actions">

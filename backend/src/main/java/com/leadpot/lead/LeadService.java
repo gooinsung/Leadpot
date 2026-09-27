@@ -106,6 +106,8 @@ public class LeadService {
         lead.setUtm(TrackingParams.sanitize(req.utm()));
         // 분야 도장(V35) — 접수 순간 폼의 분야를 새긴다. 이후 폼 분야를 바꿔도 이 리드는 안 바뀐다.
         lead.setCategory(form.getCategory());
+        // 리드당 가치 도장(V44) — 분야와 같은 규칙. 이후 단가를 바꿔도 이 리드의 수익은 그대로.
+        lead.setLeadValue(com.leadpot.form.LeadValues.of(form.getSettingsConfig()));
         lead.setGroupTag(req.groupTag());
         // 상태는 엔티티 기본값(NEW). 변경은 LeadStatusService 단일 관문으로만 한다(V29).
         lead.setPhoneVerified(false); // 본인인증 연동 전까지 false
@@ -985,6 +987,7 @@ public class LeadService {
                 // 상태는 엔티티 기본값(NEW)
                 lead.setPhoneVerified(false);
                 lead.setCategory(form.category()); // 분야 도장(V35) — 접수와 같은 규칙
+                lead.setLeadValue(com.leadpot.form.LeadValues.of(form.settingsConfig())); // 가치 도장(V44)
                 lead.setGroupTag("import");
                 leadRepository.save(lead);
                 created++;
@@ -1009,6 +1012,7 @@ public class LeadService {
         lead.setAnswers(answers);
         lead.setPhoneVerified(false);
         lead.setCategory(form.category()); // 분야 도장(V35) — 접수와 같은 규칙
+        lead.setLeadValue(com.leadpot.form.LeadValues.of(form.settingsConfig())); // 가치 도장(V44)
         lead.setGroupTag("manual");
         leadRepository.save(lead);
         return LeadResponse.from(lead);

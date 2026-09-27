@@ -17,19 +17,21 @@ export interface Bucket {
 }
 
 const MMDD = (iso: string) => iso.slice(5).replace("-", "/");
+/** 금액 표기(원). 수익(리드당 가치 합, V44)은 마케터 화면에서만 보인다 — 보고서(광고주 전달용)에는 넘기지 않는다. */
+export const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 
 /** 일별 데이터를 granularity(일/주/월)로 묶는다. byDay 는 날짜 오름차순·연속. */
-export function bucketize(byDay: StatDayPoint[], grain: Grain): Bucket[] {
+export function bucketize(byDay: StatDayPoint[], grain: Grain, withRevenue = false): Bucket[] {
   if (grain === "day") {
     return byDay.map((d) => ({
       key: d.date,
       label: MMDD(d.date),
-      tip: `${d.date}\n트래픽 ${d.visits} · 리드 ${d.leads}`,
+      tip: `${d.date}\n트래픽 ${d.visits} · 리드 ${d.leads}${withRevenue && d.revenue ? ` · 수익 ${won(d.revenue)}` : ""}`,
       visits: d.visits,
       leads: d.leads,
     }));
   }
-  const map = new Map<string, Bucket & { first: string; last: string }>();
+  const map = new Map<string, Bucket & { first: string; last: string; revenue: number }>();
   const order: string[] = [];
   for (const d of byDay) {
     const [y, m, day] = d.date.split("-").map(Number);
@@ -47,18 +49,20 @@ export function bucketize(byDay: StatDayPoint[], grain: Grain): Bucket[] {
     }
     let b = map.get(key);
     if (!b) {
-      b = { key, label, tip: "", visits: 0, leads: 0, first: d.date, last: d.date };
+      b = { key, label, tip: "", visits: 0, leads: 0, revenue: 0, first: d.date, last: d.date };
       map.set(key, b);
       order.push(key);
     }
     b.visits += d.visits;
     b.leads += d.leads;
+    b.revenue += d.revenue ?? 0;
     b.last = d.date;
   }
   return order.map((k) => {
     const b = map.get(k)!;
     const range = grain === "week" ? `${MMDD(b.first)} ~ ${MMDD(b.last)}` : b.key;
-    return { key: b.key, label: b.label, tip: `${range}\n트래픽 ${b.visits} · 리드 ${b.leads}`, visits: b.visits, leads: b.leads };
+    const rev = withRevenue && b.revenue ? ` · 수익 ${won(b.revenue)}` : "";
+    return { key: b.key, label: b.label, tip: `${range}\n트래픽 ${b.visits} · 리드 ${b.leads}${rev}`, visits: b.visits, leads: b.leads };
   });
 }
 
@@ -119,10 +123,12 @@ export function BarCard({ title, data }: { title: string; data: StatCount[] }) {
 }
 
 /** 대상(랜딩/폼)별 표. onPick 이 없으면 클릭 없는 읽기 전용(보고서용). */
-export function EntityTable({ title, rows, onPick }: {
+export function EntityTable({ title, rows, onPick, showRevenue = false }: {
   title: string;
   rows: StatEntityCount[];
   onPick?: (id: number | null) => void;
+  /** 수익 열 — 마케터 통계 화면만 켠다(보고서에는 안 보임). */
+  showRevenue?: boolean;
 }) {
   return (
     <section className="card card-pad">
@@ -133,7 +139,7 @@ export function EntityTable({ title, rows, onPick }: {
         <div className="stats-table-scroll">
           <table className="stats-table">
             <thead>
-              <tr><th>이름</th><th className="num">순 방문</th><th className="num">트래픽</th><th className="num">리드</th><th className="num">전환율</th></tr>
+              <tr><th>이름</th><th className="num">순 방문</th><th className="num">트래픽</th><th className="num">리드</th><th className="num">전환율</th>{showRevenue && <th className="num">수익</th>}</tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
@@ -147,6 +153,7 @@ export function EntityTable({ title, rows, onPick }: {
                   <td className="num">{r.totalVisits}</td>
                   <td className="num">{r.leads}</td>
                   <td className="num">{r.conversionRate}%</td>
+                  {showRevenue && <td className="num">{won(r.revenue ?? 0)}</td>}
                 </tr>
               ))}
             </tbody>
@@ -161,10 +168,11 @@ export function EntityTable({ title, rows, onPick }: {
  * 유입별 비교 표 한 키 분량 — 값별 방문·리드·전환율.
  * onPick 이 있으면 행 클릭 → 그 값으로 유입 필터(통계 페이지). 보고서에서는 읽기 전용.
  */
-export function UtmValueTable({ rows, activeValue, onPick }: {
-  rows: { value: string; uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number }[];
+export function UtmValueTable({ rows, activeValue, onPick, showRevenue = false }: {
+  rows: { value: string; uniqueVisits: number; totalVisits: number; leads: number; conversionRate: number; revenue?: number }[];
   activeValue?: string | null;
   onPick?: (value: string) => void;
+  showRevenue?: boolean;
 }) {
   return rows.length === 0 ? (
     <p className="dash-sub">데이터 없음</p>
@@ -172,7 +180,7 @@ export function UtmValueTable({ rows, activeValue, onPick }: {
     <div className="stats-table-scroll">
       <table className="stats-table">
         <thead>
-          <tr><th>값</th><th className="num">순 방문</th><th className="num">트래픽</th><th className="num">리드</th><th className="num">전환율</th></tr>
+          <tr><th>값</th><th className="num">순 방문</th><th className="num">트래픽</th><th className="num">리드</th><th className="num">전환율</th>{showRevenue && <th className="num">수익</th>}</tr>
         </thead>
         <tbody>
           {rows.map((r) => (
@@ -187,6 +195,7 @@ export function UtmValueTable({ rows, activeValue, onPick }: {
               <td className="num">{r.totalVisits}</td>
               <td className="num">{r.leads}</td>
               <td className="num">{r.conversionRate}%</td>
+              {showRevenue && <td className="num">{won(r.revenue ?? 0)}</td>}
             </tr>
           ))}
         </tbody>

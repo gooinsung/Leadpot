@@ -7,10 +7,12 @@ import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
 import { runBulk, useSelection } from "../lib/useSelection";
 import { FolderTree, type FolderSelection } from "../components/FolderTree";
+import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/RevenuePeriod";
 
 export function FormsListPage() {
   const navigate = useNavigate();
   const [forms, setForms] = useState<FormSummary[]>([]);
+  const revenue = useRevenueByEntity();
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -168,6 +170,7 @@ export function FormsListPage() {
                           <th>분야</th>
                           <th>유형</th>
                           <th>항목 수</th>
+                          <th className="num"><RevenueHeader period={revenue.period} onChange={revenue.setPeriod} /></th>
                           <th>수정일</th>
                           <th></th>
                         </tr>
@@ -202,6 +205,7 @@ export function FormsListPage() {
                               </span>
                             </td>
                             <td className="num">{f.blockCount}</td>
+                            <td className="num"><RevenueCell row={revenue.byForm.get(f.id)} /></td>
                             <td className="num">{new Date(f.updatedAt).toLocaleString("ko-KR")}</td>
                             <td onClick={(e) => e.stopPropagation()}>
                               <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/leads`)}>
