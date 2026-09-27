@@ -236,7 +236,7 @@ export function StatsPage() {
               <div className="kpi card"><div className="k-label">전환율<span className="k-hint">순 방문 대비</span></div><div className="k-val">{stats.summary.conversionRate}<span style={{ fontSize: 16 }}>%</span></div></div>
               <div className="kpi card" title="기간 내 접수된 리드(상태 무관)의 리드당 가치 합. 리드당 가치는 리드폼 편집 화면에서 설정합니다.">
                 <div className="k-label">수익<span className="k-hint">리드당 가치 합</span></div>
-                <div className="k-val">{stats.summary.revenue.toLocaleString("ko-KR")}<span style={{ fontSize: 16 }}>원</span></div>
+                <div className="k-val">{(stats.summary.revenue ?? 0).toLocaleString("ko-KR")}<span style={{ fontSize: 16 }}>원</span></div>
               </div>
             </div>
             {stats.summary.leads > 0 && stats.summary.revenue === 0 && (
