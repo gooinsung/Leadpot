@@ -436,37 +436,39 @@
   margin-top: auto;
   border-top: 1px solid var(--border);
   background: var(--surface-2);
-  padding: 24px 0 28px;
+  padding: 32px 0 36px;
 }
-/* 넓은 화면: 사업자 정보(왼쪽) ↔ 소개 링크·저작권(오른쪽) */
+/* 가운데 정렬: 사업자 정보(위) → 소개 링크·저작권(아래) */
 .site-footer-inner {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 32px;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
 }
 
 /* 사업자 정보 — 상호·대표자·등록번호는 한 줄에 가운뎃점으로 잇고, 긴 주소는 아랫줄로 내린다 */
 .site-footer-biz {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   align-items: baseline;
-  gap: 4px 10px;
+  gap: 4px 12px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: var(--fs-xs);
-  line-height: 1.7;
+  font-size: var(--fs-sm);
+  line-height: 1.8;
 }
 .site-footer-biz li {
   display: flex;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
 }
 .site-footer-biz li + li:not(.site-footer-addr)::before {
   content: "·";
-  margin-right: 5px;
-  color: var(--border);
+  margin-right: 6px;
+  color: var(--muted);
 }
 .site-footer-addr {
   flex-basis: 100%;
@@ -476,44 +478,49 @@
 }
 .site-footer-v {
   color: var(--text);
+  font-weight: 600;
 }
 
 .site-footer-meta {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.7;
   color: var(--muted);
   white-space: nowrap;
 }
 .site-footer-meta a {
-  color: var(--muted);
+  color: var(--text);
   font-weight: 600;
 }
 .site-footer-copy::before {
   content: "·";
   margin-right: 10px;
-  color: var(--border);
+  color: var(--muted);
 }
 
-/* 모바일: 좌우 배치를 풀고 위아래로 쌓는다(주소가 길어 한 줄에 안 들어간다) */
+/* 모바일: 항목을 한 줄씩 쌓는다(주소가 길어 한 줄에 안 들어간다) */
 @media (max-width: 640px) {
   .site-footer {
-    padding: 20px 0 24px;
-  }
-  .site-footer-inner {
-    flex-direction: column;
-    gap: 12px;
+    padding: 28px 0 32px;
   }
   .site-footer-biz {
     flex-direction: column;
+    align-items: center;
     gap: 3px;
   }
   /* 세로로 쌓으면 가운뎃점이 줄 앞에 붙어 어색하다 */
   .site-footer-biz li + li:not(.site-footer-addr)::before {
     content: none;
     margin-right: 0;
+  }
+  /* 긴 주소는 줄바꿈되며 가운데로 모인다 */
+  .site-footer-addr {
+    flex-direction: column;
+    gap: 0;
+    padding: 0 8px;
   }
 }
 
