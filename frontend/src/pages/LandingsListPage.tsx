@@ -11,6 +11,8 @@ import { runBulk, useSelection } from "../lib/useSelection";
 import { AdUrlBuilder } from "../components/AdUrlBuilder";
 import { FolderTree, type FolderSelection } from "../components/FolderTree";
 import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/RevenuePeriod";
+import { RowMenu } from "../components/RowMenu";
+import { fmtShortDateTime } from "../lib/format";
 
 export function LandingsListPage() {
   const navigate = useNavigate();
@@ -156,7 +158,7 @@ export function LandingsListPage() {
               ) : (
                 <>
                   <div className="card card-table">
-                    <table>
+                    <table className="list-table">
                       <thead>
                         <tr>
                           <th className="sel-col">
@@ -188,22 +190,28 @@ export function LandingsListPage() {
                             <td className="sel-col" onClick={(e) => e.stopPropagation()}>
                               <input type="checkbox" checked={sel.selected.has(l.id)} onChange={() => sel.toggle(l.id)} aria-label="선택" />
                             </td>
-                            <td>{l.title}</td>
-                            <td className="num">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
-                            <td><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
-                            <td className="num"><RevenueCell row={revenue.byLanding.get(l.id)} /></td>
-                            <td className="num">{new Date(l.updatedAt).toLocaleString("ko-KR")}</td>
+                            <td className="list-title">{l.title}</td>
+                            <td className="num nowrap">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
+                            <td className="nowrap"><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
+                            <td className="num nowrap"><RevenueCell row={revenue.byLanding.get(l.id)} /></td>
+                            <td className="num nowrap" title={new Date(l.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(l.updatedAt)}</td>
                             <td onClick={(e) => e.stopPropagation()}>
-                              {l.status === "published" && sub && (
-                                <>
-                                  <button className="btn btn-ghost btn-sm" onClick={() => window.open(publicSiteUrl(sub, l.id), "_blank")}>공개 열기</button>
-                                  <button className="btn btn-ghost btn-sm" onClick={() => setAdUrlTarget(l)} title="매체·캠페인·광고 이름을 붙인 주소를 만듭니다">광고 URL</button>
-                                </>
-                              )}
-                              <button className="btn btn-ghost btn-sm" onClick={() => window.open(`/p/${l.slug}`, "_blank")}>미리보기</button>
-                              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/landings/${l.id}/edit`)}>편집</button>
-                              <button className="btn btn-ghost btn-sm" onClick={() => onDuplicate(l.id, l.title)}>복사</button>
-                              <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(l.id, l.title)}>삭제</button>
+                              <div className="list-actions">
+                                {l.status === "published" && sub && (
+                                  <>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => window.open(publicSiteUrl(sub, l.id), "_blank")}>공개 열기</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setAdUrlTarget(l)} title="매체·캠페인·광고 이름을 붙인 주소를 만듭니다">광고 URL</button>
+                                  </>
+                                )}
+                                <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/landings/${l.id}/edit`)}>편집</button>
+                                <RowMenu
+                                  items={[
+                                    { label: "미리보기", onClick: () => window.open(`/p/${l.slug}`, "_blank") },
+                                    { label: "복사", onClick: () => onDuplicate(l.id, l.title) },
+                                    { label: "삭제", onClick: () => onDelete(l.id, l.title), danger: true },
+                                  ]}
+                                />
+                              </div>
                             </td>
                           </tr>
                         ))}

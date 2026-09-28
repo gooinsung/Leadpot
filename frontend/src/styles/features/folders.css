@@ -181,3 +181,21 @@
   font-size: 13px;
   color: var(--muted);
 }
+
+/* 리드폼·랜딩 목록 표 — 칸이 세로로 찌그러지지 않게(상태 배지·일시·버튼 줄바꿈 방지).
+   넓이가 모자라면 .card-table 이 가로 스크롤한다. */
+.list-table .nowrap {
+  white-space: nowrap;
+}
+.list-table .list-title {
+  min-width: 160px;
+  font-weight: 600;
+}
+.list-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
