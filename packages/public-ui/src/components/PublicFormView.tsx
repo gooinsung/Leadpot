@@ -22,6 +22,7 @@ import {
   stepAnswerType,
 } from "../lib/fieldTypes";
 import { PhoneInput3 } from "./PhoneInput3";
+import { AddressInput } from "./AddressInput";
 import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
 import { parseUtm } from "../lib/utm";
 import { CompletionView } from "./formRenderers/CompletionView";
@@ -380,6 +381,8 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
         </div>
       ) : type === "tel" ? (
         <PhoneInput3 id={`fld-${idx}`} value={value} onChange={onChange} required={block.required} />
+      ) : type === "address" ? (
+        <AddressInput id={`fld-${idx}`} value={value} onChange={onChange} placeholder={block.placeholder ?? ""} required={block.required} />
       ) : (
         <input id={`fld-${idx}`} className="input" type={inputType} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       )}

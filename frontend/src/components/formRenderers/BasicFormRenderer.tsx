@@ -1,6 +1,6 @@
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
-import { HtmlBlock, PhoneInput3, descEmphasisClass, resolveStyle } from "@leadpot/public-ui";
+import { AddressInput, HtmlBlock, PhoneInput3, descEmphasisClass, resolveStyle } from "@leadpot/public-ui";
 
 /** BASIC 유형 리드폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
 export function BasicFormRenderer({ form }: { form: FormInput }) {
@@ -101,6 +101,8 @@ export function FieldView({ block, accent, bare }: { block: FormBlock; accent: s
         </div>
       ) : type === "tel" ? (
         <PhoneInput3 value="" onChange={() => {}} readOnly />
+      ) : type === "address" ? (
+        <AddressInput value="" onChange={() => {}} placeholder={block.placeholder ?? ""} readOnly />
       ) : (
         <input className="input" type={inputType} placeholder={block.placeholder ?? ""} readOnly />
       )}

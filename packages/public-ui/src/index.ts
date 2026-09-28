@@ -10,6 +10,7 @@ export { PublicFormView } from "./components/PublicFormView";
 export { PublicFormPageView } from "./components/PublicFormPageView";
 export { HtmlBlock } from "./components/HtmlBlock";
 export { PhoneInput3 } from "./components/PhoneInput3";
+export { AddressInput } from "./components/AddressInput";
 
 export { ConsentItemRow } from "./components/formRenderers/ConsentItemRow";
 export { CompletionView } from "./components/formRenderers/CompletionView";
