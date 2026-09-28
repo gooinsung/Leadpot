@@ -17,6 +17,7 @@ export const INPUT_FIELD_TYPES: readonly { value: string; label: string }[] = [
   { value: "textarea", label: "여러 줄" },
   { value: "number", label: "숫자" },
   { value: "date", label: "날짜" },
+  { value: "address", label: "주소 (우편번호 검색)" },
   { value: "select", label: "선택박스" },
   { value: "radio", label: "라디오버튼 (단일 선택)" },
   { value: "checkbox", label: "체크박스 (중복 선택)" },
