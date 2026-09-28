@@ -8,6 +8,7 @@ const PLATFORMS: { key: string; label: string; ph: string }[] = [
   { key: "kakao", label: "카카오 픽셀 ID", ph: "예: 1234567890123456789" },
   { key: "daangn", label: "당근 픽셀 ID", ph: "당근 비즈니스 픽셀 ID" },
   { key: "toss", label: "토스애즈 전환 코드", ph: "토스애즈 광고주센터에서 발급받은 전환 코드" },
+  { key: "naver", label: "네이버 광고 공통키 (GFA·검색광고)", ph: "예: s_1a2b3c4d5e6f" },
 ];
 
 /** 칩에 쓸 짧은 이름 — 위 label 은 입력칸용이라 길다. */
@@ -19,6 +20,7 @@ const SHORT: Record<string, string> = {
   kakao: "카카오",
   daangn: "당근",
   toss: "토스",
+  naver: "네이버",
 };
 
 /**
@@ -103,6 +105,19 @@ export const TOSS_EVENTS: { value: string; label: string }[] = [
 /** 미설정 리드폼의 기본 토스 전환 이벤트. pixels.ts 기본값과 반드시 같아야 한다. */
 export const TOSS_EVENT_DEFAULT = "lead";
 
+/**
+ * 네이버 전환 유형 — 값은 네이버 전환 스크립트(wcs.trans 버전)의 `_conv.type` 에 그대로 넣는 문자열이다.
+ * 공식 유형 중 리드폼에 맞는 것만 담았다(purchase·add_to_cart 는 금액·상품이 필요하거나 리드폼과 안 맞아 뺐다).
+ * custom001 은 광고주 센터에서 이름을 붙여 쓰는 '기타' 전환이다.
+ */
+export const NAVER_EVENTS: { value: string; label: string }[] = [
+  { value: "lead", label: "lead — 신청·예약(잠재고객)" },
+  { value: "sign_up", label: "sign_up — 회원가입" },
+  { value: "custom001", label: "custom001 — 기타(직접 정의)" },
+];
+/** 미설정 리드폼의 기본 네이버 전환 유형. pixels.ts 기본값과 반드시 같아야 한다. */
+export const NAVER_EVENT_DEFAULT = "lead";
+
 /** 전환 이벤트를 고를 수 있는 플랫폼만 여기 둔다(나머지는 표준 이벤트가 하나로 고정). */
 const EVENT_PICKERS: Record<string, { field: string; label: string; options: typeof META_EVENTS; def: string; help: string }> = {
   tiktok: {
@@ -139,6 +154,13 @@ const EVENT_PICKERS: Record<string, { field: string; label: string; options: typ
     options: TOSS_EVENTS,
     def: TOSS_EVENT_DEFAULT,
     help: "리드 제출 시 토스애즈에 보낼 전환 이벤트입니다. 앞의 영문이 실제 호출되는 메서드명(공식 문서 기준)입니다.",
+  },
+  naver: {
+    field: "naverEvent",
+    label: "네이버 전환 유형",
+    options: NAVER_EVENTS,
+    def: NAVER_EVENT_DEFAULT,
+    help: "리드 제출 시 네이버에 보낼 전환 유형입니다. 상담 신청 폼이면 lead(신청·예약)를 쓰세요. GFA 캠페인의 전환 목표와 같아야 성과로 잡힙니다.",
   },
 };
 
@@ -229,6 +251,12 @@ export function PixelFields({
                   스니펫 전체를 붙여넣어도 값만 자동 추출합니다.
                 </span>
               )}
+              {p.key === "naver" && (
+                <span className="field-optional" style={{ marginTop: 4 }}>
+                  네이버 광고 전환 스크립트의 <code>wcs_add["wa"]</code> 값(<code>s_</code>로 시작)을 붙여넣으세요.
+                  유입 쿠키는 각 랜딩의 서브도메인 기준으로 저장됩니다.
+                </span>
+              )}
             </div>
             {picker && (
               <div className="field" style={{ marginBottom: 0 }}>
@@ -251,7 +279,7 @@ export function PixelFields({
 
       <p className="dash-sub" style={{ fontSize: 12, marginTop: 10 }}>
         선택한 픽셀은 공개 페이지에 삽입되어 <b>방문(PageView)</b>과 <b>리드 제출 시 전환</b>을 각 플랫폼에 전송합니다.
-        전환 이벤트를 고를 수 있는 곳은 메타·틱톡·당근·토스·카카오입니다 — 구글만 <code>generate_lead</code>
+        전환 이벤트를 고를 수 있는 곳은 메타·틱톡·당근·토스·카카오·네이버입니다 — 구글만 <code>generate_lead</code>
         (+Ads 전환라벨)으로 고정 전송됩니다.
         <br />
         ⚠️ 미리보기 주소(<code>/p/…</code>)에서는 픽셀이 발사되지 않습니다. 테스트는 공개 URL에서 하세요.

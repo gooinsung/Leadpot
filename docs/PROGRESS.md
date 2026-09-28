@@ -8,6 +8,14 @@
 
 ## 📍 지금 위치
 
+- **✅ 네이버 GFA 전환추적 픽셀 추가 (2026-09-28, 원격 세션, 사용자 지시)**:
+  - 다른 픽셀과 똑같이 **리드폼 편집 > 광고 픽셀**에서 '네이버'를 켜고 **공통키**(`wcs_add["wa"]`, `s_…`)와 **전환 유형**(lead 기본 / sign_up / custom001)을 넣는다.
+  - 공개 랜딩·폼 로드 시 `wcslog.js` 삽입 → `wcs.inflow(현재 호스트)` → `wcs_do()`, 리드 제출 성공 시 `wcs.trans({type})`.
+  - **유입 쿠키 도메인 = 각 서브도메인**(`location.hostname`, 사용자 확정) — `lead-pot.com` 으로 두면 고객 간 유입 쿠키가 섞인다.
+  - 구글 광고용 랜딩(googleAdsSafe)에서는 다른 매체처럼 빠진다. 코드: `public-ui/lib/pixels.ts`, `frontend/components/PixelFields.tsx`, 테스트 3건.
+  - ⚠️ 네이버 공식 가이드(naver.github.io/conversion-tracking)를 작업 환경에서 못 열어 검색 결과로 구현했다 → 실제 공통키로
+    '네이버 전환 스크립트 어시스턴트'(크롬 확장)에서 방문·전환이 잡히는지 확인 필요.
+
 - **✅ 서비스 소개 페이지 개편 — 네이버 GFA 심사용 (2026-09-28, 원격 세션, 사용자 지시)**:
   - **URL**: `https://app.lead-pot.com`(사용자 지정). 비로그인으로 `/` 에 오면 로그인 화면 대신 소개 페이지를 보여준다
     (`RoleHomeRedirect`). 로그인 상태면 예전처럼 역할별 홈으로 간다. `/about`(카카오 채널 인증 URL)도 같은 화면이다.

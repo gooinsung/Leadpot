@@ -21,6 +21,8 @@ export interface PixelConfig {
   daangnEvent?: string; // 당근 전환 이벤트(Purchase | Lead | SubmitApplication), 기본 Purchase
   toss?: string; // 토스애즈 전환 코드(픽셀 ID)
   tossEvent?: string; // 토스 전환 이벤트 — 호출할 메서드명 그 자체(lead | signUp | subscribe | preRegister | viewLimit | applyScreening), 기본 lead
+  naver?: string; // 네이버 광고(GFA·검색광고) 공통키 — wcs_add["wa"] 값(예: s_1a2b3c4d5e6f)
+  naverEvent?: string; // 네이버 전환 유형 — wcs.trans() 의 _conv.type(lead | sign_up | custom001), 기본 lead
 }
 
 function val(cfg: unknown, key: string): string {
@@ -51,7 +53,8 @@ export function initPixels(cfg: unknown): void {
   const kakao = val(cfg, "kakao");
   const daangn = val(cfg, "daangn");
   const toss = val(cfg, "toss");
-  if (!(google || googleAds || meta || tiktok || kakao || daangn || toss)) return;
+  const naver = val(cfg, "naver");
+  if (!(google || googleAds || meta || tiktok || kakao || daangn || toss || naver)) return;
   initialized = true;
 
   const w = window as any;
@@ -163,6 +166,30 @@ export function initPixels(cfg: unknown): void {
       d.head.appendChild(s);
     } catch { /* ignore */ }
   }
+
+  // 네이버 광고 전환 추적(wcs.trans 버전) — GFA·검색광고 공통 스크립트.
+  // 공식 순서: wcs_add["wa"]=공통키 → wcs.inflow(쿠키 도메인) → wcs_do() 로 방문 기록.
+  // inflow 는 **지금 접속한 호스트 그대로**(각 고객 서브도메인)로 한다 — `lead-pot.com` 으로 두면
+  // 광고 유입 쿠키(NA_CO 등)가 모든 고객 서브도메인에 공유돼, 다른 고객 랜딩의 전환이 섞일 수 있다
+  // (2026-09-28 사용자 확정). 카카오·토스처럼 SDK 가 전역(window.wcs)을 직접 만들어 onload 뒤에만 부른다.
+  if (naver) {
+    try {
+      w.wcs_add = w.wcs_add || {};
+      w.wcs_add["wa"] = naver;
+      w._nasa = w._nasa || {};
+      const s = d.createElement("script");
+      s.async = true;
+      s.src = "https://wcs.pstatic.net/wcslog.js";
+      s.onload = function () {
+        try {
+          if (!w.wcs) return;
+          w.wcs.inflow(w.location.hostname);
+          w.wcs_do(w._nasa);
+        } catch { /* ignore */ }
+      };
+      d.head.appendChild(s);
+    } catch { /* ignore */ }
+  }
 }
 
 /**
@@ -185,7 +212,7 @@ export function mergeFormPixels(forms: Record<string, { trackingConfig?: unknown
 
 /**
  * "구글 광고용" 랜딩(googleAdsSafe)에서 구글(GA4/Google Ads) 픽셀만 남기고 다른 매체
- * (메타·틱톡·카카오·당근·토스) 픽셀 설정은 제거한다 — 구글 광고 심사용 페이지에 다른 매체
+ * (메타·틱톡·카카오·당근·토스·네이버) 픽셀 설정은 제거한다 — 구글 광고 심사용 페이지에 다른 매체
  * 스크립트가 함께 실려 나가지 않게 하기 위함.
  */
 export function googleOnlyPixels(cfg: unknown): Record<string, unknown> {
@@ -208,6 +235,7 @@ export function firePixelLead(cfg: unknown): void {
   const kakao = val(cfg, "kakao");
   const daangn = val(cfg, "daangn");
   const toss = val(cfg, "toss");
+  const naver = val(cfg, "naver");
   // 메타도 전환 이벤트를 리드폼별로 고를 수 있다(잠재고객/가입완료/신청서/문의/예약).
   // 미설정이면 Lead — components/PixelFields.tsx 의 META_EVENT_DEFAULT 와 같아야 한다.
   const metaEvent = val(cfg, "metaEvent") || "Lead";
@@ -234,4 +262,14 @@ export function firePixelLead(cfg: unknown): void {
   // components/PixelFields.tsx 의 TOSS_EVENT_DEFAULT 와 반드시 같아야 한다.
   const tossEvent = val(cfg, "tossEvent") || "lead";
   try { if (toss && w.TossPixel) (w.TossPixel(toss) as any)[tossEvent]?.(); } catch { /* ignore */ }
+  // 네이버는 전환 객체의 type 으로 유형을 싣는다(wcs.trans). 스크립트 로드 전에 제출되면 조용히 건너뛴다.
+  // 미설정이면 lead(잠재고객) — components/PixelFields.tsx 의 NAVER_EVENT_DEFAULT 와 반드시 같아야 한다.
+  const naverEvent = val(cfg, "naverEvent") || "lead";
+  try {
+    if (naver && w.wcs && w.wcs.trans) {
+      w.wcs_add = w.wcs_add || {};
+      w.wcs_add["wa"] = naver;
+      w.wcs.trans({ type: naverEvent });
+    }
+  } catch { /* ignore */ }
 }
