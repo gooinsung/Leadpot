@@ -126,6 +126,7 @@ public class OutboundWebhookService {
      * {@code outboundWebhookParams}(파라미터명·값 소스 목록)를 이 리드 값으로 채운다.
      * source: {@code fixed}(고정값) · {@code answer}(varKey 로 답변 찾기) ·
      * {@code builtin}(ip·leadId·submittedAt·formName·userAgent·referer).
+     * {@code addressPart}({@code zonecode}|{@code address}) 면 주소 항목에서 우편번호·주소만 보낸다(AddressParts).
      * {@code digitsOnly=true} 면 값에서 숫자만 남긴다 — 텐핑 {@code {#ITEM_NOH#}} 처럼
      * 하이픈 없는 연락처를 요구하는 곳용(공개 폼 3칸 연락처는 {@code 010-1234-5678} 로 저장된다).
      */
@@ -137,12 +138,12 @@ public class OutboundWebhookService {
         if (!(raw instanceof List<?> list)) {
             return out;
         }
-        Map<String, String> answersByVarKey = new LinkedHashMap<>();
+        Map<String, Map<String, Object>> answersByVarKey = new LinkedHashMap<>();
         if (lead.getAnswers() != null) {
             for (Map<String, Object> a : lead.getAnswers()) {
                 Object vk = a.get("varKey");
                 if (vk != null) {
-                    answersByVarKey.put(vk.toString(), str(a.get("value")));
+                    answersByVarKey.put(vk.toString(), a);
                 }
             }
         }
@@ -156,7 +157,10 @@ public class OutboundWebhookService {
             }
             String source = str(m.get("source"));
             String value = switch (source) {
-                case "answer" -> answersByVarKey.getOrDefault(str(m.get("varKey")), "");
+                case "answer" -> {
+                    Map<String, Object> a = answersByVarKey.get(str(m.get("varKey")));
+                    yield a == null ? "" : com.leadpot.lead.AddressParts.part(a, str(m.get("addressPart")));
+                }
                 case "builtin" -> builtinValue(str(m.get("value")), form, lead);
                 default -> str(m.get("value")); // fixed
             };

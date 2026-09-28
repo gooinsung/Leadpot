@@ -156,6 +156,8 @@ interface OutboundWebhookParam {
   varKey?: string;
   /** true 면 값에서 숫자만 남겨 보낸다(예: 텐핑 {#ITEM_NOH#} — 하이픈 없는 연락처). */
   digitsOnly?: boolean;
+  /** 주소 항목에서 보낼 부분 — 비우면 전체("(우편번호) 주소"), zonecode=우편번호만, address=주소만. */
+  addressPart?: "" | "zonecode" | "address";
 }
 
 interface StepData {
@@ -662,11 +664,13 @@ export function FormEditPage() {
     (b) => (b.blockType === "FIELD" || b.blockType === "CHOICE") && !!b.varKey,
   );
   /** 외부 API 전달의 '숫자만' 옵션은 연락처 항목에만 보인다(기본형 fieldType·스텝형 답변 방식 모두 tel). */
-  const isTelVarKey = (varKey?: string) => {
+  const answerTypeOf = (varKey?: string) => {
     const b = answerBlocks.find((x) => x.varKey === varKey);
-    if (!b) return false;
-    return (b.blockType === "CHOICE" ? stepAnswerType(b) : b.fieldType) === "tel";
+    if (!b) return "";
+    return b.blockType === "CHOICE" ? stepAnswerType(b) : b.fieldType ?? "";
   };
+  const isTelVarKey = (varKey?: string) => answerTypeOf(varKey) === "tel";
+  const isAddressVarKey = (varKey?: string) => answerTypeOf(varKey) === "address";
   // 국내 문자 과금 기준(EUC-KR): 한글 2byte. 90byte 를 넘으면 LMS 로 전환되어 단가가 오른다.
   const smsBytes = [...smsLeadBody].reduce((n, ch) => n + (ch.charCodeAt(0) < 0x80 ? 1 : 2), 0);
   /**
@@ -1550,6 +1554,21 @@ export function FormEditPage() {
                               onChange={(e) => patchOutboundParam(i, { digitsOnly: e.target.checked })}
                             />
                             숫자만 보내기(하이픈 제거, 예: 01012345678)
+                          </label>
+                        )}
+                        {p.source === "answer" && (isAddressVarKey(p.varKey) || p.addressPart) && (
+                          <label className="dash-sub" style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginTop: -2 }}>
+                            보낼 값
+                            <select
+                              className="input"
+                              style={{ width: "auto", padding: "4px 10px", fontSize: 12 }}
+                              value={p.addressPart ?? ""}
+                              onChange={(e) => patchOutboundParam(i, { addressPart: e.target.value as OutboundWebhookParam["addressPart"] })}
+                            >
+                              <option value="">전체 — (06234) 서울 강남구 테헤란로 123</option>
+                              <option value="zonecode">우편번호만 — 06234</option>
+                              <option value="address">주소만 — 서울 강남구 테헤란로 123</option>
+                            </select>
                           </label>
                         )}
                       </div>

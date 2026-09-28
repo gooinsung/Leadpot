@@ -99,7 +99,8 @@ public class LeadService {
         Lead lead = new Lead();
         lead.setFormId(form.getId());
         lead.setLandingPageId(req.landingPageId());
-        lead.setAnswers(stampVarKeys(form, req.answersOrEmpty()));
+        // 주소 항목은 우편번호·주소를 따로도 저장한다(외부 API 전달 등에서 나눠 쓰기, AddressParts).
+        lead.setAnswers(AddressParts.stamp(stampVarKeys(form, req.answersOrEmpty())));
         lead.setConsents(req.consentsOrEmpty());
         lead.setExternalId(req.externalId());
         // 공개 엔드포인트라 임의 키가 올 수 있다 — 허용 키만 남기고 길이를 자른다.
