@@ -3,6 +3,7 @@ import { Loading } from "./Loading";
 import type { ReactNode } from "react";
 import { useAuth } from "../lib/authContext";
 import { getTokens, type Role } from "../api/client";
+import { AboutPage } from "../pages/AboutPage";
 
 /** 역할별 기본 진입 화면. */
 export function homePathFor(role: Role | undefined): string {
@@ -63,14 +64,18 @@ export function ProtectedRoute({
   return <>{children}</>;
 }
 
-/** 로그인 상태에 따라 역할별 기본 화면으로 보내는 루트(`/`) 처리. */
+/**
+ * 루트(`/`) 처리 — 로그인했으면 역할별 기본 화면으로, 아니면 서비스 소개를 보여준다.
+ * 비로그인 방문자에게 로그인 화면 대신 소개를 보여주는 이유: 네이버 GFA 광고 심사가
+ * `https://app.lead-pot.com` 을 서비스 소개 페이지로 본다(AboutPage 주석 참고).
+ */
 export function RoleHomeRedirect() {
   const { user, loading } = useAuth();
   if (loading) {
     return <Loading full />;
   }
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <AboutPage />;
   }
   return <Navigate to={homePathFor(user.role)} replace />;
 }

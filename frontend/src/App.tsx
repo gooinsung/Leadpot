@@ -73,7 +73,7 @@ function App() {
         ⚠️ 화면만 막는 것으로는 부족하다. 서버도 app.auth.signup-enabled=false 로 거부한다.
       */}
       <Route path="/signup" element={<Navigate to="/login" replace />} />
-      {/* 서비스 소개 — 비로그인 공개(카카오 채널 인증 제출 URL) */}
+      {/* 서비스 소개 — 비로그인 공개(카카오 채널 인증 제출 URL). 비로그인 `/` 도 같은 화면(네이버 GFA) */}
       <Route path="/about" element={<AboutPage />} />
       <Route
         path="/dashboard"
