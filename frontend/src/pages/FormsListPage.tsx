@@ -8,6 +8,8 @@ import { Pagination, usePaging } from "../components/Pagination";
 import { runBulk, useSelection } from "../lib/useSelection";
 import { FolderTree, type FolderSelection } from "../components/FolderTree";
 import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/RevenuePeriod";
+import { RowMenu } from "../components/RowMenu";
+import { fmtShortDateTime } from "../lib/format";
 
 export function FormsListPage() {
   const navigate = useNavigate();
@@ -160,7 +162,7 @@ export function FormsListPage() {
               ) : (
                 <>
                   <div className="card card-table">
-                    <table>
+                    <table className="list-table">
                       <thead>
                         <tr>
                           <th className="sel-col">
@@ -196,30 +198,32 @@ export function FormsListPage() {
                             <td className="sel-col" onClick={(e) => e.stopPropagation()}>
                               <input type="checkbox" checked={sel.selected.has(f.id)} onChange={() => sel.toggle(f.id)} aria-label="선택" />
                             </td>
-                            <td>{f.name}</td>
-                            <td>{f.category ? <span className="pill">{f.category}</span> : <span className="dash-sub">—</span>}</td>
-                            <td>
+                            <td className="list-title">{f.name}</td>
+                            <td className="nowrap">{f.category ? <span className="pill">{f.category}</span> : <span className="dash-sub">—</span>}</td>
+                            <td className="nowrap">
                               {/* 리디자인 §6: 기본형=인디고 soft · 스텝형=그린 soft */}
                               <span className={f.formType === "BASIC" ? "pill i" : "pill gr"}>
                                 {f.formType === "BASIC" ? "기본형" : "스텝형"}
                               </span>
                             </td>
-                            <td className="num">{f.blockCount}</td>
-                            <td className="num"><RevenueCell row={revenue.byForm.get(f.id)} /></td>
-                            <td className="num">{new Date(f.updatedAt).toLocaleString("ko-KR")}</td>
+                            <td className="num nowrap">{f.blockCount}</td>
+                            <td className="num nowrap"><RevenueCell row={revenue.byForm.get(f.id)} /></td>
+                            <td className="num nowrap" title={new Date(f.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(f.updatedAt)}</td>
                             <td onClick={(e) => e.stopPropagation()}>
-                              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/leads`)}>
-                                리드
-                              </button>
-                              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/edit`)}>
-                                편집
-                              </button>
-                              <button className="btn btn-ghost btn-sm" onClick={() => onDuplicate(f.id, f.name)}>
-                                복사
-                              </button>
-                              <button className="btn btn-ghost btn-sm danger" onClick={() => onDelete(f.id, f.name)}>
-                                삭제
-                              </button>
+                              <div className="list-actions">
+                                <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/leads`)}>
+                                  리드
+                                </button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/edit`)}>
+                                  편집
+                                </button>
+                                <RowMenu
+                                  items={[
+                                    { label: "복사", onClick: () => onDuplicate(f.id, f.name) },
+                                    { label: "삭제", onClick: () => onDelete(f.id, f.name), danger: true },
+                                  ]}
+                                />
+                              </div>
                             </td>
                           </tr>
                         ))}
