@@ -45,6 +45,9 @@ import {
   STEP_ANSWER_TYPES,
   STEP_CARD_TYPES,
   stepAnswerType,
+  TEXT_EFFECTS,
+  TEXT_SIZES,
+  resolveTextBlockStyle,
   type CalculatorDef,
 } from "@leadpot/public-ui";
 
@@ -1656,6 +1659,95 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
+/**
+ * 텍스트 블록 꾸밈 — 효과(반짝임·확대 등) + 글자 크기·굵게·정렬·글자색·배경.
+ * 입력폼 안 CTA 문구를 눈에 띄게 하는 용도. 값은 block.content 에 저장(FormTextBlock 이 해석).
+ */
+function TextStyleFields({ block, onContent }: { block: FormBlock; onContent: (p: Record<string, unknown>) => void }) {
+  const st = resolveTextBlockStyle(block.content);
+  return (
+    <>
+      <div className="block-row">
+        <div className="field" style={{ flex: 1 }}>
+          <label>효과</label>
+          <select className="input" value={st.effect} onChange={(e) => onContent({ effect: e.target.value })}>
+            {TEXT_EFFECTS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label>글자 크기</label>
+          <select className="input" value={st.size} onChange={(e) => onContent({ size: e.target.value })}>
+            {TEXT_SIZES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="block-row">
+        <label className="fr-check">
+          <input type="checkbox" checked={st.bold} onChange={(e) => onContent({ bold: e.target.checked })} /> 굵게
+        </label>
+        <label className="fr-check">
+          <input type="checkbox" checked={st.align === "center"} onChange={(e) => onContent({ align: e.target.checked ? "center" : "left" })} /> 가운데 정렬
+        </label>
+      </div>
+      <OptionalColorField label="글자색" emptyLabel="기본" value={(block.content?.color as string) ?? ""} onChange={(v) => onContent({ color: v })} />
+      <OptionalColorField label="배경 박스" emptyLabel="없음" value={(block.content?.bg as string) ?? ""} onChange={(v) => onContent({ bg: v })} />
+    </>
+  );
+}
+
+/** 빈 값(기본/없음)을 고를 수 있는 색상 선택 — 텍스트 블록 글자색·배경용. */
+function OptionalColorField({
+  label,
+  emptyLabel,
+  value,
+  onChange,
+}: {
+  label: string;
+  emptyLabel: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="color-field">
+      <label className="mini-label">{label}</label>
+      <div className="color-row">
+        <div className="swatches">
+          <button
+            type="button"
+            className={`swatch-btn ${value === "" ? "on" : ""}`}
+            style={{ background: "#fff", border: "1px dashed var(--border)" }}
+            onClick={() => onChange("")}
+            title={emptyLabel}
+            aria-label={emptyLabel}
+          />
+          {COLOR_PRESETS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`swatch-btn ${value.toLowerCase() === c ? "on" : ""}`}
+              style={{ background: c }}
+              onClick={() => onChange(c)}
+              aria-label={c}
+            />
+          ))}
+        </div>
+        <input type="color" className="color-input" value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#ffffff"} onChange={(e) => onChange(e.target.value)} />
+        <input
+          className="input hex-input"
+          value={value}
+          placeholder={`#rrggbb (${emptyLabel})`}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+        />
+      </div>
+    </div>
+  );
+}
+
 /** 항목별 중복 방지 설정: 중복 허용 여부 + 유효 기간(일). block.options 에 저장. */
 function DedupField({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial<FormBlock>) => void }) {
   const allow = block.options?.allowDuplicate !== false; // 기본 허용
@@ -1808,9 +1900,12 @@ function BlockFields({
     }
     case "TEXT":
       return (
-        <div className="field">
-          <label>텍스트</label>
-          <textarea className="input" rows={2} value={(block.content?.text as string) ?? ""} onChange={(e) => onContent({ text: e.target.value })} />
+        <div className="block-fields">
+          <div className="field">
+            <label>텍스트</label>
+            <textarea className="input" rows={2} value={(block.content?.text as string) ?? ""} onChange={(e) => onContent({ text: e.target.value })} />
+          </div>
+          <TextStyleFields block={block} onContent={onContent} />
         </div>
       );
     default:

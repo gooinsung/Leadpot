@@ -1,6 +1,6 @@
 import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
-import { AddressInput, HtmlBlock, PhoneInput3, descEmphasisClass, resolveStyle } from "@leadpot/public-ui";
+import { AddressInput, FormTextBlock, HtmlBlock, PhoneInput3, descEmphasisClass, resolveStyle } from "@leadpot/public-ui";
 
 /** BASIC 유형 리드폼 렌더러 — 블록을 순서대로 그려 실제 제출 화면처럼 미리보기. */
 export function BasicFormRenderer({ form }: { form: FormInput }) {
@@ -45,7 +45,7 @@ function BlockView({ block, accent }: { block: FormBlock; accent: string }) {
       return <HtmlBlock className="fr-html" html={html} />;
     }
     case "TEXT":
-      return <p className="fr-text">{(block.content?.text as string) || ""}</p>;
+      return <FormTextBlock content={block.content} />;
     case "DIVIDER":
       return <hr className="fr-divider" />;
     case "SPACER":

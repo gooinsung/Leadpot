@@ -68,3 +68,34 @@ describe("firePixelLead — 네이버", () => {
     expect(trans).not.toHaveBeenCalled();
   });
 });
+
+describe("initPixels — 틱톡 기본 코드", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it("공식 기본 코드 구조(_o·instance)를 갖추고 방문(page)을 대기열에 넣는다", async () => {
+    const inserted: { src?: string }[] = [];
+    const first = { parentNode: { insertBefore: (el: { src?: string }) => inserted.push(el) } };
+    const doc = {
+      createElement: () => ({}) as { src?: string },
+      getElementsByTagName: () => [first],
+      head: { appendChild: (el: { src?: string }) => inserted.push(el) },
+    };
+    const win: Record<string, unknown> = {};
+    vi.stubGlobal("window", win);
+    vi.stubGlobal("document", doc);
+
+    const { initPixels } = await import("./pixels"); // 모듈 단위 1회 초기화 플래그를 새로 받기 위해
+    initPixels({ tiktok: "DAV3TEST" });
+
+    const ttq = win.ttq as unknown[] & Record<string, unknown>;
+    expect(win.TiktokAnalyticsObject).toBe("ttq");
+    expect((ttq._o as Record<string, unknown>).DAV3TEST).toEqual({});
+    expect(typeof ttq.instance).toBe("function");
+    expect((ttq._i as Record<string, unknown>).DAV3TEST).toBeDefined();
+    expect(ttq).toContainEqual(["page"]);
+    expect(inserted[0].src).toBe("https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=DAV3TEST&lib=ttq");
+  });
+});
