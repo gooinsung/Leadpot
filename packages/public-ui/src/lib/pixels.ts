@@ -95,6 +95,11 @@ export function initPixels(cfg: unknown): void {
     } catch { /* ignore */ }
   }
 
+  // 틱톡: TikTok 공식 기본 코드(2024~ 버전)를 **그대로** 옮긴 것이다 — 임의로 줄이지 말 것.
+  // ⚠️ 2026-10-01 장애: 예전 코드는 공식 코드에서 `ttq.instance`·`ttq._o`(픽셀별 옵션)·load 의 두 번째
+  // 인자를 빼먹은 축약본이었다. 그 상태에서 SDK 로드 *전에* 대기열에 쌓인 `ttq.page()`(방문)는
+  // 틱톡에 한 번도 들어가지 않았고, SDK 로드 *후*에 바로 부르는 `ttq.track()`(전환)만 들어갔다 —
+  // 그래서 테스트 이벤트엔 '등록 완료'만 찍히고 개요는 "기본 코드 설치됨" 미완료로 남았다.
   if (tiktok) {
     try {
       (function (w2: any, d2: any, t: string) {
@@ -105,15 +110,22 @@ export function initPixels(cfg: unknown): void {
           o[e] = function () { o.push([e].concat(Array.prototype.slice.call(arguments, 0))); };
         };
         for (let i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
-        ttq.load = function (e: string) {
+        ttq.instance = function (id: string) {
+          const e = ttq._i[id] || [];
+          for (let n = 0; n < ttq.methods.length; n++) ttq.setAndDefer(e, ttq.methods[n]);
+          return e;
+        };
+        ttq.load = function (e: string, n?: any) {
           const r = "https://analytics.tiktok.com/i18n/pixel/events.js";
           ttq._i = ttq._i || {}; ttq._i[e] = []; ttq._i[e]._u = r;
           ttq._t = ttq._t || {}; ttq._t[e] = +new Date();
+          ttq._o = ttq._o || {}; ttq._o[e] = n || {};
           const o = d2.createElement("script");
           o.type = "text/javascript"; o.async = true;
           o.src = r + "?sdkid=" + e + "&lib=" + t;
           const a = d2.getElementsByTagName("script")[0];
-          a.parentNode.insertBefore(o, a);
+          if (a && a.parentNode) a.parentNode.insertBefore(o, a);
+          else d2.head.appendChild(o);
         };
         ttq.load(tiktok);
         ttq.page();
