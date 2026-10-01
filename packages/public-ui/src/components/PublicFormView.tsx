@@ -26,6 +26,7 @@ import { AddressInput } from "./AddressInput";
 import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
 import { parseUtm } from "../lib/utm";
 import { CompletionView } from "./formRenderers/CompletionView";
+import { FormTextBlock } from "./formRenderers/FormTextBlock";
 import { firePixelLead } from "../lib/pixels";
 import { CalcFollowUp, CalcGateView, CalcLoadingView, CalcResultView } from "./formRenderers/CalcResultView";
 import { findCalculator } from "../lib/calculators/registry";
@@ -323,7 +324,7 @@ function LiveBlock(props: LiveFieldProps) {
     case "HTML":
       return <HtmlBlock className="fr-html" html={(block.content?.html as string) || ""} />;
     case "TEXT":
-      return <p className="fr-text">{(block.content?.text as string) || ""}</p>;
+      return <FormTextBlock content={block.content} />;
     case "DIVIDER":
       return <hr className="fr-divider" />;
     case "FIELD":

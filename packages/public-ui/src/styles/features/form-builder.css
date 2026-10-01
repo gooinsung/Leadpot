@@ -127,6 +127,96 @@
   margin-bottom: 14px;
   font-size: 14px;
 }
+
+/* ---------- 텍스트 블록 효과 (FormTextBlock.tsx) ----------
+   입력폼 안 CTA 문구를 눈에 띄게. --fr-fx-color 는 글자색(지정 안 하면 본문색). */
+.fr-fx {
+  --fr-fx-color: var(--text);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+/* 반짝임: 글자 위로 금빛 빛줄기가 지나간다 */
+.fr-fx-shine .fr-fx-inner {
+  background: linear-gradient(110deg, var(--fr-fx-color) 42%, #ffd43b 50%, var(--fr-fx-color) 58%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fr-fx-shine 2.4s linear infinite;
+}
+@keyframes fr-fx-shine {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+/* 글로우: 글자 주변이 은은하게 빛났다 사라진다 */
+.fr-fx-glow .fr-fx-inner {
+  animation: fr-fx-glow 1.8s ease-in-out infinite;
+}
+@keyframes fr-fx-glow {
+  0%, 100% { text-shadow: 0 0 0 transparent; }
+  50% { text-shadow: 0 0 6px #ffd43b, 0 0 14px #ffd43b; }
+}
+/* 커졌다 작아졌다 */
+.fr-fx-pulse {
+  animation: fr-fx-pulse 1.4s ease-in-out infinite;
+}
+@keyframes fr-fx-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+/* 흔들림: 잠깐 흔들리고 쉬기를 반복(계속 흔들리면 읽기 어렵다) */
+.fr-fx-shake {
+  animation: fr-fx-shake 2.6s ease-in-out infinite;
+}
+@keyframes fr-fx-shake {
+  0%, 70%, 100% { transform: translateX(0); }
+  74%, 82%, 90% { transform: translateX(-4px); }
+  78%, 86%, 94% { transform: translateX(4px); }
+}
+/* 깜빡임 */
+.fr-fx-blink {
+  animation: fr-fx-blink 1.2s step-end infinite;
+}
+@keyframes fr-fx-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+/* 형광펜: 글자 아래쪽에 노란 형광펜이 그어졌다 지워지기를 반복 */
+.fr-fx-highlight .fr-fx-inner {
+  background-image: linear-gradient(transparent 58%, rgba(255, 212, 59, 0.75) 58%);
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: fr-fx-highlight 3s ease-in-out infinite;
+}
+@keyframes fr-fx-highlight {
+  0% { background-size: 0% 100%; }
+  35%, 85% { background-size: 100% 100%; }
+  100% { background-size: 0% 100%; }
+}
+/* 그라데이션: 글자 색이 흐르듯 바뀐다 */
+.fr-fx-gradient .fr-fx-inner {
+  background: linear-gradient(90deg, #f04452, #f5a524, #12b886, #3a43c0, #8b3ce0, #f04452);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fr-fx-gradient 4s linear infinite;
+}
+@keyframes fr-fx-gradient {
+  from { background-position: 0% 0; }
+  to { background-position: 150% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fr-fx,
+  .fr-fx .fr-fx-inner {
+    animation: none !important;
+  }
+  .fr-fx-highlight .fr-fx-inner {
+    background-size: 100% 100%;
+  }
+}
 .fr-divider {
   border: none;
   border-top: 1px solid var(--border);

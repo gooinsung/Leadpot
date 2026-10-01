@@ -13,6 +13,13 @@ export { PhoneInput3 } from "./components/PhoneInput3";
 export { AddressInput } from "./components/AddressInput";
 
 export { ConsentItemRow } from "./components/formRenderers/ConsentItemRow";
+export {
+  FormTextBlock,
+  TEXT_EFFECTS,
+  TEXT_SIZES,
+  resolveTextBlockStyle,
+  type TextBlockStyle,
+} from "./components/formRenderers/FormTextBlock";
 export { CompletionView } from "./components/formRenderers/CompletionView";
 export { CalcFollowUp, CalcGateView, CalcLoadingView, CalcResultView } from "./components/formRenderers/CalcResultView";
 export {
