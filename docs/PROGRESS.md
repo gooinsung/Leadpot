@@ -517,6 +517,11 @@
 
 ## 👉 다음에 할 일 (이어받는 세션은 여기부터)
 
+> 🧹 **임시 API 정리 예정(2026-10-05 추가)**: `POST /api/public/temp-notify-sms`
+> (`backend/src/main/java/com/leadpot/sms/TempNotifySmsController.java`) — 운영자 개인 알림용(GPT 예약이
+> 당근 광고 확인 후 운영자 본인 번호로 문자). JWT 없이 암호 하나로 인증하고 수신번호는 고정이다. 사용자가
+> 다 썼다고 하면 **이 파일 하나만 삭제**하면 된다(다른 설정 변경 없음).
+
 > **바로 이어서 할 일**:
 > 1. **한글 슬러그 버그 실도메인 최종 확인**(위 §2026-09-08 기록) — `deploy-renderer.yml`
 >    (커밋 `6f705b1`) 성공 확인 후, 실제 `the-law.lead-pot.com/개인회생성지`(당근광고) 브라우저 접속이
