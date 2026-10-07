@@ -76,13 +76,17 @@ export const TIKTOK_EVENT_DEFAULT = "SubmitForm";
 
 /**
  * 카카오 전환 이벤트 — 값은 카카오 픽셀 SDK 가 실제로 호출하는 메서드명 그 자체다
- * (토스처럼 이벤트마다 메서드가 다르다). SDK 가 제공하는 표준 이벤트 중 리드폼에 맞는 것만 담았다 —
- * purchase 는 금액·수량이 필요해 빼고(메타 Purchase 를 뺀 이유와 동일), 장바구니·위시리스트·검색·
- * 콘텐츠조회 계열도 리드폼과 안 맞아 뺐다.
+ * (토스처럼 이벤트마다 메서드가 다르다). 카카오모먼트 "머신러닝 최적화 전환 이벤트" 목록
+ * (구매·앱설치·회원가입·잠재고객·서비스신청·장바구니)에 맞췄다 — 앱설치는 앱 SDK 전용이라 웹 픽셀엔 없어 뺐다.
+ * 모두 인자 없이 호출 가능하다(공식 가이드 kakaoad/kakao-pixel 의 "이벤트만 사용하는 경우").
+ * purchase 는 금액 없이 보내므로 전환금액은 보고서에 안 잡히고 건수만 잡힌다.
  */
 export const KAKAO_EVENTS: { value: string; label: string }[] = [
-  { value: "completeRegistration", label: "completeRegistration — 회원가입 완료" },
-  { value: "participation", label: "participation — 참여·잠재고객(상담신청·예약·응모)" },
+  { value: "purchase", label: "purchase — 구매" },
+  { value: "completeRegistration", label: "completeRegistration — 회원가입" },
+  { value: "participation", label: "participation — 잠재고객(상담신청·사전예약·한도조회)" },
+  { value: "signUp", label: "signUp — 서비스신청(대출신청·카드발급·구독)" },
+  { value: "addToCart", label: "addToCart — 장바구니" },
 ];
 /** 미설정 리드폼의 기본 카카오 전환 이벤트(기존 고정 동작과 하위호환). pixels.ts 기본값과 반드시 같아야 한다. */
 export const KAKAO_EVENT_DEFAULT = "completeRegistration";
@@ -146,7 +150,7 @@ const EVENT_PICKERS: Record<string, { field: string; label: string; options: typ
     label: "카카오 전환 이벤트",
     options: KAKAO_EVENTS,
     def: KAKAO_EVENT_DEFAULT,
-    help: "리드 제출 시 카카오에 보낼 전환 이벤트입니다. 상담신청·문의 같은 리드폼이면 participation이, 회원가입 폼이면 completeRegistration이 더 정확합니다.",
+    help: "리드 제출 시 카카오에 보낼 전환 이벤트입니다. 카카오모먼트 광고 그룹에서 고른 최적화 전환 이벤트와 같은 것을 선택하세요. 상담신청·문의 리드폼이면 보통 participation(잠재고객)이 맞습니다.",
   },
   toss: {
     field: "tossEvent",
