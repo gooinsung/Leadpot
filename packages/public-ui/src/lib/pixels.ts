@@ -16,7 +16,7 @@ export interface PixelConfig {
   tiktok?: string; // TikTok Pixel ID
   tiktokEvent?: string; // 틱톡 전환 이벤트 — ttq.track() 에 그대로 넘기는 표준 이벤트명(SubmitForm | CompleteRegistration | Contact | Subscribe), 기본 SubmitForm
   kakao?: string; // Kakao 픽셀 트랙 ID
-  kakaoEvent?: string; // 카카오 전환 이벤트 — 호출할 메서드명 그 자체(completeRegistration | participation), 기본 completeRegistration
+  kakaoEvent?: string; // 카카오 전환 이벤트 — 호출할 메서드명 그 자체(purchase | completeRegistration | participation | signUp | addToCart), 기본 completeRegistration
   daangn?: string; // 당근(Karrot) 픽셀 ID
   daangnEvent?: string; // 당근 전환 이벤트(Purchase | Lead | SubmitApplication), 기본 Purchase
   toss?: string; // 토스애즈 전환 코드(픽셀 ID)
