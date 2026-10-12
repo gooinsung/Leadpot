@@ -40,6 +40,8 @@ import {
   CompletionView,
   DEFAULT_SUBMIT_LABEL,
   descEmphasisLevel,
+  GROUP_DEFAULT_CHOICES,
+  groupRows,
   INPUT_FIELD_TYPES,
   OPTION_FIELD_TYPES,
   STEP_ANSWER_TYPES,
@@ -171,6 +173,8 @@ interface StepData {
   required: boolean;
   /** saveAs: DB 저장값 — 비면 label 을 저장한다(방문자에게 보이는 것과 저장되는 것을 다르게). */
   options: { label: string; desc: string; value?: string; saveAs?: string }[];
+  /** '라디오 묶음'의 질문 목록 — 질문마다 options 중 하나를 고른다. */
+  rows?: string[];
   /**
    * 이 단계의 답이 계산기의 어느 입력인지(`totalDebt` 등). 계산기를 고르면 자동으로 붙는다.
    * 값이 계산에 들어가므로 **마케터가 답변 방식·선택지 값을 함부로 바꾸면 결과가 틀린다** →
@@ -472,6 +476,7 @@ export function FormEditPage() {
                 value: o.value,
                 saveAs: o.saveAs,
               })),
+              rows: (b.content?.rows as string[] | undefined) ?? [],
               defaultIndex: typeof b.content?.defaultIndex === "number" ? (b.content.defaultIndex as number) : null,
               calcInput: (b.content?.calcInput as string) || null,
             })),
@@ -631,6 +636,7 @@ export function FormEditPage() {
               placeholder: s.placeholder,
               required: s.required,
               options: OPTION_ANSWER_TYPES.includes(s.answerType) ? s.options : [],
+              rows: s.answerType === "radio_group" ? s.rows ?? [] : [],
               // 기본 선택 — 선택지가 있는 유형에서만 의미가 있다. 선택지 밖의 인덱스는 저장하지 않는다.
               defaultIndex:
                 OPTION_ANSWER_TYPES.includes(s.answerType)
@@ -945,7 +951,7 @@ export function FormEditPage() {
                           className="input"
                           value={s.answerType}
                           disabled={!!s.calcInput}
-                          onChange={(e) => patchStep(i, { answerType: e.target.value })}
+                          onChange={(e) => patchStep(i, answerTypePatch(s, e.target.value))}
                         >
                           {STEP_ANSWER_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label}</option>
@@ -958,7 +964,8 @@ export function FormEditPage() {
                       </label>
                       {OPTION_ANSWER_TYPES.includes(s.answerType) ? (
                         <>
-                          <label className="mini-label">선택지</label>
+                          {s.answerType === "radio_group" && <GroupRowsEditor rows={s.rows ?? []} onChange={(rows) => patchStep(i, { rows })} />}
+                          <label className="mini-label">선택지{s.answerType === "radio_group" ? " (모든 질문에 공통)" : ""}</label>
                           {s.options.map((o, oi) => (
                             <div className="opt-row" key={oi}>
                               <input className="input" placeholder="선택지 제목" value={o.label} onChange={(e) => patchOption(i, oi, { label: e.target.value })} />
@@ -1786,6 +1793,59 @@ function DedupField({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial
   );
 }
 
+/**
+ * 기본형 항목 유형 변경. '라디오 묶음'으로 처음 바꾸면 질문 1개 + 선택지(미선택·필요·불필요, 기본 '미선택')를
+ * 채워 둔다 — 가장 흔한 모양이라 바로 질문만 고쳐 쓰면 되게.
+ */
+function fieldTypePatch(block: FormBlock, fieldType: string): Partial<FormBlock> {
+  if (fieldType !== "radio_group") return { fieldType };
+  const opts = block.options ?? {};
+  const hasChoices = ((opts.choices as string[] | undefined) ?? []).length > 0;
+  return {
+    fieldType,
+    options: {
+      ...opts,
+      rows: groupRows(block).length ? groupRows(block) : ["질문 1"],
+      ...(hasChoices ? {} : { choices: [...GROUP_DEFAULT_CHOICES], saveValues: [], defaultIndex: 0 }),
+    },
+  };
+}
+
+/** 스텝형 답변 방식 변경 — '라디오 묶음'으로 처음 바꾸면 기본형과 같은 모양으로 채워 둔다. */
+function answerTypePatch(s: StepData, answerType: string): Partial<StepData> {
+  if (answerType !== "radio_group") return { answerType };
+  const untouched = s.options.length === 0 || (s.options.length === 1 && s.options[0].label === "선택지 1");
+  return {
+    answerType,
+    rows: s.rows?.length ? s.rows : ["질문 1"],
+    ...(untouched ? { options: GROUP_DEFAULT_CHOICES.map((label) => ({ label, desc: "" })), defaultIndex: 0 } : {}),
+  };
+}
+
+/** '라디오 묶음'의 질문 목록 편집 — 질문마다 아래 선택지 중 하나를 고르게 된다. */
+function GroupRowsEditor({ rows, onChange }: { rows: string[]; onChange: (rows: string[]) => void }) {
+  return (
+    <>
+      <label className="mini-label">질문 목록</label>
+      {rows.map((r, i) => (
+        <div className="opt-row" key={i}>
+          <input
+            className="input"
+            placeholder={`질문 ${i + 1} (예: 입주청소 필요 여부)`}
+            value={r}
+            onChange={(e) => onChange(rows.map((x, idx) => (idx === i ? e.target.value : x)))}
+          />
+          <button className="btn btn-ghost btn-sm danger" type="button" onClick={() => onChange(rows.filter((_, idx) => idx !== i))}>×</button>
+        </div>
+      ))}
+      <button className="btn btn-ghost btn-sm" type="button" onClick={() => onChange([...rows, ""])}>+ 질문</button>
+      <span className="field-optional" style={{ display: "block", margin: "4px 0 12px" }}>
+        질문마다 아래 선택지 중 하나를 고릅니다. 리드에는 "질문: 답 / 질문: 답" 으로 한 칸에 저장됩니다.
+      </span>
+    </>
+  );
+}
+
 /** 선택박스·라디오·체크박스 필드의 선택지 목록 편집. block.options.choices(string[]) 에 저장. */
 function SelectChoicesEditor({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial<FormBlock>) => void }) {
   const choices = ((block.options?.choices as string[]) ?? []);
@@ -1869,7 +1929,7 @@ function BlockFields({
           <div className="block-row">
             <div className="field" style={{ flex: 1 }}>
               <label>유형</label>
-              <select className="input" value={block.fieldType ?? "text"} onChange={(e) => onPatch({ fieldType: e.target.value })}>
+              <select className="input" value={block.fieldType ?? "text"} onChange={(e) => onPatch(fieldTypePatch(block, e.target.value))}>
                 {INPUT_FIELD_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
@@ -1880,7 +1940,7 @@ function BlockFields({
             </label>
           </div>
           {/* 라디오·체크박스는 입력칸이 없어 플레이스홀더를 보여줄 자리가 없다. */}
-          {block.fieldType !== "radio" && block.fieldType !== "checkbox" && (
+          {block.fieldType !== "radio" && block.fieldType !== "checkbox" && block.fieldType !== "radio_group" && (
             <div className="field">
               <label>플레이스홀더</label>
               <input className="input" value={block.placeholder ?? ""} onChange={(e) => onPatch({ placeholder: e.target.value })} />
@@ -1903,6 +1963,14 @@ function BlockFields({
               </select>
             </div>
           </div>
+          {block.fieldType === "radio_group" && (
+            <div className="select-choices">
+              <GroupRowsEditor
+                rows={groupRows(block)}
+                onChange={(rows) => onPatch({ options: { ...(block.options ?? {}), rows } })}
+              />
+            </div>
+          )}
           {OPTION_FIELD_TYPES.includes(block.fieldType ?? "") && <SelectChoicesEditor block={block} onPatch={onPatch} />}
           <DedupField block={block} onPatch={onPatch} />
         </div>

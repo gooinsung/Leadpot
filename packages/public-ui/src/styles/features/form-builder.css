@@ -403,6 +403,49 @@
   flex: none;
 }
 
+/* 라디오 묶음 — 질문마다 같은 선택지를 가로로 (components/RadioGroupInput.tsx).
+   좁은 화면에선 선택지가 줄바꿈되고, 라벨 전체가 44px 탭 타깃. */
+.rg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rg-q {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.rg-opts {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 16px;
+}
+/* .field label(13px·굵게) 규칙을 이긴다 — 선택지는 보통 굵기, 고른 것만 굵게 */
+.rg .rg-opt {
+  font-size: 16px;
+  font-weight: 400;
+}
+.rg-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 16px;
+  color: var(--text);
+  cursor: pointer;
+}
+.rg-opt input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+}
+.rg .rg-opt.sel span {
+  font-weight: 700;
+}
+
 /* 주소 입력 — [주소 칸][주소 검색] + 검색 레이어 (components/AddressInput.tsx).
    공개 폼은 대부분 모바일 → 레이어는 모바일에서 전체 화면, 넓은 화면에서 가운데 창. */
 .addr-row {
