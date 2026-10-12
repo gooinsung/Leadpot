@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { joinAddressDetail, splitAddressDetail } from "../lib/fieldTypes";
 
 /**
  * 주소 입력 — 카카오(다음) 우편번호 서비스로 검색해 채운다(무료, API 키 불필요).
@@ -9,7 +10,9 @@ import { useEffect, useRef, useState } from "react";
  *       이탈이 난다(CLAUDE.md 모바일 퍼스트). 모바일은 전체 화면, 넓은 화면은 가운데 창.</li>
  *   <li>상위로는 <code>(우편번호) 주소</code> 한 문자열로 올려보낸다(사용자 확정 2026-09-28 — 우편번호·주소 둘 다 저장).
  *       도로명/지번은 방문자가 검색 결과에서 고른 쪽을 쓴다.</li>
- *   <li>상세주소(동·호수)는 이 항목에 넣지 않는다 — 필요하면 리드폼에 일반 '한 줄 텍스트' 항목을 따로 둔다(사용자 결정).</li>
+ *   <li>상세주소(동·호수)는 '주소' 유형에는 없다. <b>'주소 + 상세주소' 유형</b>(<code>withDetail</code>)만 검색 칸 아래에
+ *       상세주소 칸을 함께 두고, 검색을 마치면 그 칸으로 커서를 옮긴다(사용자 지시 2026-10-12). 입력 중 값은
+ *       <code>주소\n상세주소</code> — lib/fieldTypes 의 splitAddressDetail/joinAddressDetail 참고.</li>
  *   <li>스크립트는 처음 검색을 누를 때만 불러온다 — 주소 항목이 없는 폼·검색 안 하는 방문자는 로드 비용이 없다.</li>
  * </ul>
  */
@@ -103,6 +106,8 @@ export function AddressInput({
   placeholder,
   required,
   readOnly,
+  withDetail,
+  detailPlaceholder,
 }: {
   id?: string;
   value: string;
@@ -111,10 +116,18 @@ export function AddressInput({
   required?: boolean;
   /** 편집기 미리보기 — 눌러도 검색창을 열지 않는다. */
   readOnly?: boolean;
+  /** 검색 칸 아래에 상세주소(동·호수) 입력칸을 함께 둔다 — 'address_detail' 유형. */
+  withDetail?: boolean;
+  detailPlaceholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const layerRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLInputElement>(null);
+  const [base, detail] = withDetail ? splitAddressDetail(value) : [value, ""];
+  // embed 콜백은 열릴 때 한 번 만들어지므로 최신 상세주소는 ref 로 읽는다.
+  const detailNow = useRef(detail);
+  detailNow.current = detail;
 
   useEffect(() => {
     if (!open) return;
@@ -125,8 +138,16 @@ export function AddressInput({
         if (cancelled || !layerRef.current) return;
         new Postcode({
           oncomplete: (data: PostcodeData) => {
-            onChange(formatAddress(data));
-            setOpen(false);
+            const addr = formatAddress(data);
+            if (withDetail) {
+              onChange(joinAddressDetail(addr, detailNow.current));
+              setOpen(false);
+              // 레이어가 닫힌 뒤 상세주소 칸으로 — 모바일에선 키보드가 바로 올라와 동·호수를 이어서 친다.
+              setTimeout(() => detailRef.current?.focus(), 0);
+            } else {
+              onChange(addr);
+              setOpen(false);
+            }
           },
           width: "100%",
           height: "100%",
@@ -162,16 +183,32 @@ export function AddressInput({
         <button
           id={id}
           type="button"
-          className={`input addr-value${value ? "" : " empty"}`}
+          className={`input addr-value${base ? "" : " empty"}`}
           aria-required={required}
           onClick={openSearch}
         >
-          {value || placeholder || "주소를 검색해주세요"}
+          {base || placeholder || "주소를 검색해주세요"}
         </button>
         <button type="button" className="addr-btn" onClick={openSearch}>
-          {value ? "다시 검색" : "주소 검색"}
+          {base ? "다시 검색" : "주소 검색"}
         </button>
       </div>
+      {withDetail && (
+        <input
+          ref={detailRef}
+          id={id ? `${id}-detail` : undefined}
+          className="input addr-detail"
+          type="text"
+          autoComplete="address-line2"
+          aria-label="상세주소"
+          aria-required={required}
+          placeholder={detailPlaceholder || "상세주소 (예: 101동 1203호)"}
+          readOnly={readOnly}
+          value={detail}
+          // 줄바꿈은 주소/상세주소 구분자라 들어오지 않게 막는다(붙여넣기 대비).
+          onChange={(e) => onChange(joinAddressDetail(base, e.target.value.replace(/[\r\n]+/g, " ")))}
+        />
+      )}
       {open && (
         <div className="addr-overlay" role="dialog" aria-modal="true" aria-label="주소 검색" onClick={() => setOpen(false)}>
           <div className="addr-sheet" onClick={(e) => e.stopPropagation()}>

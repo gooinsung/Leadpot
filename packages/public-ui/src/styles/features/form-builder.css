@@ -424,6 +424,10 @@
 .addr-row .addr-value.empty {
   color: var(--muted);
 }
+/* '주소 + 상세주소' 의 상세주소 칸 — 검색 칸 바로 아래 */
+.addr-detail {
+  margin-top: 6px;
+}
 .addr-btn {
   flex: none;
   min-height: 44px;

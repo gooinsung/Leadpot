@@ -18,6 +18,7 @@ export const INPUT_FIELD_TYPES: readonly { value: string; label: string }[] = [
   { value: "number", label: "숫자" },
   { value: "date", label: "날짜" },
   { value: "address", label: "주소 (우편번호 검색)" },
+  { value: "address_detail", label: "주소 + 상세주소 (우편번호 검색 + 동·호수)" },
   { value: "select", label: "선택박스" },
   { value: "radio", label: "라디오버튼 (단일 선택)" },
   { value: "checkbox", label: "체크박스 (중복 선택)" },
@@ -64,7 +65,7 @@ export function stepAnswerType(block: FormBlock): string {
  * 그대로 쓰기 위한 변환. 질문 선택지 `{label}` 는 기본형 `options.choices`(문자열)로 옮긴다.
  */
 export function choiceAsField(block: FormBlock): FormBlock {
-  const opts = (block.content?.options as { label?: string }[]) ?? [];
+  const opts = (block.content?.options as { label?: string; saveAs?: string }[]) ?? [];
   return {
     ...block,
     blockType: "FIELD",
@@ -72,7 +73,11 @@ export function choiceAsField(block: FormBlock): FormBlock {
     label: (block.content?.question as string) || "",
     required: block.content?.required === true,
     placeholder: (block.content?.placeholder as string) || "",
-    options: { choices: opts.map((o) => o.label ?? ""), defaultIndex: block.content?.defaultIndex },
+    options: {
+      choices: opts.map((o) => o.label ?? ""),
+      saveValues: opts.map((o) => o.saveAs ?? ""),
+      defaultIndex: block.content?.defaultIndex,
+    },
   };
 }
 
@@ -84,11 +89,53 @@ export function parsePicked(value: string): number[] {
   return value ? value.split(",").map(Number).filter((n) => Number.isInteger(n) && n >= 0) : [];
 }
 
-/** 입력 항목의 접수 값. 라디오·체크박스는 고른 라벨을 선택지 순서대로 ", " 로 잇는다(카드 다중 선택과 같은 형식). */
-export function fieldAnswer(block: FormBlock, value: string | undefined): string {
-  if (!isListField(block.fieldType)) return value ?? "";
+/**
+ * '주소 + 상세주소' 입력 중 값 — 검색한 주소와 상세주소(동·호수)를 줄바꿈 하나로 이어 한 문자열로 둔다
+ * (폼 값은 항목당 문자열 하나). 주소 검색 결과·한 줄 입력칸에는 줄바꿈이 들어갈 수 없어 안전하다.
+ * 접수할 때 {@link fieldAnswer} 가 공백으로 이어 `(우편번호) 주소 상세주소` 로 바꾼다.
+ */
+export function splitAddressDetail(value: string | undefined): [string, string] {
+  const v = value ?? "";
+  const i = v.indexOf("\n");
+  return i < 0 ? [v, ""] : [v.slice(0, i), v.slice(i + 1)];
+}
+
+export function joinAddressDetail(base: string, detail: string): string {
+  return detail ? `${base}\n${detail}` : base;
+}
+
+/**
+ * 선택지의 **DB 저장값** — 방문자에게 보이는 선택지(라벨)와 리드에 저장되는 값을 다르게 둘 수 있다
+ * (예: 보이는 건 '가정 이사', 저장은 '가정이사(방문 견적)'). 사용자 지시 2026-10-12.
+ * 기본형 항목은 `options.saveValues`(choices 와 같은 순서의 문자열 배열), 스텝형 질문은 선택지마다
+ * `saveAs` 에 둔다. 비어 있으면 라벨을 그대로 저장한다 — 예전 폼은 그대로 동작.
+ */
+export function choiceSaveValue(label: string | undefined, saveAs: string | undefined, index: number): string {
+  return saveAs?.trim() || label || `선택지 ${index + 1}`;
+}
+
+/** 입력 항목(선택박스·라디오·체크박스)의 선택지별 저장값 목록 — 수기 등록처럼 저장값으로 고르는 곳에서 쓴다. */
+export function fieldSaveValues(block: FormBlock): string[] {
   const list = (block.options?.choices as string[]) ?? [];
-  return parsePicked(value ?? "").sort((a, b) => a - b).map((ci) => list[ci] || `선택지 ${ci + 1}`).join(", ");
+  const save = (block.options?.saveValues as string[] | undefined) ?? [];
+  return list.map((c, i) => choiceSaveValue(c, save[i], i));
+}
+
+/** 입력 항목의 접수 값(선택지는 DB 저장값으로). 라디오·체크박스는 고른 라벨을 선택지 순서대로 ", " 로 잇는다(카드 다중 선택과 같은 형식). */
+export function fieldAnswer(block: FormBlock, value: string | undefined): string {
+  if (block.fieldType === "address_detail") {
+    const [base, detail] = splitAddressDetail(value);
+    return [base.trim(), detail.trim()].filter(Boolean).join(" ");
+  }
+  const list = (block.options?.choices as string[]) ?? [];
+  const save = (block.options?.saveValues as string[] | undefined) ?? [];
+  if (block.fieldType === "select") {
+    // 선택박스는 고른 라벨을 값으로 들고 있다 → 저장값이 있으면 그걸로 바꾼다.
+    const ci = value ? list.indexOf(value) : -1;
+    return ci >= 0 ? choiceSaveValue(list[ci], save[ci], ci) : value ?? "";
+  }
+  if (!isListField(block.fieldType)) return value ?? "";
+  return parsePicked(value ?? "").sort((a, b) => a - b).map((ci) => choiceSaveValue(list[ci], save[ci], ci)).join(", ");
 }
 
 /** '기본 선택'(options.defaultIndex)을 입력 항목의 초기값으로. 없거나 선택지 밖이면 null. */
@@ -110,6 +157,16 @@ export function fieldBlockError(block: FormBlock, value: string | undefined): st
   const type = block.fieldType || "text";
   if (isListField(type)) {
     return block.required && parsePicked(value ?? "").length === 0 ? `'${name}' 항목을 선택해주세요.` : null;
+  }
+  if (type === "address_detail") {
+    const [base, detail] = splitAddressDetail(value);
+    const hasBase = base.trim() !== "";
+    const hasDetail = detail.trim() !== "";
+    if (!hasBase && !hasDetail) return block.required ? `'${name}' 주소를 검색해주세요.` : null;
+    if (!hasBase) return `'${name}' 주소를 검색해주세요.`;
+    // 필수 항목이면 동·호수까지 받는다(이 유형을 고른 이유). 선택 항목은 비워도 된다.
+    if (!hasDetail && block.required) return `'${name}' 상세주소(동·호수)를 입력해주세요.`;
+    return null;
   }
   const v = (value ?? "").trim();
   if (!v) return block.required ? `'${name}' 항목을 입력해주세요.` : null;
