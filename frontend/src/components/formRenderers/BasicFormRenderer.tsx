@@ -101,8 +101,8 @@ export function FieldView({ block, accent, bare }: { block: FormBlock; accent: s
         </div>
       ) : type === "tel" ? (
         <PhoneInput3 value="" onChange={() => {}} readOnly />
-      ) : type === "address" ? (
-        <AddressInput value="" onChange={() => {}} placeholder={block.placeholder ?? ""} readOnly />
+      ) : type === "address" || type === "address_detail" ? (
+        <AddressInput value="" onChange={() => {}} placeholder={block.placeholder ?? ""} readOnly withDetail={type === "address_detail"} />
       ) : (
         <input className="input" type={inputType} placeholder={block.placeholder ?? ""} readOnly />
       )}

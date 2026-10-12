@@ -18,6 +18,7 @@ export const INPUT_FIELD_TYPES: readonly { value: string; label: string }[] = [
   { value: "number", label: "숫자" },
   { value: "date", label: "날짜" },
   { value: "address", label: "주소 (우편번호 검색)" },
+  { value: "address_detail", label: "주소 + 상세주소 (우편번호 검색 + 동·호수)" },
   { value: "select", label: "선택박스" },
   { value: "radio", label: "라디오버튼 (단일 선택)" },
   { value: "checkbox", label: "체크박스 (중복 선택)" },
@@ -84,8 +85,27 @@ export function parsePicked(value: string): number[] {
   return value ? value.split(",").map(Number).filter((n) => Number.isInteger(n) && n >= 0) : [];
 }
 
+/**
+ * '주소 + 상세주소' 입력 중 값 — 검색한 주소와 상세주소(동·호수)를 줄바꿈 하나로 이어 한 문자열로 둔다
+ * (폼 값은 항목당 문자열 하나). 주소 검색 결과·한 줄 입력칸에는 줄바꿈이 들어갈 수 없어 안전하다.
+ * 접수할 때 {@link fieldAnswer} 가 공백으로 이어 `(우편번호) 주소 상세주소` 로 바꾼다.
+ */
+export function splitAddressDetail(value: string | undefined): [string, string] {
+  const v = value ?? "";
+  const i = v.indexOf("\n");
+  return i < 0 ? [v, ""] : [v.slice(0, i), v.slice(i + 1)];
+}
+
+export function joinAddressDetail(base: string, detail: string): string {
+  return detail ? `${base}\n${detail}` : base;
+}
+
 /** 입력 항목의 접수 값. 라디오·체크박스는 고른 라벨을 선택지 순서대로 ", " 로 잇는다(카드 다중 선택과 같은 형식). */
 export function fieldAnswer(block: FormBlock, value: string | undefined): string {
+  if (block.fieldType === "address_detail") {
+    const [base, detail] = splitAddressDetail(value);
+    return [base.trim(), detail.trim()].filter(Boolean).join(" ");
+  }
   if (!isListField(block.fieldType)) return value ?? "";
   const list = (block.options?.choices as string[]) ?? [];
   return parsePicked(value ?? "").sort((a, b) => a - b).map((ci) => list[ci] || `선택지 ${ci + 1}`).join(", ");
@@ -110,6 +130,16 @@ export function fieldBlockError(block: FormBlock, value: string | undefined): st
   const type = block.fieldType || "text";
   if (isListField(type)) {
     return block.required && parsePicked(value ?? "").length === 0 ? `'${name}' 항목을 선택해주세요.` : null;
+  }
+  if (type === "address_detail") {
+    const [base, detail] = splitAddressDetail(value);
+    const hasBase = base.trim() !== "";
+    const hasDetail = detail.trim() !== "";
+    if (!hasBase && !hasDetail) return block.required ? `'${name}' 주소를 검색해주세요.` : null;
+    if (!hasBase) return `'${name}' 주소를 검색해주세요.`;
+    // 필수 항목이면 동·호수까지 받는다(이 유형을 고른 이유). 선택 항목은 비워도 된다.
+    if (!hasDetail && block.required) return `'${name}' 상세주소(동·호수)를 입력해주세요.`;
+    return null;
   }
   const v = (value ?? "").trim();
   if (!v) return block.required ? `'${name}' 항목을 입력해주세요.` : null;

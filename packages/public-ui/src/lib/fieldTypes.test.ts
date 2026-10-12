@@ -7,7 +7,9 @@ import {
   fieldAnswer,
   fieldBlockError,
   fieldDefaultValue,
+  joinAddressDetail,
   normalizeAnswerType,
+  splitAddressDetail,
   stepAnswerType,
 } from "./fieldTypes";
 
@@ -48,5 +50,21 @@ describe("fieldTypes", () => {
     expect(fieldDefaultValue(field({ fieldType: "select", options: { choices: ["a", "b"], defaultIndex: 1 } }))).toBe("b");
     expect(fieldBlockError(field({ fieldType: "email", label: "메일" }), "x")).toBe("'메일' 이메일 형식이 올바르지 않습니다.");
     expect(fieldBlockError(field({ fieldType: "text", label: "이름", required: true }), " ")).toBe("'이름' 항목을 입력해주세요.");
+  });
+
+  it("주소 + 상세주소: 입력 중엔 줄바꿈으로 나눠 두고, 접수할 땐 공백으로 잇는다", () => {
+    const f = field({ fieldType: "address_detail", label: "주소", required: true });
+    const v = joinAddressDetail("(06234) 서울 강남구 테헤란로 123", "101동 1203호");
+    expect(splitAddressDetail(v)).toEqual(["(06234) 서울 강남구 테헤란로 123", "101동 1203호"]);
+    expect(fieldAnswer(f, v)).toBe("(06234) 서울 강남구 테헤란로 123 101동 1203호");
+    expect(fieldBlockError(f, v)).toBeNull();
+    expect(fieldBlockError(f, "")).toBe("'주소' 주소를 검색해주세요.");
+    expect(fieldBlockError(f, joinAddressDetail("", "101호"))).toBe("'주소' 주소를 검색해주세요.");
+    expect(fieldBlockError(f, "(06234) 서울 강남구 테헤란로 123")).toBe("'주소' 상세주소(동·호수)를 입력해주세요.");
+    // 선택 항목은 상세주소를 비워도 된다.
+    const opt = field({ fieldType: "address_detail", label: "주소" });
+    expect(fieldBlockError(opt, "")).toBeNull();
+    expect(fieldBlockError(opt, "(06234) 서울 강남구 테헤란로 123")).toBeNull();
+    expect(fieldAnswer(opt, "(06234) 서울 강남구 테헤란로 123")).toBe("(06234) 서울 강남구 테헤란로 123");
   });
 });

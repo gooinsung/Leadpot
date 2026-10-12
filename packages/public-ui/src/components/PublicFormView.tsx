@@ -382,8 +382,8 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
         </div>
       ) : type === "tel" ? (
         <PhoneInput3 id={`fld-${idx}`} value={value} onChange={onChange} required={block.required} />
-      ) : type === "address" ? (
-        <AddressInput id={`fld-${idx}`} value={value} onChange={onChange} placeholder={block.placeholder ?? ""} required={block.required} />
+      ) : type === "address" || type === "address_detail" ? (
+        <AddressInput id={`fld-${idx}`} value={value} onChange={onChange} placeholder={block.placeholder ?? ""} required={block.required} withDetail={type === "address_detail"} />
       ) : (
         <input id={`fld-${idx}`} className="input" type={inputType} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
