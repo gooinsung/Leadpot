@@ -8,6 +8,8 @@ import {
   fieldBlockError,
   fieldDefaultValue,
   fieldSaveValues,
+  joinGroupPicks,
+  parseGroupPicks,
   joinAddressDetail,
   normalizeAnswerType,
   splitAddressDetail,
@@ -82,5 +84,25 @@ describe("fieldTypes", () => {
     const q = choiceAsField(choice({ answerType: "radio", options: [{ label: "가정 이사", saveAs: "가정이사(방문 견적)" }, { label: "사무실 이사" }] }));
     expect(fieldAnswer(q, "0")).toBe("가정이사(방문 견적)");
     expect(fieldAnswer(q, "1")).toBe("사무실 이사");
+  });
+
+  it("라디오 묶음: 질문마다 고른 답을 '질문: 답 / 질문: 답' 으로 접수한다", () => {
+    const f = field({
+      fieldType: "radio_group",
+      label: "패키지 혜택",
+      required: true,
+      options: { rows: ["입주청소", "인터넷 이동"], choices: ["미선택", "필요", "불필요"], saveValues: ["", "필요(연결)", ""], defaultIndex: 0 },
+    });
+    expect(parseGroupPicks("0,,2", 3)).toEqual([0, null, 2]);
+    expect(joinGroupPicks([1, null])).toBe("1,");
+    expect(fieldDefaultValue(f)).toBe("0,0");
+    expect(fieldAnswer(f, "1,2")).toBe("입주청소: 필요(연결) / 인터넷 이동: 불필요");
+    expect(fieldBlockError(f, "1,2")).toBeNull();
+    expect(fieldBlockError(f, "1,")).toBe("'패키지 혜택'의 '인터넷 이동' 항목을 선택해주세요.");
+    expect(fieldBlockError({ ...f, required: false }, "")).toBeNull();
+    expect(fieldAnswer(f, "")).toBe("");
+    // 스텝형 질문(content.rows)도 같은 규칙
+    const q = choiceAsField(choice({ answerType: "radio_group", rows: ["A"], options: [{ label: "예" }, { label: "아니오" }] }));
+    expect(fieldAnswer(q, "1")).toBe("A: 아니오");
   });
 });

@@ -22,10 +22,35 @@ export const INPUT_FIELD_TYPES: readonly { value: string; label: string }[] = [
   { value: "select", label: "선택박스" },
   { value: "radio", label: "라디오버튼 (단일 선택)" },
   { value: "checkbox", label: "체크박스 (중복 선택)" },
+  { value: "radio_group", label: "라디오 묶음 (여러 질문 · 같은 선택지)" },
 ];
 
 /** 선택지 목록이 필요한 입력 유형. */
-export const OPTION_FIELD_TYPES: readonly string[] = ["select", "radio", "checkbox"];
+export const OPTION_FIELD_TYPES: readonly string[] = ["select", "radio", "checkbox", "radio_group"];
+
+/**
+ * '라디오 묶음' — 한 항목 안에 여러 질문(options.rows)을 두고, 질문마다 같은 선택지(options.choices)를
+ * 라디오로 하나씩 고른다(예: 패키지 혜택 > 입주청소 / 인터넷 이동 각각 미선택·필요·불필요). 사용자 지시 2026-10-12.
+ * 입력 중 값은 질문 순서대로 고른 선택지 인덱스를 쉼표로 잇는다 — 안 고른 질문은 빈칸("0,,2").
+ * 접수 값은 `질문: 답 / 질문: 답` 한 문자열(리드 한 칸).
+ */
+export const GROUP_DEFAULT_CHOICES: readonly string[] = ["미선택", "필요", "불필요"];
+
+export function groupRows(block: FormBlock): string[] {
+  return (block.options?.rows as string[] | undefined) ?? [];
+}
+
+export function parseGroupPicks(value: string | undefined, rowCount: number): (number | null)[] {
+  const parts = (value ?? "").split(",");
+  return Array.from({ length: rowCount }, (_, ri) => {
+    const n = parts[ri] === undefined || parts[ri] === "" ? NaN : Number(parts[ri]);
+    return Number.isInteger(n) && n >= 0 ? n : null;
+  });
+}
+
+export function joinGroupPicks(picks: (number | null)[]): string {
+  return picks.map((p) => (p == null ? "" : String(p))).join(",");
+}
 
 /** 스텝형에만 있는 카드형 선택 — 큰 버튼으로 고르고, 단일 카드는 고르면 바로 다음 단계로 넘어간다. */
 export const STEP_CARD_TYPES: readonly { value: string; label: string }[] = [
@@ -74,6 +99,7 @@ export function choiceAsField(block: FormBlock): FormBlock {
     required: block.content?.required === true,
     placeholder: (block.content?.placeholder as string) || "",
     options: {
+      rows: (block.content?.rows as string[] | undefined) ?? [],
       choices: opts.map((o) => o.label ?? ""),
       saveValues: opts.map((o) => o.saveAs ?? ""),
       defaultIndex: block.content?.defaultIndex,
@@ -129,6 +155,13 @@ export function fieldAnswer(block: FormBlock, value: string | undefined): string
   }
   const list = (block.options?.choices as string[]) ?? [];
   const save = (block.options?.saveValues as string[] | undefined) ?? [];
+  if (block.fieldType === "radio_group") {
+    const rows = groupRows(block);
+    return parseGroupPicks(value, rows.length)
+      .map((ci, ri) => (ci == null || list[ci] == null ? null : `${rows[ri] || `질문 ${ri + 1}`}: ${choiceSaveValue(list[ci], save[ci], ci)}`))
+      .filter(Boolean)
+      .join(" / ");
+  }
   if (block.fieldType === "select") {
     // 선택박스는 고른 라벨을 값으로 들고 있다 → 저장값이 있으면 그걸로 바꾼다.
     const ci = value ? list.indexOf(value) : -1;
@@ -144,6 +177,7 @@ export function fieldDefaultValue(block: FormBlock): string | null {
   const list = (block.options?.choices as string[]) ?? [];
   const di = block.options?.defaultIndex;
   if (typeof di !== "number" || list[di] == null) return null;
+  if (block.fieldType === "radio_group") return joinGroupPicks(groupRows(block).map(() => di));
   return isListField(block.fieldType) ? String(di) : list[di];
 }
 
@@ -157,6 +191,14 @@ export function fieldBlockError(block: FormBlock, value: string | undefined): st
   const type = block.fieldType || "text";
   if (isListField(type)) {
     return block.required && parsePicked(value ?? "").length === 0 ? `'${name}' 항목을 선택해주세요.` : null;
+  }
+  if (type === "radio_group") {
+    if (!block.required) return null;
+    const rows = groupRows(block);
+    const list = (block.options?.choices as string[]) ?? [];
+    const picks = parseGroupPicks(value, rows.length);
+    const ri = picks.findIndex((ci) => ci == null || list[ci] == null);
+    return ri < 0 ? null : `'${name}'의 '${rows[ri] || `질문 ${ri + 1}`}' 항목을 선택해주세요.`;
   }
   if (type === "address_detail") {
     const [base, detail] = splitAddressDetail(value);

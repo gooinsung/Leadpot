@@ -17,6 +17,7 @@ import {
   fieldAnswer,
   fieldBlockError,
   fieldDefaultValue,
+  groupRows,
   isCardAnswerType,
   isListField,
   parsePicked,
@@ -24,6 +25,7 @@ import {
 } from "../lib/fieldTypes";
 import { PhoneInput3 } from "./PhoneInput3";
 import { AddressInput } from "./AddressInput";
+import { RadioGroupInput } from "./RadioGroupInput";
 import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
 import { parseUtm } from "../lib/utm";
 import { CompletionView } from "./formRenderers/CompletionView";
@@ -382,6 +384,8 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
             </label>
           ))}
         </div>
+      ) : type === "radio_group" ? (
+        <RadioGroupInput id={`fld-${idx}`} name={`fld-${idx}`} rows={groupRows(block)} choices={choices} value={value} onChange={onChange} accent={accent} />
       ) : type === "tel" ? (
         <PhoneInput3 id={`fld-${idx}`} value={value} onChange={onChange} required={block.required} />
       ) : type === "address" || type === "address_detail" ? (

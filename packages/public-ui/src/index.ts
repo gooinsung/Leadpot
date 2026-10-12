@@ -10,6 +10,7 @@ export { PublicFormView } from "./components/PublicFormView";
 export { PublicFormPageView } from "./components/PublicFormPageView";
 export { HtmlBlock } from "./components/HtmlBlock";
 export { PhoneInput3 } from "./components/PhoneInput3";
+export { RadioGroupInput } from "./components/RadioGroupInput";
 export { AddressInput } from "./components/AddressInput";
 
 export { ConsentItemRow } from "./components/formRenderers/ConsentItemRow";
@@ -35,6 +36,7 @@ export {
 } from "./components/formRenderers/formStyle";
 
 export {
+  GROUP_DEFAULT_CHOICES,
   INPUT_FIELD_TYPES,
   OPTION_FIELD_TYPES,
   STEP_ANSWER_TYPES,
@@ -43,6 +45,9 @@ export {
   choiceSaveValue,
   fieldAnswer,
   fieldSaveValues,
+  groupRows,
+  joinGroupPicks,
+  parseGroupPicks,
   fieldDefaultValue,
   isCardAnswerType,
   isListField,
