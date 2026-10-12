@@ -169,7 +169,8 @@ interface StepData {
   answerType: string;
   placeholder: string;
   required: boolean;
-  options: { label: string; desc: string; value?: string }[];
+  /** saveAs: DB 저장값 — 비면 label 을 저장한다(방문자에게 보이는 것과 저장되는 것을 다르게). */
+  options: { label: string; desc: string; value?: string; saveAs?: string }[];
   /**
    * 이 단계의 답이 계산기의 어느 입력인지(`totalDebt` 등). 계산기를 고르면 자동으로 붙는다.
    * 값이 계산에 들어가므로 **마케터가 답변 방식·선택지 값을 함부로 바꾸면 결과가 틀린다** →
@@ -465,10 +466,11 @@ export function FormEditPage() {
               answerType: stepAnswerType(b), // 구 '목록형'(list_single/list_multi)은 라디오·체크박스로 열린다
               placeholder: (b.content?.placeholder as string) || "",
               required: b.content?.required === true,
-              options: ((b.content?.options as { label: string; desc: string; value?: string }[]) || []).map((o) => ({
+              options: ((b.content?.options as { label: string; desc: string; value?: string; saveAs?: string }[]) || []).map((o) => ({
                 label: o.label ?? "",
                 desc: o.desc ?? "",
                 value: o.value,
+                saveAs: o.saveAs,
               })),
               defaultIndex: typeof b.content?.defaultIndex === "number" ? (b.content.defaultIndex as number) : null,
               calcInput: (b.content?.calcInput as string) || null,
@@ -578,7 +580,7 @@ export function FormEditPage() {
   function moveStep(i: number, dir: -1 | 1) {
     setSteps((prev) => swap(prev, i, i + dir));
   }
-  function patchOption(si: number, oi: number, patch: Partial<{ label: string; desc: string; value: string }>) {
+  function patchOption(si: number, oi: number, patch: Partial<{ label: string; desc: string; value: string; saveAs: string }>) {
     setSteps((prev) =>
       prev.map((s, idx) =>
         idx === si ? { ...s, options: s.options.map((o, oidx) => (oidx === oi ? { ...o, ...patch } : o)) } : s,
@@ -963,6 +965,13 @@ export function FormEditPage() {
                               {!OPTION_DESC_HIDDEN_TYPES.includes(s.answerType) && (
                                 <input className="input" placeholder="설명(선택)" value={o.desc} onChange={(e) => patchOption(i, oi, { desc: e.target.value })} />
                               )}
+                              <input
+                                className="input"
+                                placeholder="DB 저장값(선택)"
+                                title="방문자에게는 선택지 제목이 보이고, 리드(DB)에는 이 값이 저장됩니다. 비우면 제목 그대로 저장됩니다."
+                                value={o.saveAs ?? ""}
+                                onChange={(e) => patchOption(i, oi, { saveAs: e.target.value })}
+                              />
                               {/* 계산 입력의 선택지는 계산에 들어가는 숫자를 따로 갖는다 — 비면 계산이 0으로 처리된다. */}
                               {s.calcInput && (
                                 <input
@@ -977,6 +986,9 @@ export function FormEditPage() {
                             </div>
                           ))}
                           <button className="btn btn-ghost btn-sm" onClick={() => addOption(i)}>+ 선택지</button>
+                          <span className="field-optional" style={{ display: "block", marginTop: 4 }}>
+                            'DB 저장값'을 넣으면 방문자에게는 선택지 제목이 보이고, 리드에는 저장값이 기록됩니다.
+                          </span>
                           <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
                             <label>기본 선택</label>
                             <select
@@ -1777,9 +1789,11 @@ function DedupField({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial
 /** 선택박스·라디오·체크박스 필드의 선택지 목록 편집. block.options.choices(string[]) 에 저장. */
 function SelectChoicesEditor({ block, onPatch }: { block: FormBlock; onPatch: (p: Partial<FormBlock>) => void }) {
   const choices = ((block.options?.choices as string[]) ?? []);
+  /** 선택지별 DB 저장값 — choices 와 같은 순서. 비면 선택지 그대로 저장된다. */
+  const saveValues = choices.map((_, i) => ((block.options?.saveValues as string[] | undefined) ?? [])[i] ?? "");
   const defaultIndex = typeof block.options?.defaultIndex === "number" ? (block.options.defaultIndex as number) : null;
-  function setChoices(next: string[]) {
-    onPatch({ options: { ...(block.options ?? {}), choices: next } });
+  function setChoices(next: string[], nextSave: string[] = saveValues) {
+    onPatch({ options: { ...(block.options ?? {}), choices: next, saveValues: nextSave } });
   }
   function setDefaultIndex(next: number | null) {
     onPatch({ options: { ...(block.options ?? {}), defaultIndex: next } });
@@ -1795,10 +1809,26 @@ function SelectChoicesEditor({ block, onPatch }: { block: FormBlock; onPatch: (p
             value={c}
             onChange={(e) => setChoices(choices.map((x, idx) => (idx === i ? e.target.value : x)))}
           />
-          <button className="btn btn-ghost btn-sm danger" type="button" onClick={() => setChoices(choices.filter((_, idx) => idx !== i))}>×</button>
+          <input
+            className="input"
+            placeholder="DB 저장값(선택)"
+            title="방문자에게는 선택지가 보이고, 리드(DB)에는 이 값이 저장됩니다. 비우면 선택지 그대로 저장됩니다."
+            value={saveValues[i]}
+            onChange={(e) => setChoices(choices, saveValues.map((x, idx) => (idx === i ? e.target.value : x)))}
+          />
+          <button
+            className="btn btn-ghost btn-sm danger"
+            type="button"
+            onClick={() => setChoices(choices.filter((_, idx) => idx !== i), saveValues.filter((_, idx) => idx !== i))}
+          >
+            ×
+          </button>
         </div>
       ))}
-      <button className="btn btn-ghost btn-sm" type="button" onClick={() => setChoices([...choices, ""])}>+ 선택지</button>
+      <button className="btn btn-ghost btn-sm" type="button" onClick={() => setChoices([...choices, ""], [...saveValues, ""])}>+ 선택지</button>
+      <span className="field-optional" style={{ display: "block", marginTop: 4 }}>
+        'DB 저장값'을 넣으면 방문자에게는 선택지가 보이고, 리드에는 저장값이 기록됩니다.
+      </span>
       <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
         <label>기본 선택</label>
         <select

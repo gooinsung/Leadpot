@@ -1,4 +1,4 @@
-import { OPTION_FIELD_TYPES, choiceAsField } from "@leadpot/public-ui";
+import { OPTION_FIELD_TYPES, choiceAsField, fieldSaveValues } from "@leadpot/public-ui";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
@@ -160,7 +160,8 @@ export function LeadsListPage() {
           fieldType: b.fieldType || "text",
           required: Boolean(b.required),
           placeholder: b.placeholder || undefined,
-          choices: OPTION_FIELD_TYPES.includes(b.fieldType ?? "") ? ((b.options?.choices as string[] | undefined) ?? []) : undefined,
+          // 수기 등록도 공개 폼 접수와 같은 값이 들어가게 선택지의 DB 저장값으로 고른다.
+          choices: OPTION_FIELD_TYPES.includes(b.fieldType ?? "") ? fieldSaveValues(b) : undefined,
         });
       } else if (b.blockType === "CHOICE") {
         const q = (b.content?.question as string) || "";
@@ -169,7 +170,7 @@ export function LeadsListPage() {
           // 스텝형 질문도 기본형 항목과 같은 입력으로 — 카드형은 단일=라디오, 다중=체크박스와 같은 값을 만든다.
           const f = choiceAsField(b);
           const at = f.fieldType === "single" ? "radio" : f.fieldType === "multi" ? "checkbox" : f.fieldType || "text";
-          const list = (f.options?.choices as string[] | undefined) ?? [];
+          const list = fieldSaveValues(f);
           out.push({
             label: q,
             fieldType: at,

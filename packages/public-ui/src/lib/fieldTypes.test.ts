@@ -7,6 +7,7 @@ import {
   fieldAnswer,
   fieldBlockError,
   fieldDefaultValue,
+  fieldSaveValues,
   joinAddressDetail,
   normalizeAnswerType,
   splitAddressDetail,
@@ -66,5 +67,20 @@ describe("fieldTypes", () => {
     expect(fieldBlockError(opt, "")).toBeNull();
     expect(fieldBlockError(opt, "(06234) 서울 강남구 테헤란로 123")).toBeNull();
     expect(fieldAnswer(opt, "(06234) 서울 강남구 테헤란로 123")).toBe("(06234) 서울 강남구 테헤란로 123");
+  });
+
+  it("선택지 DB 저장값: 보이는 라벨 대신 저장값으로 접수하고, 비면 라벨 그대로", () => {
+    const options = { choices: ["가정 이사", "사무실 이사", "기타"], saveValues: ["가정이사(방문 견적)", "사무실 이사 (방문 견적)", ""] };
+    expect(fieldAnswer(field({ fieldType: "radio", options }), "1")).toBe("사무실 이사 (방문 견적)");
+    expect(fieldAnswer(field({ fieldType: "checkbox", options }), "2,0")).toBe("가정이사(방문 견적), 기타");
+    expect(fieldAnswer(field({ fieldType: "select", options }), "가정 이사")).toBe("가정이사(방문 견적)");
+    expect(fieldAnswer(field({ fieldType: "select", options }), "기타")).toBe("기타");
+    expect(fieldSaveValues(field({ fieldType: "select", options }))).toEqual(["가정이사(방문 견적)", "사무실 이사 (방문 견적)", "기타"]);
+    // 저장값이 없는 예전 폼은 그대로
+    expect(fieldAnswer(field({ fieldType: "radio", options: { choices: ["A", "B"] } }), "1")).toBe("B");
+    // 스텝형 질문(saveAs)도 같은 규칙
+    const q = choiceAsField(choice({ answerType: "radio", options: [{ label: "가정 이사", saveAs: "가정이사(방문 견적)" }, { label: "사무실 이사" }] }));
+    expect(fieldAnswer(q, "0")).toBe("가정이사(방문 견적)");
+    expect(fieldAnswer(q, "1")).toBe("사무실 이사");
   });
 });

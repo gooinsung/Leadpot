@@ -65,7 +65,7 @@ export function stepAnswerType(block: FormBlock): string {
  * 그대로 쓰기 위한 변환. 질문 선택지 `{label}` 는 기본형 `options.choices`(문자열)로 옮긴다.
  */
 export function choiceAsField(block: FormBlock): FormBlock {
-  const opts = (block.content?.options as { label?: string }[]) ?? [];
+  const opts = (block.content?.options as { label?: string; saveAs?: string }[]) ?? [];
   return {
     ...block,
     blockType: "FIELD",
@@ -73,7 +73,11 @@ export function choiceAsField(block: FormBlock): FormBlock {
     label: (block.content?.question as string) || "",
     required: block.content?.required === true,
     placeholder: (block.content?.placeholder as string) || "",
-    options: { choices: opts.map((o) => o.label ?? ""), defaultIndex: block.content?.defaultIndex },
+    options: {
+      choices: opts.map((o) => o.label ?? ""),
+      saveValues: opts.map((o) => o.saveAs ?? ""),
+      defaultIndex: block.content?.defaultIndex,
+    },
   };
 }
 
@@ -100,15 +104,38 @@ export function joinAddressDetail(base: string, detail: string): string {
   return detail ? `${base}\n${detail}` : base;
 }
 
-/** 입력 항목의 접수 값. 라디오·체크박스는 고른 라벨을 선택지 순서대로 ", " 로 잇는다(카드 다중 선택과 같은 형식). */
+/**
+ * 선택지의 **DB 저장값** — 방문자에게 보이는 선택지(라벨)와 리드에 저장되는 값을 다르게 둘 수 있다
+ * (예: 보이는 건 '가정 이사', 저장은 '가정이사(방문 견적)'). 사용자 지시 2026-10-12.
+ * 기본형 항목은 `options.saveValues`(choices 와 같은 순서의 문자열 배열), 스텝형 질문은 선택지마다
+ * `saveAs` 에 둔다. 비어 있으면 라벨을 그대로 저장한다 — 예전 폼은 그대로 동작.
+ */
+export function choiceSaveValue(label: string | undefined, saveAs: string | undefined, index: number): string {
+  return saveAs?.trim() || label || `선택지 ${index + 1}`;
+}
+
+/** 입력 항목(선택박스·라디오·체크박스)의 선택지별 저장값 목록 — 수기 등록처럼 저장값으로 고르는 곳에서 쓴다. */
+export function fieldSaveValues(block: FormBlock): string[] {
+  const list = (block.options?.choices as string[]) ?? [];
+  const save = (block.options?.saveValues as string[] | undefined) ?? [];
+  return list.map((c, i) => choiceSaveValue(c, save[i], i));
+}
+
+/** 입력 항목의 접수 값(선택지는 DB 저장값으로). 라디오·체크박스는 고른 라벨을 선택지 순서대로 ", " 로 잇는다(카드 다중 선택과 같은 형식). */
 export function fieldAnswer(block: FormBlock, value: string | undefined): string {
   if (block.fieldType === "address_detail") {
     const [base, detail] = splitAddressDetail(value);
     return [base.trim(), detail.trim()].filter(Boolean).join(" ");
   }
-  if (!isListField(block.fieldType)) return value ?? "";
   const list = (block.options?.choices as string[]) ?? [];
-  return parsePicked(value ?? "").sort((a, b) => a - b).map((ci) => list[ci] || `선택지 ${ci + 1}`).join(", ");
+  const save = (block.options?.saveValues as string[] | undefined) ?? [];
+  if (block.fieldType === "select") {
+    // 선택박스는 고른 라벨을 값으로 들고 있다 → 저장값이 있으면 그걸로 바꾼다.
+    const ci = value ? list.indexOf(value) : -1;
+    return ci >= 0 ? choiceSaveValue(list[ci], save[ci], ci) : value ?? "";
+  }
+  if (!isListField(block.fieldType)) return value ?? "";
+  return parsePicked(value ?? "").sort((a, b) => a - b).map((ci) => choiceSaveValue(list[ci], save[ci], ci)).join(", ");
 }
 
 /** '기본 선택'(options.defaultIndex)을 입력 항목의 초기값으로. 없거나 선택지 밖이면 null. */
