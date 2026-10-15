@@ -14,6 +14,7 @@ import { descEmphasisClass, resolveStyle, resolveSubmitLabel } from "./formRende
 import {
   choiceAsField,
   choiceSaveValue,
+  dateRange,
   fieldAnswer,
   fieldBlockError,
   fieldDefaultValue,
@@ -389,9 +390,9 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
       ) : type === "tel" ? (
         <PhoneInput3 id={`fld-${idx}`} value={value} onChange={onChange} required={block.required} />
       ) : type === "address" || type === "address_detail" ? (
-        <AddressInput id={`fld-${idx}`} value={value} onChange={onChange} placeholder={block.placeholder ?? ""} required={block.required} withDetail={type === "address_detail"} />
+        <AddressInput id={`fld-${idx}`} value={value} onChange={onChange} placeholder={block.placeholder ?? ""} required={block.required} withDetail={type === "address_detail"} jibun={block.options?.jibun === true} />
       ) : (
-        <input id={`fld-${idx}`} className="input" type={inputType} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input id={`fld-${idx}`} className="input" type={inputType} {...(type === "date" ? dateRange(block) : {})} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
     </div>
   );

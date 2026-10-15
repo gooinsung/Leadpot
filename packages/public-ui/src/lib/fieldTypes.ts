@@ -103,6 +103,9 @@ export function choiceAsField(block: FormBlock): FormBlock {
       choices: opts.map((o) => o.label ?? ""),
       saveValues: opts.map((o) => o.saveAs ?? ""),
       defaultIndex: block.content?.defaultIndex,
+      minDate: block.content?.minDate,
+      maxDate: block.content?.maxDate,
+      jibun: block.content?.jibun,
     },
   };
 }
@@ -181,6 +184,47 @@ export function fieldDefaultValue(block: FormBlock): string | null {
   return isListField(block.fieldType) ? String(di) : list[di];
 }
 
+/**
+ * '날짜' 항목의 선택 가능 범위(options.minDate / options.maxDate). 사용자 지시 2026-10-15.
+ * 값은 둘 중 하나 — 비어 있으면 제한 없음:
+ *  - 고정 날짜 `YYYY-MM-DD`
+ *  - 오늘 기준 `+N`(N일 후, `+0`=오늘) / `-N`(N일 전) — 날짜를 안 바꿔도 매일 저절로 맞춰진다.
+ * 방문자 기기의 오늘(현지 날짜)을 기준으로 한다.
+ */
+const FIXED_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const RELATIVE_DATE_RE = /^[+-]\d{1,5}$/;
+
+export function isRelativeDateBound(spec: unknown): spec is string {
+  return typeof spec === "string" && RELATIVE_DATE_RE.test(spec);
+}
+
+function ymdLocal(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** 범위 지정값 → 실제 날짜(`YYYY-MM-DD`). 지정 안 했거나 형식이 틀리면 undefined. */
+export function resolveDateBound(spec: unknown, today: Date = new Date()): string | undefined {
+  if (typeof spec !== "string") return undefined;
+  if (FIXED_DATE_RE.test(spec)) return spec;
+  if (RELATIVE_DATE_RE.test(spec)) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + Number(spec));
+    return ymdLocal(d);
+  }
+  return undefined;
+}
+
+/** 날짜 항목의 [최소, 최대] — input 의 min/max 와 검증이 같은 값을 쓴다. */
+export function dateRange(block: FormBlock): { min?: string; max?: string } {
+  return { min: resolveDateBound(block.options?.minDate), max: resolveDateBound(block.options?.maxDate) };
+}
+
+/** '2026-10-15' → '2026년 10월 15일' (안내 문구용). */
+function koDate(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEL_RE = /^[0-9+\-()\s]+$/;
 const NUMBER_RE = /^-?\d+(\.\d+)?$/;
@@ -218,5 +262,11 @@ export function fieldBlockError(block: FormBlock, value: string | undefined): st
     if (!TEL_RE.test(v) || digits.length < 9 || digits.length > 15) return `'${name}' 연락처는 숫자로 올바르게 입력해주세요.`;
   }
   if (type === "number" && !NUMBER_RE.test(v)) return `'${name}' 는 숫자만 입력할 수 있습니다.`;
+  if (type === "date") {
+    // 달력 선택기가 min/max 를 무시하는 브라우저(직접 입력 등)도 있어 접수 전에 한 번 더 본다.
+    const { min, max } = dateRange(block);
+    if (min && v < min) return `'${name}' 는 ${koDate(min)} 이후로 선택해주세요.`;
+    if (max && v > max) return `'${name}' 는 ${koDate(max)} 이전으로 선택해주세요.`;
+  }
   return null;
 }

@@ -43,6 +43,8 @@ import {
   GROUP_DEFAULT_CHOICES,
   groupRows,
   INPUT_FIELD_TYPES,
+  isRelativeDateBound,
+  resolveDateBound,
   OPTION_FIELD_TYPES,
   STEP_ANSWER_TYPES,
   STEP_CARD_TYPES,
@@ -183,6 +185,11 @@ interface StepData {
   calcInput?: string | null;
   /** 기본 선택 — options 의 인덱스. null 이면 미리 선택하지 않는다. */
   defaultIndex?: number | null;
+  /** '날짜' 선택 범위 — `YYYY-MM-DD`(고정) 또는 `+N`(오늘부터 N일 후). 비면 제한 없음. */
+  minDate?: string;
+  maxDate?: string;
+  /** 주소 유형 — 지번 주소로 저장. */
+  jibun?: boolean;
   /**
    * 서버가 발급한 불변 변수키. 스텝형은 저장할 때 CHOICE 블록을 이 상태에서 새로 조립하므로,
    * 여기에 들고 있지 않으면 저장마다 키가 새로 발급되어 메시지 템플릿이 깨진다.
@@ -478,6 +485,9 @@ export function FormEditPage() {
               })),
               rows: (b.content?.rows as string[] | undefined) ?? [],
               defaultIndex: typeof b.content?.defaultIndex === "number" ? (b.content.defaultIndex as number) : null,
+              minDate: (b.content?.minDate as string) || "",
+              maxDate: (b.content?.maxDate as string) || "",
+              jibun: b.content?.jibun === true,
               calcInput: (b.content?.calcInput as string) || null,
             })),
           );
@@ -644,6 +654,10 @@ export function FormEditPage() {
                   && s.options[s.defaultIndex] != null
                   ? s.defaultIndex
                   : null,
+              // 날짜 범위·지번 저장 — 해당 유형에서만 저장한다(유형을 바꾸면 남은 값이 엉뚱하게 걸리지 않게).
+              minDate: s.answerType === "date" ? s.minDate || "" : "",
+              maxDate: s.answerType === "date" ? s.maxDate || "" : "",
+              jibun: isAddressType(s.answerType) && s.jibun === true,
               // 계산기 입력 표시 — 공개 폼이 이 키로 답을 모아 계산한다(단계 순서를 바꿔도 안 깨진다).
               calcInput: s.calcInput ?? null,
             },
@@ -1014,10 +1028,17 @@ export function FormEditPage() {
                           </div>
                         </>
                       ) : (
-                        <div className="field">
-                          <label>플레이스홀더(선택)</label>
-                          <input className="input" value={s.placeholder} onChange={(e) => patchStep(i, { placeholder: e.target.value })} />
-                        </div>
+                        <>
+                          <div className="field">
+                            <label>플레이스홀더(선택)</label>
+                            <input className="input" value={s.placeholder} onChange={(e) => patchStep(i, { placeholder: e.target.value })} />
+                          </div>
+                          <FieldTypeExtras
+                            type={s.answerType}
+                            values={{ minDate: s.minDate, maxDate: s.maxDate, jibun: s.jibun }}
+                            onChange={(p) => patchStep(i, p)}
+                          />
+                        </>
                       )}
                     </div>
                   ))}
@@ -1822,6 +1843,79 @@ function answerTypePatch(s: StepData, answerType: string): Partial<StepData> {
   };
 }
 
+function isAddressType(t: string | null | undefined): boolean {
+  return t === "address" || t === "address_detail";
+}
+
+type FieldExtraValues = { minDate?: string; maxDate?: string; jibun?: boolean };
+
+/**
+ * 유형별 추가 설정 — 기본형 항목(options)·스텝형 질문(content) 이 함께 쓴다.
+ *  - 날짜: 선택 가능한 최소·최대 날짜(고정 날짜 또는 오늘 기준 N일 후). 사용자 지시 2026-10-15.
+ *  - 주소: 지번 주소로 저장. 사용자 지시 2026-10-15.
+ */
+function FieldTypeExtras({ type, values, onChange }: { type: string; values: FieldExtraValues; onChange: (p: FieldExtraValues) => void }) {
+  if (type === "date") {
+    return (
+      <div className="block-row" style={{ flexWrap: "wrap" }}>
+        <DateBoundEditor label="선택 가능한 최소 날짜" value={values.minDate ?? ""} onChange={(v) => onChange({ minDate: v })} />
+        <DateBoundEditor label="선택 가능한 최대 날짜" value={values.maxDate ?? ""} onChange={(v) => onChange({ maxDate: v })} />
+      </div>
+    );
+  }
+  if (isAddressType(type)) {
+    return (
+      <label className="fr-check" style={{ marginBottom: 10 }}>
+        <input type="checkbox" checked={values.jibun === true} onChange={(e) => onChange({ jibun: e.target.checked })} /> 지번 주소로 저장
+        <span className="field-optional" style={{ marginLeft: 6 }}>방문자가 도로명 주소를 골라도 지번 주소로 저장됩니다.</span>
+      </label>
+    );
+  }
+  return null;
+}
+
+/** 날짜 범위 한쪽 — 제한 없음 / 특정 날짜 / 오늘부터 N일 후. 값 형식은 public-ui resolveDateBound 참고. */
+function DateBoundEditor({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const mode = !value ? "none" : isRelativeDateBound(value) ? "relative" : "fixed";
+  const days = mode === "relative" ? Number(value) : 0;
+  return (
+    <div className="field" style={{ flex: 1, minWidth: 220 }}>
+      <label>{label}</label>
+      <select
+        className="input"
+        value={mode}
+        // 특정 날짜를 고르면 일단 오늘로 채운다(빈 값은 '제한 없음'과 구분이 안 된다).
+        onChange={(e) => onChange(e.target.value === "none" ? "" : e.target.value === "relative" ? "+0" : resolveDateBound("+0")!)}
+      >
+        <option value="none">제한 없음</option>
+        <option value="fixed">특정 날짜</option>
+        <option value="relative">오늘 기준</option>
+      </select>
+      {mode === "fixed" && (
+        <input className="input" type="date" style={{ marginTop: 6 }} value={value} onChange={(e) => onChange(e.target.value || resolveDateBound("+0")!)} aria-label={`${label} (날짜)`} />
+      )}
+      {mode === "relative" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+          <span>오늘부터</span>
+          <input
+            className="input"
+            type="number"
+            style={{ maxWidth: 90 }}
+            value={days}
+            onChange={(e) => {
+              const n = Math.trunc(Number(e.target.value) || 0);
+              onChange(n < 0 ? String(n) : `+${n}`);
+            }}
+            aria-label={`${label} (오늘부터 며칠)`}
+          />
+          <span>일 후</span>
+        </div>
+      )}
+      {mode === "relative" && <span className="field-optional" style={{ marginTop: 4 }}>0 = 오늘, 1 = 내일. 매일 자동으로 맞춰집니다.</span>}
+    </div>
+  );
+}
+
 /** '라디오 묶음'의 질문 목록 편집 — 질문마다 아래 선택지 중 하나를 고르게 된다. */
 function GroupRowsEditor({ rows, onChange }: { rows: string[]; onChange: (rows: string[]) => void }) {
   return (
@@ -1972,6 +2066,15 @@ function BlockFields({
             </div>
           )}
           {OPTION_FIELD_TYPES.includes(block.fieldType ?? "") && <SelectChoicesEditor block={block} onPatch={onPatch} />}
+          <FieldTypeExtras
+            type={block.fieldType ?? "text"}
+            values={{
+              minDate: block.options?.minDate as string | undefined,
+              maxDate: block.options?.maxDate as string | undefined,
+              jibun: block.options?.jibun === true,
+            }}
+            onChange={(p) => onPatch({ options: { ...(block.options ?? {}), ...p } })}
+          />
           <DedupField block={block} onPatch={onPatch} />
         </div>
       );
