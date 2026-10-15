@@ -8,6 +8,13 @@
 
 ## 📍 지금 위치
 
+- **✅ 리드폼 '날짜' 최소·최대 날짜 + 주소 '지번 주소로 저장' 옵션 (2026-10-15, 원격 세션, 사용자 지시)**:
+  - 날짜: 최소·최대 각각 '제한 없음 / 특정 날짜 / 오늘 기준 N일 후' 중 선택. 값 형식 `YYYY-MM-DD` 또는 `+N`(오늘=+0, 방문자 기기 날짜 기준).
+    달력 input 의 min/max 로 막고, 접수 전 검증(`fieldBlockError`)도 같은 범위를 본다.
+  - 주소(주소 / 주소+상세주소): '지번 주소로 저장' 체크 시 방문자가 도로명을 골라도 `(우편번호) 지번주소 (아파트명)` 로 저장.
+  - 저장 위치: 기본형 `options.minDate/maxDate/jibun`, 스텝형 `content.minDate/maxDate/jibun`(choiceAsField 가 options 로 옮김). 백엔드 변경 없음.
+  - 코드: `public-ui/lib/fieldTypes.ts`(resolveDateBound·dateRange), `AddressInput.formatAddress(jibun)`, `PublicFormView` LiveField, `FormEditPage`(FieldTypeExtras·DateBoundEditor).
+
 - **✅ 리드폼 날짜 입력칸 모바일 넘침 수정 (2026-10-13, 원격 세션, 사용자 실기기 제보)**:
   - 원인: iOS 사파리가 `<input type="date">` 를 기본 외형(appearance)으로 그리면 자체 최소 폭을 가져 `width:100%` 를 무시하고 카드 밖으로 넘침(빈 값이면 높이도 달라짐).
   - 수정(`public-ui/styles/base.css`): 날짜·시간 입력의 기본 외형을 끄고 폭·높이·왼쪽 정렬 고정. 기기마다 다른 달력 아이콘 대신 같은 아이콘을 직접 그리고, 크롬의 기본 아이콘은 투명하게 칸 전체에 깔아 어디를 눌러도 선택기가 열리게 함 → iOS·안드로이드 동일.

@@ -29,6 +29,8 @@ type PostcodeData = {
   address: string;
   roadAddress: string;
   jibunAddress: string;
+  /** 도로명만 있고 지번이 비는 경우(신축 등) 카카오가 대신 채워 주는 지번 주소. */
+  autoJibunAddress?: string;
   userSelectedType: "R" | "J";
   bname: string;
   buildingName: string;
@@ -88,9 +90,14 @@ function loadPostcode(): Promise<PostcodeCtor> {
  * 고른 결과 → 저장 문자열. 도로명이면 카카오 공식 예제처럼 법정동·아파트명을 괄호로 덧붙인다
  * (예: "(06234) 서울 강남구 테헤란로 123 (역삼동, 래미안)") — 상담원이 위치를 바로 알아보게.
  */
-export function formatAddress(d: PostcodeData): string {
-  let addr = d.userSelectedType === "J" ? d.jibunAddress || d.address : d.roadAddress || d.address;
-  if (d.userSelectedType !== "J") {
+export function formatAddress(d: PostcodeData, jibun = false): string {
+  // '지번으로 저장'(jibun)이면 방문자가 도로명을 골라도 지번 주소로 저장한다(사용자 지시 2026-10-15).
+  const useJibun = jibun || d.userSelectedType === "J";
+  let addr = useJibun ? d.jibunAddress || d.autoJibunAddress || d.address : d.roadAddress || d.address;
+  if (useJibun) {
+    // 지번 주소엔 단지명이 없어 아파트면 덧붙인다 — 상담원이 동·호수와 함께 바로 알아보게.
+    if (d.buildingName && d.apartment === "Y") addr += ` (${d.buildingName})`;
+  } else {
     const extra: string[] = [];
     if (d.bname && /[동로가]$/.test(d.bname)) extra.push(d.bname);
     if (d.buildingName && d.apartment === "Y") extra.push(d.buildingName);
@@ -108,6 +115,7 @@ export function AddressInput({
   readOnly,
   withDetail,
   detailPlaceholder,
+  jibun,
 }: {
   id?: string;
   value: string;
@@ -119,6 +127,8 @@ export function AddressInput({
   /** 검색 칸 아래에 상세주소(동·호수) 입력칸을 함께 둔다 — 'address_detail' 유형. */
   withDetail?: boolean;
   detailPlaceholder?: string;
+  /** 검색 결과를 지번 주소로 저장한다(도로명을 골라도). */
+  jibun?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -138,7 +148,7 @@ export function AddressInput({
         if (cancelled || !layerRef.current) return;
         new Postcode({
           oncomplete: (data: PostcodeData) => {
-            const addr = formatAddress(data);
+            const addr = formatAddress(data, jibun);
             if (withDetail) {
               onChange(joinAddressDetail(addr, detailNow.current));
               setOpen(false);
