@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FormBlock } from "../api/client";
 import {
   INPUT_FIELD_TYPES,
+  addressDetailParts,
   STEP_ANSWER_TYPES,
   choiceAsField,
   fieldAnswer,
@@ -69,6 +70,16 @@ describe("fieldTypes", () => {
     expect(fieldBlockError(opt, "")).toBeNull();
     expect(fieldBlockError(opt, "(06234) 서울 강남구 테헤란로 123")).toBeNull();
     expect(fieldAnswer(opt, "(06234) 서울 강남구 테헤란로 123")).toBe("(06234) 서울 강남구 테헤란로 123");
+  });
+
+  it("주소 + 상세주소: 외부 API 전달용으로 두 칸을 따로 남긴다(다른 유형은 없음)", () => {
+    const f = field({ fieldType: "address_detail", label: "주소" });
+    const v = joinAddressDetail("(06234) 서울 강남구 테헤란로 123", " 101동 1203호 ");
+    expect(addressDetailParts(f, v)).toEqual({ address: "(06234) 서울 강남구 테헤란로 123", addressDetail: "101동 1203호" });
+    expect(addressDetailParts(f, "(06234) 서울 강남구 테헤란로 123")).toEqual({ address: "(06234) 서울 강남구 테헤란로 123", addressDetail: "" });
+    expect(addressDetailParts(field({ fieldType: "address" }), "서울")).toEqual({});
+    // 스텝형 질문도 choiceAsField 를 거치면 같은 결과.
+    expect(addressDetailParts(choiceAsField(choice({ question: "주소", answerType: "address_detail" })), v).addressDetail).toBe("101동 1203호");
   });
 
   it("선택지 DB 저장값: 보이는 라벨 대신 저장값으로 접수하고, 비면 라벨 그대로", () => {

@@ -134,6 +134,18 @@ export function joinAddressDetail(base: string, detail: string): string {
 }
 
 /**
+ * '주소 + 상세주소' 항목의 두 칸을 따로 — 리드 답변에 `address`·`addressDetail` 로 함께 남긴다.
+ * value(합친 문자열)만으로는 주소 끝과 상세주소 시작을 다시 가를 수 없어서, 외부 API 전달(아웃바운드)에서
+ * 주소·상세주소를 서로 다른 파라미터로 보내려면 접수 시점에 나눠 둬야 한다(사용자 지시 2026-10-16).
+ * 다른 유형이면 빈 객체.
+ */
+export function addressDetailParts(block: FormBlock, value: string | undefined): { address?: string; addressDetail?: string } {
+  if (block.fieldType !== "address_detail") return {};
+  const [base, detail] = splitAddressDetail(value);
+  return { address: base.trim(), addressDetail: detail.trim() };
+}
+
+/**
  * 선택지의 **DB 저장값** — 방문자에게 보이는 선택지(라벨)와 리드에 저장되는 값을 다르게 둘 수 있다
  * (예: 보이는 건 '가정 이사', 저장은 '가정이사(방문 견적)'). 사용자 지시 2026-10-12.
  * 기본형 항목은 `options.saveValues`(choices 와 같은 순서의 문자열 배열), 스텝형 질문은 선택지마다
