@@ -3,6 +3,7 @@ import type { FormBlock } from "../api/client";
 import {
   INPUT_FIELD_TYPES,
   addressDetailParts,
+  answerParts,
   STEP_ANSWER_TYPES,
   choiceAsField,
   fieldAnswer,
@@ -80,6 +81,13 @@ describe("fieldTypes", () => {
     expect(addressDetailParts(field({ fieldType: "address" }), "서울")).toEqual({});
     // 스텝형 질문도 choiceAsField 를 거치면 같은 결과.
     expect(addressDetailParts(choiceAsField(choice({ question: "주소", answerType: "address_detail" })), v).addressDetail).toBe("101동 1203호");
+  });
+
+  it("라디오 묶음: 외부 API 전달용으로 질문(행)별 답을 저장값으로 남긴다", () => {
+    const f = field({ fieldType: "radio_group", options: { rows: ["입주 청소", "인터넷 가입"], choices: ["희망", "필요 없음"], saveValues: ["Y", ""] } });
+    expect(answerParts(f, "0,1")).toEqual({ groupAnswers: ["Y", "필요 없음"] });
+    expect(answerParts(f, ",1")).toEqual({ groupAnswers: ["", "필요 없음"] });
+    expect(answerParts(field({ fieldType: "text" }), "x")).toEqual({});
   });
 
   it("선택지 DB 저장값: 보이는 라벨 대신 저장값으로 접수하고, 비면 라벨 그대로", () => {

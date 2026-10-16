@@ -34,6 +34,7 @@ import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import {
   CALCULATORS,
+  choiceAsField,
   findCalculator,
   CalcFollowUp,
   CalcResultView,
@@ -163,8 +164,13 @@ interface OutboundWebhookParam {
   varKey?: string;
   /** true 면 값에서 숫자만 남겨 보낸다(예: 텐핑 {#ITEM_NOH#} — 하이픈 없는 연락처). */
   digitsOnly?: boolean;
-  /** '주소 + 상세주소' 항목에서 보낼 부분 — address=주소만 / detail=상세주소만 / 없으면 합친 값. */
-  part?: "address" | "detail";
+  /**
+   * 한 항목을 나눠 보낼 때 고른 부분 — 없으면 답변 전체.
+   * '주소 + 상세주소': address=주소만 / detail=상세주소만. '라디오 묶음': row:N = N번째(0부터) 질문의 답만.
+   */
+  part?: string;
+  /** part 가 row:N 일 때 그 질문명 — 행별 답을 따로 남기기 전에 접수된 리드에서 답을 찾는 데 쓴다. */
+  rowLabel?: string;
 }
 
 interface StepData {
@@ -694,11 +700,28 @@ export function FormEditPage() {
     if (!b) return false;
     return (b.blockType === "CHOICE" ? stepAnswerType(b) : b.fieldType) === "tel";
   };
-  /** '주소 + 상세주소' 항목이면 주소·상세주소를 나눠 보낼 수 있다(기본형 fieldType·스텝형 답변 방식 모두). */
-  const isAddressDetailVarKey = (varKey?: string) => {
+  /**
+   * 외부 API 전달에서 한 항목을 나눠 보낼 수 있는 부분 목록(없으면 null) — 기본형 fieldType·스텝형 답변 방식 모두.
+   * '주소 + 상세주소' → 주소/상세주소, '라디오 묶음' → 질문(행)별.
+   */
+  const outboundPartOptions = (varKey?: string): { value: string; label: string; rowLabel?: string }[] | null => {
     const b = answerBlocks.find((x) => x.varKey === varKey);
-    if (!b) return false;
-    return (b.blockType === "CHOICE" ? stepAnswerType(b) : b.fieldType) === "address_detail";
+    if (!b) return null;
+    const f = b.blockType === "CHOICE" ? choiceAsField(b) : b;
+    if (f.fieldType === "address_detail") {
+      return [
+        { value: "", label: "하나로 보내기 (주소 + 상세주소)" },
+        { value: "address", label: "따로 보내기 — 주소만" },
+        { value: "detail", label: "따로 보내기 — 상세주소만" },
+      ];
+    }
+    if (f.fieldType === "radio_group") {
+      return [
+        { value: "", label: "하나로 보내기 (모든 질문: 답)" },
+        ...groupRows(f).map((r, ri) => ({ value: `row:${ri}`, label: `따로 보내기 — ${r || `질문 ${ri + 1}`}`, rowLabel: r || `질문 ${ri + 1}` })),
+      ];
+    }
+    return null;
   };
   // 국내 문자 과금 기준(EUC-KR): 한글 2byte. 90byte 를 넘으면 LMS 로 전환되어 단가가 오른다.
   const smsBytes = [...smsLeadBody].reduce((n, ch) => n + (ch.charCodeAt(0) < 0x80 ? 1 : 2), 0);
@@ -1561,7 +1584,7 @@ export function FormEditPage() {
                             className="input"
                             style={{ flex: 1, minWidth: 140 }}
                             value={p.varKey ?? ""}
-                            onChange={(e) => patchOutboundParam(i, { varKey: e.target.value, part: undefined })}
+                            onChange={(e) => patchOutboundParam(i, { varKey: e.target.value, part: undefined, rowLabel: undefined })}
                           >
                             <option value="">항목 선택…</option>
                             {answerBlocks.map((b) => (
@@ -1593,18 +1616,21 @@ export function FormEditPage() {
                           />
                         )}
                         <button className="btn btn-ghost btn-sm danger" onClick={() => removeOutboundParam(i)}>삭제</button>
-                        {p.source === "answer" && isAddressDetailVarKey(p.varKey) && (
+                        {p.source === "answer" && outboundPartOptions(p.varKey) && (
                           <label className="dash-sub" style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginTop: -2 }}>
-                            주소 보내기
+                            보내는 방식
                             <select
                               className="input"
-                              style={{ maxWidth: 220, fontSize: 12, padding: "4px 8px" }}
+                              style={{ maxWidth: 320, fontSize: 12, padding: "4px 8px" }}
                               value={p.part ?? ""}
-                              onChange={(e) => patchOutboundParam(i, { part: (e.target.value || undefined) as OutboundWebhookParam["part"] })}
+                              onChange={(e) => {
+                                const opt = outboundPartOptions(p.varKey)?.find((o) => o.value === e.target.value);
+                                patchOutboundParam(i, { part: e.target.value || undefined, rowLabel: opt?.rowLabel });
+                              }}
                             >
-                              <option value="">하나로 보내기 (주소 + 상세주소)</option>
-                              <option value="address">따로 보내기 — 주소만</option>
-                              <option value="detail">따로 보내기 — 상세주소만</option>
+                              {outboundPartOptions(p.varKey)!.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
                             </select>
                           </label>
                         )}

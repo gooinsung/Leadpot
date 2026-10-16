@@ -146,6 +146,28 @@ export function addressDetailParts(block: FormBlock, value: string | undefined):
 }
 
 /**
+ * '라디오 묶음' 항목의 질문(행)별 답 — 리드 답변에 `groupAnswers`(행 순서대로, 안 고른 행은 빈 값)로 함께 남긴다.
+ * value 는 "질문: 답 / 질문: 답" 한 줄이라 외부 API 전달에서 행마다 다른 파라미터로 보내려면 따로 둬야 한다
+ * (사용자 지시 2026-10-16). 답은 선택지의 DB 저장값(없으면 라벨). 다른 유형이면 빈 객체.
+ */
+export function radioGroupParts(block: FormBlock, value: string | undefined): { groupAnswers?: string[] } {
+  if (block.fieldType !== "radio_group") return {};
+  const list = (block.options?.choices as string[]) ?? [];
+  const save = (block.options?.saveValues as string[] | undefined) ?? [];
+  const rows = groupRows(block);
+  return {
+    groupAnswers: parseGroupPicks(value, rows.length).map((ci) =>
+      ci == null || list[ci] == null ? "" : choiceSaveValue(list[ci], save[ci], ci),
+    ),
+  };
+}
+
+/** 리드 답변에 value 와 함께 남기는 부분값(주소/상세주소, 라디오 묶음 행별 답) — 외부 API 전달에서 나눠 보내기용. */
+export function answerParts(block: FormBlock, value: string | undefined): { address?: string; addressDetail?: string; groupAnswers?: string[] } {
+  return { ...addressDetailParts(block, value), ...radioGroupParts(block, value) };
+}
+
+/**
  * 선택지의 **DB 저장값** — 방문자에게 보이는 선택지(라벨)와 리드에 저장되는 값을 다르게 둘 수 있다
  * (예: 보이는 건 '가정 이사', 저장은 '가정이사(방문 견적)'). 사용자 지시 2026-10-12.
  * 기본형 항목은 `options.saveValues`(choices 와 같은 순서의 문자열 배열), 스텝형 질문은 선택지마다

@@ -128,6 +128,7 @@ public class OutboundWebhookService {
      * {@code builtin}(ip·leadId·submittedAt·formName·userAgent·referer).
      * {@code part}(answer 전용, '주소 + 상세주소' 항목): {@code address}=주소만 · {@code detail}=상세주소만 ·
      * 없으면 합친 값 그대로 — 받는 쪽이 주소·상세주소를 서로 다른 항목으로 받는 경우용(사용자 지시 2026-10-16).
+     * '라디오 묶음' 항목은 {@code row:N}(0부터) 으로 N번째 질문의 답만 보낸다({@code rowLabel} 은 옛 리드용 질문명).
      * {@code digitsOnly=true} 면 값에서 숫자만 남긴다 — 텐핑 {@code {#ITEM_NOH#}} 처럼
      * 하이픈 없는 연락처를 요구하는 곳용(공개 폼 3칸 연락처는 {@code 010-1234-5678} 로 저장된다).
      */
@@ -158,7 +159,7 @@ public class OutboundWebhookService {
             }
             String source = str(m.get("source"));
             String value = switch (source) {
-                case "answer" -> answerValue(answersByVarKey.get(str(m.get("varKey"))), str(m.get("part")));
+                case "answer" -> answerValue(answersByVarKey.get(str(m.get("varKey"))), str(m.get("part")), str(m.get("rowLabel")));
                 case "builtin" -> builtinValue(str(m.get("value")), form, lead);
                 default -> str(m.get("value")); // fixed
             };
@@ -174,17 +175,44 @@ public class OutboundWebhookService {
      * 답변 값. {@code part} 가 address/detail 이면 '주소 + 상세주소' 항목이 접수 때 따로 남긴
      * {@code address}·{@code addressDetail} 을 쓴다. 이 기능 전에 접수된 리드엔 그 키가 없어
      * 합친 값을 다시 가를 수 없으므로 주소 쪽에 합친 값 전체, 상세주소 쪽은 빈 값으로 보낸다.
+     * {@code row:N} 이면 '라디오 묶음' 항목이 따로 남긴 {@code groupAnswers[N]} 을 쓴다. 그 키가 없는 옛 리드는
+     * "질문: 답 / 질문: 답" 에서 {@code rowLabel} 로 시작하는 조각을 찾아 답만 떼어 보낸다(없으면 빈 값).
      */
-    static String answerValue(Map<String, Object> answer, String part) {
+    static String answerValue(Map<String, Object> answer, String part, String rowLabel) {
         if (answer == null) {
             return "";
         }
         String whole = str(answer.get("value"));
+        if (part.startsWith("row:")) {
+            return groupRowValue(answer, whole, part.substring(4), rowLabel);
+        }
         return switch (part) {
             case "address" -> answer.containsKey("address") ? str(answer.get("address")) : whole;
             case "detail" -> str(answer.get("addressDetail"));
             default -> whole;
         };
+    }
+
+    private static String groupRowValue(Map<String, Object> answer, String whole, String index, String rowLabel) {
+        int i;
+        try {
+            i = Integer.parseInt(index);
+        } catch (NumberFormatException e) {
+            return "";
+        }
+        if (answer.get("groupAnswers") instanceof List<?> rows) {
+            return i >= 0 && i < rows.size() ? str(rows.get(i)) : "";
+        }
+        if (rowLabel.isBlank()) {
+            return "";
+        }
+        String prefix = rowLabel + ": ";
+        for (String seg : whole.split(" / ")) {
+            if (seg.startsWith(prefix)) {
+                return seg.substring(prefix.length());
+            }
+        }
+        return "";
     }
 
     private String builtinValue(String key, Form form, Lead lead) {
