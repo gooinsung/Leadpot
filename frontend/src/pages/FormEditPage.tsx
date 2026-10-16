@@ -163,6 +163,8 @@ interface OutboundWebhookParam {
   varKey?: string;
   /** true 면 값에서 숫자만 남겨 보낸다(예: 텐핑 {#ITEM_NOH#} — 하이픈 없는 연락처). */
   digitsOnly?: boolean;
+  /** '주소 + 상세주소' 항목에서 보낼 부분 — address=주소만 / detail=상세주소만 / 없으면 합친 값. */
+  part?: "address" | "detail";
 }
 
 interface StepData {
@@ -691,6 +693,12 @@ export function FormEditPage() {
     const b = answerBlocks.find((x) => x.varKey === varKey);
     if (!b) return false;
     return (b.blockType === "CHOICE" ? stepAnswerType(b) : b.fieldType) === "tel";
+  };
+  /** '주소 + 상세주소' 항목이면 주소·상세주소를 나눠 보낼 수 있다(기본형 fieldType·스텝형 답변 방식 모두). */
+  const isAddressDetailVarKey = (varKey?: string) => {
+    const b = answerBlocks.find((x) => x.varKey === varKey);
+    if (!b) return false;
+    return (b.blockType === "CHOICE" ? stepAnswerType(b) : b.fieldType) === "address_detail";
   };
   // 국내 문자 과금 기준(EUC-KR): 한글 2byte. 90byte 를 넘으면 LMS 로 전환되어 단가가 오른다.
   const smsBytes = [...smsLeadBody].reduce((n, ch) => n + (ch.charCodeAt(0) < 0x80 ? 1 : 2), 0);
@@ -1553,7 +1561,7 @@ export function FormEditPage() {
                             className="input"
                             style={{ flex: 1, minWidth: 140 }}
                             value={p.varKey ?? ""}
-                            onChange={(e) => patchOutboundParam(i, { varKey: e.target.value })}
+                            onChange={(e) => patchOutboundParam(i, { varKey: e.target.value, part: undefined })}
                           >
                             <option value="">항목 선택…</option>
                             {answerBlocks.map((b) => (
@@ -1585,6 +1593,21 @@ export function FormEditPage() {
                           />
                         )}
                         <button className="btn btn-ghost btn-sm danger" onClick={() => removeOutboundParam(i)}>삭제</button>
+                        {p.source === "answer" && isAddressDetailVarKey(p.varKey) && (
+                          <label className="dash-sub" style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginTop: -2 }}>
+                            주소 보내기
+                            <select
+                              className="input"
+                              style={{ maxWidth: 220, fontSize: 12, padding: "4px 8px" }}
+                              value={p.part ?? ""}
+                              onChange={(e) => patchOutboundParam(i, { part: (e.target.value || undefined) as OutboundWebhookParam["part"] })}
+                            >
+                              <option value="">하나로 보내기 (주소 + 상세주소)</option>
+                              <option value="address">따로 보내기 — 주소만</option>
+                              <option value="detail">따로 보내기 — 상세주소만</option>
+                            </select>
+                          </label>
+                        )}
                         {p.source === "answer" && (isTelVarKey(p.varKey) || p.digitsOnly) && (
                           <label className="dash-sub" style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 4, fontSize: 12, marginTop: -2 }}>
                             <input

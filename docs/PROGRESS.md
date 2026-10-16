@@ -8,6 +8,14 @@
 
 ## 📍 지금 위치
 
+- **✅ 외부 API 전달(아웃바운드): '주소 + 상세주소' 항목을 하나로/따로 보내기 (2026-10-16, 원격 세션, 사용자 지시)**:
+  - 파라미터 소스가 '답변 항목'이고 그 항목이 주소+상세주소면 '주소 보내기' 선택이 뜬다 — 하나로 보내기(합친 값, 기본) /
+    따로 보내기 — 주소만 / 따로 보내기 — 상세주소만. 따로 보내려면 파라미터 두 개를 만들어 각각 고른다. 설정은 `outboundWebhookParams[].part`(address|detail).
+  - 합친 값은 다시 가를 수 없어서, 공개 폼이 접수할 때 답변에 `address`·`addressDetail` 키를 함께 남긴다(`addressDetailParts`).
+    ⚠️ 이 배포 **이전에 접수된 리드**를 재시도하면 주소 쪽엔 합친 값 전체, 상세주소 쪽은 빈 값이 간다.
+  - 코드: `public-ui/lib/fieldTypes.ts`(addressDetailParts)·`PublicFormView.buildAnswers`, `OutboundWebhookService.answerValue`, `FormEditPage`(isAddressDetailVarKey).
+  - 검증: public-ui vitest 통과, frontend 빌드 통과. 백엔드는 이 원격 환경에서 Gradle 의존성 다운로드가 막혀 `answerValue` 만 JDK 로 따로 컴파일·검증(OutboundWebhookServiceTest 추가 — CI/Railway 빌드에서 확인 필요).
+
 - **✅ 리드폼 '날짜' 최소·최대 날짜 + 주소 '지번 주소로 저장' 옵션 (2026-10-15, 원격 세션, 사용자 지시)**:
   - 날짜: 최소·최대 각각 '제한 없음 / 특정 날짜 / 오늘 기준 N일 후' 중 선택. 값 형식 `YYYY-MM-DD` 또는 `+N`(오늘=+0, 방문자 기기 날짜 기준).
     달력 input 의 min/max 로 막고, 접수 전 검증(`fieldBlockError`)도 같은 범위를 본다.

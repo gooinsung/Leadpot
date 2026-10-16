@@ -193,6 +193,9 @@ export interface LeadAnswer {
   label: string;
   fieldType?: string;
   value: string;
+  /** '주소 + 상세주소' 항목만 — 합쳐 저장되는 value 와 별개로 두 칸을 따로 남긴다(외부 API 전달에서 나눠 보내기용). */
+  address?: string;
+  addressDetail?: string;
 }
 export interface LeadConsent {
   title: string;

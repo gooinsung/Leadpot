@@ -126,6 +126,8 @@ public class OutboundWebhookService {
      * {@code outboundWebhookParams}(파라미터명·값 소스 목록)를 이 리드 값으로 채운다.
      * source: {@code fixed}(고정값) · {@code answer}(varKey 로 답변 찾기) ·
      * {@code builtin}(ip·leadId·submittedAt·formName·userAgent·referer).
+     * {@code part}(answer 전용, '주소 + 상세주소' 항목): {@code address}=주소만 · {@code detail}=상세주소만 ·
+     * 없으면 합친 값 그대로 — 받는 쪽이 주소·상세주소를 서로 다른 항목으로 받는 경우용(사용자 지시 2026-10-16).
      * {@code digitsOnly=true} 면 값에서 숫자만 남긴다 — 텐핑 {@code {#ITEM_NOH#}} 처럼
      * 하이픈 없는 연락처를 요구하는 곳용(공개 폼 3칸 연락처는 {@code 010-1234-5678} 로 저장된다).
      */
@@ -137,12 +139,12 @@ public class OutboundWebhookService {
         if (!(raw instanceof List<?> list)) {
             return out;
         }
-        Map<String, String> answersByVarKey = new LinkedHashMap<>();
+        Map<String, Map<String, Object>> answersByVarKey = new LinkedHashMap<>();
         if (lead.getAnswers() != null) {
             for (Map<String, Object> a : lead.getAnswers()) {
                 Object vk = a.get("varKey");
                 if (vk != null) {
-                    answersByVarKey.put(vk.toString(), str(a.get("value")));
+                    answersByVarKey.put(vk.toString(), a);
                 }
             }
         }
@@ -156,7 +158,7 @@ public class OutboundWebhookService {
             }
             String source = str(m.get("source"));
             String value = switch (source) {
-                case "answer" -> answersByVarKey.getOrDefault(str(m.get("varKey")), "");
+                case "answer" -> answerValue(answersByVarKey.get(str(m.get("varKey"))), str(m.get("part")));
                 case "builtin" -> builtinValue(str(m.get("value")), form, lead);
                 default -> str(m.get("value")); // fixed
             };
@@ -166,6 +168,23 @@ public class OutboundWebhookService {
             out.put(name, value);
         }
         return out;
+    }
+
+    /**
+     * 답변 값. {@code part} 가 address/detail 이면 '주소 + 상세주소' 항목이 접수 때 따로 남긴
+     * {@code address}·{@code addressDetail} 을 쓴다. 이 기능 전에 접수된 리드엔 그 키가 없어
+     * 합친 값을 다시 가를 수 없으므로 주소 쪽에 합친 값 전체, 상세주소 쪽은 빈 값으로 보낸다.
+     */
+    static String answerValue(Map<String, Object> answer, String part) {
+        if (answer == null) {
+            return "";
+        }
+        String whole = str(answer.get("value"));
+        return switch (part) {
+            case "address" -> answer.containsKey("address") ? str(answer.get("address")) : whole;
+            case "detail" -> str(answer.get("addressDetail"));
+            default -> whole;
+        };
     }
 
     private String builtinValue(String key, Form form, Lead lead) {
