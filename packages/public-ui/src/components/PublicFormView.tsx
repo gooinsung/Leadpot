@@ -12,7 +12,7 @@ import {
 } from "../api/client";
 import { descEmphasisClass, resolveStyle, resolveSubmitLabel } from "./formRenderers/formStyle";
 import {
-  addressDetailParts,
+  answerParts,
   choiceAsField,
   choiceSaveValue,
   dateRange,
@@ -159,7 +159,7 @@ export function PublicFormView({
     if (form.formType === "BASIC") {
       sorted.forEach((b, i) => {
         if (b.blockType !== "FIELD") return;
-        out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: fieldAnswer(b, values[`f${i}`]), ...addressDetailParts(b, values[`f${i}`]) });
+        out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: fieldAnswer(b, values[`f${i}`]), ...answerParts(b, values[`f${i}`]) });
       });
     } else {
       const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
@@ -173,12 +173,12 @@ export function PublicFormView({
           value = (choices[i] ?? []).map((oi) => choiceSaveValue(opts[oi]?.label, opts[oi]?.saveAs, oi)).join(", ");
         } else {
           value = fieldAnswer(choiceAsField(b), values[`s${i}`]);
-          parts = addressDetailParts(choiceAsField(b), values[`s${i}`]);
+          parts = answerParts(choiceAsField(b), values[`s${i}`]);
         }
         out.push({ label: (b.content?.question as string) || `질문 ${i + 1}`, fieldType: answerType, value, ...parts });
       });
       sorted.filter((b) => b.blockType === "FIELD").forEach((b, i) => {
-        out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: fieldAnswer(b, values[`c${i}`]), ...addressDetailParts(b, values[`c${i}`]) });
+        out.push({ label: b.label || `항목 ${i + 1}`, fieldType: b.fieldType ?? "text", value: fieldAnswer(b, values[`c${i}`]), ...answerParts(b, values[`c${i}`]) });
       });
       // 계산 결과를 답변으로 함께 저장 — 이 label 이 구글시트 열 이름이자 문자 변수({{예상 탕감액}})가 된다.
       if (calculator && calcView) out.push(...calculator.toAnswers(calcView));
