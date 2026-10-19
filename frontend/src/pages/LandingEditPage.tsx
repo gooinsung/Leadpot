@@ -4,7 +4,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FolderSelect } from "../components/FolderTree";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
-import { HtmlBlock, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
+import { HtmlBlock, LandingCtaButton, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
+import { CtaStyleFields } from "../components/CtaStyleFields";
 import { ConceptColorField } from "../components/ConceptColorField";
 import {
   ApiError,
@@ -306,6 +307,7 @@ export function LandingEditPage() {
                             <label>버튼 아래 설명(선택)</label>
                             <input className="input" placeholder="예: 상담 신청 후 24시간 내 연락드립니다" value={(b.buttonDescription as string) ?? ""} onChange={(e) => patch(i, { buttonDescription: e.target.value })} />
                           </div>
+                          <CtaStyleFields block={b} onPatch={(p) => patch(i, p)} />
                         </>
                       )}
                     </>
@@ -367,20 +369,11 @@ export function LandingEditPage() {
                     const detail = fid != null ? formDetails[fid] : undefined;
                     if (b.trigger === "overlay" || b.trigger === "fullscreen") {
                       const isFullscreen = b.trigger === "fullscreen";
-                      // 버튼 색은 연결된 리드폼의 버튼 색을 따라간다(실제 공개 렌더 LandingView와 동일한 규칙).
+                      // 실제 공개 렌더(LandingView)와 같은 컴포넌트 — 버튼 색은 연결된 리드폼 색(블록에서 지정하면 그 색).
                       const btnStyle = detail ? resolveStyle(detail) : undefined;
                       return (
-                        <div key={i} style={{ padding: "8px 16px 16px", ...ms }}>
-                          <button
-                            className="btn"
-                            style={{ width: "100%", minHeight: 48, background: btnStyle?.buttonColor ?? "#12b886", color: btnStyle?.buttonText ?? "#fff" }}
-                            disabled
-                          >
-                            {(b.buttonLabel as string) || "신청하기"}
-                          </button>
-                          {(b.buttonDescription as string) && (
-                            <p className="dash-sub" style={{ textAlign: "center", marginTop: 6 }}>{b.buttonDescription as string}</p>
-                          )}
+                        <div key={i} style={ms}>
+                          <LandingCtaButton block={b} baseColor={btnStyle?.buttonColor ?? "#12b886"} baseTextColor={btnStyle?.buttonText ?? "#fff"} />
                           <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>
                             {isFullscreen ? "버튼 클릭 시 화면 전체를 채우는 스텝형으로 리드폼 표시" : "버튼 클릭 시 오버레이로 리드폼 표시"}
                           </p>

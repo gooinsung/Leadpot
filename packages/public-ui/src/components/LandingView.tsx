@@ -1,7 +1,8 @@
 "use client";
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { getLandingLive, recordEvent, recordEventBeacon, recordVisit, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
+import { LandingCtaButton } from "./LandingCtaButton";
 import { PublicFormView } from "./PublicFormView";
 import { resolveConceptBg, resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
@@ -197,22 +198,15 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
             if (b.trigger === "overlay" || b.trigger === "fullscreen") {
               const open = b.trigger === "fullscreen" ? setFullscreenForm : setOverlayForm;
               // 오버레이/풀스크린 CTA 버튼 색은 연결된 리드폼의 버튼 색(styleConfig.buttonColor)을 따라간다 —
-              // 고정된 초록색 대신 리드폼 편집기에서 지정한 색과 일치해야 한다.
+              // 고정된 초록색 대신 리드폼 편집기에서 지정한 색과 일치해야 한다(블록에서 따로 지정하면 그 색).
               const btnStyle = resolveStyle(form);
-              const buttonDescription = b.buttonDescription as string | undefined;
               return (
-                <Fragment key={i}>
-                  <button className="btn landing-cta" type="button"
-                    style={{ ...ms, background: btnStyle.buttonColor, color: btnStyle.buttonText }}
-                    onClick={() => {
-                      open(form);
-                      // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
-                      recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
-                    }}>
-                    {(b.buttonLabel as string) || "신청하기"}
-                  </button>
-                  {buttonDescription && <p className="landing-cta-desc">{buttonDescription}</p>}
-                </Fragment>
+                <LandingCtaButton key={i} block={b} baseColor={btnStyle.buttonColor} baseTextColor={btnStyle.buttonText} style={ms}
+                  onClick={() => {
+                    open(form);
+                    // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
+                    recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
+                  }} />
               );
             }
             return (

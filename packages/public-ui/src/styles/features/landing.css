@@ -133,6 +133,88 @@
   min-height: 52px;
   font-size: 17px;
 }
+/* CTA 버튼 꾸밈 (LandingCtaButton.tsx) — 크기·모서리·굵게·그림자·움직임.
+   --cta-color 는 버튼 배경색(물결 효과가 이 색으로 퍼진다). */
+.landing-cta-size-large {
+  min-height: 60px;
+  font-size: 20px;
+}
+.landing-cta-size-xlarge {
+  min-height: 68px;
+  font-size: 23px;
+}
+.landing-cta-radius-round {
+  border-radius: 12px;
+}
+.landing-cta-radius-square {
+  border-radius: 4px;
+}
+.landing-cta-bold {
+  font-weight: 800;
+}
+.landing-cta-shadow {
+  box-shadow: 0 6px 18px rgba(10, 12, 20, 0.22);
+}
+.landing-cta-fx-pulse {
+  animation: landing-cta-pulse 1.4s ease-in-out infinite;
+}
+@keyframes landing-cta-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+/* 흔들림: 잠깐 흔들리고 쉬기를 반복 */
+.landing-cta-fx-shake {
+  animation: landing-cta-shake 2.6s ease-in-out infinite;
+}
+@keyframes landing-cta-shake {
+  0%, 70%, 100% { transform: translateX(0); }
+  74%, 82%, 90% { transform: translateX(-5px); }
+  78%, 86%, 94% { transform: translateX(5px); }
+}
+.landing-cta-fx-bounce {
+  animation: landing-cta-bounce 1.8s ease-in-out infinite;
+}
+@keyframes landing-cta-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  20% { transform: translateY(-8px); }
+  40% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+/* 물결: 버튼 색 테두리가 바깥으로 퍼져나가며 사라진다 */
+.landing-cta-fx-ring {
+  animation: landing-cta-ring 1.8s ease-out infinite;
+}
+@keyframes landing-cta-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cta-color) 60%, transparent); }
+  100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--cta-color) 0%, transparent); }
+}
+/* 빛줄기: 버튼 위로 흰 빛이 비스듬히 지나간다 */
+.landing-cta-fx-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.landing-cta-fx-sheen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-20deg);
+  animation: landing-cta-sheen 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes landing-cta-sheen {
+  0% { left: -60%; }
+  45%, 100% { left: 130%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-cta,
+  .landing-cta::after {
+    animation: none !important;
+  }
+}
 /* 버튼 바로 아래 붙는 설명 — 버튼의 아래쪽 여백 안으로 끌어올려 한 묶음처럼 보이게 한다. */
 .landing-cta-desc {
   margin: -8px 20px 16px;
