@@ -34,6 +34,7 @@ function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "IMAGE") return { type, url: "", alt: "" };
   if (type === "TEXT") return { type, text: "텍스트를 입력하세요" };
   if (type === "HTML") return { type, html: "<p>내용</p>" };
+  if (type === "EMBED") return { type, html: "", trigger: "overlay", buttonLabel: "상담 신청하기" };
   return { type: "FORM", formId: forms[0]?.id ?? null, trigger: "inline", buttonLabel: "상담 신청하기" };
 }
 
@@ -292,24 +293,27 @@ export function LandingEditPage() {
                           placeholder="리드폼 선택… (클릭해서 이름으로 검색)"
                         />
                       </div>
+                      <TriggerFields block={b} onPatch={(p) => patch(i, p)} fullscreenLabel="버튼 → 풀스크린 스텝 진행" />
+                    </>
+                  )}
+                  {b.type === "EMBED" && (
+                    <>
                       <div className="field">
-                        <label>노출 방식</label>
-                        <select className="input" value={(b.trigger as string) ?? "inline"} onChange={(e) => patch(i, { trigger: e.target.value })}>
-                          <option value="inline">인라인(페이지에 바로 표시)</option>
-                          <option value="overlay">버튼 → 오버레이(모달)</option>
-                          <option value="fullscreen">버튼 → 풀스크린 스텝 진행</option>
-                        </select>
+                        <label>외부 폼 임베드 코드</label>
+                        <textarea
+                          className="input"
+                          rows={4}
+                          placeholder={'다른 서비스에서 받은 입력폼 코드를 그대로 붙여 넣으세요.\n예: <iframe src="https://..." width="100%" height="600"></iframe>'}
+                          value={(b.html as string) ?? ""}
+                          onChange={(e) => patch(i, { html: e.target.value })}
+                          spellCheck={false}
+                        />
+                        <span className="field-optional" style={{ marginTop: 4, fontSize: 12 }}>
+                          코드를 그대로 실행합니다(스크립트 포함). '구글 광고용' 랜딩에서도 제거하지 않으니 구글 심사에 걸릴 수 있어요.
+                          외부 폼으로 들어온 신청은 리드팟 리드로 저장되지 않습니다.
+                        </span>
                       </div>
-                      {(b.trigger === "overlay" || b.trigger === "fullscreen") && (
-                        <>
-                          <div className="field"><label>버튼 문구</label><input className="input" value={(b.buttonLabel as string) ?? ""} onChange={(e) => patch(i, { buttonLabel: e.target.value })} /></div>
-                          <div className="field">
-                            <label>버튼 아래 설명(선택)</label>
-                            <input className="input" placeholder="예: 상담 신청 후 24시간 내 연락드립니다" value={(b.buttonDescription as string) ?? ""} onChange={(e) => patch(i, { buttonDescription: e.target.value })} />
-                          </div>
-                          <CtaStyleFields block={b} onPatch={(p) => patch(i, p)} />
-                        </>
-                      )}
+                      <TriggerFields block={b} onPatch={(p) => patch(i, p)} fullscreenLabel="버튼 → 풀스크린" />
                     </>
                   )}
                   <div className="block-margins">
@@ -331,6 +335,7 @@ export function LandingEditPage() {
                 <button className="btn btn-ghost btn-sm" onClick={() => add("TEXT")}>+ 텍스트</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => add("HTML")}>+ HTML</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => add("FORM")}>+ 리드폼</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => add("EMBED")}>+ 외부 폼</button>
               </div>
             </div>
           </div>
@@ -382,6 +387,22 @@ export function LandingEditPage() {
                     }
                     return <div key={i} className="landing-form-card" style={ms}>{detail ? <FormRenderer form={detail} /> : <Loading label="리드폼 미리보기 불러오는 중…" />}</div>;
                   }
+                  if (b.type === "EMBED") {
+                    const html = (b.html as string) || "";
+                    if (b.trigger === "overlay" || b.trigger === "fullscreen") {
+                      return (
+                        <div key={i} style={ms}>
+                          <LandingCtaButton block={b} baseColor="#12b886" baseTextColor="#ffffff" />
+                          <p className="dash-sub" style={{ textAlign: "center", marginTop: 6, fontSize: 12 }}>
+                            {b.trigger === "fullscreen" ? "버튼 클릭 시 화면 전체에 외부 폼 표시" : "버튼 클릭 시 오버레이로 외부 폼 표시"}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return html.trim()
+                      ? <HtmlBlock key={i} className="landing-embed" style={ms} html={html} debounceMs={600} />
+                      : <div key={i} className="fr-img-ph" style={{ margin: 16, ...ms }}>외부 폼 코드를 넣어주세요</div>;
+                  }
                   return null;
                 })}
               </div>
@@ -400,5 +421,34 @@ function previewHeight(): number {
 }
 
 function blockLabel(t: LandingBlockType): string {
-  return { IMAGE: "이미지", TEXT: "텍스트", HTML: "HTML", FORM: "리드폼" }[t];
+  return { IMAGE: "이미지", TEXT: "텍스트", HTML: "HTML", FORM: "리드폼", EMBED: "외부 폼" }[t];
+}
+
+/**
+ * 노출 방식(인라인 / 버튼 → 오버레이 / 버튼 → 풀스크린) + 버튼 문구·설명·꾸미기 —
+ * 리드폼(FORM)·외부 폼(EMBED) 블록 공용.
+ */
+function TriggerFields({ block, onPatch, fullscreenLabel }: { block: LandingBlock; onPatch: (p: Partial<LandingBlock>) => void; fullscreenLabel: string }) {
+  return (
+    <>
+      <div className="field">
+        <label>노출 방식</label>
+        <select className="input" value={(block.trigger as string) ?? "inline"} onChange={(e) => onPatch({ trigger: e.target.value })}>
+          <option value="inline">인라인(페이지에 바로 표시)</option>
+          <option value="overlay">버튼 → 오버레이(모달)</option>
+          <option value="fullscreen">{fullscreenLabel}</option>
+        </select>
+      </div>
+      {(block.trigger === "overlay" || block.trigger === "fullscreen") && (
+        <>
+          <div className="field"><label>버튼 문구</label><input className="input" value={(block.buttonLabel as string) ?? ""} onChange={(e) => onPatch({ buttonLabel: e.target.value })} /></div>
+          <div className="field">
+            <label>버튼 아래 설명(선택)</label>
+            <input className="input" placeholder="예: 상담 신청 후 24시간 내 연락드립니다" value={(block.buttonDescription as string) ?? ""} onChange={(e) => onPatch({ buttonDescription: e.target.value })} />
+          </div>
+          <CtaStyleFields block={block} onPatch={onPatch} />
+        </>
+      )}
+    </>
+  );
 }

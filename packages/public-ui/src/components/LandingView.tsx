@@ -35,6 +35,10 @@ function blockStyle(b: LandingBlock): CSSProperties {
 export function LandingView({ landing, initialLive = null }: { landing: PublicLanding; initialLive?: LandingLive | null }) {
   const [overlayForm, setOverlayForm] = useState<FormDetail | null>(null);
   const [fullscreenForm, setFullscreenForm] = useState<FormDetail | null>(null);
+  // 외부 폼(EMBED 블록) 임베드 코드 — 리드폼과 같은 오버레이/풀스크린 틀에 띄운다(사용자 지시 2026-10-20).
+  const [overlayEmbed, setOverlayEmbed] = useState<string | null>(null);
+  const [fullscreenEmbed, setFullscreenEmbed] = useState<string | null>(null);
+  const fullscreenOpen = fullscreenForm != null || fullscreenEmbed != null;
   const [live, setLive] = useState<LandingLive | null>(initialLive);
 
   /**
@@ -60,13 +64,13 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
 
   // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
   useEffect(() => {
-    if (!fullscreenForm) return;
+    if (!fullscreenOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [fullscreenForm]);
+  }, [fullscreenOpen]);
 
   // 동적 요소(M8) 마커가 콘텐츠에 있으면 실시간 집계를 불러온다.
   const contentHtml = useMemo(
@@ -157,7 +161,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
     const el = (e.target as HTMLElement | null)?.closest("a, button, img") as HTMLElement | null;
     if (!el) return;
     if (el.classList.contains("landing-cta")) return; // 오버레이 CTA = form_open
-    if (el.closest(".landing-form-card, .landing-overlay, .landing-fullscreen, form")) return; // 폼 내부 클릭 제외
+    if (el.closest(".landing-form-card, .landing-embed, .landing-overlay, .landing-fullscreen, form")) return; // 폼 내부 클릭 제외
     const tag = el.tagName.toLowerCase();
     let target =
       tag === "img"
@@ -215,6 +219,22 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
               </div>
             );
           }
+          if (b.type === "EMBED") {
+            // 외부 폼 — 사용자가 일부러 넣은 임베드 코드라 '구글 광고용'이어도 그대로 둔다(사용자 결정 2026-10-20).
+            const html = (b.html as string) || "";
+            if (!html.trim()) return null;
+            if (b.trigger === "overlay" || b.trigger === "fullscreen") {
+              const open = b.trigger === "fullscreen" ? setFullscreenEmbed : setOverlayEmbed;
+              return (
+                <LandingCtaButton key={i} block={b} baseColor="#12b886" baseTextColor="#ffffff" style={ms}
+                  onClick={() => {
+                    open(html);
+                    recordEvent({ landingPageId: landing.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
+                  }} />
+              );
+            }
+            return <HtmlBlock key={i} className="landing-embed" style={ms} html={html} />;
+          }
           return null;
         })}
       </div>
@@ -233,6 +253,24 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
           <button className="landing-fullscreen-close" type="button" onClick={() => setFullscreenForm(null)} aria-label="닫기">×</button>
           <div className="landing-fullscreen-inner">
             <PublicFormView form={fullscreenForm} landingPageId={landing.id} trackingConfig={fullscreenForm.trackingConfig} onSubmitted={() => { /* 완료 화면은 리드폼 내부에서 표시 */ }} />
+          </div>
+        </div>
+      )}
+
+      {overlayEmbed != null && (
+        <div className="landing-overlay" onClick={() => setOverlayEmbed(null)}>
+          <div className="landing-overlay-card" onClick={(e) => e.stopPropagation()}>
+            <button className="landing-overlay-close" type="button" onClick={() => setOverlayEmbed(null)} aria-label="닫기">×</button>
+            <HtmlBlock className="landing-embed in-overlay" html={overlayEmbed} />
+          </div>
+        </div>
+      )}
+
+      {fullscreenEmbed != null && (
+        <div className="landing-fullscreen">
+          <button className="landing-fullscreen-close" type="button" onClick={() => setFullscreenEmbed(null)} aria-label="닫기">×</button>
+          <div className="landing-fullscreen-inner embed">
+            <HtmlBlock className="landing-embed in-fullscreen" html={fullscreenEmbed} />
           </div>
         </div>
       )}
