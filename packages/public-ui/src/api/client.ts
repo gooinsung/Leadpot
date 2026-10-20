@@ -221,12 +221,13 @@ export function submitLead(input: LeadSubmitInput): Promise<{ id: number; ok: bo
 }
 
 // ---------- 랜딩페이지 ----------
-export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM";
+export type LandingBlockType = "IMAGE" | "TEXT" | "HTML" | "FORM" | "EMBED";
 export interface LandingBlock {
   type: LandingBlockType;
   /** 편집 화면에서만 쓰는 블록 이름(예: "헤더 이미지", "선착순 HTML"). 공개 페이지에는 노출하지 않는다. */
   name?: string;
   // IMAGE: {url, alt} · TEXT: {text} · HTML: {html} · FORM: {formId, trigger:"inline"|"overlay"|"fullscreen", buttonLabel, buttonDescription}
+  // EMBED(외부 폼): {html(외부 입력폼 임베드 코드), trigger, buttonLabel, buttonDescription} — FORM 처럼 버튼 → 오버레이/풀스크린 가능
   [key: string]: unknown;
 }
 export interface PublicLanding {
