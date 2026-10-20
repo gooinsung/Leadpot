@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,6 +131,8 @@ public class OutboundWebhookService {
      * {@code part}(answer 전용, '주소 + 상세주소' 항목): {@code address}=주소만 · {@code detail}=상세주소만 ·
      * 없으면 합친 값 그대로 — 받는 쪽이 주소·상세주소를 서로 다른 항목으로 받는 경우용(사용자 지시 2026-10-16).
      * '라디오 묶음' 항목은 {@code row:N}(0부터) 으로 N번째 질문의 답만 보낸다({@code rowLabel} 은 옛 리드용 질문명).
+     * '주소'·'주소 + 상세주소' 항목은 {@code part=tpl} + {@code addrTemplate}(예: {@code {우편번호} {지번} {상세주소}})으로
+     * 주소 조각을 직접 조합해 보낸다({@link #addressTemplateValue}).
      * {@code digitsOnly=true} 면 값에서 숫자만 남긴다 — 텐핑 {@code {#ITEM_NOH#}} 처럼
      * 하이픈 없는 연락처를 요구하는 곳용(공개 폼 3칸 연락처는 {@code 010-1234-5678} 로 저장된다).
      */
@@ -159,7 +163,9 @@ public class OutboundWebhookService {
             }
             String source = str(m.get("source"));
             String value = switch (source) {
-                case "answer" -> answerValue(answersByVarKey.get(str(m.get("varKey"))), str(m.get("part")), str(m.get("rowLabel")));
+                case "answer" -> "tpl".equals(str(m.get("part")))
+                        ? addressTemplateValue(answersByVarKey.get(str(m.get("varKey"))), str(m.get("addrTemplate")))
+                        : answerValue(answersByVarKey.get(str(m.get("varKey"))), str(m.get("part")), str(m.get("rowLabel")));
                 case "builtin" -> builtinValue(str(m.get("value")), form, lead);
                 default -> str(m.get("value")); // fixed
             };
@@ -191,6 +197,45 @@ public class OutboundWebhookService {
             case "detail" -> str(answer.get("addressDetail"));
             default -> whole;
         };
+    }
+
+    private static final Pattern ZONECODE_PREFIX = Pattern.compile("^\\((\\d{5})\\)\\s*");
+
+    /**
+     * 주소 조각 직접 조합 — {@code {우편번호} {도로명} {지번} {상세주소} {건물명} {법정동}} 을 채운다(사용자 지시 2026-10-20).
+     * 공개 폼이 주소 검색 때 남긴 {@code addressParts} 를 쓴다. 그 키가 없는 리드(이 기능 전 접수·검색 없이 들어온 값)는
+     * 저장 문자열 {@code (우편번호) 주소} 에서 우편번호만 떼고, 나머지 주소를 도로명·지번 자리에 함께 넣는다
+     * (어느 쪽인지 다시 알 수 없어서 — 빈 값보다 낫다). 빈 조각 때문에 생긴 겹친 공백은 하나로 줄인다.
+     */
+    static String addressTemplateValue(Map<String, Object> answer, String template) {
+        if (answer == null || template.isBlank()) {
+            return "";
+        }
+        Map<String, String> v = new LinkedHashMap<>();
+        if (answer.get("addressParts") instanceof Map<?, ?> p) {
+            v.put("우편번호", str(p.get("zonecode")));
+            v.put("도로명", str(p.get("road")));
+            v.put("지번", str(p.get("jibun")));
+            v.put("상세주소", str(p.get("detail")));
+            v.put("건물명", str(p.get("building")));
+            v.put("법정동", str(p.get("bname")));
+        } else {
+            String base = answer.containsKey("address") ? str(answer.get("address")) : str(answer.get("value"));
+            Matcher zm = ZONECODE_PREFIX.matcher(base);
+            String zone = zm.find() ? zm.group(1) : "";
+            String rest = zm.replaceFirst("").trim();
+            v.put("우편번호", zone);
+            v.put("도로명", rest);
+            v.put("지번", rest);
+            v.put("상세주소", str(answer.get("addressDetail")));
+            v.put("건물명", "");
+            v.put("법정동", "");
+        }
+        String out = template;
+        for (Map.Entry<String, String> e : v.entrySet()) {
+            out = out.replace("{" + e.getKey() + "}", e.getValue());
+        }
+        return out.replaceAll("[ \\t]+", " ").trim();
     }
 
     private static String groupRowValue(Map<String, Object> answer, String whole, String index, String rowLabel) {

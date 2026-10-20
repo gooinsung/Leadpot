@@ -61,4 +61,41 @@ class OutboundWebhookServiceTest {
         assertThat(OutboundWebhookService.answerValue(a, "row:1", "인터넷 가입(통신사 이동 등)")).isEqualTo("필요 없음");
         assertThat(OutboundWebhookService.answerValue(a, "row:0", "없는 질문")).isEmpty();
     }
+
+    @Test
+    void 주소_조각을_직접_조합해_보낸다() {
+        Map<String, Object> a = answer("(06234) 서울 강남구 테헤란로 123 (역삼동, 래미안) 101동 202호", null, null);
+        Map<String, Object> parts = new LinkedHashMap<>();
+        parts.put("zonecode", "06234");
+        parts.put("road", "서울 강남구 테헤란로 123");
+        parts.put("jibun", "서울 강남구 역삼동 737");
+        parts.put("building", "래미안");
+        parts.put("bname", "역삼동");
+        parts.put("detail", "101동 202호");
+        a.put("addressParts", parts);
+        assertThat(OutboundWebhookService.addressTemplateValue(a, "{우편번호} {지번} {상세주소}"))
+                .isEqualTo("06234 서울 강남구 역삼동 737 101동 202호");
+        assertThat(OutboundWebhookService.addressTemplateValue(a, "[{우편번호}] {도로명} ({건물명})"))
+                .isEqualTo("[06234] 서울 강남구 테헤란로 123 (래미안)");
+    }
+
+    @Test
+    void 빈_조각은_겹친_공백_없이_빠진다() {
+        Map<String, Object> a = answer("(06234) 서울 강남구 테헤란로 123", null, null);
+        Map<String, Object> parts = new LinkedHashMap<>();
+        parts.put("zonecode", "06234");
+        parts.put("road", "서울 강남구 테헤란로 123");
+        parts.put("jibun", "");
+        parts.put("detail", "");
+        a.put("addressParts", parts);
+        assertThat(OutboundWebhookService.addressTemplateValue(a, "{우편번호} {상세주소} {도로명}"))
+                .isEqualTo("06234 서울 강남구 테헤란로 123");
+    }
+
+    @Test
+    void 조각이_없는_옛_리드는_우편번호만_떼고_나머지를_주소_자리에() {
+        Map<String, Object> a = answer("(06234) 서울 강남구 테헤란로 123 101동", "(06234) 서울 강남구 테헤란로 123", "101동");
+        assertThat(OutboundWebhookService.addressTemplateValue(a, "{우편번호}|{지번}|{상세주소}"))
+                .isEqualTo("06234|서울 강남구 테헤란로 123|101동");
+    }
 }

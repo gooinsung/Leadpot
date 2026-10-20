@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { rememberAddressParts } from "../lib/addressParts";
 import { joinAddressDetail, splitAddressDetail } from "../lib/fieldTypes";
 
 /**
@@ -149,6 +150,14 @@ export function AddressInput({
         new Postcode({
           oncomplete: (data: PostcodeData) => {
             const addr = formatAddress(data, jibun);
+            // 외부 API 전달에서 {우편번호} {지번} 처럼 조합할 수 있게 원본 조각을 기억해 둔다(lib/addressParts).
+            rememberAddressParts(addr, {
+              zonecode: data.zonecode || "",
+              road: data.roadAddress || "",
+              jibun: data.jibunAddress || data.autoJibunAddress || "",
+              building: data.buildingName || "",
+              bname: data.bname || "",
+            });
             if (withDetail) {
               onChange(joinAddressDetail(addr, detailNow.current));
               setOpen(false);
