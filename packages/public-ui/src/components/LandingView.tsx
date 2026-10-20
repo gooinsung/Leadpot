@@ -7,6 +7,7 @@ import { PublicFormView } from "./PublicFormView";
 import { resolveConceptBg, resolveStyle } from "./formRenderers/formStyle";
 import { hydrateLiveMarkers } from "../lib/liveMarkers";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
+import { allowIframeScroll } from "../lib/embed";
 import { initPixels, mergeFormPixels, googleOnlyPixels } from "../lib/pixels";
 import { parseUtm } from "../lib/utm";
 
@@ -38,7 +39,8 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
   // 외부 폼(EMBED 블록) 임베드 코드 — 리드폼과 같은 오버레이/풀스크린 틀에 띄운다(사용자 지시 2026-10-20).
   const [overlayEmbed, setOverlayEmbed] = useState<string | null>(null);
   const [fullscreenEmbed, setFullscreenEmbed] = useState<string | null>(null);
-  const fullscreenOpen = fullscreenForm != null || fullscreenEmbed != null;
+  // 오버레이·풀스크린이 열려 있으면 뒤 페이지 스크롤을 잠근다 — 안 잠그면 창 안이 아니라 메인 페이지가 스크롤된다.
+  const modalOpen = fullscreenForm != null || fullscreenEmbed != null || overlayForm != null || overlayEmbed != null;
   const [live, setLive] = useState<LandingLive | null>(initialLive);
 
   /**
@@ -62,15 +64,15 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
     initPixels(landing.googleAdsSafe ? googleOnlyPixels(pixelCfg) : pixelCfg);
   }, [landing.id]);
 
-  // 풀스크린 스텝 진행 중엔 배경(커버 화면) 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
+  // 오버레이·풀스크린이 열린 동안 배경 스크롤을 잠가 iOS 에서 뒤 콘텐츠가 같이 밀리는 걸 막는다.
   useEffect(() => {
-    if (!fullscreenOpen) return;
+    if (!modalOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [fullscreenOpen]);
+  }, [modalOpen]);
 
   // 동적 요소(M8) 마커가 콘텐츠에 있으면 실시간 집계를 불러온다.
   const contentHtml = useMemo(
@@ -228,7 +230,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
               return (
                 <LandingCtaButton key={i} block={b} baseColor="#12b886" baseTextColor="#ffffff" style={ms}
                   onClick={() => {
-                    open(html);
+                    open(allowIframeScroll(html));
                     recordEvent({ landingPageId: landing.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
                   }} />
               );
