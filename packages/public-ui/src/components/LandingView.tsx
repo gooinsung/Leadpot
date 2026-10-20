@@ -259,7 +259,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
 
       {overlayEmbed != null && (
         <div className="landing-overlay" onClick={() => setOverlayEmbed(null)}>
-          <div className="landing-overlay-card" onClick={(e) => e.stopPropagation()}>
+          <div className="landing-overlay-card embed" onClick={(e) => e.stopPropagation()}>
             <button className="landing-overlay-close" type="button" onClick={() => setOverlayEmbed(null)} aria-label="닫기">×</button>
             <HtmlBlock className="landing-embed in-overlay" html={overlayEmbed} />
           </div>

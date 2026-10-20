@@ -284,26 +284,51 @@
   max-width: 100%;
   border: 0;
 }
+/* 오버레이: 임베드 코드의 높이(없거나 height="100%"면 150px 로 납작해진다)에 맡기지 않고
+   창 높이를 화면 기준으로 고정한 뒤 iframe 이 그 안을 꽉 채운다 — 긴 폼은 iframe 안에서 스크롤. */
+.landing-overlay-card.embed {
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  height: min(88vh, 820px);
+  height: min(88dvh, 820px);
+  padding-left: 12px;
+  padding-right: 12px;
+}
+/* 내용(높이가 긴 iframe·스크립트 위젯)이 창보다 길면 창 안이 스크롤된다(.landing-overlay-card overflow-y:auto).
+   그래서 줄어들지 않게(flex-shrink 0) 두고, 짧으면 창을 꽉 채우게 늘린다. */
 .landing-embed.in-overlay {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
   padding: 8px 0 0;
 }
 .landing-embed.in-overlay iframe {
+  flex: 1 0 auto;
   width: 100% !important;
+  /* 높이가 없거나(150px) height="100%" 이거나 div 로 감싸 flex 가 닿지 않을 때의 하한 */
+  min-height: min(70vh, 640px);
 }
 /* 풀스크린: 닫기(×) 버튼 아래부터 화면 끝까지 임베드가 차도록 */
+/* 폼이 화면보다 길면 이 영역이 스크롤된다 — min-height:0 이 없으면 flex 항목이 내용만큼 늘어나
+   화면 밖으로 넘친 채 스크롤이 생기지 않아 아래쪽 버튼을 누를 수 없었다(2026-10-20 실사용 제보). */
 .landing-fullscreen-inner.embed {
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 48px 0 env(safe-area-inset-bottom);
   max-width: 720px;
 }
 .landing-embed.in-fullscreen {
-  flex: 1;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   padding: 0;
 }
 .landing-embed.in-fullscreen iframe {
-  flex: 1;
+  flex: 1 0 auto;
   width: 100% !important;
+  min-height: calc(100vh - 60px);
   min-height: calc(100dvh - 60px);
 }
 
