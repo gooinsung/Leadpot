@@ -1,4 +1,5 @@
 import type { FormBlock } from "../api/client";
+import { lookupAddressParts, type AddressParts } from "./addressParts";
 
 /**
  * 입력 항목 유형 — **기본형과 스텝형이 함께 쓰는 단일 출처**.
@@ -162,9 +163,24 @@ export function radioGroupParts(block: FormBlock, value: string | undefined): { 
   };
 }
 
-/** 리드 답변에 value 와 함께 남기는 부분값(주소/상세주소, 라디오 묶음 행별 답) — 외부 API 전달에서 나눠 보내기용. */
-export function answerParts(block: FormBlock, value: string | undefined): { address?: string; addressDetail?: string; groupAnswers?: string[] } {
-  return { ...addressDetailParts(block, value), ...radioGroupParts(block, value) };
+/**
+ * '주소'·'주소 + 상세주소' 항목의 검색 조각(우편번호·도로명·지번…) — 리드 답변에 `addressParts` 로 남긴다.
+ * 외부 API 전달에서 `{우편번호} {지번}` 처럼 직접 조합해 보내기용(사용자 지시 2026-10-20). 검색으로 채운 값이
+ * 아니면(조각을 모르면) 남기지 않는다 — 백엔드가 저장 문자열에서 우편번호만 떼어 쓴다.
+ */
+export function addressPartsOf(block: FormBlock, value: string | undefined): { addressParts?: AddressParts } {
+  if (block.fieldType !== "address" && block.fieldType !== "address_detail") return {};
+  const [base, detail] = block.fieldType === "address_detail" ? splitAddressDetail(value) : [value ?? "", ""];
+  const parts = lookupAddressParts(base, detail);
+  return parts ? { addressParts: parts } : {};
+}
+
+/** 리드 답변에 value 와 함께 남기는 부분값(주소 조각, 라디오 묶음 행별 답) — 외부 API 전달에서 나눠 보내기용. */
+export function answerParts(
+  block: FormBlock,
+  value: string | undefined,
+): { address?: string; addressDetail?: string; addressParts?: AddressParts; groupAnswers?: string[] } {
+  return { ...addressDetailParts(block, value), ...addressPartsOf(block, value), ...radioGroupParts(block, value) };
 }
 
 /**

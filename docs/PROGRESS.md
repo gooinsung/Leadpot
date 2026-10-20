@@ -8,6 +8,16 @@
 
 ## 📍 지금 위치
 
+- **✅ 외부 API 전달: 주소 항목을 {우편번호} {도로명} {지번} 등으로 직접 조합해 보내기 (2026-10-20, 원격 세션, 사용자 지시)**:
+  - 답변 항목이 '주소' 또는 '주소 + 상세주소'면 '보내는 방식'에 **직접 조합** 추가 → 형식 입력(예: `{우편번호} {지번} {상세주소}`) +
+    자리표시자 버튼 + 예시 미리보기. 쓸 수 있는 자리: `{우편번호} {도로명} {지번} {상세주소} {건물명} {법정동}`. 빈 조각은 공백 없이 빠진다.
+  - 설정: `outboundWebhookParams[].part = "tpl"` + `addrTemplate`. 공개 폼은 주소 검색 때 받은 원본 조각을 기억했다가 접수 답변에
+    `addressParts{zonecode, road, jibun, building, bname, detail}` 로 남긴다(`public-ui/lib/addressParts.ts`).
+  - ⚠️ 이 배포 **이전에 접수된 리드**(조각 없음)는 저장 문자열에서 우편번호만 떼고, 나머지 주소를 {도로명}·{지번} 자리에 똑같이 넣는다.
+  - 코드: `AddressInput`(rememberAddressParts)·`fieldTypes.answerParts`, `OutboundWebhookService.addressTemplateValue`, `FormEditPage`(AddressTemplateField).
+  - 검증: public-ui vitest 105개, frontend 빌드 통과. 백엔드는 이 환경에서 Gradle 의존성 다운로드가 막혀 `addressTemplateValue` 만 JDK 로 따로
+    컴파일·검증(OutboundWebhookServiceTest 에 3개 추가 — CI/Railway 빌드에서 확인 필요).
+
 - **✅ 랜딩 CTA 버튼(버튼 → 오버레이/풀스크린) 꾸미기 (2026-10-19, 원격 세션, 사용자 지시)**:
   - 랜딩 편집기 FORM 블록(노출 방식이 버튼일 때)에 '버튼 꾸미기' 추가 — 글자 효과(깜빡임·반짝임·글로우·형광펜·그라데이션),
     버튼 움직임(커졌다 작아졌다·흔들림·통통 튀기·물결·빛줄기), 크기(보통/크게/아주 크게), 모서리(알약/둥근/각진), 글자 굵게, 그림자,

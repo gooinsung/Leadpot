@@ -54,6 +54,7 @@ import {
   TEXT_SIZES,
   resolveTextBlockStyle,
   type CalculatorDef,
+  ADDRESS_TOKENS,
 } from "@leadpot/public-ui";
 
 /**
@@ -167,10 +168,13 @@ interface OutboundWebhookParam {
   /**
    * 한 항목을 나눠 보낼 때 고른 부분 — 없으면 답변 전체.
    * '주소 + 상세주소': address=주소만 / detail=상세주소만. '라디오 묶음': row:N = N번째(0부터) 질문의 답만.
+   * '주소'·'주소 + 상세주소': tpl = addrTemplate 으로 우편번호·도로명·지번 등을 직접 조합.
    */
   part?: string;
   /** part 가 row:N 일 때 그 질문명 — 행별 답을 따로 남기기 전에 접수된 리드에서 답을 찾는 데 쓴다. */
   rowLabel?: string;
+  /** part 가 tpl 일 때 주소 조합 형식 — 예: "{우편번호} {지번} {상세주소}" (주소 항목 전용, 사용자 지시 2026-10-20). */
+  addrTemplate?: string;
 }
 
 interface StepData {
@@ -700,6 +704,12 @@ export function FormEditPage() {
     if (!b) return false;
     return (b.blockType === "CHOICE" ? stepAnswerType(b) : b.fieldType) === "tel";
   };
+  /** '주소 + 상세주소' 항목인지 — 주소 직접 조합의 기본 형식에 {상세주소} 를 넣을지 정한다. */
+  const isAddressDetailVarKey = (varKey?: string) => {
+    const b = answerBlocks.find((x) => x.varKey === varKey);
+    if (!b) return false;
+    return (b.blockType === "CHOICE" ? choiceAsField(b) : b).fieldType === "address_detail";
+  };
   /**
    * 외부 API 전달에서 한 항목을 나눠 보낼 수 있는 부분 목록(없으면 null) — 기본형 fieldType·스텝형 답변 방식 모두.
    * '주소 + 상세주소' → 주소/상세주소, '라디오 묶음' → 질문(행)별.
@@ -713,6 +723,13 @@ export function FormEditPage() {
         { value: "", label: "하나로 보내기 (주소 + 상세주소)" },
         { value: "address", label: "따로 보내기 — 주소만" },
         { value: "detail", label: "따로 보내기 — 상세주소만" },
+        { value: "tpl", label: "직접 조합 — {우편번호} {도로명} {지번} …" },
+      ];
+    }
+    if (f.fieldType === "address") {
+      return [
+        { value: "", label: "저장된 주소 그대로 ((우편번호) 주소)" },
+        { value: "tpl", label: "직접 조합 — {우편번호} {도로명} {지번} …" },
       ];
     }
     if (f.fieldType === "radio_group") {
@@ -1625,7 +1642,12 @@ export function FormEditPage() {
                               value={p.part ?? ""}
                               onChange={(e) => {
                                 const opt = outboundPartOptions(p.varKey)?.find((o) => o.value === e.target.value);
-                                patchOutboundParam(i, { part: e.target.value || undefined, rowLabel: opt?.rowLabel });
+                                const tpl = e.target.value === "tpl";
+                                patchOutboundParam(i, {
+                                  part: e.target.value || undefined,
+                                  rowLabel: opt?.rowLabel,
+                                  addrTemplate: tpl ? p.addrTemplate || (isAddressDetailVarKey(p.varKey) ? "{우편번호} {도로명} {상세주소}" : "{우편번호} {도로명}") : undefined,
+                                });
                               }}
                             >
                               {outboundPartOptions(p.varKey)!.map((o) => (
@@ -1633,6 +1655,13 @@ export function FormEditPage() {
                               ))}
                             </select>
                           </label>
+                        )}
+                        {p.source === "answer" && p.part === "tpl" && (
+                          <AddressTemplateField
+                            value={p.addrTemplate ?? ""}
+                            withDetail={isAddressDetailVarKey(p.varKey)}
+                            onChange={(v) => patchOutboundParam(i, { addrTemplate: v })}
+                          />
                         )}
                         {p.source === "answer" && (isTelVarKey(p.varKey) || p.digitsOnly) && (
                           <label className="dash-sub" style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 4, fontSize: 12, marginTop: -2 }}>
@@ -1785,6 +1814,53 @@ function TextStyleFields({ block, onContent }: { block: FormBlock; onContent: (p
       <OptionalColorField label="글자색" emptyLabel="기본" value={(block.content?.color as string) ?? ""} onChange={(v) => onContent({ color: v })} />
       <OptionalColorField label="배경 박스" emptyLabel="없음" value={(block.content?.bg as string) ?? ""} onChange={(v) => onContent({ bg: v })} />
     </>
+  );
+}
+
+/**
+ * 외부 API 전달 — 주소 항목을 우편번호·도로명·지번 등으로 직접 조합하는 형식 입력.
+ * 자리표시자 버튼을 누르면 끝에 덧붙인다. 실제 치환은 백엔드 OutboundWebhookService.addressTemplateValue.
+ */
+function AddressTemplateField({ value, withDetail, onChange }: { value: string; withDetail: boolean; onChange: (v: string) => void }) {
+  const tokens = ADDRESS_TOKENS.filter((t) => withDetail || t.token !== "{상세주소}");
+  const sample: Record<string, string> = {
+    "{우편번호}": "06234",
+    "{도로명}": "서울 강남구 테헤란로 123",
+    "{지번}": "서울 강남구 역삼동 737",
+    "{상세주소}": "101동 202호",
+    "{건물명}": "래미안",
+    "{법정동}": "역삼동",
+  };
+  const preview = tokens.reduce((out, t) => out.split(t.token).join(sample[t.token]), value).replace(/[ \t]+/g, " ").trim();
+  return (
+    <div style={{ flexBasis: "100%", display: "flex", flexDirection: "column", gap: 6, marginTop: -2 }}>
+      <input
+        className="input"
+        style={{ fontSize: 13 }}
+        placeholder="예: {우편번호} {지번} {상세주소}"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        spellCheck={false}
+      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {tokens.map((t) => (
+          <button
+            key={t.token}
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: 12, padding: "2px 8px" }}
+            title={t.label}
+            onClick={() => onChange(value && !value.endsWith(" ") ? `${value} ${t.token}` : `${value}${t.token}`)}
+          >
+            {t.token}
+          </button>
+        ))}
+      </div>
+      <span className="dash-sub" style={{ fontSize: 12 }}>
+        보내는 값 예시: <code>{preview || "(비어 있음)"}</code>
+        {" "}— 지번이 없는 신축 등은 해당 자리가 비어서 빠진다.
+      </span>
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@
 // ⚠️ 이 파일은 SSR(Next.js/Cloudflare Workers)에서도 실행된다 — `localStorage`·`navigator`·
 // `import.meta.env` 등 브라우저 전용 API 를 여기 넣지 않는다(recordEventBeacon 은 예외, 항상
 // 브라우저의 클라이언트 이벤트 핸들러 안에서만 호출된다). 인증이 필요 없는 순수 공개 API 만 다룬다.
+import type { AddressParts } from "../lib/addressParts";
 
 let apiBaseUrl = "http://localhost:8080";
 
@@ -196,6 +197,8 @@ export interface LeadAnswer {
   /** '주소 + 상세주소' 항목만 — 합쳐 저장되는 value 와 별개로 두 칸을 따로 남긴다(외부 API 전달에서 나눠 보내기용). */
   address?: string;
   addressDetail?: string;
+  /** '주소'·'주소 + 상세주소' 항목만 — 검색 조각(우편번호·도로명·지번…). 외부 API 전달 '직접 조합' 용. */
+  addressParts?: AddressParts;
   /** '라디오 묶음' 항목만 — 질문(행) 순서대로의 답(안 고른 행은 빈 값). */
   groupAnswers?: string[];
 }

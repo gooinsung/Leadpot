@@ -4,6 +4,7 @@
 // (docs/SSR-LANDING-PLAN.md §5-2)
 
 export * from "./api/client";
+export { ADDRESS_TOKENS, type AddressParts } from "./lib/addressParts";
 
 export { LandingView } from "./components/LandingView";
 export { PublicFormView } from "./components/PublicFormView";
