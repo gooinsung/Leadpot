@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 
 /**
  * 사용자가 넣은 HTML 조각을 렌더한다 — 랜딩·리드폼의 HTML 블록과 요소 미리보기 공용.
@@ -29,7 +29,19 @@ import { useEffect, useRef, type CSSProperties } from "react";
  * 멈추는 것을 막기 위한 것이다.
  * - 실행이 끝난 뒤(이벤트 핸들러 안 등) 새로 만든 타이머·리스너는 추적하지 못한다.
  * - 외부 `src` 스크립트는 비동기로 나중에 실행되므로 추적·보정 대상이 아니다.
- * - `document.write`·`document.currentScript` 에 의존하는 코드는 동작하지 않는다.
+ * - `document.currentScript` 에 의존하는 코드는 동작하지 않는다.
+ *
+ * **`document.write` (2026-10)**: 마켓클럽·당근 같은 외부 폼 임베드 코드가
+ * `document.write('<iframe ...>')` 로 폼을 그린다. 이 코드는 페이지 로딩이 끝난 뒤 실행되는데,
+ * 로딩이 끝난 문서에 `document.write` 를 부르면 브라우저가 `document.open()` 을 자동으로 불러
+ * **문서 전체를 지운다**(HTML 표준) — 사진·다른 블록이 모두 사라지고 그 폼만 남는 장애가 있었다.
+ * 그래서 스크립트 실행 구간에만 `document.write`·`writeln` 을 가로채, 원래 브라우저가 처음 읽을 때처럼
+ * **그 스크립트 바로 뒤에** 써준 HTML 을 끼워 넣는다(`patchDocumentWrite`).
+ * - 서버 렌더(SSR) 된 공개 랜딩은 브라우저가 HTML 을 처음 읽을 때 `<script>` 를 이미 한 번 실행했고
+ *   그때 `document.write` 도 정상적으로 제자리에 써졌다. 이어서 여기서 스크립트를 다시 실행할 때는
+ *   써준 내용을 **버린다** — 또 끼워 넣으면 폼이 두 개가 된다(`serverParsedHtml` 참고).
+ *   (스크립트를 다시 실행하는 기존 동작 자체는 바꾸지 않는다 — 스크립트보다 아래에 있는 요소를 찾는
+ *   코드는 두 번째 실행에서야 동작하기 때문이다.)
  *
  * **보안**: HTML 블록은 이 변경 *이전에도* 임의 JS 실행이 가능했다(`<img onerror>` 같은
  * 인라인 이벤트 핸들러는 innerHTML 로도 실행된다 — 실측 확인). 작성자는 리드폼·랜딩을
@@ -60,6 +72,17 @@ export function HtmlBlock({
   const ref = useRef<HTMLDivElement>(null);
   const scopeId = useRef<string>("");
   if (!scopeId.current) scopeId.current = `lp-hb-${++scopeSeq}`;
+  // 서버가 그린 HTML 을 브라우저가 이미 읽었으면(하이드레이션) 그 html 을 기억해 둔다.
+  // 브라우저가 읽을 때 `<script>` 가 이미 실행돼 `document.write` 결과가 제자리에 있으므로,
+  // 같은 html 로 스크립트를 다시 돌릴 때는 `document.write` 를 버려야 한다(위 주석 참고).
+  // 판별: `useId` 는 서버·하이드레이션에서 같은 값이므로, 첫 렌더 때 그 값의 요소가 이미 문서에 있으면
+  // 하이드레이션이다(클라이언트에서 처음 그릴 때는 아직 요소가 없다). 하이드레이션 실패로 React 가
+  // 새로 그리면 새 id 가 매겨져 못 찾으므로 이때는 써준 HTML 을 정상적으로 끼워 넣는다.
+  // ⚠️ useSyncExternalStore 로 판별하면 안 된다 — 서버/클라이언트 값이 다르면 React 가 서버 HTML 을
+  // 버리고 클라이언트에서 다시 그려서, 브라우저가 처음 읽을 때 써진 내용이 사라진다(실측 2026-10-21).
+  const instanceId = useId();
+  const [serverParsedHtml] = useState(() => (isInDocument(instanceId) ? html : null));
+  const htmlChanged = useRef(false);
 
   useEffect(() => {
     const host = ref.current;
@@ -69,8 +92,11 @@ export function HtmlBlock({
     let cleanup: (() => void) | null = null;
     // html 은 이미 렌더(JSX 의 dangerouslySetInnerHTML)에서 DOM 에 들어가 있다 — 여기서는
     // 스코프링 + 스크립트 실행만 한다(§ 위 SSR 주석 참고).
+    // 내용이 한 번이라도 바뀌었으면 React 가 innerHTML 을 새로 쓴 것이라 브라우저가 실행한 적 없는 스크립트다.
+    if (html !== serverParsedHtml) htmlChanged.current = true;
+    const discardWrites = !htmlChanged.current;
     const apply = () => {
-      cleanup = processAndRun(host, `[data-lp-hb="${scopeId.current}"]`);
+      cleanup = processAndRun(host, `[data-lp-hb="${scopeId.current}"]`, discardWrites);
     };
 
     if (debounceMs > 0) {
@@ -82,9 +108,20 @@ export function HtmlBlock({
     }
     apply();
     return () => cleanup?.();
-  }, [html, debounceMs]);
+  }, [html, debounceMs, serverParsedHtml]);
 
-  return <div ref={ref} className={className} style={style} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div ref={ref} data-lp-hb-id={instanceId} className={className} style={style} dangerouslySetInnerHTML={{ __html: html }} />
+  );
+}
+
+/** 서버가 그린 이 블록이 이미 문서에 있는지(= 하이드레이션 중인지). 서버 렌더 중에는 false. */
+function isInDocument(instanceId: string): boolean {
+  if (typeof document === "undefined") return false;
+  for (const el of Array.from(document.querySelectorAll("[data-lp-hb-id]"))) {
+    if (el.getAttribute("data-lp-hb-id") === instanceId) return true;
+  }
+  return false;
 }
 
 /** 스크립트가 만든 것들을 되돌리려고 실행 중에 모아두는 자리. */
@@ -93,7 +130,12 @@ type Tracked = {
   timeouts: number[];
   listeners: Array<{ target: EventTarget; type: string; listener: EventListenerOrEventListenerObject; options?: boolean | AddEventListenerOptions }>;
   observers: Array<{ disconnect: () => void }>;
+  /** `document.write` 로 끼워 넣은 노드 — 블록이 사라지거나 다시 실행될 때 지운다. */
+  written: ChildNode[];
 };
+
+/** `document.write` 가 다시 스크립트를 쓰는 경우의 무한 반복 방지. */
+const MAX_WRITE_DEPTH = 10;
 
 /**
  * 이미 DOM 에 들어가 있는 마크업(JSX 의 `dangerouslySetInnerHTML`)의 CSS 를 블록 안으로
@@ -102,7 +144,7 @@ type Tracked = {
  * ⚠️ 기기 미리보기는 iframe 안에서 렌더된다. iframe 은 **문서·window·CSSOM 클래스가 전부 다르므로**
  * 전역 `document`/`window` 를 쓰면 안 되고 항상 호스트가 속한 문서(`host.ownerDocument`)를 따라간다.
  */
-function processAndRun(host: HTMLElement, scope: string): () => void {
+function processAndRun(host: HTMLElement, scope: string, discardWrites: boolean): () => void {
   const doc = host.ownerDocument;
   const win = doc.defaultView ?? window;
 
@@ -113,16 +155,32 @@ function processAndRun(host: HTMLElement, scope: string): () => void {
     return () => {};
   }
 
-  const tracked: Tracked = { intervals: [], timeouts: [], listeners: [], observers: [] };
+  const tracked: Tracked = { intervals: [], timeouts: [], listeners: [], observers: [], written: [] };
   const restore = patchGlobals(tracked, win, doc);
-  try {
-    for (const old of scripts) {
+  const writes = patchDocumentWrite(doc);
+  // 스크립트를 실행하고, 실행 중 `document.write` 로 쓴 HTML 을 그 스크립트 바로 뒤에 끼워 넣는다.
+  // 써준 HTML 안의 스크립트도 같은 방식으로 이어서 실행한다(브라우저가 처음 읽을 때와 같은 순서).
+  const runScripts = (list: HTMLScriptElement[], depth: number) => {
+    for (const old of list) {
       const fresh = doc.createElement("script");
       for (const attr of Array.from(old.attributes)) fresh.setAttribute(attr.name, attr.value);
       fresh.textContent = old.textContent;
       old.replaceWith(fresh); // 삽입 시점에 실행된다(인라인은 동기)
+      const out = writes.take();
+      if (!out || discardWrites || !fresh.parentNode) continue;
+      const tpl = doc.createElement("template");
+      tpl.innerHTML = out; // template 안 스크립트는 실행되지 않는다 — 아래에서 직접 실행
+      const nodes = Array.from(tpl.content.childNodes);
+      const nested = Array.from(tpl.content.querySelectorAll("script"));
+      fresh.after(tpl.content);
+      tracked.written.push(...nodes);
+      if (depth < MAX_WRITE_DEPTH) runScripts(nested, depth + 1);
     }
+  };
+  try {
+    runScripts(scripts, 0);
   } finally {
+    writes.restore();
     restore();
   }
 
@@ -139,6 +197,9 @@ function processAndRun(host: HTMLElement, scope: string): () => void {
         /* 이미 정리됐으면 무시 */
       }
     });
+    // 다시 실행하면 또 써지므로 지운다(편집 미리보기·StrictMode 재실행에서 폼이 겹치지 않게).
+    // html 이 바뀐 경우엔 React 가 innerHTML 을 새로 써서 이미 떨어져 나간 노드라 아무 일도 없다.
+    tracked.written.forEach((n) => n.remove());
     // ⚠️ host.innerHTML 은 여기서 지우지 않는다 — React 가 dangerouslySetInnerHTML 로
     // 다음 렌더의 내용을 이미 심어놨을 수 있다(html prop 변경 시 cleanup 이 새 커밋 *이후*
     // 실행된다). 지우면 방금 React 가 그린 새 내용을 날려버린다.
@@ -217,6 +278,38 @@ function scopeSelector(selectorText: string, scope: string): string {
       return `${scope} ${part}`;
     })
     .join(",");
+}
+
+/**
+ * 스크립트 실행 구간에만 `document.write`·`writeln` 을 가로채 써준 HTML 을 모은다.
+ * 원래 함수를 부르면 로딩이 끝난 문서가 통째로 지워지므로(HTML 표준의 암묵적 `document.open()`)
+ * 절대 원래 함수로 넘기지 않는다. 모은 HTML 은 `take()` 로 꺼내 호출한 쪽이 끼워 넣는다.
+ */
+function patchDocumentWrite(doc: Document): { take: () => string; restore: () => void } {
+  const target = doc as unknown as Record<string, unknown>;
+  const names = ["write", "writeln"] as const;
+  const hadOwn = names.map((n) => Object.prototype.hasOwnProperty.call(doc, n));
+  const originals = names.map((n) => target[n]);
+  let buffer = "";
+  target.write = (...text: string[]) => {
+    buffer += text.join("");
+  };
+  target.writeln = (...text: string[]) => {
+    buffer += text.join("") + "\n";
+  };
+  return {
+    take: () => {
+      const out = buffer;
+      buffer = "";
+      return out;
+    },
+    restore: () => {
+      names.forEach((n, i) => {
+        if (hadOwn[i]) target[n] = originals[i];
+        else delete target[n]; // 프로토타입의 원래 함수가 다시 보이게
+      });
+    },
+  };
 }
 
 /** 이미 지나간 준비 이벤트 — 등록해도 다시 발생하지 않으므로 즉시 실행으로 바꿔준다. */
