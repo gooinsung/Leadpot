@@ -8,6 +8,20 @@
 
 ## 📍 지금 위치
 
+- **✅ HTML·외부 폼 블록의 `document.write` 가 페이지 전체를 지우던 장애 수정 (2026-10-21, 원격 세션, 사용자 지시)**:
+  - 증상: 마켓클럽+당근 픽셀 같은 임베드 코드(`document.write('<iframe ...>')`)를 붙이면 사진·다른 블록이 다 사라지고 폼만 보임.
+  - 원인: `HtmlBlock` 은 스크립트를 페이지 로딩이 끝난 뒤 다시 실행하는데, 로딩이 끝난 문서에 `document.write` 를 부르면
+    브라우저가 암묵적으로 `document.open()` 을 불러 **문서 전체를 비운다**(HTML 표준).
+  - 수정(`public-ui/components/HtmlBlock.tsx` 만): 스크립트 실행 구간에만 `document.write`·`writeln` 을 가로채 그 스크립트 **바로 뒤에**
+    끼워 넣는다(써준 HTML 안의 스크립트도 이어서 실행). SSR 공개 랜딩은 브라우저가 처음 읽을 때 이미 제자리에 써졌으므로 재실행 때는
+    써준 내용을 버린다(하이드레이션 판별은 `useId` + DOM 조회 — `useSyncExternalStore` 는 React 가 서버 HTML 을 버리고 다시 그리게
+    만들어서 폐기, 실측). 그 밖의 동작(스크립트 2회 실행·실행 순서·외부 src 비동기·정리)은 **일부러 그대로 둠**.
+  - 검증: Chromium 으로 SSR/CSR/StrictMode/하이드레이션 실패/내용 변경/중첩 write 케이스 + 기존 스크립트(카운트다운·아래 요소 조회·
+    DOMContentLoaded·전역 CSS 격리·외부 src) 결과가 수정 전과 동일함을 비교 확인. 실제 렌더러(next build + 목 API)로도 확인.
+    public-ui vitest 107개·tsc, frontend 빌드 통과.
+  - ⚠️ 남은 기존 동작(이번에 안 건드림): ① SSR 공개 랜딩은 HTML 블록 스크립트가 2번 실행된다(픽셀 ViewPage 2회 등) ② 관리 앱 미리보기처럼
+    클라이언트에서만 그리는 화면에서는 `<script src=...>` 바로 뒤 인라인 코드가 라이브러리 로드 전에 돌아 `karrotPixel` 이 undefined 에러가 날 수 있다.
+
 - **✅ 랜딩 '외부 폼' 블록 — 외부 입력폼 임베드 코드를 버튼 → 오버레이/풀스크린으로 띄우기 (2026-10-20, 원격 세션, 사용자 지시)**:
   - 랜딩 편집기 '+ 외부 폼' → 다른 서비스의 임베드 코드(iframe·스크립트)를 그대로 붙여 넣고 노출 방식(인라인 / 버튼 → 오버레이 / 버튼 → 풀스크린)
     선택. 버튼 문구·설명·꾸미기는 리드폼 블록과 같다(`TriggerFields`). 블록 타입 `EMBED`, 값 `{html, trigger, buttonLabel, …}`. 백엔드 변경 없음.
