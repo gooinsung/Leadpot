@@ -4,7 +4,7 @@ name: Deploy Renderer (Cloudflare Workers)
 # Cloudflare Workers 로 배포한다(docs/SSR-LANDING-PLAN.md Phase 5).
 #
 # ⚠️ 검증 단계 워크플로다 — 지금은 *.workers.dev 임시 도메인에만 배포된다. 실제 트래픽
-# (*.lead-pot.com)은 Workers 라우트를 수동으로 연결하기 전까진 여기로 오지 않는다(사용자 작업,
+# (*.leadpot.kr, 구 *.lead-pot.com)은 Workers 라우트를 수동으로 연결하기 전까진 여기로 오지 않는다(사용자 작업,
 # §8). 그 전까지는 이 워크플로가 돌아도 기존 서비스에 아무 영향이 없다.
 #
 # 필요한 저장소 시크릿(Settings → Secrets and variables → Actions → New repository secret):
@@ -49,6 +49,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          NEXT_PUBLIC_API_BASE_URL: https://api.lead-pot.com
-          NEXT_PUBLIC_APP_BASE_URL: https://app.lead-pot.com
+          NEXT_PUBLIC_API_BASE_URL: https://api.leadpot.kr
+          NEXT_PUBLIC_APP_BASE_URL: https://app.leadpot.kr
         run: npm run deploy

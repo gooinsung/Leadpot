@@ -1,7 +1,7 @@
 /**
  * 공개 사이트(서브도메인) 라우팅 판별.
  * - 관리자 앱: localhost / IP / app.도메인 / www.도메인 등 → null
- * - 사용자 서브도메인: bali.localhost / bali.lead-pot.com → "bali"
+ * - 사용자 서브도메인: bali.localhost / bali.leadpot.kr → "bali"
  *
  * 로컬 검증: 브라우저에서 `bali.localhost:5173/12` 로 접속하면 *.localhost 가 127.0.0.1 로 잡힌다.
  *
@@ -28,7 +28,7 @@ export function currentSubdomain(hostname?: string): string | null {
     // bali.localhost → "bali"
     sub = parts[0];
   } else if (parts.length >= 3) {
-    // bali.lead-pot.com → "bali" (도메인이 2레벨이라고 가정: sub.name.tld)
+    // bali.leadpot.kr → "bali" (도메인이 2레벨이라고 가정: sub.name.tld — .co.kr 같은 3레벨 도메인이면 깨진다)
     sub = parts[0];
   }
 
@@ -51,7 +51,7 @@ export function setAppBaseUrl(url: string) {
  *
  * 왜 절대 URL 이어야 하나 — 상대 경로(`/consent/1`)는 그 링크를 여는 쪽 도메인에 붙는다.
  * 공개 폼은 앱 도메인 밖에서도 렌더된다:
- *  - 서브도메인 사이트(`{sub}.lead-pot.com`) — 라우터에 `/:identifier` 한 칸짜리 경로만 있어 404
+ *  - 서브도메인 사이트(`{sub}.leadpot.kr`) — 라우터에 `/:identifier` 한 칸짜리 경로만 있어 404
  *  - **외부 사이트 임베드**(embed.js) — iframe 이 아니라 Shadow DOM 인라인이라 `location` 이 고객 도메인이다
  *  - **SSR 랜딩(renderer)** — 브라우저가 아예 없는 서버에서 렌더링된다
  * 그래서 상대 경로로 두면 그 도메인에 없는 경로가 되어 404 가 난다(2026-08-04 실제 발생).
@@ -81,7 +81,7 @@ export function consentDocUrl(documentId: number | string): string {
  * 현재 접속 호스트를 기준으로 공개 사이트 절대 URL을 만든다.
  * 관리자 호스트의 선행 라벨(app/www/admin 등)은 제거하고 subdomain 을 라벨로 붙인다.
  * - localhost:5173 → http://{subdomain}.localhost:5173/{identifier}
- * - app.lead-pot.com → https://{subdomain}.lead-pot.com/{identifier}
+ * - app.leadpot.kr → https://{subdomain}.leadpot.kr/{identifier}
  *
  * ⚠️ 2026-09-09~09-22 에는 `go.lead-pot.com/{sub}/{id}` 고정 호스트 형식을 만들었다(구글 광고가
  * 고객 서브도메인을 "손상된 사이트"로 오판한 사고 대응). 그 뒤로도 구글 승인은 끝내 나지 않아

@@ -6,7 +6,7 @@ import { PublicFormPageView } from "@leadpot/public-ui";
 
 /**
  * 리드폼 단독 공개 페이지 (/f/{id}).
- * ⚠️ 운영에서는 이 라우트에 실제로 도달하지 않는다 — `app.lead-pot.com/f/*` 는 렌더러가
+ * ⚠️ 운영에서는 이 라우트에 실제로 도달하지 않는다 — `app.leadpot.kr/f/*` 는 렌더러가
  * SSR 로 먼저 처리한다(`renderer/src/proxy.ts`, 2026-09-08). 이 라우트는 로컬 개발(`npm run dev`,
  * 렌더러 없이 frontend 만 띄웠을 때)과 만약을 위한 이중 방어선으로 남겨둔다.
  */

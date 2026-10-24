@@ -191,7 +191,7 @@ export function DashboardPage() {
               <p className={subMsg.type === "err" ? "auth-error" : "auth-ok"} style={{ marginTop: 8 }}>{subMsg.text}</p>
             )}
             <p className="dash-sub" style={{ marginTop: 12, fontSize: 13, overflowWrap: "anywhere", wordBreak: "break-all" }}>
-              공개 URL 예시: <code>{(sub || user?.subdomain || "sub")}.lead-pot.com/{"{랜딩번호}"}</code>
+              공개 URL 예시: <code>{(sub || user?.subdomain || "sub")}.leadpot.kr/{"{랜딩번호}"}</code>
             </p>
           </section>
         </div>
