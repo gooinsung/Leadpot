@@ -8,6 +8,36 @@
 
 ## 📍 지금 위치
 
+- **🔄 서비스 도메인 전환 `lead-pot.com` → `leadpot.kr` (2026-10-24, 원격 세션, 사용자 지시)** — 배경·원칙은 CLAUDE.md §3 의 §6-7:
+  - **이유**: 구글 광고가 lead-pot.com 랜딩을 계속 반려. 서비스명(리드팟)은 유지하고 도메인만 교체. ⚠️ 원인이 콘텐츠면 새 도메인도
+    반려될 수 있다 — 구글 결과를 여기에 기록할 것.
+  - **도메인**: `leadpot.kr` = 가비아 구매(네임서버만 Cloudflare). 옛 `lead-pot.com` = Cloudflare Registrar(2027-07-28 만료, 자동 갱신 유지 필수).
+  - **사용자가 대시보드에서 끝낸 것(✅)**: Cloudflare `leadpot.kr` 존 추가(Free)·가비아 네임서버 변경(Active) · SSL Full (strict) ·
+    Always Use HTTPS · Pages `leadpot-app` 커스텀 도메인 `app.leadpot.kr` · DNS `AAAA * 100::`(proxied) + Workers 라우트
+    `*.leadpot.kr/*` → `leadpot-renderer` · Railway 커스텀 도메인 `api.leadpot.kr`(CNAME DNS-only + TXT `_railway-verify.api`) ·
+    Railway `APP_CORS_ALLOWED_ORIGINS` 끝에 `,https://app.leadpot.kr,https://*.leadpot.kr` 추가. 확인: 새 주소 관리 앱 로그인·랜딩 열림,
+    `api.leadpot.kr/api/health` UP, 옛 `app.lead-pot.com` 로그인도 정상.
+    (참고: Railway 요금제 커스텀 도메인 한도에 걸려 더 추가하려면 기존 것을 지우거나 업그레이드 필요)
+  - **코드(이 PR)**: ① `renderer/src/proxy.ts` — `*.lead-pot.com/*` 를 같은 호스트·경로의 `*.leadpot.kr` 로 302(쿼리 보존,
+    `go.lead-pot.com/{sub}/{id}` → `{sub}.leadpot.kr/{id}` 한 번에, `app.` 포함) ② 워크플로 빌드 주소 `api.leadpot.kr`/`app.leadpot.kr`
+    ③ canonical `https://{sub}.leadpot.kr/{id}` ④ 화면 예시 문구 ⑤ `LegacyImageUrlFilter` 가 옛 이미지 주소를 콤마로 여러 개 받게
+    (기본값 = r2.dev + `https://img.lead-pot.com`) ⑥ CLAUDE.md §2·3·4·6.
+  - 검증: 렌더러 tsc 통과 + `proxy()` 에 실제 NextRequest 8케이스(옛 서브도메인·go·app·`/f/`·embed.js·새 go·새 랜딩) 결과 확인.
+    frontend tsc·oxlint·vitest 21개 통과. ⚠️ 백엔드는 이 환경에서 Gradle 의존성 다운로드가 막혀 `LegacyImageUrlFilterTest`(2개 추가)를
+    못 돌렸다 — Railway 빌드/로컬에서 확인 필요.
+  - **⏭️ 다음에 할 일 (사용자, 순서대로)**:
+    1. **PR 병합 전에** 이미지 도메인 준비: R2 버킷 → Settings → Custom Domains 에 `img.leadpot.kr` 추가(`img.lead-pot.com` 은 **지우지 않음**)
+       → Cloudflare `leadpot.kr` → Workers Routes 에 `img.leadpot.kr/*` → Worker **None** 예외 추가(와일드카드 렌더러 라우트가 가로채지 않게)
+       → `https://img.leadpot.kr/{기존 이미지 키}` 열리는지 확인.
+    2. PR 병합 → 프론트·렌더러 자동 배포. 이 순간부터 `lead-pot.com` 전부 새 도메인으로 302.
+    3. Railway Variables: `APP_PUBLIC_BASE_URL=https://app.leadpot.kr`(문자·텔레그램 알림 링크),
+       `APP_STORAGE_R2_PUBLIC_BASE_URL=https://img.leadpot.kr`. `APP_STORAGE_R2_LEGACY_PUBLIC_BASE_URL` 이 Railway 에 **따로 설정돼 있으면**
+       `https://pub-7f6a476fb7164544a8851b829fa6d1f7.r2.dev,https://img.lead-pot.com` 로 바꾸고, 없으면 그대로(코드 기본값 사용).
+    4. 확인: 옛 랜딩 주소 → 새 주소 302, 새 랜딩 이미지가 `img.leadpot.kr` 로 뜨는지, 폼 제출, 새 업로드 이미지 주소.
+    5. 고객 안내(광고 Final URL 을 새 주소로 교체 권장 — 메타 등은 표시 URL·도착 도메인 불일치를 문제 삼을 수 있음), 메타 도메인 인증·
+       네이버 GFA 심사 URL·카카오 채널 증빙 URL 이 `app.lead-pot.com` 이었다면 새 주소로 갱신.
+    6. 나중에: 관리 화면·DB 에 남은 `img.lead-pot.com` 주소 일괄 치환(그 전까지 `img.lead-pot.com` R2 도메인 유지).
+
 - **✅ HTML·외부 폼 블록의 `document.write` 가 페이지 전체를 지우던 장애 수정 (2026-10-21, 원격 세션, 사용자 지시)**:
   - 증상: 마켓클럽+당근 픽셀 같은 임베드 코드(`document.write('<iframe ...>')`)를 붙이면 사진·다른 블록이 다 사라지고 폼만 보임.
   - 원인: `HtmlBlock` 은 스크립트를 페이지 로딩이 끝난 뒤 다시 실행하는데, 로딩이 끝난 문서에 `document.write` 를 부르면
