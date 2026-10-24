@@ -251,7 +251,7 @@ export function LeadSidePanel({
 
   /**
    * '유입' = 리드가 들어온 실제 랜딩 주소. Referer 헤더는 브라우저 정책상 도메인까지만 오는 경우가
-   * 많아(https://sub.lead-pot.com/) 랜딩 id 로 주소를 만든다. 랜딩이 없으면(폼 직접 링크) Referer 로 대신한다.
+   * 많아(https://sub.leadpot.kr/) 랜딩 id 로 주소를 만든다. 랜딩이 없으면(폼 직접 링크) Referer 로 대신한다.
    */
   const landingUrl = lead
     ? lead.landingPageId != null && user?.subdomain

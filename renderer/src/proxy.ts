@@ -5,9 +5,16 @@ import type { NextRequest } from "next/server";
  * 호스트 기반 라우팅. Next.js는 파일시스템 기반 라우팅이라 호스트를 직접 구분하지 못하므로,
  * 여기서 Host 헤더를 읽어 내부 경로로 바꿔준다.
  *
- * - `{sub}.lead-pot.com/{identifier}` → 공개 랜딩 **본 호스트** → `/site/{sub}/{identifier}` 로 재작성.
- * - `go.lead-pot.com/{sub}/{identifier}` → 구 고정 호스트(2026-09-09~09-22 한시 운영) →
- *   `{sub}.lead-pot.com/{identifier}` 로 **302 리다이렉트**만 하고 콘텐츠는 안 준다.
+ * - `{sub}.leadpot.kr/{identifier}` → 공개 랜딩 **본 호스트** → `/site/{sub}/{identifier}` 로 재작성.
+ * - `go.leadpot.kr/{sub}/{identifier}` → 구 고정 호스트 형식 → `{sub}.leadpot.kr/{identifier}` 로
+ *   **302 리다이렉트**만 하고 콘텐츠는 안 준다.
+ * - `*.lead-pot.com/*` → 구 서비스 도메인(2026-10-24 leadpot.kr 로 전환) → 같은 경로의
+ *   `*.leadpot.kr/*` 로 **302 리다이렉트**만 한다({@link redirectFromLegacyDomain}).
+ *
+ * ⚠️ **2026-10-24 서비스 도메인 전환**: 구글 광고가 lead-pot.com 랜딩을 계속 반려해서 새 도메인
+ * `leadpot.kr`(가비아 구매, DNS 는 Cloudflare)로 옮겼다(사용자 지시). 고객이 이미 광고·문자에
+ * 뿌린 lead-pot.com 주소는 이 워커가 받아 새 도메인으로 넘긴다 — `lead-pot.com` 은 이 리다이렉트
+ * 때문에 계속 갱신해야 한다(Cloudflare Registrar, 자동 갱신).
  *
  * ⚠️ **2026-09-22 방향 전환**: 2026-09-09에 구글 광고 심사(gTech)가 고객 서브도메인을 "손상된
  * 사이트"로 오판한 사고 때문에 `go.lead-pot.com/{sub}/{id}` 고정 호스트로 옮겼었다. 그러나 그
@@ -26,7 +33,7 @@ import type { NextRequest } from "next/server";
  * 서브도메인으로 잘못 해석될 수 있다.
  *
  * ⚠️ **"Cloudflare 가 app/api/www 를 걸러줄 것"이라는 가정은 틀렸다(2026-09-08 실제 장애로 확인)**.
- * Workers 라우트 `*.lead-pot.com/*` 는 와일드카드라 `app.lead-pot.com` 도 그대로 매칭해서 이
+ * Workers 라우트 `*.leadpot.kr/*` 는 와일드카드라 `app.leadpot.kr` 도 그대로 매칭해서 이
  * 워커로 들여보낸다 — DNS/커스텀 도메인 설정과 무관하게, 라우트가 걸려 있는 한 항상 그렇다.
  * 그래서 `app` 은 아래 `proxyToAdminApp()` 로 실제 관리 앱(Cloudflare Pages)에 그대로 리버스
  * 프록시한다 — Cloudflare 라우팅 우선순위에 기대지 않고 코드로 확실하게 보장한다.
@@ -46,6 +53,16 @@ const ADMIN_APP_ORIGIN = process.env.ADMIN_APP_ORIGIN || "https://leadpot-app.pa
  */
 const LEGACY_PUBLIC_SITE_HOST = "go";
 
+/** 지금의 서비스 도메인(2026-10-24~). */
+const SERVICE_DOMAIN = "leadpot.kr";
+
+/**
+ * 구 서비스 도메인(~2026-10-24). 이 아래 호스트로 오는 요청은 콘텐츠를 주지 않고 전부
+ * {@link SERVICE_DOMAIN} 의 같은 호스트·경로로 302 리다이렉트한다. `api.`·`img.` 는 Workers 라우트
+ * 예외/별도 레코드라 이 워커에 들어오지 않는다(API 는 두 도메인을 함께 운영).
+ */
+const LEGACY_SERVICE_DOMAIN = "lead-pot.com";
+
 function extractSubdomain(host: string): string | null {
   const hostname = host.split(":")[0];
   if (hostname === "localhost" || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return null;
@@ -55,7 +72,7 @@ function extractSubdomain(host: string): string | null {
   if (parts[parts.length - 1] === "localhost" && parts.length >= 2) {
     sub = parts[0]; // bali.localhost → "bali"
   } else if (parts.length >= 3) {
-    sub = parts[0]; // bali.lead-pot.com → "bali"
+    sub = parts[0]; // bali.leadpot.kr → "bali"
   }
 
   if (!sub || RESERVED_HOSTS.has(sub)) return null;
@@ -63,7 +80,7 @@ function extractSubdomain(host: string): string | null {
 }
 
 /**
- * app.lead-pot.com 요청을 실제 관리 앱(Cloudflare Pages)으로 그대로 넘긴다(리버스 프록시).
+ * app.leadpot.kr 요청을 실제 관리 앱(Cloudflare Pages)으로 그대로 넘긴다(리버스 프록시).
  * 이 워커가 app 요청을 받는 일 자체가 원래는 없어야 하지만(§4 와일드카드 라우트가 잘못 걸리는
  * 사고, 2026-09-08), 받더라도 서비스가 안 깨지도록 하는 안전장치다.
  */
@@ -100,11 +117,40 @@ function redirectToSubdomainHost(request: NextRequest, host: string): Response {
   if (!subdomain) return NextResponse.next();
 
   const [hostname, port] = host.split(":");
-  // "go.lead-pot.com" → "lead-pot.com" (첫 라벨만 벗겨낸다 — publicSiteUrl() 과 같은 방식)
+  // "go.leadpot.kr" → "leadpot.kr" (첫 라벨만 벗겨낸다 — publicSiteUrl() 과 같은 방식)
   const base = hostname.split(".").slice(1).join(".");
   const portPart = port ? `:${port}` : "";
   const target = new URL(`${request.nextUrl.protocol}//${subdomain}.${base}${portPart}`);
   target.pathname = `/${rest.join("/")}`;
+  target.search = request.nextUrl.search;
+  return NextResponse.redirect(target, 302);
+}
+
+/**
+ * 구 서비스 도메인(`*.lead-pot.com`)으로 온 요청을 새 도메인으로 302 리다이렉트한다
+ * (쿼리스트링 보존 — 광고 URL의 utm/gclid 가 날아가면 통계가 끊긴다).
+ * - `{sub}.lead-pot.com/{id}` → `{sub}.leadpot.kr/{id}`
+ * - `app.lead-pot.com/{path}` → `app.leadpot.kr/{path}` (관리 화면·`/f/{id}`·`embed.js` 모두)
+ * - `go.lead-pot.com/{sub}/{id}` → `{sub}.leadpot.kr/{id}` — `go.leadpot.kr` 을 거치지 않고 한 번에.
+ *
+ * 301 이 아니라 302 인 이유는 파일 머리 주석과 같다(이 도메인 구조를 또 바꿀 여지를 남긴다).
+ */
+function redirectFromLegacyDomain(request: NextRequest, hostname: string): Response {
+  const firstLabel = hostname.split(".")[0];
+  let label = firstLabel;
+  let path = request.nextUrl.pathname;
+
+  if (firstLabel === LEGACY_PUBLIC_SITE_HOST) {
+    const [subdomain, ...rest] = path.split("/").filter(Boolean);
+    // "go.lead-pot.com/" — 보낼 서브도메인 자체가 없다. 새 도메인의 같은 호스트로만 넘긴다.
+    if (subdomain) {
+      label = subdomain;
+      path = `/${rest.join("/")}`;
+    }
+  }
+
+  const target = new URL(`https://${label}.${SERVICE_DOMAIN}`);
+  target.pathname = path;
   target.search = request.nextUrl.search;
   return NextResponse.redirect(target, 302);
 }
@@ -114,8 +160,13 @@ export async function proxy(request: NextRequest) {
   const hostname = host.split(":")[0];
   const firstLabel = hostname.split(".")[0];
 
-  // "app.lead-pot.com" 또는 로컬 테스트용 "app.localhost" — 첫 라벨이 정확히 "app" 일 때만.
-  // (서브도메인 이름이 우연히 "app"으로 시작하는 경우, 예: "application.lead-pot.com" 과 혼동하지
+  // "*.lead-pot.com" — 구 서비스 도메인. 무엇이든 새 도메인으로 넘긴다(app 프록시보다 먼저).
+  if (hostname.endsWith(`.${LEGACY_SERVICE_DOMAIN}`)) {
+    return redirectFromLegacyDomain(request, hostname);
+  }
+
+  // "app.leadpot.kr" 또는 로컬 테스트용 "app.localhost" — 첫 라벨이 정확히 "app" 일 때만.
+  // (서브도메인 이름이 우연히 "app"으로 시작하는 경우, 예: "application.leadpot.kr" 과 혼동하지
   // 않도록 split(".")[0] 로 정확히 첫 라벨만 비교한다.)
   if (firstLabel === "app") {
     // 단, /f/{id}(단독 공개 리드폼)는 예외 — 이 렌더러 자신이 SSR 로 처리한다
@@ -127,7 +178,7 @@ export async function proxy(request: NextRequest) {
     return proxyToAdminApp(request);
   }
 
-  // "go.lead-pot.com" — 구 고정 호스트. 콘텐츠를 직접 주지 않고 본 호스트로 302 리다이렉트.
+  // "go.leadpot.kr" — 구 고정 호스트 형식. 콘텐츠를 직접 주지 않고 본 호스트로 302 리다이렉트.
   if (firstLabel === LEGACY_PUBLIC_SITE_HOST) {
     return redirectToSubdomainHost(request, host);
   }

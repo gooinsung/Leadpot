@@ -50,4 +50,27 @@ class LegacyImageUrlFilterTest {
         assertThat(run(new LegacyImageUrlFilter("", NEW), "GET", "/api/public/sites/balis/37")
                 .getContentAsString(StandardCharsets.UTF_8)).isEqualTo(BODY);
     }
+
+    @Test
+    void 옛_주소가_여럿이면_전부_새_도메인으로_바꾼다() throws Exception {
+        String mid = "https://img.lead-pot.com";
+        String next = "https://img.leadpot.kr";
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/public/sites/balis/37");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = (rq, rs) -> {
+            rs.setContentType("application/json");
+            rs.getOutputStream().write(("{\"a\":\"" + OLD + "/a.png\",\"b\":\"" + mid + "/b.png\"}")
+                    .getBytes(StandardCharsets.UTF_8));
+        };
+        new LegacyImageUrlFilter(OLD + ", " + mid + "/", next).doFilter(req, res, chain);
+        assertThat(res.getContentAsString(StandardCharsets.UTF_8))
+                .isEqualTo("{\"a\":\"" + next + "/a.png\",\"b\":\"" + next + "/b.png\"}");
+    }
+
+    @Test
+    void 새_주소와_같은_옛_주소_항목은_무시한다() throws Exception {
+        MockHttpServletResponse res = run(new LegacyImageUrlFilter(OLD + "," + NEW, NEW), "GET", "/api/public/forms/5");
+        String body = res.getContentAsString(StandardCharsets.UTF_8);
+        assertThat(body).doesNotContain(OLD).contains(NEW + "/landing-image/a.png");
+    }
 }

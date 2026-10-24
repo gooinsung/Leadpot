@@ -205,7 +205,7 @@ function Window({ url, children }: { url: string; children: ReactNode }) {
 
 function BuilderMock() {
   return (
-    <Window url="app.lead-pot.com/landings/edit">
+    <Window url="app.leadpot.kr/landings/edit">
       <div className="mk-builder">
         <div className="mk-side">
           <b>블록 추가</b>
@@ -232,13 +232,13 @@ function BuilderMock() {
 
 function PublishMock() {
   return (
-    <Window url="app.lead-pot.com/landings">
+    <Window url="app.leadpot.kr/landings">
       <div className="mk-publish">
         <div className="mk-publish-card">
           <span className="mk-badge">공개 중</span>
           <b>봄 시즌 상담 이벤트</b>
           <div className="mk-url">
-            <span>https://yourbrand.lead-pot.com/12</span>
+            <span>https://yourbrand.leadpot.kr/12</span>
             <em>복사</em>
           </div>
           <div className="mk-row">
@@ -260,7 +260,7 @@ function IntegrationsMock() {
     ["구글 스프레드시트", true],
   ];
   return (
-    <Window url="app.lead-pot.com/integrations">
+    <Window url="app.leadpot.kr/integrations">
       <div className="mk-list">
         {rows.map(([name, on]) => (
           <div className="mk-toggle-row" key={name}>
@@ -283,7 +283,7 @@ function CrmMock() {
     ["최**", "010-****-3456", "신규", "new"],
   ];
   return (
-    <Window url="app.lead-pot.com/inbox">
+    <Window url="app.leadpot.kr/inbox">
       <div className="mk-crm">
         <div className="mk-crm-head">
           <b>리드</b>

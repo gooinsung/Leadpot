@@ -56,9 +56,9 @@
 
 | 구성 | 선택 | 지금 배포처 |
 |---|---|---|
-| 관리 앱(로그인·대시보드·빌더) | **React + Vite (TypeScript) SPA** | **Cloudflare Pages**(`app.lead-pot.com`, 프로젝트 `leadpot-app`) — 2026-09-07 Oracle VM 에서 컷오버 완료 |
-| 공개 랜딩(`{sub}.lead-pot.com/{id}`) | **Next.js(App Router) SSR** | **Cloudflare Workers**(OpenNext 어댑터, `renderer/`, 워커 `leadpot-renderer`) — 2026-09-07 신설·전환. 2026-09-09 `go` 고정 호스트로 옮겼다가 **2026-09-22 서브도메인으로 복귀**(§6-6). 관리 앱과 컴포넌트를 `packages/public-ui` 로 공유 |
-| 백엔드 | **Spring Boot (REST API) + Docker** | **Railway**(싱가포르, `api.lead-pot.com`) — 2026-08-09 Oracle VM에서 컷오버 완료 |
+| 관리 앱(로그인·대시보드·빌더) | **React + Vite (TypeScript) SPA** | **Cloudflare Pages**(`app.leadpot.kr`, 프로젝트 `leadpot-app`) — 2026-09-07 Oracle VM 에서 컷오버 완료 |
+| 공개 랜딩(`{sub}.leadpot.kr/{id}`) | **Next.js(App Router) SSR** | **Cloudflare Workers**(OpenNext 어댑터, `renderer/`, 워커 `leadpot-renderer`) — 2026-09-07 신설·전환. 2026-09-09 `go` 고정 호스트로 옮겼다가 **2026-09-22 서브도메인으로 복귀**(§6-6). 관리 앱과 컴포넌트를 `packages/public-ui` 로 공유 |
+| 백엔드 | **Spring Boot (REST API) + Docker** | **Railway**(싱가포르, `api.leadpot.kr` + 구 `api.lead-pot.com` 병행) — 2026-08-09 Oracle VM에서 컷오버 완료 |
 | DB | **PostgreSQL** | **Railway Postgres**(Railway 가 직접 호스팅, 백엔드와 같은 프로젝트) — Neon 은 비용 문제로 삭제하고 이전 완료(2026-09-07 확인) |
 | 파일 저장 | 초기: VM 디스크 → 후기: Cloudflare R2 / S3 | — |
 | 인증 | **JWT** (Spring Security + BCrypt) | — |
@@ -85,26 +85,32 @@ DB 가 Neon → Railway Postgres 로 코드 거의 안 건드리고 옮겨간 �
         ▼
 Cloudflare DNS(프록시, 무료 SSL)
         │
-        ├─ app.lead-pot.com ─▶ Cloudflare Pages ─▶ React SPA(정적 파일, 관리 앱)
+        ├─ app.leadpot.kr ─▶ Cloudflare Pages ─▶ React SPA(정적 파일, 관리 앱)
         │
-        ├─ *.lead-pot.com/* (와일드카드 Workers 라우트)
+        ├─ *.leadpot.kr/* (와일드카드 Workers 라우트)
         │        └─▶ Cloudflare Workers(leadpot-renderer, Next.js SSR)
-        │                 ├─ Host="{sub}" → {sub}.lead-pot.com/{id} 공개 랜딩 SSR 렌더(본 호스트)
-        │                 ├─ Host="go"(구 고정 호스트) → {sub}.lead-pot.com/{id} 로 302 리다이렉트만
+        │                 ├─ Host="{sub}" → {sub}.leadpot.kr/{id} 공개 랜딩 SSR 렌더(본 호스트)
+        │                 ├─ Host="go"(구 고정 호스트) → {sub}.leadpot.kr/{id} 로 302 리다이렉트만
         │                 │   (콘텐츠 직접 서빙 안 함 — 전환기 한시적, 이미 뿌려진 광고 URL 보호용)
         │                 └─ Host="app" → 관리 앱(Pages)으로 리버스 프록시
         │                    (renderer/src/proxy.ts proxyToAdminApp() — 와일드카드 라우트가
         │                    app 도 가로채는 것에 대한 안전장치, §6-5 실제 장애 참고)
         │
-        └─ api.lead-pot.com ─▶ Railway(싱가포르) ─▶ Spring Boot(Docker)
+        ├─ *.lead-pot.com/* (구 서비스 도메인, 같은 워커에 와일드카드 라우트)
+        │        └─▶ leadpot-renderer 가 같은 호스트·경로의 *.leadpot.kr 로 302 리다이렉트만 (§6-7)
+        │
+        ├─ img.leadpot.kr(+ 구 img.lead-pot.com) ─▶ Cloudflare R2(업로드 이미지, 워커 라우트 예외)
+        │
+        └─ api.leadpot.kr(+ 구 api.lead-pot.com) ─▶ Railway(싱가포르) ─▶ Spring Boot(Docker)
                                                           │
                                                           ▼
                                           Railway Postgres(같은 프로젝트, 같은 리전)
 ```
 
-- 관리 앱: `app.lead-pot.com`(Cloudflare Pages) / 공개 랜딩: `{sub}.lead-pot.com/{id}`
-  (Cloudflare Workers SSR — 구 고정 호스트 `go.lead-pot.com/{sub}/{id}` 는 302 리다이렉트만 함, §6-6)
-  / 백엔드: `api.lead-pot.com`(Railway) / DB: Railway Postgres
+- 관리 앱: `app.leadpot.kr`(Cloudflare Pages) / 공개 랜딩: `{sub}.leadpot.kr/{id}`
+  (Cloudflare Workers SSR — 구 고정 호스트 `go.…/{sub}/{id}` 는 302 리다이렉트만 함, §6-6)
+  / 백엔드: `api.leadpot.kr`(Railway) / DB: Railway Postgres
+  (구 서비스 도메인 `lead-pot.com` 은 전부 `leadpot.kr` 로 302 — §6-7)
   (⚠️ DB 는 예전엔 Neon 이었으나 비용 문제로 삭제 → Railway 자체 Postgres 로 이전, 2026-09-07 확인.
   같은 프로젝트·같은 리전이라 [HOSTING-MIGRATION-PLAN.md](docs/HOSTING-MIGRATION-PLAN.md) P1 이
   노리던 "DB 왕복 지연 해소" 목표에 오히려 더 잘 맞는 구성이 됐다)
@@ -112,11 +118,12 @@ Cloudflare DNS(프록시, 무료 SSL)
 - 시크릿/키는 **절대 코드·git에 커밋하지 않는다.** 프론트·렌더러는 Cloudflare 환경변수(Workers/Pages
   Variables), 백엔드는 **Railway Variables**로만 관리(§6).
 - 🔴 **와일드카드 Workers 라우트는 DNS/커스텀 도메인 설정과 무관하게 패턴에 매칭되는 모든 요청을
-  가로챈다** — `app.lead-pot.com` 도 `*.lead-pot.com` 에 매칭되므로 라우트를 걸면 렌더러로도
+  가로챈다** — `app.leadpot.kr` 도 `*.leadpot.kr` 에 매칭되므로 라우트를 걸면 렌더러로도
   들어온다. 그래서 렌더러가 `app` 요청을 관리 앱으로 리버스 프록시하도록 코드로 방어해뒀다
   (`renderer/src/proxy.ts`) — 이 방어가 없으면 실제 장애가 난다(2026-09-07 실측, 상세는
   [PHASE5-CLOUDFLARE-HANDOFF.md](docs/PHASE5-CLOUDFLARE-HANDOFF.md) §4-1).
-- 🔴 **(§6-6) 공개 랜딩은 고객별 서브도메인 `{sub}.lead-pot.com/{id}` 를 쓴다(2026-09-22~ 복귀)**.
+- 🔴 **(§6-6) 공개 랜딩은 고객별 서브도메인 `{sub}.{도메인}/{id}` 를 쓴다(2026-09-22~ 복귀)**.
+  (아래 경과는 당시 도메인 `lead-pot.com` 기준 기록이다 — 지금 도메인은 `leadpot.kr`, §6-7)
   - **왜 한 번 폐지했었나(2026-09-09~09-22)**: 구글 광고 심사(gTech)가 "손상된 사이트"로 고객
     1명의 서브도메인(`the-law.lead-pot.com`)을 콕 집어 악성 호스트로 판정한 사고. Safe Browsing
     등 평판 시스템은 URL이 아니라 **호스트 단위**로 신뢰도를 매기므로, 고객마다 새 서브도메인
@@ -137,6 +144,23 @@ Cloudflare DNS(프록시, 무료 SSL)
     자동 포함되므로 순수 코드 변경으로 끝난다(되돌릴 때도 마찬가지였다).
   - `packages/public-ui` 의 `publicSiteUrl()` 이 URL 형식의 단일 출처다 — 관리 앱(랜딩 목록·편집기의
     "공개 URL"·"공개 열기"·광고 URL 빌더)이 자동으로 따라간다.
+- 🔴 **(§6-7) 서비스 도메인 전환: `lead-pot.com` → `leadpot.kr` (2026-10-24, 사용자 지시)**.
+  - **왜**: 구글 광고가 lead-pot.com 랜딩을 계속 반려해서 도메인 자체를 바꿨다(서비스명 리드팟은
+    유지). `leadpot.kr` 은 **가비아**에서 구매하고 네임서버만 Cloudflare 로 옮겼다(.kr 은 Cloudflare
+    Registrar 미지원). 옛 `lead-pot.com` 은 **Cloudflare Registrar** 구매(2027-07-28 만료, 자동 갱신).
+  - ⚠️ 이 판단도 §6-6 처럼 **"도메인이 원인"이라는 가설**이다 — 반려 사유가 콘텐츠 쪽이면 새 도메인도
+    같은 이유로 반려될 수 있다. 결과는 PROGRESS 에 기록한다.
+  - **`lead-pot.com` 은 지우거나 갱신을 끊지 않는다** — 고객이 광고·문자에 뿌린 주소를 받아 넘긴다.
+    렌더러가 `*.lead-pot.com/*` 를 **같은 호스트·경로의 `*.leadpot.kr` 로 302**(쿼리스트링 보존,
+    `go.lead-pot.com/{sub}/{id}` 는 `{sub}.leadpot.kr/{id}` 로 한 번에). `renderer/src/proxy.ts` 의
+    `LEGACY_SERVICE_DOMAIN`·`redirectFromLegacyDomain()`.
+  - **병행 운영하는 것**: `api.lead-pot.com`(Railway 커스텀 도메인 2개 — POST 는 리다이렉트하면 본문이
+    날아갈 수 있어 넘기지 않는다), `img.lead-pot.com`(R2 커스텀 도메인 2개 — 관리 화면·DB 에는 옛
+    주소가 남아 있고, 공개 응답만 `LegacyImageUrlFilter` 가 `img.leadpot.kr` 로 바꿔 내린다).
+  - 도메인이 `sub.name.tld` 2레벨이라는 가정(`currentSubdomain()`·`extractSubdomain()`) 때문에
+    `.co.kr` 이 아니라 `.kr` 을 골랐다 — 3레벨 도메인으로 옮기려면 그 두 함수를 먼저 고쳐야 한다.
+  - 인프라(Cloudflare `leadpot.kr` 존·DNS·Workers 라우트·Pages 커스텀 도메인·Railway 도메인·R2 도메인·
+    CORS)는 사용자가 대시보드에서 직접 설정했다 — 절차와 값은 docs/PROGRESS.md 2026-10-24 항목.
 
 ---
 
@@ -160,8 +184,8 @@ dbcart/
 │   ├─ vite.config.ts
 │   └─ package.json
 ├─ renderer/                  # 공개 랜딩 SSR 렌더러 — Next.js(App Router) + OpenNext Cloudflare
-│   │                           어댑터. Cloudflare Workers(leadpot-renderer)에 배포. {sub}.lead-pot.com/
-│   │                           {id}(§6-6)와 app.lead-pot.com/f/{id} 만 처리
+│   │                           어댑터. Cloudflare Workers(leadpot-renderer)에 배포. {sub}.leadpot.kr/
+│   │                           {id}(§6-6)와 app.leadpot.kr/f/{id} 만 처리(+ 구 *.lead-pot.com 302, §6-7)
 │   │                           (관리 앱과 무관) — 자세한 배경은 docs/SSR-LANDING-PLAN.md
 │   ├─ src/app/                # site/[subdomain]/[identifier] 라우트 + robots.ts
 │   ├─ src/proxy.ts            # 서브도메인/구 go 호스트/app 라우팅(구 middleware) + app 리버스 프록시
@@ -218,20 +242,20 @@ npm run dev
 
 | 워크플로 | 트리거 경로 | 하는 일 | 배포처 |
 |---|---|---|---|
-| [deploy-frontend-cloudflare.yml](.github/workflows/deploy-frontend-cloudflare.yml) | `frontend/**`·`packages/public-ui/**` | `npm run build`(`VITE_API_BASE_URL` 주입) → `cloudflare/pages-action` | Cloudflare Pages(`leadpot-app`, `app.lead-pot.com`) |
-| [deploy-renderer.yml](.github/workflows/deploy-renderer.yml) | `renderer/**`·`packages/public-ui/**` | `npm run deploy`(OpenNext 빌드 + `wrangler deploy`) | Cloudflare Workers(`leadpot-renderer`, `{sub}.lead-pot.com/{id}` + 구 `go` 호스트 302 리다이렉트) |
+| [deploy-frontend-cloudflare.yml](.github/workflows/deploy-frontend-cloudflare.yml) | `frontend/**`·`packages/public-ui/**` | `npm run build`(`VITE_API_BASE_URL` 주입) → `cloudflare/pages-action` | Cloudflare Pages(`leadpot-app`, `app.leadpot.kr`) |
+| [deploy-renderer.yml](.github/workflows/deploy-renderer.yml) | `renderer/**`·`packages/public-ui/**` | `npm run deploy`(OpenNext 빌드 + `wrangler deploy`) | Cloudflare Workers(`leadpot-renderer`, `{sub}.leadpot.kr/{id}` + 구 `go` 호스트·구 도메인 `*.lead-pot.com` 302 리다이렉트) |
 | [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | rsync 로 Oracle VM `/var/www/leadpot/` | Oracle VM(**이제 실제 트래픽 안 받음** — 관찰 기간 동안의 롤백 안전망일 뿐, 정리 예정) |
 
 - 필요한 저장소 시크릿: `CLOUDFLARE_API_TOKEN`(Workers Scripts:Edit + Cloudflare Pages:Edit +
   Account Settings:Read) · `CLOUDFLARE_ACCOUNT_ID` · (VM 용) `VM_SSH_KEY`·`VM_HOST`·`VM_USER`.
 - `NEXT_PUBLIC_*`(렌더러)·`VITE_*`(프론트)는 **빌드 시점에** 번들에 박히므로 워크플로의 `env:` 에서
   프로덕션 값을 넣어 빌드한다 — Cloudflare 대시보드의 런타임 변수와는 별개다.
-- 백엔드(`api.lead-pot.com`)는 **Railway 가 자체 GitHub 연동으로 독립 배포**한다 — 이 저장소의
+- 백엔드(`api.leadpot.kr`, 구 `api.lead-pot.com` 병행)는 **Railway 가 자체 GitHub 연동으로 독립 배포**한다 — 이 저장소의
   워크플로가 아니다. `backend/**` push 시 Railway 대시보드에서 자동으로 빌드·배포되고, 환경변수는
   Railway Variables 로 관리한다(무중단 롤링 배포).
 - DB 는 **Railway Postgres**다(Railway 가 직접 호스팅, 예전 Neon 은 삭제됨 — 위 §2·§3 참고).
   VM 안에 Postgres 컨테이너를 띄우지 않는다.
-- 🔴 **와일드카드 Workers 라우트(`*.lead-pot.com/*` → `leadpot-renderer`)는 `app.lead-pot.com` 도
+- 🔴 **와일드카드 Workers 라우트(`*.leadpot.kr/*`·`*.lead-pot.com/*` → `leadpot-renderer`)는 `app.` 도
   그대로 가로챈다** — Cloudflare 는 DNS/커스텀 도메인 설정과 무관하게 패턴 매칭만 본다. 그래서
   `renderer/src/proxy.ts` 가 `Host` 가 `app` 이면 관리 앱(Pages)으로 리버스 프록시한다(`ADMIN_APP_ORIGIN`
   환경변수, 기본값 `https://leadpot-app.pages.dev`) — 이 방어가 없으면 관리 앱이 렌더러의 빈
