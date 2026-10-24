@@ -18,7 +18,7 @@ type Params = { identifier: string };
 /**
  * 단독 공개 리드폼(`/f/{id}`)의 SSR 라우트. 랜딩(`site/[subdomain]/[identifier]`)과 달리 서브도메인이
  * 없다 — 폼은 계정과 무관하게 번호만으로 전역 조회된다(2026-09-08, 랜딩과 같은 이유로 SSR 범위에 포함).
- * `app.lead-pot.com/f/*` 요청이 여기로 오도록 `proxy.ts` 가 분기한다(그 외 app 경로는 관리 앱으로 프록시).
+ * `app.leadpot.kr/f/*` 요청이 여기로 오도록 `proxy.ts` 가 분기한다(그 외 app 경로는 관리 앱으로 프록시).
  */
 async function forwardedContext(): Promise<ForwardedRequestContext> {
   const h = await headers();
