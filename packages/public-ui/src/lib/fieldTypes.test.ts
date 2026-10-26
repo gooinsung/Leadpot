@@ -22,6 +22,21 @@ const field = (p: Partial<FormBlock>): FormBlock => ({ sortOrder: 0, blockType: 
 const choice = (content: Record<string, unknown>): FormBlock => ({ sortOrder: 0, blockType: "CHOICE", content }) as FormBlock;
 
 describe("fieldTypes", () => {
+  it("숫자 항목은 최소·최대값 밖이면 막는다", () => {
+    const f = field({ fieldType: "number", label: "나이", options: { minNumber: "20", maxNumber: "65" } });
+    expect(fieldBlockError(f, "19")).toBe("'나이' 는 20 ~ 65 사이로 입력해주세요.");
+    expect(fieldBlockError(f, "66")).toBe("'나이' 는 20 ~ 65 사이로 입력해주세요.");
+    expect(fieldBlockError(f, "20")).toBeNull();
+    expect(fieldBlockError(f, "65")).toBeNull();
+    expect(fieldBlockError(field({ fieldType: "number", label: "금액", options: { minNumber: "1000" } }), "999")).toBe("'금액' 는 1,000 이상으로 입력해주세요.");
+    expect(fieldBlockError(field({ fieldType: "number", label: "금액", options: { maxNumber: "10" } }), "11")).toBe("'금액' 는 10 이하로 입력해주세요.");
+    // 비어 있으면 제한 없음
+    expect(fieldBlockError(field({ fieldType: "number", label: "x", options: { minNumber: "", maxNumber: "" } }), "-5")).toBeNull();
+    // 스텝형 질문(content)도 같은 범위를 쓴다
+    const step = choiceAsField(choice({ question: "나이", answerType: "number", minNumber: "20" }));
+    expect(fieldBlockError(step, "10")).toBe("'나이' 는 20 이상으로 입력해주세요.");
+  });
+
   it("스텝형 답변 방식은 기본형 입력 유형을 전부 포함한다", () => {
     const step = STEP_ANSWER_TYPES.map((t) => t.value);
     for (const t of INPUT_FIELD_TYPES) expect(step).toContain(t.value);

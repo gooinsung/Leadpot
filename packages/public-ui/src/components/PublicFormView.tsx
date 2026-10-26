@@ -16,6 +16,7 @@ import {
   choiceAsField,
   choiceSaveValue,
   dateRange,
+  numberRange,
   fieldAnswer,
   fieldBlockError,
   fieldDefaultValue,
@@ -395,7 +396,7 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
       ) : type === "address" || type === "address_detail" ? (
         <AddressInput id={`fld-${idx}`} value={value} onChange={onChange} placeholder={block.placeholder ?? ""} required={block.required} withDetail={type === "address_detail"} jibun={block.options?.jibun === true} />
       ) : (
-        <input id={`fld-${idx}`} className="input" type={inputType} {...(type === "date" ? dateRange(block) : {})} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input id={`fld-${idx}`} className="input" type={inputType} {...(type === "date" ? dateRange(block) : type === "number" ? numberRange(block) : {})} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
     </div>
   );

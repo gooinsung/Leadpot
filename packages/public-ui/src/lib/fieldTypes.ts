@@ -106,6 +106,8 @@ export function choiceAsField(block: FormBlock): FormBlock {
       defaultIndex: block.content?.defaultIndex,
       minDate: block.content?.minDate,
       maxDate: block.content?.maxDate,
+      minNumber: block.content?.minNumber,
+      maxNumber: block.content?.maxNumber,
       jibun: block.content?.jibun,
     },
   };
@@ -269,6 +271,21 @@ export function dateRange(block: FormBlock): { min?: string; max?: string } {
   return { min: resolveDateBound(block.options?.minDate), max: resolveDateBound(block.options?.maxDate) };
 }
 
+/**
+ * '숫자' 항목의 허용 범위(options.minNumber / options.maxNumber). 사용자 지시 2026-10-26.
+ * 빈 값·숫자가 아닌 값은 '제한 없음'. input 의 min/max 와 검증이 같은 값을 쓴다.
+ */
+function parseNumberBound(spec: unknown): number | undefined {
+  if (typeof spec === "number") return Number.isFinite(spec) ? spec : undefined;
+  if (typeof spec !== "string" || spec.trim() === "") return undefined;
+  const n = Number(spec);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+export function numberRange(block: FormBlock): { min?: number; max?: number } {
+  return { min: parseNumberBound(block.options?.minNumber), max: parseNumberBound(block.options?.maxNumber) };
+}
+
 /** '2026-10-15' → '2026년 10월 15일' (안내 문구용). */
 function koDate(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -311,7 +328,14 @@ export function fieldBlockError(block: FormBlock, value: string | undefined): st
     const digits = v.replace(/\D/g, "");
     if (!TEL_RE.test(v) || digits.length < 9 || digits.length > 15) return `'${name}' 연락처는 숫자로 올바르게 입력해주세요.`;
   }
-  if (type === "number" && !NUMBER_RE.test(v)) return `'${name}' 는 숫자만 입력할 수 있습니다.`;
+  if (type === "number") {
+    if (!NUMBER_RE.test(v)) return `'${name}' 는 숫자만 입력할 수 있습니다.`;
+    const { min, max } = numberRange(block);
+    const n = Number(v);
+    if (min != null && max != null && (n < min || n > max)) return `'${name}' 는 ${min.toLocaleString()} ~ ${max.toLocaleString()} 사이로 입력해주세요.`;
+    if (min != null && n < min) return `'${name}' 는 ${min.toLocaleString()} 이상으로 입력해주세요.`;
+    if (max != null && n > max) return `'${name}' 는 ${max.toLocaleString()} 이하로 입력해주세요.`;
+  }
   if (type === "date") {
     // 달력 선택기가 min/max 를 무시하는 브라우저(직접 입력 등)도 있어 접수 전에 한 번 더 본다.
     const { min, max } = dateRange(block);

@@ -54,6 +54,7 @@ export {
   choiceAsField,
   choiceSaveValue,
   dateRange,
+  numberRange,
   isRelativeDateBound,
   resolveDateBound,
   fieldAnswer,

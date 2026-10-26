@@ -8,6 +8,11 @@
 
 ## 📍 지금 위치
 
+- **✅ 리드폼 '숫자' 항목 최소·최대값 설정 (2026-10-26, 원격 세션, 사용자 지시)**: 기본형 항목(`options.minNumber/maxNumber`)·
+  스텝형 질문(`content.minNumber/maxNumber`) 모두. 숫자 문자열, 비면 제한 없음 — '날짜' 범위(minDate/maxDate)와 같은 구조.
+  편집기 `FieldTypeExtras` 에 최소/최대 입력칸(최소>최대면 경고), 공개 폼 `<input min max>` + `fieldBlockError` 범위 검증
+  (`numberRange()`, public-ui). 서버 검증은 날짜 범위처럼 두지 않았다(프론트 검증만).
+
 - **✅ 공개 랜딩 CTA 버튼 크기가 미리보기보다 작게 나오던 문제 수정 (2026-10-26, 원격 세션, 사용자 지시)**:
   `public.css` 의 공개 화면 전용 `:is(.public-form-card, .landing-public) .btn`(16.5px·min-height 54·모서리 16px, 특정도 0,2,0)이
   CTA 크기·모서리 클래스(`.landing-cta-size-*`·`-radius-*`, 0,1,0)를 덮어 공개 페이지에서만 '크게/아주 크게'·알약형이 무시됐다
