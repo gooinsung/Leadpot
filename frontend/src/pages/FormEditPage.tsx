@@ -200,6 +200,9 @@ interface StepData {
   /** '날짜' 선택 범위 — `YYYY-MM-DD`(고정) 또는 `+N`(오늘부터 N일 후). 비면 제한 없음. */
   minDate?: string;
   maxDate?: string;
+  /** '숫자' 허용 범위 — 숫자 문자열. 비면 제한 없음. */
+  minNumber?: string;
+  maxNumber?: string;
   /** 주소 유형 — 지번 주소로 저장. */
   jibun?: boolean;
   /**
@@ -499,6 +502,8 @@ export function FormEditPage() {
               defaultIndex: typeof b.content?.defaultIndex === "number" ? (b.content.defaultIndex as number) : null,
               minDate: (b.content?.minDate as string) || "",
               maxDate: (b.content?.maxDate as string) || "",
+              minNumber: (b.content?.minNumber as string) || "",
+              maxNumber: (b.content?.maxNumber as string) || "",
               jibun: b.content?.jibun === true,
               calcInput: (b.content?.calcInput as string) || null,
             })),
@@ -669,6 +674,8 @@ export function FormEditPage() {
               // 날짜 범위·지번 저장 — 해당 유형에서만 저장한다(유형을 바꾸면 남은 값이 엉뚱하게 걸리지 않게).
               minDate: s.answerType === "date" ? s.minDate || "" : "",
               maxDate: s.answerType === "date" ? s.maxDate || "" : "",
+              minNumber: s.answerType === "number" ? s.minNumber || "" : "",
+              maxNumber: s.answerType === "number" ? s.maxNumber || "" : "",
               jibun: isAddressType(s.answerType) && s.jibun === true,
               // 계산기 입력 표시 — 공개 폼이 이 키로 답을 모아 계산한다(단계 순서를 바꿔도 안 깨진다).
               calcInput: s.calcInput ?? null,
@@ -1083,7 +1090,7 @@ export function FormEditPage() {
                           </div>
                           <FieldTypeExtras
                             type={s.answerType}
-                            values={{ minDate: s.minDate, maxDate: s.maxDate, jibun: s.jibun }}
+                            values={{ minDate: s.minDate, maxDate: s.maxDate, minNumber: s.minNumber, maxNumber: s.maxNumber, jibun: s.jibun }}
                             onChange={(p) => patchStep(i, p)}
                           />
                         </>
@@ -1972,11 +1979,12 @@ function isAddressType(t: string | null | undefined): boolean {
   return t === "address" || t === "address_detail";
 }
 
-type FieldExtraValues = { minDate?: string; maxDate?: string; jibun?: boolean };
+type FieldExtraValues = { minDate?: string; maxDate?: string; minNumber?: string; maxNumber?: string; jibun?: boolean };
 
 /**
  * 유형별 추가 설정 — 기본형 항목(options)·스텝형 질문(content) 이 함께 쓴다.
  *  - 날짜: 선택 가능한 최소·최대 날짜(고정 날짜 또는 오늘 기준 N일 후). 사용자 지시 2026-10-15.
+ *  - 숫자: 입력 가능한 최소·최대값(비면 제한 없음). 사용자 지시 2026-10-26.
  *  - 주소: 지번 주소로 저장. 사용자 지시 2026-10-15.
  */
 function FieldTypeExtras({ type, values, onChange }: { type: string; values: FieldExtraValues; onChange: (p: FieldExtraValues) => void }) {
@@ -1986,6 +1994,26 @@ function FieldTypeExtras({ type, values, onChange }: { type: string; values: Fie
         <DateBoundEditor label="선택 가능한 최소 날짜" value={values.minDate ?? ""} onChange={(v) => onChange({ minDate: v })} />
         <DateBoundEditor label="선택 가능한 최대 날짜" value={values.maxDate ?? ""} onChange={(v) => onChange({ maxDate: v })} />
       </div>
+    );
+  }
+  if (type === "number") {
+    const min = values.minNumber ?? "";
+    const max = values.maxNumber ?? "";
+    const reversed = min !== "" && max !== "" && Number(min) > Number(max);
+    return (
+      <>
+        <div className="block-row" style={{ flexWrap: "wrap" }}>
+          <div className="field" style={{ flex: 1, minWidth: 160 }}>
+            <label>최소값(선택)</label>
+            <input className="input" type="number" placeholder="제한 없음" value={min} onChange={(e) => onChange({ minNumber: e.target.value })} />
+          </div>
+          <div className="field" style={{ flex: 1, minWidth: 160 }}>
+            <label>최대값(선택)</label>
+            <input className="input" type="number" placeholder="제한 없음" value={max} onChange={(e) => onChange({ maxNumber: e.target.value })} />
+          </div>
+        </div>
+        {reversed && <p className="field-optional" style={{ color: "#c0202d", marginTop: -4 }}>최소값이 최대값보다 큽니다 — 어떤 값도 입력할 수 없게 됩니다.</p>}
+      </>
     );
   }
   if (isAddressType(type)) {
@@ -2196,6 +2224,8 @@ function BlockFields({
             values={{
               minDate: block.options?.minDate as string | undefined,
               maxDate: block.options?.maxDate as string | undefined,
+              minNumber: block.options?.minNumber as string | undefined,
+              maxNumber: block.options?.maxNumber as string | undefined,
               jibun: block.options?.jibun === true,
             }}
             onChange={(p) => onPatch({ options: { ...(block.options ?? {}), ...p } })}
