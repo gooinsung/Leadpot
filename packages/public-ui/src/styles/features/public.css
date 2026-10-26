@@ -179,7 +179,10 @@
   border-color: var(--pub-accent);
   outline-color: var(--pub-accent);
 }
-:is(.public-form-card, .landing-public) .btn {
+/* 랜딩 CTA(.landing-cta)는 제외 — 이 규칙(특정도 0,2,0)이 CTA 크기·모서리 클래스(0,1,0)를 덮어
+   공개 페이지에서만 '아주 크게'가 16.5px 로 줄어들던 문제(미리보기엔 .landing-public 이 없어 정상).
+   :where() 로 감싸 특정도는 그대로 둔다. */
+:is(.public-form-card, .landing-public) .btn:where(:not(.landing-cta)) {
   min-height: 54px;
   font-size: 16.5px;
   border-radius: 16px; /* 리디자인 §11 — 제출 버튼 */
