@@ -1989,4 +1989,187 @@ export function listAdminAudit(targetId?: number): Promise<AdminAuditRow[]> {
   return request<AdminAuditRow[]>(`/api/admin/audit${query}`);
 }
 
+// ---------- 마이페이지: 사업장 정보 (2026-10-29) ----------
+/** 견적서 공급자 칸에 자동으로 들어가는 내 사업장 정보. 모든 칸 선택. */
+export interface BusinessProfile {
+  companyName: string;
+  ceoName: string;
+  bizNo: string;
+  address: string;
+  phone: string;
+  email: string;
+  bankAccount: string;
+}
+
+export function getBusinessProfile(): Promise<BusinessProfile> {
+  return request<BusinessProfile>("/api/account/business-profile");
+}
+
+export function saveBusinessProfile(input: BusinessProfile): Promise<BusinessProfile> {
+  return request<BusinessProfile>("/api/account/business-profile", { method: "PUT", body: input });
+}
+
+// ---------- 광고주 정보 (견적서 받는 쪽, 포털 계정과 별개) ----------
+export interface AdvertiserProfileInput {
+  companyName: string;
+  ceoName: string;
+  bizNo: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  address: string;
+  memo: string;
+  /** 연결할 광고주 포털 계정 id. null = 연결 안 함 */
+  advertiserUserId: number | null;
+}
+
+export interface AdvertiserProfile extends AdvertiserProfileInput {
+  id: number;
+  /** 연결된 포털 계정 이메일(연결돼 있을 때만) */
+  accountEmail: string | null;
+  quoteCount: number;
+  lastQuoteDate: string | null;
+  updatedAt: string;
+}
+
+export function listAdvertiserProfiles(): Promise<AdvertiserProfile[]> {
+  return request<AdvertiserProfile[]>("/api/advertiser-profiles");
+}
+
+export function createAdvertiserProfile(input: AdvertiserProfileInput): Promise<AdvertiserProfile> {
+  return request<AdvertiserProfile>("/api/advertiser-profiles", { method: "POST", body: input });
+}
+
+export function updateAdvertiserProfile(id: number, input: AdvertiserProfileInput): Promise<AdvertiserProfile> {
+  return request<AdvertiserProfile>(`/api/advertiser-profiles/${id}`, { method: "PUT", body: input });
+}
+
+export function deleteAdvertiserProfile(id: number): Promise<void> {
+  return request<void>(`/api/advertiser-profiles/${id}`, { method: "DELETE" });
+}
+
+// ---------- 견적서 ----------
+export type QuoteStatus = "DRAFT" | "ISSUED" | "ACCEPTED" | "REJECTED";
+export type VatMode = "EXCLUDED" | "INCLUDED" | "EXEMPT";
+
+/** 견적서 당사자(공급자 · 받는 쪽) 복사본. bankAccount 는 공급자만 쓴다. */
+export interface QuoteParty {
+  companyName: string;
+  ceoName: string;
+  bizNo: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  address: string;
+  bankAccount: string;
+}
+
+export interface QuoteItem {
+  name: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  note: string;
+}
+
+export interface QuoteInput {
+  /** 기존 광고주를 골랐으면 그 id, 수동 입력이면 null */
+  advertiserProfileId: number | null;
+  /** 수동 입력일 때 받는 쪽을 광고주 정보로도 저장 */
+  saveAsAdvertiser: boolean;
+  recipient: QuoteParty;
+  title: string;
+  issueDate: string | null;
+  validUntil: string | null;
+  vatMode: VatMode;
+  items: QuoteItem[];
+  notes: string[];
+}
+
+export interface Quote {
+  id: number;
+  quoteNo: string;
+  title: string;
+  issueDate: string;
+  validUntil: string | null;
+  status: QuoteStatus;
+  vatMode: VatMode;
+  advertiserProfileId: number | null;
+  supplier: QuoteParty;
+  recipient: QuoteParty;
+  items: (QuoteItem & { amount: number })[];
+  notes: string[];
+  supplyTotal: number;
+  vatTotal: number;
+  grandTotal: number;
+  grandTotalHangul: string;
+  issuedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuoteSummary {
+  id: number;
+  quoteNo: string;
+  title: string;
+  recipientName: string;
+  advertiserProfileId: number | null;
+  issueDate: string;
+  status: QuoteStatus;
+  grandTotal: number;
+  updatedAt: string;
+}
+
+export function listQuotes(advertiserProfileId?: number | null): Promise<QuoteSummary[]> {
+  const query = advertiserProfileId ? `?advertiserProfileId=${advertiserProfileId}` : "";
+  return request<QuoteSummary[]>(`/api/quotes${query}`);
+}
+
+export function getQuote(id: number): Promise<Quote> {
+  return request<Quote>(`/api/quotes/${id}`);
+}
+
+export function createQuote(input: QuoteInput): Promise<Quote> {
+  return request<Quote>("/api/quotes", { method: "POST", body: input });
+}
+
+export function updateQuote(id: number, input: QuoteInput): Promise<Quote> {
+  return request<Quote>(`/api/quotes/${id}`, { method: "PUT", body: input });
+}
+
+export function issueQuote(id: number): Promise<Quote> {
+  return request<Quote>(`/api/quotes/${id}/issue`, { method: "POST" });
+}
+
+export function changeQuoteStatus(id: number, status: QuoteStatus): Promise<Quote> {
+  return request<Quote>(`/api/quotes/${id}/status`, { method: "PATCH", body: { status } });
+}
+
+export function duplicateQuote(id: number): Promise<Quote> {
+  return request<Quote>(`/api/quotes/${id}/duplicate`, { method: "POST" });
+}
+
+export function saveQuoteRecipientAsAdvertiser(id: number): Promise<Quote> {
+  return request<Quote>(`/api/quotes/${id}/save-advertiser`, { method: "POST" });
+}
+
+export function deleteQuote(id: number): Promise<void> {
+  return request<void>(`/api/quotes/${id}`, { method: "DELETE" });
+}
+
+/** 견적서 PDF 다운로드(서버가 만든다 — 항상 같은 모양). */
+export async function downloadQuotePdf(id: number, filename: string): Promise<void> {
+  const res = await authedFetch(`/api/quotes/${id}/pdf`);
+  if (!res.ok) throw await parseError(res);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export { BASE_URL };

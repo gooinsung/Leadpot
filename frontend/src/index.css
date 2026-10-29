@@ -25,6 +25,7 @@
 @import "./styles/features/auth.css";
 @import "./styles/features/about.css";
 @import "./styles/features/stats.css";
+@import "./styles/features/quotes.css";
 @import "@leadpot/public-ui/src/styles/features/form-builder.css";
 @import "@leadpot/public-ui/src/styles/features/landing.css";
 @import "@leadpot/public-ui/src/styles/features/public.css";

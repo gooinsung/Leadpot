@@ -27,6 +27,7 @@ import { Pagination, usePaging } from "../components/Pagination";
 import { GrantEditor } from "../components/GrantEditor";
 import { BrandSettingsCard } from "../components/BrandSettingsCard";
 import { RowMenu } from "../components/RowMenu";
+import { AdvertiserProfilesSection } from "../components/AdvertiserProfilesSection";
 
 const fmt = (v: string | null) => (v ? new Date(v).toLocaleString("ko-KR") : "-");
 
@@ -258,6 +259,11 @@ export function AdvertisersPage() {
         {error && !inviteOpen && <p className="auth-error">{error}</p>}
 
         <BrandSettingsCard />
+
+        {/* 광고주 정보 · 견적서(2026-10-29) — 포털 계정과 별개. 아래 표는 포털 로그인 계정이다. */}
+        <AdvertiserProfilesSection accounts={items} />
+
+        <div className="card-h" style={{ margin: "8px 0 8px" }}>포털 계정</div>
 
         {pendingInvites.length > 0 && (
           <div className="card card-pad" style={{ marginBottom: 16 }}>
