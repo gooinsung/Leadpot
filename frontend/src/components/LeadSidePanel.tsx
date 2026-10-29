@@ -237,6 +237,14 @@ export function LeadSidePanel({
 
   /* ---------- 섹션 (두 변형이 공유) ---------- */
 
+  /** 좁은 화면(모바일)에서만 보이는 전화 걸기 버튼 — 휴대폰에선 리드를 열면 대부분 바로 전화한다. PC 에선 CSS 가 숨긴다. */
+  const phone = lead ? pickPhone(lead.answers) : null;
+  const callButton = phone && (
+    <a className="btn ip-call-m" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>
+      📞 전화 걸기 <span className="tnum">{phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3")}</span>
+    </a>
+  );
+
   const answersSection = lead && (
     <div className="card card-pad ip-answers">
       <div className="ip-section-label" style={{ marginTop: 0 }}>답변</div>
@@ -552,7 +560,7 @@ export function LeadSidePanel({
                 <div className="ip-hero-cap">{formName ? `${formName} · ` : ""}#{leadId}</div>
                 <h2 className="ip-hero-name">{pickName(lead.answers)}</h2>
                 <div className="ip-hero-sub tnum">
-                  {pickPhone(lead.answers) ?? "연락처 없음"} · {new Date(lead.createdAt).toLocaleString("ko-KR")} 접수
+                  {phone ?? "연락처 없음"} · {new Date(lead.createdAt).toLocaleString("ko-KR")} 접수
                 </div>
               </div>
               <div className="ip-hero-actions">
@@ -571,6 +579,7 @@ export function LeadSidePanel({
               </div>
             </div>
             {errorLine}
+            {callButton}
             <div className="ip-grid">
               <div className="ip-col">
                 {answersSection}
@@ -610,6 +619,7 @@ export function LeadSidePanel({
         <p className="inbox-empty">불러오지 못했습니다.</p>
       ) : (
         <div className="ip-body">
+          {callButton}
           {answersSection}
           {statusTagsSection}
           {advertiserSection}
