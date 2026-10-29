@@ -199,17 +199,17 @@ export function FormsListPage() {
                               <input type="checkbox" checked={sel.selected.has(f.id)} onChange={() => sel.toggle(f.id)} aria-label="선택" />
                             </td>
                             <td className="list-title">{f.name}</td>
-                            <td className="nowrap">{f.category ? <span className="pill">{f.category}</span> : <span className="dash-sub">—</span>}</td>
-                            <td className="nowrap">
+                            <td className="nowrap" data-label="분야">{f.category ? <span className="pill">{f.category}</span> : <span className="dash-sub">—</span>}</td>
+                            <td className="nowrap" data-label="유형">
                               {/* 리디자인 §6: 기본형=인디고 soft · 스텝형=그린 soft */}
                               <span className={f.formType === "BASIC" ? "pill i" : "pill gr"}>
                                 {f.formType === "BASIC" ? "기본형" : "스텝형"}
                               </span>
                             </td>
-                            <td className="num nowrap">{f.blockCount}</td>
-                            <td className="num nowrap"><RevenueCell row={revenue.byForm.get(f.id)} /></td>
-                            <td className="num nowrap" title={new Date(f.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(f.updatedAt)}</td>
-                            <td onClick={(e) => e.stopPropagation()}>
+                            <td className="num nowrap" data-label="항목">{f.blockCount}</td>
+                            <td className="num nowrap" data-label="수익"><RevenueCell row={revenue.byForm.get(f.id)} /></td>
+                            <td className="num nowrap" data-label="수정" title={new Date(f.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(f.updatedAt)}</td>
+                            <td className="list-actions-cell" onClick={(e) => e.stopPropagation()}>
                               <div className="list-actions">
                                 <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${f.id}/leads`)}>
                                   리드

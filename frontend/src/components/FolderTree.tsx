@@ -82,6 +82,15 @@ export function FolderTree({
   const tree = useMemo(() => buildTree(folders), [folders]);
   const [dragOver, setDragOver] = useState<FolderSelection>(null);
   const [collapsed, setCollapsed] = useState<Set<number>>(() => loadCollapsed(kind));
+  // 좁은 화면(모바일)에서만 쓰는 접기 상태 — 넓은 화면에선 CSS 가 토글 버튼을 숨기고 트리를 항상 보여준다.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const selectedName =
+    selected === null ? "전체" : selected === "unfiled" ? "미분류" : (folders.find((f) => f.id === selected)?.name ?? "전체");
+
+  function select(s: FolderSelection) {
+    onSelect(s);
+    setMobileOpen(false);
+  }
 
   function toggleCollapsed(id: number) {
     setCollapsed((prev) => {
@@ -151,7 +160,7 @@ export function FolderTree({
         <div
           className={`folder-row ${isOn ? "on" : ""} ${isDragOver ? "drop-over" : ""}`}
           style={{ paddingLeft: 8 + depth * 16 }}
-          onClick={() => onSelect(node.id)}
+          onClick={() => select(node.id)}
           onDoubleClick={() => onRename(node)}
           title="더블클릭: 이름 변경"
           {...dropProps(node.id, node.id)}
@@ -187,31 +196,44 @@ export function FolderTree({
   }
 
   return (
-    <div className="folder-tree">
-      <div className="folder-tree-head">
-        <span className="folder-tree-title">폴더</span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onCreate(null)}>📁 새 폴더</button>
-      </div>
-      <div
-        className={`folder-row ${selected === null ? "on" : ""}`}
-        style={{ paddingLeft: 8 }}
-        onClick={() => onSelect(null)}
+    <div className={`folder-tree${mobileOpen ? " m-open" : ""}`}>
+      <button
+        type="button"
+        className="folder-mobile-toggle"
+        aria-expanded={mobileOpen}
+        onClick={() => setMobileOpen((o) => !o)}
       >
-        <span className="folder-caret-space" />
-        <span className="folder-icon">🗂️</span>
-        <span className="folder-name">전체</span>
+        <span className="folder-icon">📁</span>
+        <span className="folder-mobile-label">폴더</span>
+        <span className="folder-mobile-current">{selectedName}</span>
+        <span className="folder-mobile-caret" aria-hidden="true">{mobileOpen ? "▴" : "▾"}</span>
+      </button>
+      <div className="folder-tree-body">
+        <div className="folder-tree-head">
+          <span className="folder-tree-title">폴더</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onCreate(null)}>📁 새 폴더</button>
+        </div>
+        <div
+          className={`folder-row ${selected === null ? "on" : ""}`}
+          style={{ paddingLeft: 8 }}
+          onClick={() => select(null)}
+        >
+          <span className="folder-caret-space" />
+          <span className="folder-icon">🗂️</span>
+          <span className="folder-name">전체</span>
+        </div>
+        <div
+          className={`folder-row ${selected === "unfiled" ? "on" : ""} ${dragOver === "unfiled" ? "drop-over" : ""}`}
+          style={{ paddingLeft: 8 }}
+          onClick={() => select("unfiled")}
+          {...dropProps("unfiled", null)}
+        >
+          <span className="folder-caret-space" />
+          <span className="folder-icon">📄</span>
+          <span className="folder-name">미분류</span>
+        </div>
+        {tree.map((n) => renderNode(n, 0))}
       </div>
-      <div
-        className={`folder-row ${selected === "unfiled" ? "on" : ""} ${dragOver === "unfiled" ? "drop-over" : ""}`}
-        style={{ paddingLeft: 8 }}
-        onClick={() => onSelect("unfiled")}
-        {...dropProps("unfiled", null)}
-      >
-        <span className="folder-caret-space" />
-        <span className="folder-icon">📄</span>
-        <span className="folder-name">미분류</span>
-      </div>
-      {tree.map((n) => renderNode(n, 0))}
     </div>
   );
 }
