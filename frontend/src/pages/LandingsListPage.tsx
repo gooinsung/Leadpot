@@ -191,11 +191,11 @@ export function LandingsListPage() {
                               <input type="checkbox" checked={sel.selected.has(l.id)} onChange={() => sel.toggle(l.id)} aria-label="선택" />
                             </td>
                             <td className="list-title">{l.title}</td>
-                            <td className="num nowrap">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
-                            <td className="nowrap"><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
-                            <td className="num nowrap"><RevenueCell row={revenue.byLanding.get(l.id)} /></td>
-                            <td className="num nowrap" title={new Date(l.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(l.updatedAt)}</td>
-                            <td onClick={(e) => e.stopPropagation()}>
+                            <td className="num nowrap" data-label="주소">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
+                            <td className="nowrap" data-label="상태"><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
+                            <td className="num nowrap" data-label="수익"><RevenueCell row={revenue.byLanding.get(l.id)} /></td>
+                            <td className="num nowrap" data-label="수정" title={new Date(l.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(l.updatedAt)}</td>
+                            <td className="list-actions-cell" onClick={(e) => e.stopPropagation()}>
                               <div className="list-actions">
                                 {l.status === "published" && sub && (
                                   <>

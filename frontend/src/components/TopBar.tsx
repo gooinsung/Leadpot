@@ -61,6 +61,23 @@ const NAV: NavSection[] = [
 ];
 
 /**
+ * 좁은 화면(≤900px) 하단 탭바 — 휴대폰에선 주로 '확인'만 하므로 자주 가는 곳만 엄지 거리에 둔다.
+ * 나머지 메뉴는 '더보기'(드로어를 바텀시트로 띄움)에 그대로 있다. 마케터(USER)만 쓴다.
+ */
+const TAB_ITEMS: NavItem[] = [
+  { to: "/dashboard", label: "대시보드" },
+  { to: "/inbox", label: "리드" },
+  { to: "/forms", label: "리드폼" },
+  { to: "/landings", label: "랜딩" },
+];
+const TAB_ICONS: Record<string, string> = {
+  "/dashboard": "📊",
+  "/inbox": "📥",
+  "/forms": "📝",
+  "/landings": "🖼️",
+};
+
+/**
  * 운영자(ROLE_ADMIN) 내비. 마케터 메뉴와 <b>겹치지 않는다</b> —
  * 서버가 {@code /api/**} 를 ROLE_USER 전용으로 좁혀서, 마케터 메뉴를 보여주면 전부 403 인 빈 화면이 된다.
  */
@@ -89,6 +106,7 @@ export function TopBar() {
   // 운영자는 마케터 API 에 접근할 수 없어(SecurityConfig) 어드민 메뉴만 본다.
   const nav = user?.role === "ADMIN" ? ADMIN_NAV : NAV;
   const showNav = !!user && (user.role === "USER" || user.role === "ADMIN");
+  const showTabbar = user?.role === "USER";
 
   // '리드' 항목의 미확인 카운트 뱃지(리디자인 §3). 마운트에 한 번만 — 실패해도 조용히 넘어간다.
   const [unseen, setUnseen] = useState(0);
@@ -186,7 +204,12 @@ export function TopBar() {
   );
 
   return (
-    <div ref={rootRef} className="app-nav" data-has-nav={showNav ? "true" : "false"}>
+    <div
+      ref={rootRef}
+      className="app-nav"
+      data-has-nav={showNav ? "true" : "false"}
+      data-has-tabbar={showTabbar ? "true" : "false"}
+    >
       {/* 넓은 화면: 좌측 사이드바 */}
       <aside className="lnb" aria-label="주요 메뉴">
         <Link to="/" className="brand lnb-brand" style={{ textDecoration: "none" }}>
@@ -261,7 +284,7 @@ export function TopBar() {
           </div>
         </div>
         {drawerOpen && showNav && (
-          <div className="lnb-drawer">
+          <div className={`lnb-drawer${showTabbar ? " as-sheet" : ""}`}>
             {nav.map((section, i) => (
               <div key={section.title ?? i} className="drawer-group">
                 {section.title && <div className="drawer-group-title">{section.title}</div>}
@@ -279,6 +302,34 @@ export function TopBar() {
           </div>
         )}
       </div>
+
+      {/* 좁은 화면: 하단 탭바(마케터만) */}
+      {showTabbar && (
+        <nav className="m-tabbar" aria-label="빠른 메뉴">
+          {TAB_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => (isActive && !drawerOpen ? "m-tab on" : "m-tab")}
+            >
+              <span className="m-tab-icon" aria-hidden="true">
+                {TAB_ICONS[item.to]}
+                {item.to === "/inbox" && unseen > 0 && <span className="m-tab-badge">{unseen > 99 ? "99+" : unseen}</span>}
+              </span>
+              <span className="m-tab-label">{item.label}</span>
+            </NavLink>
+          ))}
+          <button
+            type="button"
+            className={`m-tab${drawerOpen || !TAB_ITEMS.some((i) => isActive(i.to)) ? " on" : ""}`}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen((v) => !v)}
+          >
+            <span className="m-tab-icon" aria-hidden="true">☰</span>
+            <span className="m-tab-label">더보기</span>
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

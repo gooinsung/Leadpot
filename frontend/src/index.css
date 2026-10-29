@@ -33,3 +33,6 @@
 @import "./styles/features/advertiser.css";
 @import "./styles/features/folders.css";
 @import "@leadpot/public-ui/src/styles/features/calculator.css";
+
+/* 마케터·광고주 화면 모바일 보정 — 반드시 마지막(docs/MOBILE-ADMIN-PLAN.md) */
+@import "./styles/features/mobile.css";
