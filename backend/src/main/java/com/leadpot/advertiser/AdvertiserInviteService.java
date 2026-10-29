@@ -34,6 +34,7 @@ public class AdvertiserInviteService {
     private final AdvertiserInviteRepository inviteRepository;
     private final UserRepository userRepository;
     private final AdvertiserService advertiserService;
+    private final AdvertiserProfileService profileService;
     private final AuthService authService;
     private final PasswordEncoder passwordEncoder;
     private final long ttlHours;
@@ -41,12 +42,14 @@ public class AdvertiserInviteService {
     public AdvertiserInviteService(AdvertiserInviteRepository inviteRepository,
             UserRepository userRepository,
             AdvertiserService advertiserService,
+            AdvertiserProfileService profileService,
             AuthService authService,
             PasswordEncoder passwordEncoder,
             @Value("${app.advertiser.invite-ttl-hours}") long ttlHours) {
         this.inviteRepository = inviteRepository;
         this.userRepository = userRepository;
         this.advertiserService = advertiserService;
+        this.profileService = profileService;
         this.authService = authService;
         this.passwordEncoder = passwordEncoder;
         this.ttlHours = ttlHours;
@@ -145,6 +148,8 @@ public class AdvertiserInviteService {
                 invite.getCompany());
         userRepository.save(advertiser);
         invite.accept(advertiser.getId(), Instant.now());
+        // 광고주 관리에서 계정·견적 이력을 한 줄로 보도록 광고주 정보도 함께 만든다(V45).
+        profileService.createForNewAccount(advertiser);
         return authService.issueTokens(advertiser);
     }
 
