@@ -12,7 +12,9 @@
 
 /* 모바일 전용 요소 — PC 에선 없는 것처럼 */
 .m-tabbar,
-.folder-mobile-toggle {
+.folder-mobile-toggle,
+.ip-call-m,
+.m-only {
   display: none;
 }
 
@@ -183,6 +185,87 @@
   .folder-row {
     min-height: 40px;
   }
+
+  /* 모바일 전용 버튼(편집기 '미리보기' 등) */
+  .app-shell .m-only {
+    display: inline-flex;
+  }
+
+  /* 4) 리드 상세 — 전화 걸기(휴대폰에선 리드를 열면 대부분 바로 전화한다) */
+  .ip-call-m {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 52px;
+    margin-bottom: 12px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--green-soft);
+    color: var(--green-ink);
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .ip-call-m:hover {
+    text-decoration: none;
+    color: var(--green-ink);
+  }
+
+  /* 5) 편집기(리드폼·랜딩·요소·동의 문서) — 저장 버튼 줄을 화면 아래에 고정(탭바 바로 위).
+        긴 편집 화면을 다시 위로 올리지 않고 저장할 수 있게. */
+  .app-shell .form-edit > .dash-head > .edit-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  }
+  body:has(.m-tabbar) .app-shell .form-edit > .dash-head > .edit-actions {
+    bottom: calc(56px + env(safe-area-inset-bottom));
+    padding-bottom: 10px;
+  }
+  .app-shell .form-edit > .dash-head > .edit-actions > * {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .app-shell .form-edit > .dash-head > .edit-actions > .btn-primary {
+    flex: 1 1 auto;
+  }
+  .app-shell .form-edit > .dash-head > .edit-actions select {
+    width: auto !important; /* 인라인 width:110 — 줄이 넘치지 않게 내용만큼 */
+    max-width: 34%;
+  }
+  .app-shell .form-edit {
+    padding-bottom: 96px; /* 고정된 저장 줄에 마지막 내용이 가리지 않게 */
+  }
+
+  /* 견적서 편집 — 저장·발행 줄을 화면 아래에 붙인다(편집 칸을 내려가는 동안 계속 보이게) */
+  .app-shell .quote-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  }
+  .app-shell .quote-actions > * {
+    flex: 0 0 auto;
+  }
+  body:has(.m-tabbar) .app-shell .quote-actions {
+    bottom: calc(56px + env(safe-area-inset-bottom));
+  }
 }
 
 /* ---------- ≤640px: 휴대폰 ---------- */
@@ -295,6 +378,14 @@
   }
   .app-shell .report-controls > .btn {
     flex: 0 0 auto;
+  }
+  /* 견적서 '이 정보를 광고주로 저장' — 설명이 체크 문구를 한 자씩 접던 문제: 설명은 다음 줄로 */
+  .app-shell .check-line {
+    flex-wrap: wrap;
+  }
+  .app-shell .check-line .dash-sub {
+    flex: 1 1 100%;
+    padding-left: 24px;
   }
   /* 통계 필터: 대상 선택이 화면을 넘지 않게 */
   .app-shell .sf-group {

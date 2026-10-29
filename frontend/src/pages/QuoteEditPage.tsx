@@ -668,6 +668,10 @@ export function QuoteEditPage() {
                   </button>
                 </>
               )}
+              {/* 모바일 전용: 미리보기는 아래에 쌓이므로 바로 내려가는 버튼(PC 에선 숨김) */}
+              <button type="button" className="btn btn-ghost m-only" onClick={() => document.querySelector(".quote-preview-frame")?.scrollIntoView({ behavior: "smooth" })}>
+                미리보기
+              </button>
               <button className="btn btn-ghost" disabled={busy} onClick={onPdf}>
                 PDF 다운로드
               </button>

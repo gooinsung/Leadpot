@@ -915,6 +915,10 @@ export function FormEditPage() {
           <div className="edit-actions">
             {isNew && <FolderSelect kind="FORM" value={newFolderId} onChange={setNewFolderId} />}
             <button className="btn btn-ghost" onClick={() => navigate("/forms")}>취소</button>
+            {/* 모바일 전용: 미리보기는 편집 영역 아래에 쌓이므로 바로 내려가는 버튼(PC 에선 숨김) */}
+            <button type="button" className="btn btn-ghost m-only" onClick={() => document.querySelector(".preview-panel")?.scrollIntoView({ behavior: "smooth" })}>
+              미리보기
+            </button>
             <button className="btn btn-primary" onClick={onSave} disabled={saving}>
               {saving ? "저장 중…" : "리드폼 저장"}
             </button>
