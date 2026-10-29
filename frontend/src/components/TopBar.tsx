@@ -51,6 +51,7 @@ const NAV: NavSection[] = [
     title: "운영",
     items: [
       { to: "/advertisers", label: "광고주" },
+      { to: "/quotes", label: "견적서", desc: "광고주에게 보낼 견적서를 PDF로 만듭니다" },
       { to: "/stats", label: "통계" },
       { to: "/sms", label: "문자 발송", desc: "발송 현황과 이력을 봅니다" },
       { to: "/site-ip-blocks", label: "접속 차단", desc: "특정 IP의 접속을 막습니다" },
@@ -164,6 +165,11 @@ export function TopBar() {
       {accountOpen && (
         <div className="nav-menu" role="menu">
           <div className="nav-menu-head">{user.email}</div>
+          {user.role === "USER" && (
+            <Link to="/account" className="nav-menu-item" role="menuitem">
+              내 정보 (사업장 정보)
+            </Link>
+          )}
           <button type="button" className="nav-menu-item" role="menuitem" onClick={toggle}>
             {THEME_LABEL[theme]}
           </button>

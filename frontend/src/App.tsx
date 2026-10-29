@@ -25,6 +25,9 @@ import { StatsPage } from "./pages/StatsPage";
 import { StatsReportPage } from "./pages/StatsReportPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
+import { AccountPage } from "./pages/AccountPage";
+import { QuotesListPage } from "./pages/QuotesListPage";
+import { QuoteEditPage } from "./pages/QuoteEditPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdminUserDetailPage } from "./pages/AdminUserDetailPage";
 import { AdvertiserPreviewPage } from "./pages/AdvertiserPreviewPage";
@@ -255,6 +258,39 @@ function App() {
         element={
           <ProtectedRoute>
             <AdvertisersPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* 견적서 · 마이페이지(사업장 정보) — 2026-10-29 */}
+      <Route
+        path="/quotes"
+        element={
+          <ProtectedRoute>
+            <QuotesListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quotes/new"
+        element={
+          <ProtectedRoute>
+            <QuoteEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quotes/:id"
+        element={
+          <ProtectedRoute>
+            <QuoteEditPage key="edit" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/account"
+        element={
+          <ProtectedRoute>
+            <AccountPage />
           </ProtectedRoute>
         }
       />

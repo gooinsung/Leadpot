@@ -1,0 +1,318 @@
+/* ============================================================
+   견적서 · 마이페이지 (2026-10-29)
+   - 관리 화면 전용(데스크톱 우선). 미리보기(.qp)는 '종이'라서 테마와 무관하게 흰 바탕·검은 글자.
+   ============================================================ */
+
+/* ---------- 마이페이지 ---------- */
+.account-card {
+  max-width: 760px;
+}
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.account-grid .span-2 {
+  grid-column: span 2;
+}
+
+/* ---------- 목록 ---------- */
+.quote-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.quote-filters .input {
+  width: auto;
+  min-width: 160px;
+}
+.quote-filters input.input {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* ---------- 편집 ---------- */
+.edit-grid.quote-grid {
+  grid-template-columns: minmax(0, 1fr) 460px;
+}
+.quote-mode {
+  margin-bottom: 14px;
+}
+.quote-party-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.check-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.check-line .dash-sub {
+  font-weight: 400;
+  font-size: 12.5px;
+}
+
+.quote-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* 품목 한 줄 = 두 줄짜리 카드: [품목 · 설명 | 조작] / [수량 · 단가 · 금액 · 비고] — 좁은 편집 칸에서도 7칸이 다 보인다. */
+.quote-item {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name name desc desc ctrl"
+    "qty price amt note ctrl";
+  gap: 8px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.qi {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.qi > span {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.qi .input {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.qi .input.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.qi-name {
+  grid-area: name;
+}
+.qi-desc {
+  grid-area: desc;
+}
+.qi-qty {
+  grid-area: qty;
+}
+.qi-price {
+  grid-area: price;
+}
+.qi-amt {
+  grid-area: amt;
+}
+.qi-amt b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 9px 4px 0 0;
+}
+.qi-note {
+  grid-area: note;
+}
+.qi-ctrl {
+  grid-area: ctrl;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.qi-ctrl .btn {
+  padding: 2px 7px;
+}
+.quote-totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+.quote-totals b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.quote-totals .grand b {
+  font-size: 17px;
+}
+.quote-note-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.quote-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 16px;
+}
+.quote-actions .quote-status-select {
+  width: auto;
+  min-width: 110px;
+}
+
+@media (max-width: 1200px) {
+  .edit-grid.quote-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .quote-grid .preview-panel {
+    position: static;
+    max-width: 720px;
+  }
+}
+
+/* ---------- 미리보기(종이) — 서버 PDF(QuotePdfRenderer)와 같은 배치 ---------- */
+.quote-preview-frame {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  background: #fff;
+  overflow: hidden;
+}
+.qp {
+  color: #1f2329;
+  background: #fff;
+  padding: 28px 26px 32px;
+  font-size: 11px;
+  line-height: 1.45;
+  min-height: 780px;
+}
+.qp table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.qp-title {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 8px;
+  margin: 0 0 22px;
+  color: #1f2329;
+}
+.qp-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.qp-to {
+  font-size: 15px;
+  margin: 0 0 8px;
+  padding-bottom: 5px;
+  border-bottom: 1.5px solid #1f2329;
+}
+.qp-kv th {
+  text-align: left;
+  font-weight: 400;
+  color: #6b7280;
+  width: 64px;
+  padding: 1px 0;
+}
+.qp-kv td {
+  padding: 1px 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.qp-lead {
+  margin: 8px 0 0;
+  color: #374151;
+}
+.qp-sup th,
+.qp-sup td {
+  border: 1px solid #9ca3af;
+  padding: 4px 6px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.qp-sup th {
+  background: #f3f4f6;
+  width: 62px;
+  text-align: center;
+  white-space: nowrap;
+}
+.qp-sup th.qp-sv {
+  width: 22px;
+  line-height: 1.8;
+}
+.qp-sum {
+  display: flex;
+  margin: 18px 0 12px;
+  border: 1.5px solid #1f2329;
+  font-size: 13px;
+}
+.qp-sum-k {
+  background: #f3f4f6;
+  font-weight: 700;
+  padding: 7px 10px;
+  border-right: 1.5px solid #1f2329;
+  white-space: nowrap;
+}
+.qp-sum-v {
+  padding: 7px 10px;
+}
+.qp-items th,
+.qp-items td {
+  border: 1px solid #9ca3af;
+  padding: 5px 6px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.qp-items thead th {
+  background: #f3f4f6;
+  white-space: nowrap;
+}
+.qp-items .c {
+  text-align: center;
+}
+.qp-items .n {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.qp-totals {
+  width: 220px !important;
+  margin: 10px 0 0 auto;
+}
+.qp-totals th,
+.qp-totals td {
+  border: 1px solid #9ca3af;
+  padding: 4px 8px;
+}
+.qp-totals th {
+  background: #f3f4f6;
+  text-align: left;
+}
+.qp-totals td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.qp-totals tr.grand th,
+.qp-totals tr.grand td {
+  font-size: 13px;
+  border-top: 1.5px solid #1f2329;
+}
+.qp-notes {
+  margin-top: 20px;
+}
+.qp-notes p {
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.qp-notes ol {
+  margin: 0;
+  padding-left: 16px;
+  color: #374151;
+}
+.qp-bank {
+  margin-top: 14px;
+}
