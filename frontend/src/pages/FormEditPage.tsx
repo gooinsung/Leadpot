@@ -282,6 +282,9 @@ function stepsFromCalculator(def: CalculatorDef): StepData[] {
   }));
 }
 
+/** 계산기를 고를 때 '상단 안내 문구'가 비어 있으면 채우는 씨앗값. */
+const CALC_CONTACT_MESSAGE = "진단 결과를 전문 상담사가 자세히 설명해드립니다. 연락처를 남겨주세요.";
+
 function defaultContactFields(): FormBlock[] {
   return [
     { sortOrder: 0, blockType: "FIELD", fieldType: "text", label: "이름", required: true, placeholder: "홍길동" },
@@ -577,6 +580,18 @@ export function FormEditPage() {
     const def = findCalculator(kind);
     if (!def) return;
     if (calcKey === kind) return;
+    // 질문을 직접 만드는 종류(정책자금 매칭)는 지금 질문을 그대로 두고 계산 입력 표시만 뗀다 — 덮어쓸 게 없다.
+    if (def.freeSteps) {
+      setFormType("STEP");
+      setSteps((prev) => prev.map((s) => ({ ...s, calcInput: null })));
+      setCalcKey(kind);
+      // 탕감액 계산기에서 넘어오면 그쪽이 채워둔 안내 문구가 '매칭이 완료되었습니다!' 제목을 덮어버린다 — 씨앗값이면 비운다.
+      if (contactMessage === CALC_CONTACT_MESSAGE) setContactMessage("");
+      if (!submitLabel.trim() || submitLabel === DEFAULT_SUBMIT_LABEL || CALCULATORS.some((c) => c.gate.submitLabel === submitLabel)) {
+        setSubmitLabel(def.gate.submitLabel);
+      }
+      return;
+    }
     // 마케터가 직접 만든 질문이 남아 있으면 덮어쓰기 전에 묻는다.
     // 손대지 않은 씨앗 질문은 작업물이 아니므로 조용히 갈아치운다(새 폼에서 확인창이 뜨면 성가시다).
     const hasOwnSteps = !isPristineSteps(steps) && steps.some((s) => !s.calcInput && s.question.trim());
@@ -587,7 +602,7 @@ export function FormEditPage() {
     setCalcKey(kind);
     setSteps(stepsFromCalculator(def));
     if (!contactMessage.trim()) {
-      setContactMessage("진단 결과를 전문 상담사가 자세히 설명해드립니다. 연락처를 남겨주세요.");
+      setContactMessage(CALC_CONTACT_MESSAGE);
     }
     // 마케터가 아직 '제출 버튼 문구'를 안 건드렸으면(씨앗값 그대로면) 계산기의 CTA로 바꿔친다.
     // 이미 뭔가 직접 입력해뒀으면 그 값이 우선이다 — 렌더러도 이 값을 그대로 쓴다(하드코딩된
@@ -931,7 +946,7 @@ export function FormEditPage() {
               className={`calc-kind ${calcKey === c.key ? "sel" : ""}`}
               onClick={() => pickKind(c.key)}
             >
-              <span className="calc-kind-name">🧮 {c.name}</span>
+              <span className="calc-kind-name">{c.icon ?? "🧮"} {c.name}</span>
               <span className="calc-kind-desc">{c.description}</span>
             </button>
           ))}
@@ -969,7 +984,18 @@ export function FormEditPage() {
               <>
                 <div className="card card-pad" {...sec("steps")}>
                   <SectionHead title="질문 단계" open={!collapsed.steps} onToggle={() => toggleSection("steps")} />
-                  {calculator && !collapsed.steps && (
+                  {calculator?.freeSteps && !collapsed.steps && (
+                    <div className="calc-info" style={{ marginBottom: 12 }}>
+                      <strong>{calculator.name}</strong>은 질문을 스텝형처럼 <strong>직접 만드는</strong> 종류입니다
+                      (예: 상호명 · 업종 · 지역 · 연매출 · 신용점수). 질문 문구에 <code>(25% 매칭 완료)</code>처럼 진행률을 넣어도 좋습니다.
+                      <br />
+                      마지막 질문 뒤 <strong>'{calculator.preGateLoading?.title}' 로딩(3초)</strong> → <strong>'{calculator.gate.title}' 연락처 단계</strong> →
+                      접수 후 <strong>완료 화면 설정</strong> 순서로 진행됩니다. 실제 계산은 하지 않고, 답변은 일반 질문처럼 리드에 저장됩니다.
+                      <br />
+                      연락처 단계 제목·강조 문구는 아래 '마지막 단계 · 연락처'의 상단 안내 문구·설명으로 바꿀 수 있습니다.
+                    </div>
+                  )}
+                  {calculator && !calculator.freeSteps && !collapsed.steps && (
                     <div className="calc-info" style={{ marginBottom: 12 }}>
                       <strong>{calculator.name}</strong>에 필요한 질문이 자동으로 만들어졌습니다.
                       질문 문구·설명은 자유롭게 고쳐도 되지만, <strong>보라색 배지가 붙은 단계는 계산에 쓰이므로
@@ -1714,9 +1740,9 @@ export function FormEditPage() {
               <FormRenderer form={formData} />
             </div>
             {/* 계산기 폼은 접수 후 '완료 안내' 대신 계산 결과가 나온다 — 미리보기도 그걸 보여준다. */}
-            <div className="card-h" style={{ marginTop: 18 }}>{calculator ? "접수 후 결과 화면" : "완료 화면"}</div>
+            <div className="card-h" style={{ marginTop: 18 }}>{calculator && !calculator.noResult ? "접수 후 결과 화면" : "완료 화면"}</div>
             <div className="preview-frame">
-              {calculator ? (
+              {calculator && !calculator.noResult ? (
                 <div className="calc-result-screen">
                   <CalcResultView
                     view={calculator.run(calculator.sampleInput)}
@@ -1729,7 +1755,7 @@ export function FormEditPage() {
                 <CompletionView config={formData.successConfig} accent={accentColor} />
               )}
             </div>
-            {calculator && (
+            {calculator && !calculator.noResult && (
               <p className="dash-sub" style={{ fontSize: 12, marginTop: 6 }}>
                 * 예시 값으로 그린 화면입니다. 실제 숫자는 방문자가 입력한 답변으로 계산됩니다.
               </p>

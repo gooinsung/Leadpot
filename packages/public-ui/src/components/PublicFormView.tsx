@@ -241,7 +241,8 @@ export function PublicFormView({
         return;
       }
       // 계산기가 붙은 폼은 결과 공개 전 3초 로딩을 거친다(리다이렉트 설정이면 여기까지 오지 않는다).
-      if (calculator) {
+      // 결과가 없는 종류(정책자금 매칭)는 로딩을 연락처 단계 전에 이미 보여줬으므로 건너뛴다.
+      if (calculator && !calculator.noResult) {
         setRevealing(true);
         setTimeout(() => setRevealing(false), 3000);
       }
@@ -256,7 +257,8 @@ export function PublicFormView({
 
   // 계산기: 접수가 끝난 **뒤** 결과를 보여준다(결과를 먼저 보여주면 그것만 보고 나간다).
   // 계산은 이미 끝나 있지만 3초 로딩을 거친다 — 즉시 뜨면 4개 답변으로 뽑은 숫자의 무게가 안 실린다.
-  if (submitted && calculator && calcView) {
+  // 결과가 없는 종류(noResult)는 아래 일반 완료 화면(리드폼 완료화면 설정)으로 간다.
+  if (submitted && calculator && calcView && !calculator.noResult) {
     return revealing ? (
       <CalcLoadingView accentColor={style.accentColor} />
     ) : (
@@ -306,6 +308,8 @@ export function PublicFormView({
           calcView={calcView}
           calcDisclaimer={calculator?.disclaimer ?? ""}
           calcGate={calculator?.gate ?? null}
+          calcPreGateLoading={calculator?.preGateLoading ?? null}
+          calcContactStepLabel={calculator?.contactStepLabel ?? "진단 결과"}
         />
       )}
     </>
@@ -441,8 +445,12 @@ function StepFlow(props: {
   calcDisclaimer: string;
   /** 연락처 받기 전 유도 문구(계산기 정의). */
   calcGate: CalculatorDef["gate"] | null;
+  /** 마지막 질문 뒤·연락처 단계 전 로딩 문구(정책자금 매칭 등). null = 로딩 없이 바로 연락처 단계. */
+  calcPreGateLoading: CalculatorDef["preGateLoading"] | null;
+  /** 계산기가 있을 때 연락처 단계 진행 표시줄 라벨. */
+  calcContactStepLabel: string;
 }) {
-  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcGate } = props;
+  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcGate, calcPreGateLoading, calcContactStepLabel } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
   /**
@@ -455,6 +463,24 @@ function StepFlow(props: {
   const total = choiceBlocks.length + 1;
   const isContact = step >= choiceBlocks.length;
   const [stepError, setStepError] = useState("");
+  /**
+   * 연락처 단계 전 로딩("정책자금 매칭중…"). 질문을 다 답하고 연락처 단계에 **처음** 들어갈 때 한 번만 보여준다 —
+   * '이전'으로 돌아갔다 다시 와도 또 기다리게 하지 않는다. 단일 선택 자동 진행·'다음' 버튼 어느 쪽으로
+   * 들어와도 걸리도록 step 변화를 보고 띄운다.
+   */
+  const [preGateLoading, setPreGateLoading] = useState(false);
+  const preGateShown = useRef(false);
+  useEffect(() => {
+    if (!isContact || !calcPreGateLoading || preGateShown.current) return;
+    preGateShown.current = true;
+    setPreGateLoading(true);
+  }, [isContact, calcPreGateLoading]);
+  // 타이머는 따로 둔다 — 위 effect 에서 정리까지 하면 StrictMode 의 이중 실행 때 타이머만 지워지고 로딩이 안 끝난다.
+  useEffect(() => {
+    if (!preGateLoading) return;
+    const t = setTimeout(() => setPreGateLoading(false), 3000);
+    return () => clearTimeout(t);
+  }, [preGateLoading]);
   /**
    * 단일 선택 자동 진행 타이머. step 이 바뀌면(자동 진행 자신이든, "이전"/"다음" 수동 클릭이든)
    * 예약돼 있던 타이머를 정리한다 — 안 그러면 "선택 후 곧장 이전으로 되돌아가기" 같은 경우
@@ -513,11 +539,15 @@ function StepFlow(props: {
     setStep((s) => s - 1);
   }
 
+  if (preGateLoading && calcPreGateLoading) {
+    return <CalcLoadingView accentColor={style.accentColor} title={calcPreGateLoading.title} desc={calcPreGateLoading.desc} />;
+  }
+
   return (
     <div className="sfr">
       <div className="sfr-topbar">
         <div className="sfr-head">
-          <span>{isContact ? (hasCalc ? "진단 결과" : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
+          <span>{isContact ? (hasCalc ? calcContactStepLabel : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}</span>
           <span>SSL 보안연결</span>
         </div>
         <div className="sfr-progress"><i style={{ width: `${((step + 1) / total) * 100}%`, background: style.accentColor }} /></div>

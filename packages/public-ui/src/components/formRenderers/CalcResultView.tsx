@@ -86,22 +86,24 @@ export function CalcGateView({
     <div className="calc-gate">
       <h3 className="calc-gate-t">{gate.title}</h3>
       <p className="calc-gate-h">{gate.highlight}</p>
-      <ul className="calc-gate-list">
-        {gate.bullets.map((b, i) => (
-          <li key={i}>
-            <span className="calc-gate-ck" style={{ background: accentColor }} aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-            </span>
-            <span>{renderParen(b)}</span>
-          </li>
-        ))}
-      </ul>
+      {gate.bullets.length > 0 && (
+        <ul className="calc-gate-list">
+          {gate.bullets.map((b, i) => (
+            <li key={i}>
+              <span className="calc-gate-ck" style={{ background: accentColor }} aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>
+              <span>{renderParen(b)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      {/* 용어 설명 — 숫자를 보기 전에 그 숫자가 무엇인지 알아야 와닿는다. */}
+      {/* 용어 설명 — 숫자를 보기 전에 그 숫자가 무엇인지 알아야 와닿는다. 제목이 비면 안내 상자로만 쓴다. */}
       <div className="calc-explain">
-        <p className="calc-explain-t">{gate.explain.title}</p>
+        {gate.explain.title && <p className="calc-explain-t">{gate.explain.title}</p>}
         {renderNotice(gate.explain.body)}
       </div>
     </div>
@@ -132,12 +134,25 @@ function renderParen(text: string) {
  *
  * ⚠️ "AI가 계산" 이라고 쓰지 않는다 — 법정 산식을 그대로 계산하는 것이라 AI 가 아니다(사용자 결정).
  */
-export function CalcLoadingView({ accentColor }: { accentColor: string }) {
+export function CalcLoadingView({
+  accentColor,
+  title = "탕감액을 계산하고 있어요",
+  desc = "잠시만 기다려주세요",
+}: {
+  accentColor: string;
+  title?: string;
+  /** 줄바꿈(`\n`) 지원. */
+  desc?: string;
+}) {
   return (
     <div className="calc-loading">
       <div className="calc-spinner" style={{ borderTopColor: accentColor }} />
-      <p className="calc-loading-t">탕감액을 계산하고 있어요</p>
-      <p className="calc-loading-d">잠시만 기다려주세요</p>
+      <p className="calc-loading-t">{title}</p>
+      {desc.split("\n").map((line, i) => (
+        <p key={i} className="calc-loading-d">
+          {line}
+        </p>
+      ))}
     </div>
   );
 }

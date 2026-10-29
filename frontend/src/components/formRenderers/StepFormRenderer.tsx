@@ -10,6 +10,7 @@ import {
   resolveStyle,
   resolveSubmitLabel,
   CalcGateView,
+  CalcLoadingView,
   findCalculator,
 } from "@leadpot/public-ui";
 
@@ -60,6 +61,21 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
       }
     : null;
 
+  // 공개 렌더(PublicFormView)와 동일하게 연락처 단계에 처음 들어갈 때 '매칭중' 로딩을 3초 보여준다.
+  const preGate = calculator?.preGateLoading ?? null;
+  const [preGateLoading, setPreGateLoading] = useState(false);
+  const preGateShown = useRef(false);
+  useEffect(() => {
+    if (!isContact || !preGate || preGateShown.current) return;
+    preGateShown.current = true;
+    setPreGateLoading(true);
+  }, [isContact, preGate]);
+  useEffect(() => {
+    if (!preGateLoading) return;
+    const t = setTimeout(() => setPreGateLoading(false), 3000);
+    return () => clearTimeout(t);
+  }, [preGateLoading]);
+
   // 공개 렌더(PublicFormView)와 동일하게 단일 선택은 자동으로 다음 단계로 넘어간다 —
   // 미리보기가 실물과 다르면 마케터가 잘못된 흐름으로 오해한다.
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,12 +103,15 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
   if (totalSteps === 1 && choiceBlocks.length === 0 && contactBlocks.length === 0) {
     return <div className="fr-placeholder">단계를 추가하면 미리보기가 표시됩니다.</div>;
   }
+  if (preGateLoading && preGate) {
+    return <CalcLoadingView accentColor={s.accentColor} title={preGate.title} desc={preGate.desc} />;
+  }
 
   return (
     <div className="sfr">
       <div className="sfr-head">
         <span>
-          {isContact ? (calculator ? "진단 결과" : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}
+          {isContact ? (calculator ? calculator.contactStepLabel ?? "진단 결과" : "마지막 단계") : `질문 ${step + 1} / ${choiceBlocks.length}`}
         </span>
         <span>SSL 보안연결</span>
       </div>
