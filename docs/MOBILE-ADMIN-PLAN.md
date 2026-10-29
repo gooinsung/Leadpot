@@ -1,6 +1,9 @@
 # MOBILE-ADMIN-PLAN.md — 마케터·광고주 화면 모바일 최적화 계획
 
 > 2026-10-29 작성(원격 세션, 사용자 지시). 진행 상황은 [PROGRESS.md](PROGRESS.md) 에 기록한다.
+>
+> **상태(2026-10-29)**: Phase 0·1 ✅, Phase 2 일부 ✅(대시보드·리드폼/랜딩 목록), 사용자 지시로 **가로 넘침은 전 화면 일괄 수정** ✅.
+> 남은 것: Phase 2 리드 상세 전화 버튼 · Phase 3 표 카드형 전환 · Phase 4 편집기. 모바일 규칙은 `frontend/src/styles/features/mobile.css` 한 곳.
 
 ## 1. 범위 (사용자 확정)
 
