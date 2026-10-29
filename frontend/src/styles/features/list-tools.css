@@ -1,0 +1,24 @@
+/* 목록 페이지 공통 도구 — 검색 입력(ListSearch). 랜딩·리드폼·요소·동의 문서·광고주 목록이 같이 쓴다. */
+.list-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  margin-bottom: 12px;
+}
+.list-search-icon {
+  position: absolute;
+  left: 14px;
+  display: flex;
+  color: var(--muted);
+  pointer-events: none;
+}
+.list-search .input {
+  padding-left: 38px;
+}
+.list-search-count {
+  flex: none;
+  font-size: 13px;
+  color: var(--muted);
+}

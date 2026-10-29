@@ -10,6 +10,8 @@ import { FolderTree, type FolderSelection } from "../components/FolderTree";
 import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/RevenuePeriod";
 import { RowMenu } from "../components/RowMenu";
 import { fmtShortDateTime } from "../lib/format";
+import { ListSearch } from "../components/ListSearch";
+import { matchesSearch } from "../lib/search";
 
 export function FormsListPage() {
   const navigate = useNavigate();
@@ -25,11 +27,15 @@ export function FormsListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [search, setSearch] = useState("");
+  const searching = search.trim() !== "";
+  // 검색 중에는 폴더와 상관없이 전체 리드폼에서 찾는다 — 어느 폴더에 넣었는지 몰라도 찾을 수 있게.
   const filtered = useMemo(() => {
+    if (searching) return forms.filter((f) => matchesSearch(search, f.name, f.category));
     if (selectedFolder === null) return forms;
     if (selectedFolder === "unfiled") return forms.filter((f) => f.folderId == null);
     return forms.filter((f) => f.folderId === selectedFolder);
-  }, [forms, selectedFolder]);
+  }, [forms, selectedFolder, search, searching]);
   const folderCounts = useMemo(() => {
     const c: Record<number, number> = {};
     for (const f of forms) if (f.folderId != null) c[f.folderId] = (c[f.folderId] ?? 0) + 1;
@@ -148,6 +154,7 @@ export function FormsListPage() {
               counts={folderCounts}
             />
             <div>
+              <ListSearch value={search} onChange={setSearch} placeholder="리드폼 이름·분야 검색 (전체 폴더)" resultCount={filtered.length} />
               {sel.count > 0 && (
                 <div className="il-bulk" style={{ paddingBottom: 10 }}>
                   <span className="bulk-count">{sel.count}개 선택</span>
@@ -157,7 +164,7 @@ export function FormsListPage() {
               )}
               {filtered.length === 0 ? (
                 <div className="card card-pad empty-state">
-                  <p>이 폴더에는 리드폼이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요.</p>
+                  <p>{searching ? `'${search.trim()}'에 맞는 리드폼이 없습니다.` : "이 폴더에는 리드폼이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요."}</p>
                 </div>
               ) : (
                 <>

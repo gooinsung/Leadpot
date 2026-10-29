@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ListSearch } from "../components/ListSearch";
+import { matchesSearch } from "../lib/search";
 import { Loading } from "../components/Loading";
 import {
   ApiError,
@@ -98,7 +100,12 @@ export function AdvertisersPage() {
     }
   }
 
-  const paging = usePaging(items, 10);
+  const [search, setSearch] = useState("");
+  const filteredItems = useMemo(
+    () => items.filter((a) => matchesSearch(search, a.name, a.email, a.company, a.memo)),
+    [items, search],
+  );
+  const paging = usePaging(filteredItems, 10);
   const pendingInvites = invites.filter((i) => !i.acceptedAt);
 
   async function load() {
@@ -312,6 +319,7 @@ export function AdvertisersPage() {
           </div>
         ) : (
           <>
+            <ListSearch value={search} onChange={setSearch} placeholder="계정 이름·이메일·회사 검색" resultCount={filteredItems.length} />
             <div className="card card-table">
               <table>
                 <thead>
@@ -325,6 +333,13 @@ export function AdvertisersPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {paging.pageItems.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="dash-sub" style={{ textAlign: "center", padding: 24 }}>
+                        '{search.trim()}'에 맞는 계정이 없습니다.
+                      </td>
+                    </tr>
+                  )}
                   {paging.pageItems.map((a) => (
                     <tr key={a.id}>
                       <td>

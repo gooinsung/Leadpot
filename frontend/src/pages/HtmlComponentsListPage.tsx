@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ListSearch } from "../components/ListSearch";
+import { matchesSearch } from "../lib/search";
 import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import {
@@ -18,7 +20,12 @@ export function HtmlComponentsListPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<HtmlComponentSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const paging = usePaging(items, 10);
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(
+    () => items.filter((c) => matchesSearch(search, c.name, catLabel(c.category))),
+    [items, search],
+  );
+  const paging = usePaging(filtered, 10);
 
   // 전체선택 + 일괄 삭제 (2026-08-08)
   const sel = useSelection(paging.pageItems.map((c) => c.id));
@@ -83,6 +90,7 @@ export function HtmlComponentsListPage() {
           </div>
         ) : (
           <>
+          <ListSearch value={search} onChange={setSearch} placeholder="요소 이름·분류 검색" resultCount={filtered.length} />
           {sel.count > 0 && (
             <div className="il-bulk" style={{ paddingBottom: 10 }}>
               <span className="bulk-count">{sel.count}개 선택</span>
@@ -104,6 +112,13 @@ export function HtmlComponentsListPage() {
                 </tr>
               </thead>
               <tbody>
+                {paging.pageItems.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="dash-sub" style={{ textAlign: "center", padding: 24 }}>
+                      '{search.trim()}'에 맞는 요소가 없습니다.
+                    </td>
+                  </tr>
+                )}
                 {paging.pageItems.map((c) => (
                   <tr key={c.id} className="row-click" onClick={() => navigate(`/html-components/${c.id}/edit`)}>
                     <td className="sel-col" onClick={(e) => e.stopPropagation()}>

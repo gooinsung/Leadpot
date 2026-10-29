@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ListSearch } from "../components/ListSearch";
+import { matchesSearch } from "../lib/search";
 import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteConsentDoc, listConsentDocs, type ConsentDocumentSummary } from "../api/client";
@@ -11,7 +13,9 @@ export function ConsentDocsListPage() {
   const navigate = useNavigate();
   const [docs, setDocs] = useState<ConsentDocumentSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const paging = usePaging(docs, 10);
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => docs.filter((d) => matchesSearch(search, d.name, d.title)), [docs, search]);
+  const paging = usePaging(filtered, 10);
 
   // 전체선택 + 일괄 삭제 (2026-08-08)
   const sel = useSelection(paging.pageItems.map((d) => d.id));
@@ -76,6 +80,7 @@ export function ConsentDocsListPage() {
           </div>
         ) : (
           <>
+          <ListSearch value={search} onChange={setSearch} placeholder="문서 이름·제목 검색" resultCount={filtered.length} />
           {sel.count > 0 && (
             <div className="il-bulk" style={{ paddingBottom: 10 }}>
               <span className="bulk-count">{sel.count}개 선택</span>
@@ -97,6 +102,13 @@ export function ConsentDocsListPage() {
                 </tr>
               </thead>
               <tbody>
+                {paging.pageItems.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="dash-sub" style={{ textAlign: "center", padding: 24 }}>
+                      '{search.trim()}'에 맞는 문서가 없습니다.
+                    </td>
+                  </tr>
+                )}
                 {paging.pageItems.map((d) => (
                   <tr key={d.id} className="row-click" onClick={() => navigate(`/consent-docs/${d.id}/edit`)}>
                     <td className="sel-col" onClick={(e) => e.stopPropagation()}>

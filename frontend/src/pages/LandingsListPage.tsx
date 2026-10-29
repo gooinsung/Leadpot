@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ListSearch } from "../components/ListSearch";
+import { matchesSearch } from "../lib/search";
 import { Loading } from "../components/Loading";
 import { useNavigate } from "react-router-dom";
 import { deleteLanding, duplicateLanding, listFolders, listLandings, moveLandingFolder, type FolderItem, type LandingSummary } from "../api/client";
@@ -31,11 +33,15 @@ export function LandingsListPage() {
   const [adUrlTarget, setAdUrlTarget] = useState<LandingSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [search, setSearch] = useState("");
+  const searching = search.trim() !== "";
+  // 검색 중에는 폴더와 상관없이 전체 랜딩에서 찾는다(제목·주소).
   const filtered = useMemo(() => {
+    if (searching) return items.filter((l) => matchesSearch(search, l.title, l.slug, String(l.id)));
     if (selectedFolder === null) return items;
     if (selectedFolder === "unfiled") return items.filter((l) => l.folderId == null);
     return items.filter((l) => l.folderId === selectedFolder);
-  }, [items, selectedFolder]);
+  }, [items, selectedFolder, search, searching]);
   const folderCounts = useMemo(() => {
     const c: Record<number, number> = {};
     for (const l of items) if (l.folderId != null) c[l.folderId] = (c[l.folderId] ?? 0) + 1;
@@ -144,6 +150,7 @@ export function LandingsListPage() {
               counts={folderCounts}
             />
             <div>
+              <ListSearch value={search} onChange={setSearch} placeholder="랜딩 제목·주소 검색 (전체 폴더)" resultCount={filtered.length} />
               {sel.count > 0 && (
                 <div className="il-bulk" style={{ paddingBottom: 10 }}>
                   <span className="bulk-count">{sel.count}개 선택</span>
@@ -153,7 +160,7 @@ export function LandingsListPage() {
               )}
               {filtered.length === 0 ? (
                 <div className="card card-pad empty-state">
-                  <p>이 폴더에는 랜딩이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요.</p>
+                  <p>{searching ? `'${search.trim()}'에 맞는 랜딩이 없습니다.` : "이 폴더에는 랜딩이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요."}</p>
                 </div>
               ) : (
                 <>
