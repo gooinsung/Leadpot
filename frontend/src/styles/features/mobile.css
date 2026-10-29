@@ -290,6 +290,19 @@
     margin-left: 1px;
   }
 
+  /* 리드폼·랜딩 목록 검색·필터 — 검색창은 한 줄 전체, 셀렉트는 그 아래 나란히 */
+  .app-shell .list-filter-search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .app-shell .list-filter-select {
+    flex: 1 1 calc(50% - 4px); /* 두 개씩 — 세 번째(정렬)는 다음 줄 전체 */
+    min-width: 0;
+  }
+  .app-shell .list-filter-count {
+    flex: 1 1 100%;
+  }
+
   /* 리드폼·랜딩 목록 표 → 카드형(머리글 숨기고 행마다 카드) */
   .app-shell .list-table,
   .app-shell .list-table tbody {

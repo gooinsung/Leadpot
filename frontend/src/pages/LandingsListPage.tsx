@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteLanding, duplicateLanding, listFolders, listLandings, moveLandingFolder, type FolderItem, type LandingSummary } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { publicSiteUrl } from "@leadpot/public-ui";
@@ -13,6 +13,10 @@ import { FolderTree, type FolderSelection } from "../components/FolderTree";
 import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/RevenuePeriod";
 import { RowMenu } from "../components/RowMenu";
 import { fmtShortDateTime } from "../lib/format";
+import { ListFilterBar } from "../components/ListFilterBar";
+import { matchesQuery, parseSort, sortList, type ListSort } from "../lib/listFilter";
+
+const LANDING_SORTS: ListSort[] = ["updated", "created", "name", "revenue", "oldest"];
 
 export function LandingsListPage() {
   const navigate = useNavigate();
@@ -31,17 +35,63 @@ export function LandingsListPage() {
   const [adUrlTarget, setAdUrlTarget] = useState<LandingSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const filtered = useMemo(() => {
+  // 검색·필터·정렬은 주소(?q=&status=&sort=)에 둔다 — 편집하고 뒤로 와도 조건이 그대로 남는다.
+  const [params, setParams] = useSearchParams();
+  const query = params.get("q") ?? "";
+  const statusFilter = params.get("status") ?? "";
+  const sort = parseSort(params.get("sort"));
+  function setParam(key: string, value: string) {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
+  }
+  function resetFilters() {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        ["q", "status"].forEach((k) => next.delete(k));
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  const inFolder = useMemo(() => {
     if (selectedFolder === null) return items;
     if (selectedFolder === "unfiled") return items.filter((l) => l.folderId == null);
     return items.filter((l) => l.folderId === selectedFolder);
   }, [items, selectedFolder]);
+  // 공개 주소는 {sub}.leadpot.kr/{id} 라 번호(id)로도 찾을 수 있게 한다.
+  const filtered = useMemo(
+    () =>
+      sortList(
+        inFolder.filter(
+          (l) =>
+            matchesQuery(query, [l.title, l.slug, l.id]) &&
+            (!statusFilter || (statusFilter === "published" ? l.status === "published" : l.status !== "published")),
+        ),
+        sort,
+        { name: (l) => l.title, revenue: (l) => revenue.byLanding.get(l.id)?.revenue ?? 0 },
+      ),
+    [inFolder, query, statusFilter, sort, revenue.byLanding],
+  );
   const folderCounts = useMemo(() => {
     const c: Record<number, number> = {};
     for (const l of items) if (l.folderId != null) c[l.folderId] = (c[l.folderId] ?? 0) + 1;
     return c;
   }, [items]);
   const paging = usePaging(filtered, 10);
+  // 조건이 바뀌면 1쪽으로(개수가 같아도 — 정렬만 바꾼 경우)
+  const { setPage } = paging;
+  useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter, sort, selectedFolder, setPage]);
 
   async function loadFolders() {
     try {
@@ -144,6 +194,29 @@ export function LandingsListPage() {
               counts={folderCounts}
             />
             <div>
+              <ListFilterBar
+                query={query}
+                onQuery={(v) => setParam("q", v)}
+                placeholder="랜딩 제목·번호 검색"
+                selects={[
+                  {
+                    label: "상태",
+                    value: statusFilter,
+                    onChange: (v) => setParam("status", v),
+                    options: [
+                      { value: "", label: "전체 상태" },
+                      { value: "published", label: "공개" },
+                      { value: "draft", label: "비공개" },
+                    ],
+                  },
+                ]}
+                sort={sort}
+                onSort={(v) => setParam("sort", v === "updated" ? "" : v)}
+                sorts={LANDING_SORTS}
+                shown={filtered.length}
+                total={inFolder.length}
+                onReset={resetFilters}
+              />
               {sel.count > 0 && (
                 <div className="il-bulk" style={{ paddingBottom: 10 }}>
                   <span className="bulk-count">{sel.count}개 선택</span>
@@ -153,7 +226,11 @@ export function LandingsListPage() {
               )}
               {filtered.length === 0 ? (
                 <div className="card card-pad empty-state">
-                  <p>이 폴더에는 랜딩이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요.</p>
+                  <p>
+                    {inFolder.length > 0
+                      ? "조건에 맞는 랜딩이 없습니다."
+                      : "이 폴더에는 랜딩이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요."}
+                  </p>
                 </div>
               ) : (
                 <>

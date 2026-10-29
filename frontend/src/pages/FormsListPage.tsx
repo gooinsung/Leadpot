@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { deleteForm, duplicateForm, listFolders, listForms, moveFormFolder, type FolderItem, type FormSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
@@ -10,6 +10,10 @@ import { FolderTree, type FolderSelection } from "../components/FolderTree";
 import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/RevenuePeriod";
 import { RowMenu } from "../components/RowMenu";
 import { fmtShortDateTime } from "../lib/format";
+import { ListFilterBar } from "../components/ListFilterBar";
+import { matchesQuery, parseSort, sortList, type ListSort } from "../lib/listFilter";
+
+const FORM_SORTS: ListSort[] = ["updated", "created", "name", "revenue", "oldest"];
 
 export function FormsListPage() {
   const navigate = useNavigate();
@@ -25,17 +29,68 @@ export function FormsListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const filtered = useMemo(() => {
+  // 검색·필터·정렬은 주소(?q=&type=&cat=&sort=)에 둔다 — 편집하고 뒤로 와도 조건이 그대로 남는다.
+  const [params, setParams] = useSearchParams();
+  const query = params.get("q") ?? "";
+  const typeFilter = params.get("type") ?? "";
+  const catFilter = params.get("cat") ?? "";
+  const sort = parseSort(params.get("sort"));
+  function setParam(key: string, value: string) {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
+  }
+  function resetFilters() {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        ["q", "type", "cat"].forEach((k) => next.delete(k));
+        return next;
+      },
+      { replace: true },
+    );
+  }
+  const categories = useMemo(
+    () => [...new Set(forms.map((f) => f.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b, "ko")),
+    [forms],
+  );
+
+  const inFolder = useMemo(() => {
     if (selectedFolder === null) return forms;
     if (selectedFolder === "unfiled") return forms.filter((f) => f.folderId == null);
     return forms.filter((f) => f.folderId === selectedFolder);
   }, [forms, selectedFolder]);
+  const filtered = useMemo(
+    () =>
+      sortList(
+        inFolder.filter(
+          (f) =>
+            matchesQuery(query, [f.name, f.category]) &&
+            (!typeFilter || f.formType === typeFilter) &&
+            (!catFilter || (catFilter === "-" ? !f.category : f.category === catFilter)),
+        ),
+        sort,
+        { name: (f) => f.name, revenue: (f) => revenue.byForm.get(f.id)?.revenue ?? 0 },
+      ),
+    [inFolder, query, typeFilter, catFilter, sort, revenue.byForm],
+  );
   const folderCounts = useMemo(() => {
     const c: Record<number, number> = {};
     for (const f of forms) if (f.folderId != null) c[f.folderId] = (c[f.folderId] ?? 0) + 1;
     return c;
   }, [forms]);
   const paging = usePaging(filtered, 10);
+  // 조건이 바뀌면 1쪽으로(개수가 같아도 — 정렬만 바꾼 경우)
+  const { setPage } = paging;
+  useEffect(() => {
+    setPage(1);
+  }, [query, typeFilter, catFilter, sort, selectedFolder, setPage]);
 
   async function loadFolders() {
     try {
@@ -148,6 +203,39 @@ export function FormsListPage() {
               counts={folderCounts}
             />
             <div>
+              <ListFilterBar
+                query={query}
+                onQuery={(v) => setParam("q", v)}
+                placeholder="리드폼 이름·분야 검색"
+                selects={[
+                  {
+                    label: "유형",
+                    value: typeFilter,
+                    onChange: (v) => setParam("type", v),
+                    options: [
+                      { value: "", label: "전체 유형" },
+                      { value: "BASIC", label: "기본형" },
+                      { value: "STEP", label: "스텝형" },
+                    ],
+                  },
+                  {
+                    label: "분야",
+                    value: catFilter,
+                    onChange: (v) => setParam("cat", v),
+                    options: [
+                      { value: "", label: "전체 분야" },
+                      ...categories.map((c) => ({ value: c, label: c })),
+                      { value: "-", label: "분야 없음" },
+                    ],
+                  },
+                ]}
+                sort={sort}
+                onSort={(v) => setParam("sort", v === "updated" ? "" : v)}
+                sorts={FORM_SORTS}
+                shown={filtered.length}
+                total={inFolder.length}
+                onReset={resetFilters}
+              />
               {sel.count > 0 && (
                 <div className="il-bulk" style={{ paddingBottom: 10 }}>
                   <span className="bulk-count">{sel.count}개 선택</span>
@@ -157,7 +245,11 @@ export function FormsListPage() {
               )}
               {filtered.length === 0 ? (
                 <div className="card card-pad empty-state">
-                  <p>이 폴더에는 리드폼이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요.</p>
+                  <p>
+                    {inFolder.length > 0
+                      ? "조건에 맞는 리드폼이 없습니다."
+                      : "이 폴더에는 리드폼이 없습니다. 목록 행을 드래그해서 여기로 옮겨보세요."}
+                  </p>
                 </div>
               ) : (
                 <>
