@@ -140,6 +140,33 @@
 .il-selects > a.btn {
   flex: none;
 }
+/* 리드폼 필터(SearchableSelect) — 다른 셀렉트와 같은 폭 규칙, 목록은 폼 이름이 잘리지 않게 넓게 */
+.il-selects .ss-root {
+  flex: 1 1 110px;
+  min-width: 110px;
+}
+.il-selects .ss-root .input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 28px;
+}
+.il-selects .ss-list {
+  right: auto;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(340px, calc(100vw - 32px));
+}
+.il-selects .ss-option {
+  font-size: 13px;
+}
+/* 모바일 — 칸이 좁아 넓힌 목록이 화면 밖으로 나간다. 칸 폭에 맞추고 긴 폼 이름은 줄바꿈 */
+@media (max-width: 640px) {
+  .il-selects .ss-list {
+    right: 0;
+    width: auto;
+    max-width: none;
+  }
+}
 /* 기간 직접 지정 줄 — 시작일 ~ 종료일 */
 .il-dates { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .il-dates .input {
