@@ -16,6 +16,7 @@ import {
 import { leadSource, sortUtmFacets, trackingKeyLabel, type UtmFacet } from "../lib/tracking";
 import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
+import { SearchableSelect } from "../components/SearchableSelect";
 import {
   leadStatusClass,
   leadStatusLabel as statusLabel,
@@ -331,19 +332,17 @@ export function LeadInboxPage() {
                   </option>
                 ))}
               </select>
-              <select
-                className="input"
-                value={formFilter ?? ""}
-                onChange={(e) => setFormFilter(e.target.value ? Number(e.target.value) : null)}
-                aria-label="리드폼 필터"
-              >
-                <option value="">모든 폼</option>
-                {(counts?.byForm ?? []).map((f) => (
-                  <option key={f.formId} value={f.formId}>
-                    {f.formName} {f.count}
-                  </option>
-                ))}
-              </select>
+              {/* 폼이 수십 개라 목록에서 찾기 어려워 검색되는 드롭다운으로(2026-10-30). 0 = '모든 폼'(폼 id 는 1부터). */}
+              <SearchableSelect
+                value={formFilter ?? 0}
+                onChange={(v) => setFormFilter(v ? v : null)}
+                options={[
+                  { value: 0, label: "모든 폼" },
+                  ...(counts?.byForm ?? []).map((f) => ({ value: f.formId, label: `${f.formName} ${f.count}` })),
+                ]}
+                placeholder="모든 폼"
+                ariaLabel="리드폼 필터"
+              />
               {/* 이 폼에 구글시트 연동이 켜져 있을 때만 — 은근히 자주 눌러서 매번 리드폼 편집까지 갈 필요 없게 */}
               {sheetUrl && (
                 <a className="btn btn-ghost btn-sm" href={sheetUrl} target="_blank" rel="noreferrer">

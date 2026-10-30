@@ -14,11 +14,13 @@ export function SearchableSelect({
   options,
   onChange,
   placeholder = "선택…",
+  ariaLabel,
 }: {
   value: number | null;
   options: SearchableOption[];
   onChange: (value: number | null) => void;
   placeholder?: string;
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -99,6 +101,7 @@ export function SearchableSelect({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-label={ariaLabel}
       />
       <span className="ss-caret" aria-hidden="true">▾</span>
       {open && (
