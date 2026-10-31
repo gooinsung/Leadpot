@@ -41,6 +41,7 @@ public class LeadService {
     private final LeadRepository leadRepository;
     private final LeadNoteRepository leadNoteRepository;
     private final FormService formService;
+    private final com.leadpot.landing.LandingPageRepository landingRepository;
     private final IpBlockService ipBlockService;
     private final SiteIpBlockService siteIpBlockService;
     private final NotificationService notificationService;
@@ -55,7 +56,8 @@ public class LeadService {
             com.leadpot.integration.OutboundWebhookService outboundWebhookService,
             SiteIpBlockService siteIpBlockService, LeadStatusService leadStatusService,
             CustomLeadStatusRepository customStatusRepository, LeadAsRequestService asRequestService,
-            com.leadpot.auth.UserRepository userRepository) {
+            com.leadpot.auth.UserRepository userRepository,
+            com.leadpot.landing.LandingPageRepository landingRepository) {
         this.leadRepository = leadRepository;
         this.leadNoteRepository = leadNoteRepository;
         this.formService = formService;
@@ -67,6 +69,7 @@ public class LeadService {
         this.customStatusRepository = customStatusRepository;
         this.asRequestService = asRequestService;
         this.userRepository = userRepository;
+        this.landingRepository = landingRepository;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -242,10 +245,35 @@ public class LeadService {
     public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
             String from, String to, String utmKey, String utmValue,
             boolean unseen, boolean today, Integer page, Integer size) {
-        // 1) 내 폼(formId → 이름)
+        return inbox(ownerId, status, q, formId, category, from, to, utmKey, utmValue, unseen, today, null, null, page, size);
+    }
+
+    /**
+     * 태그 필터 포함 — {@code tags} 는 리드폼·랜딩 태그(V46). 리드의 출처 리드폼 태그 + 들어온 랜딩 태그를 합쳐서 본다.
+     * {@code tagMode} "or" = 하나라도, 그 외 = 모두 포함(AND). 리드 자체 태그(leads.tags)와는 별개.
+     */
+    @Transactional(readOnly = true)
+    public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
+            String from, String to, String utmKey, String utmValue,
+            boolean unseen, boolean today, List<String> tags, String tagMode, Integer page, Integer size) {
+        // 1) 내 폼(formId → 이름, 태그)
         Map<Long, String> nameById = new LinkedHashMap<>();
+        Map<Long, List<String>> formTags = new LinkedHashMap<>();
         for (FormSummary f : formService.list(ownerId)) {
             nameById.put(f.id(), f.name());
+            formTags.put(f.id(), f.tags());
+        }
+        List<String> wantTags = tags == null ? List.of()
+                : tags.stream().filter(t -> t != null && !t.isBlank()).map(String::trim).distinct().toList();
+        boolean tagOr = "or".equalsIgnoreCase(tagMode);
+        // 랜딩 태그는 태그로 거를 때만 읽는다.
+        Map<Long, List<String>> landingTags = new java.util.HashMap<>();
+        if (!wantTags.isEmpty()) {
+            for (com.leadpot.landing.LandingPage lp : landingRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId)) {
+                if (lp.getTags() != null) {
+                    landingTags.put(lp.getId(), lp.getTags());
+                }
+            }
         }
         int pageSize = size == null || size <= 0 ? INBOX_DEFAULT_SIZE : Math.min(size, INBOX_MAX_SIZE);
         if (nameById.isEmpty()) {
@@ -336,6 +364,9 @@ public class LeadService {
             if (!needle.isEmpty() && !matchesQuery(l, needle)) {
                 continue;
             }
+            if (!wantTags.isEmpty() && !matchesContentTags(l, formTags, landingTags, wantTags, tagOr)) {
+                continue;
+            }
             scopedCount++;
             // 미확인 = 마케터가 아직 안 연 리드(V32). 상태(NEW)와 무관하다 —
             // 상태는 광고주도 바꾸므로 '내가 봤는가'의 근거가 될 수 없다.
@@ -366,6 +397,16 @@ public class LeadService {
 
         return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
                 new InboxResponse.Counts(scopedCount, unseenCount, todayCount, byForm, byCategory, byStatus, statusNames));
+    }
+
+    /** 리드의 출처 리드폼 태그 + 들어온 랜딩 태그를 합쳐 고른 태그와 맞는지(AND: 모두 · OR: 하나라도). */
+    static boolean matchesContentTags(Lead l, Map<Long, List<String>> formTags, Map<Long, List<String>> landingTags,
+            List<String> want, boolean or) {
+        java.util.Set<String> have = new java.util.HashSet<>(formTags.getOrDefault(l.getFormId(), List.of()));
+        if (l.getLandingPageId() != null) {
+            have.addAll(landingTags.getOrDefault(l.getLandingPageId(), List.of()));
+        }
+        return or ? want.stream().anyMatch(have::contains) : have.containsAll(want);
     }
 
     /** "C{id}" → id. 형식이 아니면 null. */

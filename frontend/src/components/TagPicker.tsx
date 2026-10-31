@@ -1,6 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { TagMode } from "../lib/listFilter";
 
-/** 태그 하나의 상태 — 여러 개를 골라 한 번에 달 때는 '일부만 달림'(some)이 생긴다. */
+/** 태그 묶음 검색 조건(리드폼·랜딩 공용 태그). */
+export interface TagFilterValue {
+  pool: string[];
+  selected: string[];
+  mode: TagMode;
+  onChange: (selected: string[], mode: TagMode) => void;
+}
+
+/** 태그 하나의 상태 — 체크 표시용(some: 일부만 달림, 지금은 쓰지 않지만 패널은 지원). */
 export type TagState = "all" | "some" | "none";
 
 /** 태그 최대 길이(백엔드 ContentTags.MAX_LENGTH 와 같게). */
@@ -211,46 +220,49 @@ export function TagEditor({
   );
 }
 
-/**
- * 목록에서 여러 개를 골라 태그 달기·떼기. 체크 상태는 고른 것 전체 기준(일부만 달렸으면 '−').
- * 체크하면 전부에 달고, 해제하면 전부에서 뗀다.
- */
-export function BulkTagButton<T extends { id: number; tags: string[] }>({
-  items,
-  pool,
-  update,
-  onDone,
-}: {
-  items: T[];
-  pool: string[];
-  update: (id: number, tags: string[]) => Promise<{ tags: string[] }>;
-  onDone: (changed: Map<number, string[]>, fail: number) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  function state(tag: string): TagState {
-    const n = items.filter((x) => x.tags.includes(tag)).length;
-    return n === 0 ? "none" : n === items.length ? "all" : "some";
-  }
-  async function toggle(tag: string, on: boolean) {
-    setBusy(true);
-    const changed = new Map<number, string[]>();
-    let fail = 0;
-    for (const x of items) {
-      const has = x.tags.includes(tag);
-      if (has === on) continue;
-      try {
-        const r = await update(x.id, on ? [...x.tags, tag] : x.tags.filter((t) => t !== tag));
-        changed.set(x.id, r.tags);
-      } catch {
-        fail++;
-      }
-    }
-    setBusy(false);
-    onDone(changed, fail);
+/** [태그 ▾] — 체크한 태그로 거르고, '모두 포함'(AND)·'하나라도'(OR)를 고른다. */
+export function TagFilterButton({ f, className = "input list-filter-select" }: { f: TagFilterValue; className?: string }) {
+  const n = f.selected.length;
+  function toggle(tag: string) {
+    f.onChange(f.selected.includes(tag) ? f.selected.filter((t) => t !== tag) : [...f.selected, tag], f.mode);
   }
   return (
-    <Popover button="태그 달기·떼기" buttonTitle="고른 항목에 태그를 한 번에 달거나 뗍니다">
-      <TagPanel pool={pool} state={state} onToggle={toggle} busy={busy} />
+    <Popover
+      button={n > 0 ? `태그 ${n} · ${f.mode === "and" ? "AND" : "OR"} ▾` : "태그 ▾"}
+      buttonClassName={`${className} list-filter-tags${n > 0 ? " on" : ""}`}
+      buttonTitle="태그로 거르기"
+    >
+      <div className="tag-panel">
+        <div className="tag-mode" role="radiogroup" aria-label="태그 검색 방식">
+          {(["and", "or"] as TagMode[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={f.mode === m}
+              className={f.mode === m ? "on" : ""}
+              onClick={() => f.onChange(f.selected, m)}
+            >
+              {m === "and" ? "모두 포함 (AND)" : "하나라도 (OR)"}
+            </button>
+          ))}
+        </div>
+        <ul className="tag-panel-list">
+          {f.pool.map((t) => (
+            <li key={t}>
+              <label>
+                <input type="checkbox" checked={f.selected.includes(t)} onChange={() => toggle(t)} />
+                <span>{t}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        {n > 0 && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => f.onChange([], f.mode)}>
+            태그 선택 해제
+          </button>
+        )}
+      </div>
     </Popover>
   );
 }

@@ -38,6 +38,8 @@ class InboxTest {
     private LeadRepository leadRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private com.leadpot.landing.LandingPageRepository landingRepository;
 
     private User owner;
     private Form formA;
@@ -181,6 +183,36 @@ class InboxTest {
         InboxResponse r = leadService.inbox(owner.getId(), null, null, null, null, null, null, null, null, false, 0, 25);
         assertThat(r.total()).isEqualTo(4); // 여전히 내 것 4건만
         assertThat(r.items()).noneSatisfy(i -> assertThat(i.formName()).isEqualTo("남의폼"));
+    }
+
+    @Test
+    @DisplayName("리드폼·랜딩 태그로 거른다 — 출처 폼 태그 + 들어온 랜딩 태그 합집합, AND/OR")
+    void filtersByContentTags() {
+        formA.setTags(List.of("이사"));
+        formRepository.save(formA);
+        com.leadpot.landing.LandingPage landing = new com.leadpot.landing.LandingPage(owner.getId(), "당근 랜딩", "dg-landing");
+        landing.setContent(List.of());
+        landing.setTags(List.of("당근"));
+        landingRepository.save(landing);
+        // formB 리드 하나가 '당근' 랜딩으로 들어왔다
+        Lead viaLanding = new Lead();
+        viaLanding.setFormId(formB.getId());
+        viaLanding.setLandingPageId(landing.getId());
+        viaLanding.setAnswers(List.of(Map.of("label", "이름", "value", "랜딩유입")));
+        leadRepository.save(viaLanding);
+
+        // AND 이사: formA 리드 3건
+        assertThat(leadService.inbox(owner.getId(), null, null, null, null, null, null, null, null, false, false,
+                List.of("이사"), null, 0, 25).total()).isEqualTo(3);
+        // OR 이사·당근: formA 3건 + 랜딩 유입 1건
+        assertThat(leadService.inbox(owner.getId(), null, null, null, null, null, null, null, null, false, false,
+                List.of("이사", "당근"), "or", 0, 25).total()).isEqualTo(4);
+        // AND 이사·당근: 둘 다 가진 리드 없음
+        assertThat(leadService.inbox(owner.getId(), null, null, null, null, null, null, null, null, false, false,
+                List.of("이사", "당근"), "and", 0, 25).total()).isZero();
+        // 태그 없이: 전체 5건
+        assertThat(leadService.inbox(owner.getId(), null, null, null, null, null, null, null, null, false, false,
+                null, null, 0, 25).total()).isEqualTo(5);
     }
 
     private User marketer(String email, String sub) {

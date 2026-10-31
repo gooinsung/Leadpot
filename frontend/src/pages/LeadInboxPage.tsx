@@ -17,6 +17,9 @@ import { leadSource, sortUtmFacets, trackingKeyLabel, type UtmFacet } from "../l
 import { TopBar } from "../components/TopBar";
 import { LeadSidePanel } from "../components/LeadSidePanel";
 import { SearchableSelect } from "../components/SearchableSelect";
+import { TagFilterButton } from "../components/TagPicker";
+import { useTagPool } from "../lib/useListTags";
+import type { TagMode } from "../lib/listFilter";
 import {
   leadStatusClass,
   leadStatusLabel as statusLabel,
@@ -61,6 +64,10 @@ export function LeadInboxPage() {
   const [formFilter, setFormFilter] = useState<number | null>(null);
   // 분야 필터(V34) — 폼에 지정한 업종 구분(개인회생 등)으로 거른다. "오늘 개인회생 전반" 용.
   const [categoryFilter, setCategoryFilter] = useState("");
+  // 리드폼·랜딩 태그(V46) 필터 — 여러 개 + 모두 포함(AND)/하나라도(OR). 리드의 출처 폼·랜딩 태그로 거른다.
+  const [tagSel, setTagSel] = useState<string[]>([]);
+  const [tagMode, setTagMode] = useState<TagMode>("and");
+  const tagPool = useTagPool();
   // 기간 — 시작일·종료일(YYYY-MM-DD, 빈 값 = 열린 끝). 프리셋은 두 칸을 채워주는 지름길일 뿐이다.
   const [rangePreset, setRangePreset] = useState<"all" | "7d" | "30d" | "custom">("all");
   const [fromDate, setFromDate] = useState("");
@@ -107,6 +114,8 @@ export function LeadInboxPage() {
         status: statusFilter || undefined,
         formId: formFilter ?? undefined,
         category: categoryFilter || undefined,
+        tags: tagSel,
+        tagMode,
         utmKey: utmKey || undefined,
         utmValue: utmValue || undefined,
         q: q.trim() || undefined,
@@ -120,7 +129,7 @@ export function LeadInboxPage() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, statusFilter, formFilter, categoryFilter, fromDate, toDate, utmKey, utmValue, q, page]);
+  }, [view, statusFilter, formFilter, categoryFilter, tagSel, tagMode, fromDate, toDate, utmKey, utmValue, q, page]);
 
   useEffect(() => {
     load();
@@ -162,7 +171,7 @@ export function LeadInboxPage() {
   // 필터가 바뀌면 1페이지로
   useEffect(() => {
     setPage(1);
-  }, [view, statusFilter, formFilter, categoryFilter, fromDate, toDate, utmKey, utmValue, q]);
+  }, [view, statusFilter, formFilter, categoryFilter, tagSel, tagMode, fromDate, toDate, utmKey, utmValue, q]);
 
   const counts = data?.counts;
   const items = data?.items ?? [];
@@ -183,6 +192,8 @@ export function LeadInboxPage() {
     setStatusFilter("");
     setFormFilter(null);
     setCategoryFilter("");
+    setTagSel([]);
+    setTagMode("and");
     setRangePreset("all");
     setFromDate("");
     setToDate("");
@@ -362,6 +373,21 @@ export function LeadInboxPage() {
                     <option key={c.name} value={c.name}>{c.name} {c.count}</option>
                   ))}
                 </select>
+              )}
+              {/* 리드폼·랜딩 태그 — 태그가 하나도 없으면 숨긴다 */}
+              {tagPool.pool.length > 0 && (
+                <TagFilterButton
+                  className="input"
+                  f={{
+                    pool: tagPool.pool,
+                    selected: tagSel,
+                    mode: tagMode,
+                    onChange: (sel, mode) => {
+                      setTagSel(sel);
+                      setTagMode(mode);
+                    },
+                  }}
+                />
               )}
               <select
                 className="input"
