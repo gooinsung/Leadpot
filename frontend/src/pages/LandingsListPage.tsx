@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { deleteLanding, duplicateLanding, listFolders, listLandings, moveLandingFolder, type FolderItem, type LandingSummary } from "../api/client";
+import { deleteLanding, duplicateLanding, listFolders, listLandings, moveLandingFolder, updateLandingTags, type FolderItem, type LandingSummary } from "../api/client";
 import { useAuth } from "../lib/authContext";
 import { publicSiteUrl } from "@leadpot/public-ui";
 import { TopBar } from "../components/TopBar";
@@ -14,7 +14,9 @@ import { RevenueCell, RevenueHeader, useRevenueByEntity } from "../components/Re
 import { RowMenu } from "../components/RowMenu";
 import { fmtShortDateTime } from "../lib/format";
 import { ListFilterBar } from "../components/ListFilterBar";
-import { matchesQuery, parseSort, sortList, type ListSort } from "../lib/listFilter";
+import { matchesQuery, matchesTags, parseSort, sortList, type ListSort } from "../lib/listFilter";
+import { BulkTagButton, TagEditor } from "../components/TagPicker";
+import { useTagFilterParams, useTagPool } from "../lib/useListTags";
 
 const LANDING_SORTS: ListSort[] = ["updated", "created", "name", "revenue", "oldest"];
 
@@ -40,6 +42,8 @@ export function LandingsListPage() {
   const query = params.get("q") ?? "";
   const statusFilter = params.get("status") ?? "";
   const sort = parseSort(params.get("sort"));
+  const tagFilter = useTagFilterParams(params, setParams);
+  const tagPool = useTagPool();
   function setParam(key: string, value: string) {
     setParams(
       (prev) => {
@@ -55,7 +59,7 @@ export function LandingsListPage() {
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        ["q", "status"].forEach((k) => next.delete(k));
+        ["q", "status", "tag", "tagMode"].forEach((k) => next.delete(k));
         return next;
       },
       { replace: true },
@@ -74,12 +78,13 @@ export function LandingsListPage() {
         inFolder.filter(
           (l) =>
             matchesQuery(query, [l.title, l.slug, l.id]) &&
+            matchesTags(l.tags, tagFilter.selected, tagFilter.mode) &&
             (!statusFilter || (statusFilter === "published" ? l.status === "published" : l.status !== "published")),
         ),
         sort,
         { name: (l) => l.title, revenue: (l) => revenue.byLanding.get(l.id)?.revenue ?? 0 },
       ),
-    [inFolder, query, statusFilter, sort, revenue.byLanding],
+    [inFolder, query, statusFilter, tagFilter.selected, tagFilter.mode, sort, revenue.byLanding],
   );
   const folderCounts = useMemo(() => {
     const c: Record<number, number> = {};
@@ -91,7 +96,7 @@ export function LandingsListPage() {
   const { setPage } = paging;
   useEffect(() => {
     setPage(1);
-  }, [query, statusFilter, sort, selectedFolder, setPage]);
+  }, [query, statusFilter, tagFilter.selected, tagFilter.mode, sort, selectedFolder, setPage]);
 
   async function loadFolders() {
     try {
@@ -126,6 +131,20 @@ export function LandingsListPage() {
     else toast.success(`${ok}개 랜딩을 삭제했습니다.`);
     sel.clear();
     load();
+  }
+
+  // 태그 — 체크할 때마다 바로 저장. 수정일 순서가 편집 중에 튀지 않게 목록의 태그만 바꾼다.
+  function applyTags(changed: Map<number, string[]>) {
+    setItems((xs) => xs.map((x) => (changed.has(x.id) ? { ...x, tags: changed.get(x.id)! } : x)));
+    tagPool.refresh();
+  }
+  async function saveTags(id: number, next: string[]) {
+    try {
+      const r = await updateLandingTags(id, next);
+      applyTags(new Map([[id, r.tags]]));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "태그 저장에 실패했습니다.");
+    }
   }
 
   async function load() {
@@ -210,6 +229,7 @@ export function LandingsListPage() {
                     ],
                   },
                 ]}
+                tagFilter={{ pool: tagPool.pool, selected: tagFilter.selected, mode: tagFilter.mode, onChange: tagFilter.set }}
                 sort={sort}
                 onSort={(v) => setParam("sort", v === "updated" ? "" : v)}
                 sorts={LANDING_SORTS}
@@ -220,6 +240,15 @@ export function LandingsListPage() {
               {sel.count > 0 && (
                 <div className="il-bulk" style={{ paddingBottom: 10 }}>
                   <span className="bulk-count">{sel.count}개 선택</span>
+                  <BulkTagButton
+                    items={items.filter((x) => sel.selected.has(x.id))}
+                    pool={tagPool.pool}
+                    update={updateLandingTags}
+                    onDone={(changed, fail) => {
+                      applyTags(changed);
+                      if (fail > 0) toast.error(`${fail}개는 태그 저장에 실패했습니다.`);
+                    }}
+                  />
                   <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 삭제</button>
                   <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
                 </div>
@@ -267,7 +296,12 @@ export function LandingsListPage() {
                             <td className="sel-col" onClick={(e) => e.stopPropagation()}>
                               <input type="checkbox" checked={sel.selected.has(l.id)} onChange={() => sel.toggle(l.id)} aria-label="선택" />
                             </td>
-                            <td className="list-title">{l.title}</td>
+                            <td className="list-title">
+                              {l.title}
+                              <div className="list-tags" onClick={(e) => e.stopPropagation()}>
+                                <TagEditor tags={l.tags ?? []} pool={tagPool.pool} save={(next) => saveTags(l.id, next)} />
+                              </div>
+                            </td>
                             <td className="num nowrap" data-label="주소">{sub ? `${sub}/…/${l.id}` : `…/${l.id}`}</td>
                             <td className="nowrap" data-label="상태"><span className={`pill ${l.status === "published" ? "g" : ""}`}>{l.status === "published" ? "공개" : "비공개"}</span></td>
                             <td className="num nowrap" data-label="수익"><RevenueCell row={revenue.byLanding.get(l.id)} /></td>

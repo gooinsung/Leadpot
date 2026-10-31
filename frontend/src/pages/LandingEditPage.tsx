@@ -15,6 +15,7 @@ import {
   listForms,
   moveLandingFolder,
   updateLanding,
+  updateLandingTags,
   type FormDetail,
   type FormSummary,
   type LandingBlock,
@@ -29,6 +30,8 @@ import { HtmlImageUploadButton } from "../components/HtmlImageUploadButton";
 import { useUnsavedGuard } from "../lib/useUnsavedGuard";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
+import { TagEditor } from "../components/TagPicker";
+import { useTagPool } from "../lib/useListTags";
 
 function newBlock(type: LandingBlockType, forms: FormSummary[]): LandingBlock {
   if (type === "IMAGE") return { type, url: "", alt: "" };
@@ -80,6 +83,9 @@ export function LandingEditPage() {
    * 그래서 서버 값을 그대로 읽어(`setGoogleAdsSafe`) 저장 때 되돌려보내기만 한다(값 보존).
    */
   const [googleAdsSafe, setGoogleAdsSafe] = useState(false);
+  // 자유 태그(V46) — 저장 버튼과 별개로 체크할 때마다 바로 저장된다(목록과 같은 동작). 새 랜딩은 저장 후에 단다.
+  const [tags, setTags] = useState<string[]>([]);
+  const tagPool = useTagPool();
   const [bgColor, setBgColor] = useState(""); // 랜딩페이지 전체 배경 컬러(V43). 빈 값 = 화이트(기본)
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
@@ -119,6 +125,7 @@ export function LandingEditPage() {
         setSlug(l.slug ?? "");
         setGoogleAdsSafe(!!l.googleAdsSafe);
         setBgColor(l.bgColor ?? "");
+        setTags(l.tags ?? []);
         setBlocks(l.content ?? []);
       })
       .catch(() => setError("랜딩을 불러오지 못했습니다."))
@@ -203,6 +210,24 @@ export function LandingEditPage() {
           <div>
             <p className="eyebrow">{isNew ? "새 랜딩" : "랜딩 편집"}</p>
             <input className="input form-name" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} />
+            {!isNew && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                <span className="dash-sub" style={{ fontSize: 12.5, flex: "none" }} title="태그는 체크하는 즉시 저장됩니다">태그</span>
+                <TagEditor
+                  tags={tags}
+                  pool={tagPool.pool}
+                  save={async (next) => {
+                    try {
+                      const r = await updateLandingTags(Number(id), next);
+                      setTags(r.tags);
+                      tagPool.refresh();
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "태그 저장에 실패했습니다.");
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
           <div className="edit-actions">
             {isNew && <FolderSelect kind="LANDING" value={newFolderId} onChange={setNewFolderId} />}
@@ -290,12 +315,26 @@ export function LandingEditPage() {
                     <>
                       <div className="field">
                         <label>연결할 리드폼</label>
-                        <SearchableSelect
-                          value={(b.formId as number) ?? null}
-                          options={formOptions}
-                          onChange={(v) => patch(i, { formId: v })}
-                          placeholder="리드폼 선택… (클릭해서 이름으로 검색)"
-                        />
+                        <div className="form-pick-row">
+                          <SearchableSelect
+                            value={(b.formId as number) ?? null}
+                            options={formOptions}
+                            onChange={(v) => patch(i, { formId: v })}
+                            placeholder="리드폼 선택… (클릭해서 이름으로 검색)"
+                          />
+                          {/* 연결한 리드폼 편집으로 바로 — 새 탭(이 랜딩의 저장 안 한 변경을 잃지 않게) */}
+                          {typeof b.formId === "number" && (
+                            <a
+                              className="btn btn-ghost btn-sm"
+                              href={`/forms/${b.formId}/edit`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="이 리드폼 편집 화면을 새 탭으로 엽니다"
+                            >
+                              리드폼 바로가기 ↗
+                            </a>
+                          )}
+                        </div>
                       </div>
                       <TriggerFields block={b} onPatch={(p) => patch(i, p)} fullscreenLabel="버튼 → 풀스크린 스텝 진행" />
                     </>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { LIST_SORT_LABEL, type ListSort } from "../lib/listFilter";
+import { LIST_SORT_LABEL, type ListSort, type TagMode } from "../lib/listFilter";
+import { Popover } from "./TagPicker";
 
 export interface ListFilterSelect {
   /** 접근성 라벨(화면에는 첫 옵션 '전체 …' 가 라벨 역할을 한다). */
@@ -8,6 +9,14 @@ export interface ListFilterSelect {
   onChange: (v: string) => void;
   /** 첫 항목은 '전체' (value ""). */
   options: { value: string; label: string }[];
+}
+
+/** 태그 묶음 검색(리드폼·랜딩 공용 태그). 후보가 없으면 버튼을 숨긴다. */
+export interface ListTagFilter {
+  pool: string[];
+  selected: string[];
+  mode: TagMode;
+  onChange: (selected: string[], mode: TagMode) => void;
 }
 
 /**
@@ -23,6 +32,7 @@ export function ListFilterBar({
   onQuery,
   placeholder,
   selects,
+  tagFilter,
   sort,
   onSort,
   sorts,
@@ -34,6 +44,7 @@ export function ListFilterBar({
   onQuery: (q: string) => void;
   placeholder: string;
   selects: ListFilterSelect[];
+  tagFilter?: ListTagFilter;
   sort: ListSort;
   onSort: (s: ListSort) => void;
   sorts: ListSort[];
@@ -54,7 +65,8 @@ export function ListFilterBar({
     if (e.key === "Enter") onQuery(e.currentTarget.value.trim());
   }
 
-  const active = query.trim() !== "" || selects.some((s) => s.value !== "");
+  const active =
+    query.trim() !== "" || selects.some((s) => s.value !== "") || (tagFilter?.selected.length ?? 0) > 0;
   return (
     <div className="list-filter">
       <div className="list-filter-search">
@@ -91,6 +103,7 @@ export function ListFilterBar({
           ))}
         </select>
       ))}
+      {tagFilter && tagFilter.pool.length > 0 && <TagFilterButton f={tagFilter} />}
       <select
         className="input list-filter-select"
         value={sort}
@@ -112,5 +125,52 @@ export function ListFilterBar({
         </span>
       )}
     </div>
+  );
+}
+
+/** [태그 ▾] — 체크한 태그로 거르고, '모두 포함'(AND)·'하나라도'(OR)를 고른다. */
+function TagFilterButton({ f }: { f: ListTagFilter }) {
+  const n = f.selected.length;
+  function toggle(tag: string) {
+    f.onChange(f.selected.includes(tag) ? f.selected.filter((t) => t !== tag) : [...f.selected, tag], f.mode);
+  }
+  return (
+    <Popover
+      button={n > 0 ? `태그 ${n} · ${f.mode === "and" ? "AND" : "OR"} ▾` : "태그 ▾"}
+      buttonClassName={`input list-filter-select list-filter-tags${n > 0 ? " on" : ""}`}
+      buttonTitle="태그로 거르기"
+    >
+      <div className="tag-panel">
+        <div className="tag-mode" role="radiogroup" aria-label="태그 검색 방식">
+          {(["and", "or"] as TagMode[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={f.mode === m}
+              className={f.mode === m ? "on" : ""}
+              onClick={() => f.onChange(f.selected, m)}
+            >
+              {m === "and" ? "모두 포함 (AND)" : "하나라도 (OR)"}
+            </button>
+          ))}
+        </div>
+        <ul className="tag-panel-list">
+          {f.pool.map((t) => (
+            <li key={t}>
+              <label>
+                <input type="checkbox" checked={f.selected.includes(t)} onChange={() => toggle(t)} />
+                <span>{t}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        {n > 0 && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => f.onChange([], f.mode)}>
+            태그 선택 해제
+          </button>
+        )}
+      </div>
+    </Popover>
   );
 }

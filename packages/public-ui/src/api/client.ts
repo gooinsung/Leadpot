@@ -153,6 +153,8 @@ export interface FormDetail extends FormInput {
   /** 유입 방식(V39, 읽기 전용) — 웹훅 설정 API(get/enable/disableWebhook)로만 바뀐다. */
   source: FormSource;
   requirePhoneVerification: boolean;
+  /** 자유 태그(V46) — 관리 응답에만 있다(공개 응답은 null). */
+  tags?: string[] | null;
   createdAt: string;
   updatedAt: string;
 }

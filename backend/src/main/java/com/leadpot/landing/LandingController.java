@@ -22,6 +22,8 @@ import com.leadpot.landing.dto.LandingResponse;
 import com.leadpot.landing.dto.LandingSummary;
 import com.leadpot.landing.dto.PublicLandingResponse;
 
+import com.leadpot.tag.TagsRequest;
+
 import jakarta.validation.Valid;
 
 /** 랜딩 관리 API (로그인 필요, 본인 것만 K5). */
@@ -80,6 +82,13 @@ public class LandingController {
     public LandingResponse moveFolder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestBody FolderAssignRequest request) {
         return landingService.moveFolder(userId(jwt), id, request.folderId());
+    }
+
+    /** 태그 교체 — 목록·편집 화면에서 바로 저장. */
+    @PatchMapping("/{id}/tags")
+    public LandingSummary updateTags(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestBody TagsRequest request) {
+        return landingService.updateTags(userId(jwt), id, request.tags());
     }
 
     private Long userId(Jwt jwt) {

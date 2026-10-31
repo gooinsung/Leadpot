@@ -26,13 +26,15 @@ public record FormResponse(
         Map<String, Object> settingsConfig,
         Map<String, Object> trackingConfig,
         Long folderId,
+        /** 자유 태그(V46) — 내부 정리용이라 공개 응답(publicOf)에는 null. */
+        List<String> tags,
         List<FormBlockDto> blocks,
         Instant createdAt,
         Instant updatedAt) {
 
     /** 소유자(마케터)용 — 운영 설정까지 그대로 담는다. */
     public static FormResponse from(Form form) {
-        return build(form, form.getSettingsConfig());
+        return build(form, form.getSettingsConfig(), form.getTags() == null ? List.of() : form.getTags());
     }
 
     /**
@@ -46,10 +48,10 @@ public record FormResponse(
      * consent/submit/success/type/style/tracking + blocks 뿐이다.
      */
     public static FormResponse publicOf(Form form) {
-        return build(form, null);
+        return build(form, null, null);
     }
 
-    private static FormResponse build(Form form, Map<String, Object> settingsConfig) {
+    private static FormResponse build(Form form, Map<String, Object> settingsConfig, List<String> tags) {
         List<FormBlockDto> blocks = form.getBlocks().stream().map(FormBlockDto::from).toList();
         return new FormResponse(
                 form.getId(),
@@ -66,6 +68,7 @@ public record FormResponse(
                 settingsConfig,
                 form.getTrackingConfig(),
                 form.getFolderId(),
+                tags,
                 blocks,
                 form.getCreatedAt(),
                 form.getUpdatedAt());

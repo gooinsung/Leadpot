@@ -8,6 +8,22 @@
 
 ## 📍 지금 위치
 
+- **✅ 리드폼·랜딩 '태그' + 랜딩 편집기 '리드폼 바로가기' (2026-10-31, 원격 세션, 사용자 지시)**:
+  - **태그**: 리드폼·랜딩에 자유 텍스트 태그(최대 20개·각 30자). DB `forms.tags`·`landing_pages.tags`(jsonb, V46).
+    후보 목록(체크박스)은 **리드폼·랜딩 공용** — 별도 테이블 없이 내 폼·랜딩에 달린 태그를 모아 `GET /api/content-tags`.
+    리드의 태그(`leads.tags`)와는 별개.
+  - 다는 곳: 목록 행의 [+ 태그]/[✎ 태그], 목록에서 여러 개 체크 → [태그 달기·떼기](일부만 달린 태그는 '−' 표시),
+    리드폼·랜딩 편집 화면 상단(기존 리드폼·랜딩만). **체크하는 즉시 저장**(`PATCH /api/forms|landings/{id}/tags`) — 저장 버튼과 별개.
+  - 검색: 목록 필터 줄 [태그 ▾] — 여러 개 체크 + **모두 포함(AND)/하나라도(OR)** 토글. 주소 `?tag=a&tag=b&tagMode=or` 에 남음.
+  - 복사(복제) 시 태그도 복사. 공개 폼 응답(publicOf)에는 태그를 넣지 않음.
+  - 태그를 바꾸면 백엔드 `updated_at` 도 바뀐다(폴더 이동과 같음) — 목록은 편집 중 순서가 튀지 않게 태그만 갱신하고, 새로고침하면 수정일 순서에 반영.
+  - **리드폼 바로가기**: 랜딩 편집기 리드폼 블록에서 '연결할 리드폼' 오른쪽 [리드폼 바로가기 ↗] — 새 탭으로 그 리드폼 편집(랜딩의 저장 안 한 변경 보호).
+  - 사용자가 **하지 않기로 한 것**: 리드폼·요소(HTML 조각) '사용처' 표시. 요소는 넣을 때 HTML 이 복사돼 출처 연결이 없음.
+  - 파일: 백엔드 `tag/`(ContentTags·ContentTagController·TagsRequest)·Form/LandingPage·Service·Controller·DTO·V46,
+    프론트 `TagPicker.tsx`·`useListTags.ts`·`listFilter.ts`(matchesTags)·ListFilterBar·Forms/LandingsListPage·Form/LandingEditPage·`folders.css`.
+  - 확인: tsc·oxlint·vitest(listFilter 12), Playwright(API 목킹)로 AND/OR 거르기·행 태그 추가·일괄 달기·바로가기 링크(1280·375px).
+  - 참고(기존 문제, 이번 변경 아님): 모바일 랜딩 편집기 블록 머리줄(이름칸·↑↓·삭제)이 375px 에서 가로로 넘친다.
+
 - **✅ 리드 인박스 '리드폼' 필터를 검색되는 드롭다운으로 (2026-10-30, 원격 세션, 사용자 지시)**:
   - 폼이 수십 개라 기본 select 에서 찾기 어려웠음 → 기존 `SearchableSelect`(랜딩 편집기 '연결할 리드폼'과 같은 것)로 교체.
     글자 치면 폼 이름으로 걸러지고 ↑↓·엔터·Esc 지원, 맨 위 '모든 폼'(값 0 → 필터 해제).

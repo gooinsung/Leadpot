@@ -1,6 +1,7 @@
 package com.leadpot.landing.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.leadpot.landing.LandingPage;
 
@@ -11,9 +12,12 @@ public record LandingSummary(
         String slug,
         String status,
         Long folderId,
+        /** 자유 태그(V46). 없으면 빈 배열. */
+        List<String> tags,
         Instant updatedAt) {
 
     public static LandingSummary from(LandingPage l) {
-        return new LandingSummary(l.getId(), l.getTitle(), l.getSlug(), l.getStatus(), l.getFolderId(), l.getUpdatedAt());
+        return new LandingSummary(l.getId(), l.getTitle(), l.getSlug(), l.getStatus(), l.getFolderId(),
+                l.getTags() == null ? List.of() : l.getTags(), l.getUpdatedAt());
     }
 }

@@ -27,6 +27,7 @@ import com.leadpot.form.dto.WebhookTokenResponse;
 import com.leadpot.ipblock.SiteIpBlockHit;
 import com.leadpot.ipblock.SiteIpBlockService;
 import com.leadpot.sms.SmsPermissions;
+import com.leadpot.tag.ContentTags;
 
 /** 리드폼 CRUD. 모든 조회/수정은 소유자(ownerId) 기준으로 제한한다(K5). */
 @Service
@@ -67,6 +68,14 @@ public class FormService {
         }
         form.setFolderId(folderId);
         return FormResponse.from(form);
+    }
+
+    /** 태그 교체(목록·편집 화면 공용). 목록 행을 그대로 갱신할 수 있게 요약을 돌려준다. */
+    @Transactional
+    public FormSummary updateTags(Long ownerId, Long id, List<String> tags) {
+        Form form = load(ownerId, id);
+        form.setTags(ContentTags.clean(tags));
+        return FormSummary.from(form);
     }
 
     @Transactional(readOnly = true)
@@ -167,6 +176,7 @@ public class FormService {
         copy.setSettingsConfig(sanitizeSmsSettings(ownerId, settings));
         copy.setTrackingConfig(JsonCopies.map(src.getTrackingConfig()));
         copy.setFolderId(src.getFolderId());
+        copy.setTags(src.getTags() == null ? null : new java.util.ArrayList<>(src.getTags()));
         copy.replaceBlocks(src.getBlocks().stream().map(FormService::copyBlock).toList());
         formRepository.save(copy);
         return FormResponse.from(copy);
