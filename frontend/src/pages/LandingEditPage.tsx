@@ -83,7 +83,7 @@ export function LandingEditPage() {
    * 그래서 서버 값을 그대로 읽어(`setGoogleAdsSafe`) 저장 때 되돌려보내기만 한다(값 보존).
    */
   const [googleAdsSafe, setGoogleAdsSafe] = useState(false);
-  // 자유 태그(V46) — 저장 버튼과 별개로 체크할 때마다 바로 저장된다(목록과 같은 동작). 새 랜딩은 저장 후에 단다.
+  // 자유 태그(V46) — 기존 랜딩은 체크할 때마다 바로 저장, 새 랜딩은 만들 때 함께 저장한다(목록에서는 보기·검색만).
   const [tags, setTags] = useState<string[]>([]);
   const tagPool = useTagPool();
   const [bgColor, setBgColor] = useState(""); // 랜딩페이지 전체 배경 컬러(V43). 빈 값 = 화이트(기본)
@@ -184,6 +184,11 @@ export function LandingEditPage() {
       const payload = { title, content: blocks, status, slug: slug.trim() || undefined, googleAdsSafe, bgColor: bgColor || undefined };
       if (isNew) {
         const created = await createLanding(payload);
+        if (tags.length > 0) {
+          await updateLandingTags(created.id, tags).catch(() =>
+            toast.error("랜딩은 만들었지만 태그를 저장하지 못했습니다. 편집 화면에서 다시 달아주세요."),
+          );
+        }
         if (newFolderId != null) {
           await moveLandingFolder(created.id, newFolderId).catch(() =>
             toast.error("랜딩은 만들었지만 폴더에 넣지 못했습니다. 목록에서 끌어다 옮겨주세요."),
@@ -210,24 +215,32 @@ export function LandingEditPage() {
           <div>
             <p className="eyebrow">{isNew ? "새 랜딩" : "랜딩 편집"}</p>
             <input className="input form-name" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} />
-            {!isNew && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-                <span className="dash-sub" style={{ fontSize: 12.5, flex: "none" }} title="태그는 체크하는 즉시 저장됩니다">태그</span>
-                <TagEditor
-                  tags={tags}
-                  pool={tagPool.pool}
-                  save={async (next) => {
-                    try {
-                      const r = await updateLandingTags(Number(id), next);
-                      setTags(r.tags);
-                      tagPool.refresh();
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : "태그 저장에 실패했습니다.");
-                    }
-                  }}
-                />
-              </div>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+              <span
+                className="dash-sub"
+                style={{ fontSize: 12.5, flex: "none" }}
+                title={isNew ? "랜딩을 만들 때 함께 저장됩니다" : "태그는 체크하는 즉시 저장됩니다"}
+              >
+                태그
+              </span>
+              <TagEditor
+                tags={tags}
+                pool={tagPool.pool}
+                save={async (next) => {
+                  if (isNew) {
+                    setTags(next);
+                    return;
+                  }
+                  try {
+                    const r = await updateLandingTags(Number(id), next);
+                    setTags(r.tags);
+                    tagPool.refresh();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "태그 저장에 실패했습니다.");
+                  }
+                }}
+              />
+            </div>
           </div>
           <div className="edit-actions">
             {isNew && <FolderSelect kind="LANDING" value={newFolderId} onChange={setNewFolderId} />}

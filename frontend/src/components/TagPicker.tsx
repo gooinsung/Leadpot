@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
-/** 태그 하나의 상태 — 여러 개를 골라 한 번에 달 때는 '일부만 달림'(some)이 생긴다. */
+/** 태그 하나의 상태 — 체크 표시용(some: 일부만 달림, 지금은 쓰지 않지만 패널은 지원). */
 export type TagState = "all" | "some" | "none";
 
 /** 태그 최대 길이(백엔드 ContentTags.MAX_LENGTH 와 같게). */
@@ -211,46 +211,3 @@ export function TagEditor({
   );
 }
 
-/**
- * 목록에서 여러 개를 골라 태그 달기·떼기. 체크 상태는 고른 것 전체 기준(일부만 달렸으면 '−').
- * 체크하면 전부에 달고, 해제하면 전부에서 뗀다.
- */
-export function BulkTagButton<T extends { id: number; tags: string[] }>({
-  items,
-  pool,
-  update,
-  onDone,
-}: {
-  items: T[];
-  pool: string[];
-  update: (id: number, tags: string[]) => Promise<{ tags: string[] }>;
-  onDone: (changed: Map<number, string[]>, fail: number) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  function state(tag: string): TagState {
-    const n = items.filter((x) => x.tags.includes(tag)).length;
-    return n === 0 ? "none" : n === items.length ? "all" : "some";
-  }
-  async function toggle(tag: string, on: boolean) {
-    setBusy(true);
-    const changed = new Map<number, string[]>();
-    let fail = 0;
-    for (const x of items) {
-      const has = x.tags.includes(tag);
-      if (has === on) continue;
-      try {
-        const r = await update(x.id, on ? [...x.tags, tag] : x.tags.filter((t) => t !== tag));
-        changed.set(x.id, r.tags);
-      } catch {
-        fail++;
-      }
-    }
-    setBusy(false);
-    onDone(changed, fail);
-  }
-  return (
-    <Popover button="태그 달기·떼기" buttonTitle="고른 항목에 태그를 한 번에 달거나 뗍니다">
-      <TagPanel pool={pool} state={state} onToggle={toggle} busy={busy} />
-    </Popover>
-  );
-}

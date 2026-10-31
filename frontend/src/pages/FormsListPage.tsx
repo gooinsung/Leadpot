@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { deleteForm, duplicateForm, listFolders, listForms, moveFormFolder, updateFormTags, type FolderItem, type FormSummary } from "../api/client";
+import { deleteForm, duplicateForm, listFolders, listForms, moveFormFolder, type FolderItem, type FormSummary } from "../api/client";
 import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
 import { Pagination, usePaging } from "../components/Pagination";
@@ -12,7 +12,7 @@ import { RowMenu } from "../components/RowMenu";
 import { fmtShortDateTime } from "../lib/format";
 import { ListFilterBar } from "../components/ListFilterBar";
 import { matchesQuery, matchesTags, parseSort, sortList, type ListSort } from "../lib/listFilter";
-import { BulkTagButton, TagEditor } from "../components/TagPicker";
+import { TagChips } from "../components/TagPicker";
 import { useTagFilterParams, useTagPool } from "../lib/useListTags";
 
 const FORM_SORTS: ListSort[] = ["updated", "created", "name", "revenue", "oldest"];
@@ -96,20 +96,6 @@ export function FormsListPage() {
   useEffect(() => {
     setPage(1);
   }, [query, typeFilter, catFilter, tagFilter.selected, tagFilter.mode, sort, selectedFolder, setPage]);
-
-  // 태그 — 체크할 때마다 바로 저장. 수정일 순서가 편집 중에 튀지 않게 목록의 태그만 바꾼다.
-  function applyTags(changed: Map<number, string[]>) {
-    setForms((xs) => xs.map((x) => (changed.has(x.id) ? { ...x, tags: changed.get(x.id)! } : x)));
-    tagPool.refresh();
-  }
-  async function saveTags(id: number, next: string[]) {
-    try {
-      const r = await updateFormTags(id, next);
-      applyTags(new Map([[id, r.tags]]));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "태그 저장에 실패했습니다.");
-    }
-  }
 
   async function loadFolders() {
     try {
@@ -259,15 +245,6 @@ export function FormsListPage() {
               {sel.count > 0 && (
                 <div className="il-bulk" style={{ paddingBottom: 10 }}>
                   <span className="bulk-count">{sel.count}개 선택</span>
-                  <BulkTagButton
-                    items={forms.filter((x) => sel.selected.has(x.id))}
-                    pool={tagPool.pool}
-                    update={updateFormTags}
-                    onDone={(changed, fail) => {
-                      applyTags(changed);
-                      if (fail > 0) toast.error(`${fail}개는 태그 저장에 실패했습니다.`);
-                    }}
-                  />
                   <button className="btn btn-ghost btn-sm danger" disabled={bulkBusy} onClick={onBulkDelete}>선택 삭제</button>
                   <button className="btn btn-ghost btn-sm" disabled={bulkBusy} onClick={sel.clear}>해제</button>
                 </div>
@@ -321,9 +298,11 @@ export function FormsListPage() {
                             </td>
                             <td className="list-title">
                               {f.name}
-                              <div className="list-tags" onClick={(e) => e.stopPropagation()}>
-                                <TagEditor tags={f.tags ?? []} pool={tagPool.pool} save={(next) => saveTags(f.id, next)} />
-                              </div>
+                              {(f.tags ?? []).length > 0 && (
+                                <div className="list-tags">
+                                  <TagChips tags={f.tags} />
+                                </div>
+                              )}
                             </td>
                             <td className="nowrap" data-label="분야">{f.category ? <span className="pill">{f.category}</span> : <span className="dash-sub">—</span>}</td>
                             <td className="nowrap" data-label="유형">

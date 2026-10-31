@@ -313,7 +313,7 @@ export function FormEditPage() {
   const [category, setCategory] = useState("");
   /** 리드당 가치(원) — 숫자만(쉼표 없이) 보관. 빈 문자열 = 미설정. 접수 순간 리드에 새겨져 수익 집계에 쓰인다(V44). */
   const [leadValue, setLeadValue] = useState("");
-  // 자유 태그(V46) — 저장 버튼과 별개로 체크할 때마다 바로 저장된다(목록과 같은 동작). 새 리드폼은 저장 후에 단다.
+  // 자유 태그(V46) — 기존 리드폼은 체크할 때마다 바로 저장, 새 리드폼은 만들 때 함께 저장한다(목록에서는 보기·검색만).
   const [tags, setTags] = useState<string[]>([]);
   const tagPool = useTagPool();
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]); // 내 폼들의 기존 분야(datalist)
@@ -836,6 +836,11 @@ export function FormEditPage() {
     try {
       if (isNew) {
         const created = await createForm(formData);
+        if (tags.length > 0) {
+          await updateFormTags(created.id, tags).catch(() =>
+            toast.error("리드폼은 만들었지만 태그를 저장하지 못했습니다. 편집 화면에서 다시 달아주세요."),
+          );
+        }
         if (newFolderId != null) {
           await moveFormFolder(created.id, newFolderId).catch(() =>
             toast.error("리드폼은 만들었지만 폴더에 넣지 못했습니다. 목록에서 끌어다 옮겨주세요."),
@@ -917,24 +922,30 @@ export function FormEditPage() {
                 title="리드 1건의 가치(원). 이 리드폼으로 리드가 접수될 때마다 이 금액이 수익으로 잡힙니다(통계·대시보드). 나중에 바꿔도 이미 들어온 리드의 수익은 그대로입니다."
               />
               <span className="dash-sub" style={{ fontSize: 12.5, flex: "none" }}>원</span>
-              {!isNew && (
-                <>
-                  <span className="dash-sub" style={{ fontSize: 12.5, flex: "none", marginLeft: 8 }} title="태그는 체크하는 즉시 저장됩니다">태그</span>
-                  <TagEditor
-                    tags={tags}
-                    pool={tagPool.pool}
-                    save={async (next) => {
-                      try {
-                        const r = await updateFormTags(Number(id), next);
-                        setTags(r.tags);
-                        tagPool.refresh();
-                      } catch (e) {
-                        toast.error(e instanceof Error ? e.message : "태그 저장에 실패했습니다.");
-                      }
-                    }}
-                  />
-                </>
-              )}
+              <span
+                className="dash-sub"
+                style={{ fontSize: 12.5, flex: "none", marginLeft: 8 }}
+                title={isNew ? "리드폼을 만들 때 함께 저장됩니다" : "태그는 체크하는 즉시 저장됩니다"}
+              >
+                태그
+              </span>
+              <TagEditor
+                tags={tags}
+                pool={tagPool.pool}
+                save={async (next) => {
+                  if (isNew) {
+                    setTags(next);
+                    return;
+                  }
+                  try {
+                    const r = await updateFormTags(Number(id), next);
+                    setTags(r.tags);
+                    tagPool.refresh();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "태그 저장에 실패했습니다.");
+                  }
+                }}
+              />
             </div>
           </div>
           <div className="edit-actions">
