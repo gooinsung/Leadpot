@@ -82,9 +82,12 @@ public class LeadController {
             @RequestParam(required = false) String utmValue,
             @RequestParam(required = false, defaultValue = "false") boolean unseen,
             @RequestParam(required = false, defaultValue = "false") boolean today,
+            @RequestParam(name = "tag", required = false) List<String> tags,
+            @RequestParam(required = false) String tagMode,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        return leadService.inbox(userId(jwt), status, q, formId, category, from, to, utmKey, utmValue, unseen, today, page, size);
+        return leadService.inbox(userId(jwt), status, q, formId, category, from, to, utmKey, utmValue, unseen, today,
+                tags, tagMode, page, size);
     }
 
     /** 리드 단건 상세(본인 리드폼만). */

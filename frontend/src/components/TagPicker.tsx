@@ -1,4 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { TagMode } from "../lib/listFilter";
+
+/** 태그 묶음 검색 조건(리드폼·랜딩 공용 태그). */
+export interface TagFilterValue {
+  pool: string[];
+  selected: string[];
+  mode: TagMode;
+  onChange: (selected: string[], mode: TagMode) => void;
+}
 
 /** 태그 하나의 상태 — 체크 표시용(some: 일부만 달림, 지금은 쓰지 않지만 패널은 지원). */
 export type TagState = "all" | "some" | "none";
@@ -211,3 +220,49 @@ export function TagEditor({
   );
 }
 
+/** [태그 ▾] — 체크한 태그로 거르고, '모두 포함'(AND)·'하나라도'(OR)를 고른다. */
+export function TagFilterButton({ f, className = "input list-filter-select" }: { f: TagFilterValue; className?: string }) {
+  const n = f.selected.length;
+  function toggle(tag: string) {
+    f.onChange(f.selected.includes(tag) ? f.selected.filter((t) => t !== tag) : [...f.selected, tag], f.mode);
+  }
+  return (
+    <Popover
+      button={n > 0 ? `태그 ${n} · ${f.mode === "and" ? "AND" : "OR"} ▾` : "태그 ▾"}
+      buttonClassName={`${className} list-filter-tags${n > 0 ? " on" : ""}`}
+      buttonTitle="태그로 거르기"
+    >
+      <div className="tag-panel">
+        <div className="tag-mode" role="radiogroup" aria-label="태그 검색 방식">
+          {(["and", "or"] as TagMode[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={f.mode === m}
+              className={f.mode === m ? "on" : ""}
+              onClick={() => f.onChange(f.selected, m)}
+            >
+              {m === "and" ? "모두 포함 (AND)" : "하나라도 (OR)"}
+            </button>
+          ))}
+        </div>
+        <ul className="tag-panel-list">
+          {f.pool.map((t) => (
+            <li key={t}>
+              <label>
+                <input type="checkbox" checked={f.selected.includes(t)} onChange={() => toggle(t)} />
+                <span>{t}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        {n > 0 && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => f.onChange([], f.mode)}>
+            태그 선택 해제
+          </button>
+        )}
+      </div>
+    </Popover>
+  );
+}

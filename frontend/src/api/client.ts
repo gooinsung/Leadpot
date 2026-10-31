@@ -577,6 +577,10 @@ export interface InboxFilter {
   unseen?: boolean;
   /** '오늘' 보기 — from/to 기간 안에서 오늘 접수분만. */
   today?: boolean;
+  /** 리드폼·랜딩 태그(V46) — 출처 리드폼 + 들어온 랜딩 태그 기준. */
+  tags?: string[];
+  /** and(기본) = 모두 포함 · or = 하나라도. */
+  tagMode?: "and" | "or";
   page?: number;
   size?: number;
 }
@@ -634,6 +638,8 @@ export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {
   }
   if (filter.unseen) p.set("unseen", "true");
   if (filter.today) p.set("today", "true");
+  (filter.tags ?? []).forEach((t) => p.append("tag", t));
+  if (filter.tags?.length && filter.tagMode === "or") p.set("tagMode", "or");
   if (filter.page != null) p.set("page", String(filter.page));
   if (filter.size != null) p.set("size", String(filter.size));
   const qs = p.toString();
