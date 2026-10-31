@@ -59,6 +59,7 @@ import {
   resolveTextBlockStyle,
   type CalculatorDef,
   ADDRESS_TOKENS,
+  buttonChoiceLayout,
 } from "@leadpot/public-ui";
 
 /**
@@ -209,6 +210,9 @@ interface StepData {
   maxNumber?: string;
   /** 주소 유형 — 지번 주소로 저장. */
   jibun?: boolean;
+  /** '버튼 선택' — 다중 선택 여부 / 정렬("horizontal"|"vertical"). */
+  multiple?: boolean;
+  layout?: string;
   /**
    * 서버가 발급한 불변 변수키. 스텝형은 저장할 때 CHOICE 블록을 이 상태에서 새로 조립하므로,
    * 여기에 들고 있지 않으면 저장마다 키가 새로 발급되어 메시지 템플릿이 깨진다.
@@ -519,6 +523,8 @@ export function FormEditPage() {
               minNumber: (b.content?.minNumber as string) || "",
               maxNumber: (b.content?.maxNumber as string) || "",
               jibun: b.content?.jibun === true,
+              multiple: b.content?.multiple === true,
+              layout: buttonChoiceLayout(b.content?.layout),
               calcInput: (b.content?.calcInput as string) || null,
             })),
           );
@@ -703,6 +709,8 @@ export function FormEditPage() {
               minNumber: s.answerType === "number" ? s.minNumber || "" : "",
               maxNumber: s.answerType === "number" ? s.maxNumber || "" : "",
               jibun: isAddressType(s.answerType) && s.jibun === true,
+              multiple: s.answerType === "button_choice" && s.multiple === true,
+              layout: s.answerType === "button_choice" ? buttonChoiceLayout(s.layout) : "",
               // 계산기 입력 표시 — 공개 폼이 이 키로 답을 모아 계산한다(단계 순서를 바꿔도 안 깨진다).
               calcInput: s.calcInput ?? null,
             },
@@ -1104,6 +1112,9 @@ export function FormEditPage() {
                       {OPTION_ANSWER_TYPES.includes(s.answerType) ? (
                         <>
                           {s.answerType === "radio_group" && <GroupRowsEditor rows={s.rows ?? []} onChange={(rows) => patchStep(i, { rows })} />}
+                          {s.answerType === "button_choice" && (
+                            <FieldTypeExtras type={s.answerType} values={{ multiple: s.multiple, layout: s.layout }} onChange={(p) => patchStep(i, p)} />
+                          )}
                           <label className="mini-label">선택지{s.answerType === "radio_group" ? " (모든 질문에 공통)" : ""}</label>
                           {s.options.map((o, oi) => (
                             <div className="opt-row" key={oi}>
@@ -2068,15 +2079,45 @@ function isAddressType(t: string | null | undefined): boolean {
   return t === "address" || t === "address_detail";
 }
 
-type FieldExtraValues = { minDate?: string; maxDate?: string; minNumber?: string; maxNumber?: string; jibun?: boolean };
+type FieldExtraValues = {
+  minDate?: string;
+  maxDate?: string;
+  minNumber?: string;
+  maxNumber?: string;
+  jibun?: boolean;
+  multiple?: boolean;
+  layout?: string;
+};
 
 /**
  * 유형별 추가 설정 — 기본형 항목(options)·스텝형 질문(content) 이 함께 쓴다.
  *  - 날짜: 선택 가능한 최소·최대 날짜(고정 날짜 또는 오늘 기준 N일 후). 사용자 지시 2026-10-15.
  *  - 숫자: 입력 가능한 최소·최대값(비면 제한 없음). 사용자 지시 2026-10-26.
  *  - 주소: 지번 주소로 저장. 사용자 지시 2026-10-15.
+ *  - 버튼 선택: 단일/다중 · 가로/세로 정렬. 사용자 지시 2026-10-31.
  */
 function FieldTypeExtras({ type, values, onChange }: { type: string; values: FieldExtraValues; onChange: (p: FieldExtraValues) => void }) {
+  if (type === "button_choice") {
+    const layout = buttonChoiceLayout(values.layout);
+    return (
+      <div className="block-row" style={{ flexWrap: "wrap", marginTop: 10 }}>
+        <div className="field" style={{ flex: 1, minWidth: 160 }}>
+          <label>선택 방식</label>
+          <select className="input" value={values.multiple ? "multi" : "single"} onChange={(e) => onChange({ multiple: e.target.value === "multi" })}>
+            <option value="single">단일 선택 (하나만)</option>
+            <option value="multi">다중 선택 (여러 개)</option>
+          </select>
+        </div>
+        <div className="field" style={{ flex: 1, minWidth: 160 }}>
+          <label>정렬</label>
+          <select className="input" value={layout} onChange={(e) => onChange({ layout: e.target.value })}>
+            <option value="horizontal">가로 정렬 (3개=한 줄 · 5개=3/2 · 7개=3/2/2)</option>
+            <option value="vertical">세로 정렬 (한 줄에 하나)</option>
+          </select>
+        </div>
+      </div>
+    );
+  }
   if (type === "date") {
     return (
       <div className="block-row" style={{ flexWrap: "wrap" }}>
@@ -2276,7 +2317,7 @@ function BlockFields({
             </label>
           </div>
           {/* 라디오·체크박스는 입력칸이 없어 플레이스홀더를 보여줄 자리가 없다. */}
-          {block.fieldType !== "radio" && block.fieldType !== "checkbox" && block.fieldType !== "radio_group" && (
+          {block.fieldType !== "radio" && block.fieldType !== "checkbox" && block.fieldType !== "radio_group" && block.fieldType !== "button_choice" && (
             <div className="field">
               <label>플레이스홀더</label>
               <input className="input" value={block.placeholder ?? ""} onChange={(e) => onPatch({ placeholder: e.target.value })} />
@@ -2316,6 +2357,8 @@ function BlockFields({
               minNumber: block.options?.minNumber as string | undefined,
               maxNumber: block.options?.maxNumber as string | undefined,
               jibun: block.options?.jibun === true,
+              multiple: block.options?.multiple === true,
+              layout: block.options?.layout as string | undefined,
             }}
             onChange={(p) => onPatch({ options: { ...(block.options ?? {}), ...p } })}
           />

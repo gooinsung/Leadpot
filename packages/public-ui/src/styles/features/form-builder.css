@@ -780,3 +780,42 @@
   }
 }
 
+
+/* ── 입력 항목 '버튼 선택'(button_choice) — 선택지를 큰 버튼으로 펼친다(사용자 지시 2026-10-31).
+   줄 나누기는 컴포넌트가 줄마다 grid 열 수를 정한다(3개 이하 한 줄 · 홀수 3/2/2 · 짝수 2/2, 세로는 한 줄에 하나).
+   모바일 우선: 탭 타깃 52px 이상, 긴 문구는 줄바꿈. 고른 버튼의 색은 인라인(리드폼 포인트 색). */
+.fr-btnchoice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 6px 0 4px;
+}
+.fr-btnchoice-row {
+  display: grid;
+  gap: 10px;
+}
+.fr-btnchoice-opt {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  min-height: 56px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1.3;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fr-btnchoice-opt.sel {
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(10, 12, 20, 0.14);
+}
+.fr-btnchoice-opt:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}

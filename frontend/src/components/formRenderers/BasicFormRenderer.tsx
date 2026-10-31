@@ -2,6 +2,9 @@ import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
 import {
   AddressInput,
+  ButtonChoiceInput,
+  buttonChoiceLayout,
+  isMultiPick,
   FormTextBlock,
   HtmlBlock,
   PhoneInput3,
@@ -100,6 +103,14 @@ export function FieldView({ block, accent, bare }: { block: FormBlock; accent: s
             <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>
           ))}
         </select>
+      ) : type === "button_choice" ? (
+        <ButtonChoiceInput
+          choices={choices}
+          picked={typeof di === "number" && choices[di] != null ? [di] : []}
+          multiple={isMultiPick(block)}
+          layout={buttonChoiceLayout(block.options?.layout)}
+          accent={accent}
+        />
       ) : type === "radio" || type === "checkbox" ? (
         <div className="sfr-list">
           {choices.map((c, i) => (

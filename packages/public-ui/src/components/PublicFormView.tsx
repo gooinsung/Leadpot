@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { HtmlBlock } from "./HtmlBlock";
 import { SubmitCtaButton } from "./LandingCtaButton";
+import { ButtonChoiceInput } from "./ButtonChoiceInput";
 import {
   ApiError,
   submitLead,
@@ -24,6 +25,8 @@ import {
   groupRows,
   isCardAnswerType,
   isListField,
+  isMultiPick,
+  buttonChoiceLayout,
   parsePicked,
   stepAnswerType,
 } from "../lib/fieldTypes";
@@ -360,9 +363,10 @@ function LiveBlock(props: LiveFieldProps) {
 function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps) {
   const type = block.fieldType || "text";
   const picked = isListField(type) ? parsePicked(value) : [];
-  /** 라디오는 하나만, 체크박스는 여러 개 — 이미 고른 체크박스를 누르면 해제한다. */
+  const multi = isMultiPick(block);
+  /** 라디오(·단일 버튼 선택)는 하나만, 체크박스(·다중 버튼 선택)는 여러 개 — 이미 고른 걸 누르면 해제한다. */
   function pick(ci: number) {
-    const next = type === "checkbox" ? (picked.includes(ci) ? picked.filter((x) => x !== ci) : [...picked, ci]) : [ci];
+    const next = multi ? (picked.includes(ci) ? picked.filter((x) => x !== ci) : [...picked, ci]) : [ci];
     onChange(next.join(","));
   }
   const choices = (block.options?.choices as string[]) ?? [];
@@ -384,6 +388,16 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
           <option value="">{block.placeholder || "선택하세요"}</option>
           {choices.map((c, i) => <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>)}
         </select>
+      ) : type === "button_choice" ? (
+        <ButtonChoiceInput
+          id={`fld-${idx}`}
+          choices={choices}
+          picked={picked}
+          multiple={multi}
+          layout={buttonChoiceLayout(block.options?.layout)}
+          accent={accent}
+          onPick={pick}
+        />
       ) : isListField(type) ? (
         <div className="sfr-list" id={`fld-${idx}`} role={type === "radio" ? "radiogroup" : "group"}>
           {choices.map((c, i) => (
@@ -598,7 +612,8 @@ function StepFlow(props: {
                     setStepError("");
                     setVal(`s${step}`, v);
                     // 라디오는 단일 카드처럼 고르면 바로 다음 단계로 넘어간다.
-                    if (answerType === "radio") scheduleAdvance();
+                    // 단일 '버튼 선택'도 마찬가지(다중은 여러 개 고를 수 있어야 하므로 넘기지 않는다).
+                    if (answerType === "radio" || (answerType === "button_choice" && b.content?.multiple !== true)) scheduleAdvance();
                   }}
                   accent={style.accentColor}
                 />

@@ -23,11 +23,44 @@ export const INPUT_FIELD_TYPES: readonly { value: string; label: string }[] = [
   { value: "select", label: "선택박스" },
   { value: "radio", label: "라디오버튼 (단일 선택)" },
   { value: "checkbox", label: "체크박스 (중복 선택)" },
+  { value: "button_choice", label: "버튼 선택 (단일/다중 · 가로/세로 정렬)" },
   { value: "radio_group", label: "라디오 묶음 (여러 질문 · 같은 선택지)" },
 ];
 
 /** 선택지 목록이 필요한 입력 유형. */
-export const OPTION_FIELD_TYPES: readonly string[] = ["select", "radio", "checkbox", "radio_group"];
+export const OPTION_FIELD_TYPES: readonly string[] = ["select", "radio", "checkbox", "radio_group", "button_choice"];
+
+/**
+ * '버튼 선택' — 선택지를 큰 버튼(타일)으로 펼쳐 고른다(예: 이용타입 > [장기렌트] [자동차리스]). 사용자 지시 2026-10-31.
+ *  - `options.multiple`: true = 다중 선택, 아니면 단일 선택
+ *  - `options.layout`: "vertical" = 한 줄에 하나, 그 외 = 가로 정렬({@link buttonChoiceRows} 규칙)
+ * 값·접수 형식은 라디오·체크박스와 같다(선택지 인덱스 "0,2" → 접수 시 라벨/저장값) — {@link isListField} 에 포함.
+ */
+export type ButtonChoiceLayout = "horizontal" | "vertical";
+
+export function buttonChoiceLayout(v: unknown): ButtonChoiceLayout {
+  return v === "vertical" ? "vertical" : "horizontal";
+}
+
+/**
+ * 가로 정렬의 줄 나누기 — 한 줄 최대 3개, 모바일(≈375px)에서도 버튼이 너무 좁아지지 않게.
+ *  - 3개 이하: 한 줄 (1 · 2 · 3)
+ *  - 홀수: 첫 줄 3개 + 나머지 2개씩 (5 → 3/2, 7 → 3/2/2, 9 → 3/2/2/2)
+ *  - 짝수: 2개씩 (4 → 2/2, 6 → 2/2/2)
+ * 세로 정렬이면 한 줄에 하나.
+ */
+export function buttonChoiceRows(count: number, layout: ButtonChoiceLayout = "horizontal"): number[] {
+  if (count <= 0) return [];
+  if (layout === "vertical") return Array.from({ length: count }, () => 1);
+  if (count <= 3) return [count];
+  const rows: number[] = count % 2 === 1 ? [3] : [];
+  let rest = count - (count % 2 === 1 ? 3 : 0);
+  while (rest > 0) {
+    rows.push(2);
+    rest -= 2;
+  }
+  return rows;
+}
 
 /**
  * '라디오 묶음' — 한 항목 안에 여러 질문(options.rows)을 두고, 질문마다 같은 선택지(options.choices)를
@@ -68,7 +101,12 @@ export function isCardAnswerType(t: string): boolean {
 
 /** 선택지를 펼쳐 보여주는 입력 유형(라디오=단일, 체크박스=중복). */
 export function isListField(fieldType: string | null | undefined): boolean {
-  return fieldType === "radio" || fieldType === "checkbox";
+  return fieldType === "radio" || fieldType === "checkbox" || fieldType === "button_choice";
+}
+
+/** 여러 개를 고를 수 있는 선택형인가 — 체크박스, 또는 '다중 선택'을 켠 버튼 선택. */
+export function isMultiPick(block: FormBlock): boolean {
+  return block.fieldType === "checkbox" || (block.fieldType === "button_choice" && block.options?.multiple === true);
 }
 
 /**
@@ -109,6 +147,8 @@ export function choiceAsField(block: FormBlock): FormBlock {
       minNumber: block.content?.minNumber,
       maxNumber: block.content?.maxNumber,
       jibun: block.content?.jibun,
+      multiple: block.content?.multiple,
+      layout: block.content?.layout,
     },
   };
 }
