@@ -12,7 +12,9 @@ export { PublicFormPageView } from "./components/PublicFormPageView";
 export { HtmlBlock } from "./components/HtmlBlock";
 export {
   LandingCtaButton,
+  SubmitCtaButton,
   CTA_BUTTON_EFFECTS,
+  CTA_FONT_SIZES,
   CTA_RADII,
   CTA_SIZES,
   CTA_TEXT_EFFECTS,

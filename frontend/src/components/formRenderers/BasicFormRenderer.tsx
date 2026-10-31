@@ -6,6 +6,7 @@ import {
   HtmlBlock,
   PhoneInput3,
   RadioGroupInput,
+  SubmitCtaButton,
   descEmphasisClass,
   fieldDefaultValue,
   groupRows,
@@ -26,13 +27,13 @@ export function BasicFormRenderer({ form }: { form: FormInput }) {
 
       <ConsentView config={form.consentConfig} accent={s.accentColor} />
 
-      <button
-        className="btn"
-        style={{ width: "100%", marginTop: 8, background: s.buttonColor, color: s.buttonText }}
-        type="button"
-      >
-        {submitLabel}
-      </button>
+      <SubmitCtaButton
+        styleConfig={form.styleConfig}
+        background={s.buttonColor}
+        color={s.buttonText}
+        style={{ width: "100%", marginTop: 8 }}
+        label={submitLabel}
+      />
     </div>
   );
 }

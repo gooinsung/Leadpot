@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { HtmlBlock } from "./HtmlBlock";
+import { SubmitCtaButton } from "./LandingCtaButton";
 import {
   ApiError,
   submitLead,
@@ -287,10 +288,15 @@ export function PublicFormView({
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
           {submitError && <p className="auth-error">{submitError}</p>}
-          <button className="btn" type="submit" disabled={submitting}
-            style={{ width: "100%", marginTop: 8, background: style.buttonColor, color: style.buttonText }}>
-            {submitting ? "제출 중…" : submitLabel}
-          </button>
+          <SubmitCtaButton
+            styleConfig={form.styleConfig}
+            type="submit"
+            disabled={submitting}
+            background={style.buttonColor}
+            color={style.buttonText}
+            style={{ width: "100%", marginTop: 8 }}
+            label={submitting ? "제출 중…" : submitLabel}
+          />
         </form>
       ) : (
         <StepFlow
@@ -302,7 +308,7 @@ export function PublicFormView({
           choices={choices} setChoices={setChoices}
           agreed={agreed} setAgreed={setAgreed}
           step={step} setStep={setStep}
-          style={style} submitLabel={submitLabel}
+          style={style} styleConfig={form.styleConfig} submitLabel={submitLabel}
           submitting={submitting} submitError={submitError}
           onSubmit={onSubmit}
           calcView={calcView}
@@ -436,6 +442,8 @@ function StepFlow(props: {
   step: number;
   setStep: (f: (s: number) => number) => void;
   style: ReturnType<typeof resolveStyle>;
+  /** 제출 버튼 꾸밈(btn* 키) — 리드폼 styleConfig 그대로. */
+  styleConfig: Record<string, unknown> | null | undefined;
   submitLabel: string;
   submitting: boolean;
   submitError: string;
@@ -450,7 +458,7 @@ function StepFlow(props: {
   /** 계산기가 있을 때 연락처 단계 진행 표시줄 라벨. */
   calcContactStepLabel: string;
 }) {
-  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcGate, calcPreGateLoading, calcContactStepLabel } = props;
+  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, styleConfig, submitLabel, submitting, submitError, onSubmit, calcView, calcGate, calcPreGateLoading, calcContactStepLabel } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
   /**
@@ -632,9 +640,15 @@ function StepFlow(props: {
       <div className="sfr-nav">
         {step > 0 && <button className="btn btn-ghost" type="button" onClick={goPrev}>이전</button>}
         {isContact ? (
-          <button className="btn" type="button" style={{ flex: 1, background: style.buttonColor, color: style.buttonText }} disabled={submitting} onClick={onSubmit}>
-            {submitting ? "제출 중…" : submitLabel}
-          </button>
+          <SubmitCtaButton
+            styleConfig={styleConfig}
+            disabled={submitting}
+            onClick={onSubmit}
+            background={style.buttonColor}
+            color={style.buttonText}
+            style={{ flex: 1 }}
+            label={submitting ? "제출 중…" : submitLabel}
+          />
         ) : (
           <button className="btn" type="button" style={{ flex: 1, background: style.accentColor, color: style.accentText }} onClick={goNext}>다음</button>
         )}

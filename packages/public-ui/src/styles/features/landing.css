@@ -211,7 +211,9 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-cta,
-  .landing-cta::after {
+  .landing-cta::after,
+  .fr-submit-cta,
+  .fr-submit-cta::after {
     animation: none !important;
   }
 }

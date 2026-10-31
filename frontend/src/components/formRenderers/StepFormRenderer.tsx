@@ -8,6 +8,7 @@ import {
   isCardAnswerType,
   stepAnswerType,
   resolveStyle,
+  SubmitCtaButton,
   resolveSubmitLabel,
   CalcGateView,
   CalcLoadingView,
@@ -156,9 +157,7 @@ export function StepFormRenderer({ form }: { form: FormInput }) {
           </button>
         )}
         {isContact ? (
-          <button className="btn" type="button" style={{ flex: 1, background: s.buttonColor, color: s.buttonText }}>
-            {submitLabel}
-          </button>
+          <SubmitCtaButton styleConfig={form.styleConfig} background={s.buttonColor} color={s.buttonText} style={{ flex: 1 }} label={submitLabel} />
         ) : (
           <button
             className="btn"

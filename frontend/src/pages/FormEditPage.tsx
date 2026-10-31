@@ -33,6 +33,7 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { WebhookLeadPanel } from "../components/WebhookLeadPanel";
+import { CtaStyleFields } from "../components/CtaStyleFields";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
 import {
@@ -344,6 +345,8 @@ export function FormEditPage() {
   const [submitLabel, setSubmitLabel] = useState(DEFAULT_SUBMIT_LABEL);
   const [buttonColor, setButtonColor] = useState("#12b886");
   const [accentColor, setAccentColor] = useState("#3a43c0");
+  /** 제출 버튼 꾸밈(글자 효과·움직임·크기·글자 크기·모서리·굵게·그림자) — styleConfig 의 btn* 키. */
+  const [submitDeco, setSubmitDeco] = useState<Record<string, unknown>>({});
   const [successMode, setSuccessMode] = useState<"message" | "redirect">("message");
   const [successTitle, setSuccessTitle] = useState("신청이 완료되었습니다");
   const [successMessage, setSuccessMessage] = useState("빠른 시일 내에 연락드리겠습니다.");
@@ -457,6 +460,7 @@ export function FormEditPage() {
         setSubmitLabel((f.submitButtonConfig?.label as string) || DEFAULT_SUBMIT_LABEL);
         setButtonColor((f.styleConfig?.buttonColor as string) || "#12b886");
         setAccentColor((f.styleConfig?.accentColor as string) || "#3a43c0");
+        setSubmitDeco(pickSubmitDeco(f.styleConfig));
         const sc = f.successConfig;
         setSuccessMode((sc?.mode as "message" | "redirect") || "message");
         setSuccessTitle((sc?.title as string) || "신청이 완료되었습니다");
@@ -800,7 +804,7 @@ export function FormEditPage() {
     consentConfig: { items: consentItems },
     submitButtonConfig: { label: submitLabel },
     successConfig: { mode: successMode, title: successTitle, message: successMessage, redirectUrl },
-    styleConfig: { buttonColor, accentColor },
+    styleConfig: { buttonColor, accentColor, ...submitDeco },
     typeConfig: { contactMessage, contactDescription },
     settingsConfig: {
       leadValue: leadValue ? Number(leadValue) : null,
@@ -1275,6 +1279,18 @@ export function FormEditPage() {
               <SectionHead title="디자인 · 색상" open={!collapsed.design} onToggle={() => toggleSection("design")} />
               <ColorField label="제출 버튼 색" value={buttonColor} onChange={setButtonColor} />
               <ColorField label="리드폼 포인트 색 (진행바·선택·강조)" value={accentColor} onChange={setAccentColor} />
+              <CtaStyleFields
+                block={submitDeco}
+                hideColors
+                onPatch={(p) =>
+                  setSubmitDeco((prev) => {
+                    const next = { ...prev, ...p };
+                    // undefined 는 '기본값'이므로 키째 지워 styleConfig 를 깔끔하게 유지한다.
+                    for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+                    return next;
+                  })
+                }
+              />
             </div>
 
             <div className="card card-pad" style={{ marginTop: 16 }} {...sec("success")}>
@@ -1819,6 +1835,13 @@ function blockTypeLabel(t: BlockType): string {
 }
 
 const COLOR_PRESETS = ["#12b886", "#3a43c0", "#f04452", "#f5a524", "#0ea5e9", "#14172a"];
+
+/** styleConfig 에서 제출 버튼 꾸밈 키(btn*)만 골라낸다 — 색(buttonColor·accentColor)은 따로 관리. */
+function pickSubmitDeco(sc: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(sc ?? {})) if (k.startsWith("btn") && v !== undefined && v !== null) out[k] = v;
+  return out;
+}
 
 /** 색상 선택 — 프리셋 스와치 + 커스텀 hex. */
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
