@@ -43,6 +43,7 @@ class LandingDuplicateTest {
         src.setGoogleAdsSafe(true);
         src.setBgColor("#fafafa");
         src.setFolderId(5L);
+        src.setTags(List.of("이사", "당근"));
         when(landingRepository.findByIdAndOwnerId(1L, 7L)).thenReturn(Optional.of(src));
 
         service.duplicate(7L, 1L);
@@ -58,6 +59,7 @@ class LandingDuplicateTest {
         assertNotSame(formBlock, copy.getContent().get(1));
         assertEquals(42, copy.getContent().get(1).get("formId"));
         assertEquals(Map.of("meta", "999"), copy.getTracking());
+        assertEquals(List.of("이사", "당근"), copy.getTags());
         assertTrue(copy.isGoogleAdsSafe());
         assertEquals("#fafafa", copy.getBgColor());
         assertEquals(5L, copy.getFolderId());

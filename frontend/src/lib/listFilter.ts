@@ -13,6 +13,16 @@ export function matchesQuery(query: string, fields: (string | number | null | un
   return fields.some((f) => f != null && norm(String(f)).includes(q));
 }
 
+/** 태그 묶음 검색 방식 — and: 고른 태그를 모두 가진 것 · or: 하나라도 가진 것. */
+export type TagMode = "and" | "or";
+
+/** 고른 태그가 없으면 true. */
+export function matchesTags(itemTags: string[] | null | undefined, selected: string[], mode: TagMode): boolean {
+  if (selected.length === 0) return true;
+  const have = new Set(itemTags ?? []);
+  return mode === "or" ? selected.some((t) => have.has(t)) : selected.every((t) => have.has(t));
+}
+
 export type ListSort = "updated" | "oldest" | "created" | "name" | "revenue";
 
 export const LIST_SORT_LABEL: Record<ListSort, string> = {

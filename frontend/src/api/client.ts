@@ -285,6 +285,8 @@ export interface FormSummary {
   blockCount: number;
   /** 정리용 폴더(V42). null = 미분류. */
   folderId: number | null;
+  /** 자유 태그(V46). 후보 목록은 랜딩과 공용. */
+  tags: string[];
   updatedAt: string;
 }
 
@@ -997,6 +999,8 @@ export interface LandingInput {
 }
 export interface LandingDetail extends LandingInput {
   id: number;
+  /** 자유 태그(V46). */
+  tags?: string[];
   slug: string;
   status: string;
   googleAdsSafe: boolean;
@@ -1010,10 +1014,27 @@ export interface LandingSummary {
   status: string;
   /** 정리용 폴더(V42). null = 미분류. */
   folderId: number | null;
+  /** 자유 태그(V46). 후보 목록은 리드폼과 공용. */
+  tags: string[];
   updatedAt: string;
 }
 export function listLandings(): Promise<LandingSummary[]> {
   return request<LandingSummary[]>("/api/landings");
+}
+
+/** 랜딩 태그 교체 — 목록 행 요약을 돌려준다. */
+export function updateLandingTags(id: number, tags: string[]): Promise<LandingSummary> {
+  return request<LandingSummary>(`/api/landings/${id}/tags`, { method: "PATCH", body: { tags } });
+}
+
+/** 리드폼 태그 교체 — 목록 행 요약을 돌려준다. */
+export function updateFormTags(id: number, tags: string[]): Promise<FormSummary> {
+  return request<FormSummary>(`/api/forms/${id}/tags`, { method: "PATCH", body: { tags } });
+}
+
+/** 태그 후보 — 내 리드폼·랜딩에 달린 태그 전체(가나다순, 폼·랜딩 공용). */
+export function listContentTags(): Promise<string[]> {
+  return request<string[]>("/api/content-tags");
 }
 
 /** 랜딩을 폴더로 옮긴다(드래그앤드롭). folderId 를 null 로 보내면 미분류로 되돌린다. */

@@ -21,6 +21,8 @@ import com.leadpot.form.dto.FormRequest;
 import com.leadpot.form.dto.FormResponse;
 import com.leadpot.form.dto.FormSummary;
 
+import com.leadpot.tag.TagsRequest;
+
 import jakarta.validation.Valid;
 
 /** 리드폼 관리 API (로그인 필요). 본인 소유 리드폼만 접근한다(K5). */
@@ -73,6 +75,13 @@ public class FormController {
     public FormResponse moveFolder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
             @RequestBody FolderAssignRequest request) {
         return formService.moveFolder(userId(jwt), id, request.folderId());
+    }
+
+    /** 태그 교체 — 목록·편집 화면에서 바로 저장. */
+    @PatchMapping("/{id}/tags")
+    public FormSummary updateTags(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @RequestBody TagsRequest request) {
+        return formService.updateTags(userId(jwt), id, request.tags());
     }
 
     private Long userId(Jwt jwt) {

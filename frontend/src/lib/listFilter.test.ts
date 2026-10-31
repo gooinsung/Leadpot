@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesQuery, parseSort, sortList } from "./listFilter";
+import { matchesQuery, matchesTags, parseSort, sortList } from "./listFilter";
 
 describe("matchesQuery", () => {
   it("빈 검색어는 모두 통과", () => {
@@ -45,5 +45,20 @@ describe("sortList", () => {
   it("모르는 정렬값은 최근 수정순", () => {
     expect(parseSort("xx")).toBe("updated");
     expect(parseSort(null)).toBe("updated");
+  });
+});
+
+describe("matchesTags", () => {
+  it("고른 태그가 없으면 모두 통과", () => {
+    expect(matchesTags(null, [], "and")).toBe(true);
+  });
+  it("and: 모두 가져야 통과", () => {
+    expect(matchesTags(["이사", "당근"], ["이사", "당근"], "and")).toBe(true);
+    expect(matchesTags(["이사"], ["이사", "당근"], "and")).toBe(false);
+  });
+  it("or: 하나라도 가지면 통과", () => {
+    expect(matchesTags(["이사"], ["이사", "당근"], "or")).toBe(true);
+    expect(matchesTags(["메타"], ["이사", "당근"], "or")).toBe(false);
+    expect(matchesTags(undefined, ["이사"], "or")).toBe(false);
   });
 });

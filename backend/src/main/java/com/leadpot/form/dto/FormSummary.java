@@ -1,6 +1,7 @@
 package com.leadpot.form.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.leadpot.form.Form;
 import com.leadpot.form.FormType;
@@ -14,6 +15,8 @@ public record FormSummary(
         FormType formType,
         int blockCount,
         Long folderId,
+        /** 자유 태그(V46). 없으면 빈 배열. */
+        List<String> tags,
         Instant updatedAt) {
 
     public static FormSummary from(Form form) {
@@ -24,6 +27,7 @@ public record FormSummary(
                 form.getFormType(),
                 form.getBlocks().size(),
                 form.getFolderId(),
+                form.getTags() == null ? List.of() : form.getTags(),
                 form.getUpdatedAt());
     }
 }

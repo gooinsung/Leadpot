@@ -57,6 +57,11 @@ public class LandingPage {
     @Column(name = "folder_id")
     private Long folderId;
 
+    /** 자유 태그(V46, 문자열 배열) — 목록 정리·검색용. 후보 목록은 리드폼·랜딩 공용. null = 없음. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column
+    private List<String> tags;
+
     /** 랜딩페이지 전체 배경 컬러(V43, hex). null/빈 값 = 화이트(기본). */
     @Column(name = "bg_color", length = 9)
     private String bgColor;
@@ -132,6 +137,14 @@ public class LandingPage {
 
     public void setGoogleAdsSafe(boolean googleAdsSafe) {
         this.googleAdsSafe = googleAdsSafe;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
     }
 
     public Long getFolderId() {

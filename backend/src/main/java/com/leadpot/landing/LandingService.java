@@ -29,6 +29,7 @@ import com.leadpot.ipblock.SiteIpBlockHit;
 import com.leadpot.ipblock.SiteIpBlockService;
 import com.leadpot.lead.Lead;
 import com.leadpot.lead.LeadRepository;
+import com.leadpot.tag.ContentTags;
 
 /** 랜딩 CRUD(본인만 K5) + 공개 렌더(FORM 블록의 리드폼 정의 함께 반환) + 동적 요소 실시간 집계. */
 @Service
@@ -168,6 +169,7 @@ public class LandingService {
         copy.setGoogleAdsSafe(src.isGoogleAdsSafe());
         copy.setBgColor(src.getBgColor());
         copy.setFolderId(src.getFolderId());
+        copy.setTags(src.getTags() == null ? null : new java.util.ArrayList<>(src.getTags()));
         landingRepository.save(copy);
         return LandingResponse.from(copy);
     }
@@ -242,6 +244,14 @@ public class LandingService {
     private LandingPage load(Long ownerId, Long id) {
         return landingRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new NotFoundException("랜딩을 찾을 수 없습니다."));
+    }
+
+    /** 태그 교체(목록·편집 화면 공용). 목록 행을 그대로 갱신할 수 있게 요약을 돌려준다. */
+    @Transactional
+    public LandingSummary updateTags(Long ownerId, Long id, List<String> tags) {
+        LandingPage landing = load(ownerId, id);
+        landing.setTags(ContentTags.clean(tags));
+        return LandingSummary.from(landing);
     }
 
     /** 폴더로 옮기기(드래그앤드롭). folderId 가 null 이면 미분류로 되돌린다. */

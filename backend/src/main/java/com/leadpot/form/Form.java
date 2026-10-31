@@ -111,6 +111,11 @@ public class Form {
     @Column(name = "folder_id")
     private Long folderId;
 
+    /** 자유 태그(V46, 문자열 배열) — 목록 정리·검색용. 후보 목록은 리드폼·랜딩 공용. null = 없음. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column
+    private List<String> tags;
+
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<FormBlock> blocks = new ArrayList<>();
@@ -338,6 +343,14 @@ public class Form {
 
     public void setTrackingConfig(Map<String, Object> trackingConfig) {
         this.trackingConfig = trackingConfig;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
     }
 
     public Long getFolderId() {
