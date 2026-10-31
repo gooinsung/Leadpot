@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { HtmlBlock } from "./HtmlBlock";
+import { SubmitCtaButton } from "./LandingCtaButton";
+import { ButtonChoiceInput } from "./ButtonChoiceInput";
 import {
   ApiError,
   submitLead,
@@ -23,6 +25,8 @@ import {
   groupRows,
   isCardAnswerType,
   isListField,
+  isMultiPick,
+  buttonChoiceLayout,
   parsePicked,
   stepAnswerType,
 } from "../lib/fieldTypes";
@@ -287,10 +291,15 @@ export function PublicFormView({
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
           {submitError && <p className="auth-error">{submitError}</p>}
-          <button className="btn" type="submit" disabled={submitting}
-            style={{ width: "100%", marginTop: 8, background: style.buttonColor, color: style.buttonText }}>
-            {submitting ? "제출 중…" : submitLabel}
-          </button>
+          <SubmitCtaButton
+            styleConfig={form.styleConfig}
+            type="submit"
+            disabled={submitting}
+            background={style.buttonColor}
+            color={style.buttonText}
+            style={{ width: "100%", marginTop: 8 }}
+            label={submitting ? "제출 중…" : submitLabel}
+          />
         </form>
       ) : (
         <StepFlow
@@ -302,7 +311,7 @@ export function PublicFormView({
           choices={choices} setChoices={setChoices}
           agreed={agreed} setAgreed={setAgreed}
           step={step} setStep={setStep}
-          style={style} submitLabel={submitLabel}
+          style={style} styleConfig={form.styleConfig} submitLabel={submitLabel}
           submitting={submitting} submitError={submitError}
           onSubmit={onSubmit}
           calcView={calcView}
@@ -354,9 +363,10 @@ function LiveBlock(props: LiveFieldProps) {
 function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps) {
   const type = block.fieldType || "text";
   const picked = isListField(type) ? parsePicked(value) : [];
-  /** 라디오는 하나만, 체크박스는 여러 개 — 이미 고른 체크박스를 누르면 해제한다. */
+  const multi = isMultiPick(block);
+  /** 라디오(·단일 버튼 선택)는 하나만, 체크박스(·다중 버튼 선택)는 여러 개 — 이미 고른 걸 누르면 해제한다. */
   function pick(ci: number) {
-    const next = type === "checkbox" ? (picked.includes(ci) ? picked.filter((x) => x !== ci) : [...picked, ci]) : [ci];
+    const next = multi ? (picked.includes(ci) ? picked.filter((x) => x !== ci) : [...picked, ci]) : [ci];
     onChange(next.join(","));
   }
   const choices = (block.options?.choices as string[]) ?? [];
@@ -378,6 +388,16 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
           <option value="">{block.placeholder || "선택하세요"}</option>
           {choices.map((c, i) => <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>)}
         </select>
+      ) : type === "button_choice" ? (
+        <ButtonChoiceInput
+          id={`fld-${idx}`}
+          choices={choices}
+          picked={picked}
+          multiple={multi}
+          layout={buttonChoiceLayout(block.options?.layout)}
+          accent={accent}
+          onPick={pick}
+        />
       ) : isListField(type) ? (
         <div className="sfr-list" id={`fld-${idx}`} role={type === "radio" ? "radiogroup" : "group"}>
           {choices.map((c, i) => (
@@ -436,6 +456,8 @@ function StepFlow(props: {
   step: number;
   setStep: (f: (s: number) => number) => void;
   style: ReturnType<typeof resolveStyle>;
+  /** 제출 버튼 꾸밈(btn* 키) — 리드폼 styleConfig 그대로. */
+  styleConfig: Record<string, unknown> | null | undefined;
   submitLabel: string;
   submitting: boolean;
   submitError: string;
@@ -450,7 +472,7 @@ function StepFlow(props: {
   /** 계산기가 있을 때 연락처 단계 진행 표시줄 라벨. */
   calcContactStepLabel: string;
 }) {
-  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, submitLabel, submitting, submitError, onSubmit, calcView, calcGate, calcPreGateLoading, calcContactStepLabel } = props;
+  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, styleConfig, submitLabel, submitting, submitError, onSubmit, calcView, calcGate, calcPreGateLoading, calcContactStepLabel } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
   /**
@@ -590,7 +612,8 @@ function StepFlow(props: {
                     setStepError("");
                     setVal(`s${step}`, v);
                     // 라디오는 단일 카드처럼 고르면 바로 다음 단계로 넘어간다.
-                    if (answerType === "radio") scheduleAdvance();
+                    // 단일 '버튼 선택'도 마찬가지(다중은 여러 개 고를 수 있어야 하므로 넘기지 않는다).
+                    if (answerType === "radio" || (answerType === "button_choice" && b.content?.multiple !== true)) scheduleAdvance();
                   }}
                   accent={style.accentColor}
                 />
@@ -632,9 +655,15 @@ function StepFlow(props: {
       <div className="sfr-nav">
         {step > 0 && <button className="btn btn-ghost" type="button" onClick={goPrev}>이전</button>}
         {isContact ? (
-          <button className="btn" type="button" style={{ flex: 1, background: style.buttonColor, color: style.buttonText }} disabled={submitting} onClick={onSubmit}>
-            {submitting ? "제출 중…" : submitLabel}
-          </button>
+          <SubmitCtaButton
+            styleConfig={styleConfig}
+            disabled={submitting}
+            onClick={onSubmit}
+            background={style.buttonColor}
+            color={style.buttonText}
+            style={{ flex: 1 }}
+            label={submitting ? "제출 중…" : submitLabel}
+          />
         ) : (
           <button className="btn" type="button" style={{ flex: 1, background: style.accentColor, color: style.accentText }} onClick={goNext}>다음</button>
         )}

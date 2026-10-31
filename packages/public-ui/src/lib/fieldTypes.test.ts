@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { FormBlock } from "../api/client";
 import {
   INPUT_FIELD_TYPES,
+  buttonChoiceRows,
+  isMultiPick,
   addressDetailParts,
   answerParts,
   STEP_ANSWER_TYPES,
@@ -138,5 +140,38 @@ describe("fieldTypes", () => {
     // 스텝형 질문(content.rows)도 같은 규칙
     const q = choiceAsField(choice({ answerType: "radio_group", rows: ["A"], options: [{ label: "예" }, { label: "아니오" }] }));
     expect(fieldAnswer(q, "1")).toBe("A: 아니오");
+  });
+});
+
+describe("buttonChoiceRows — '버튼 선택' 가로 정렬 줄 나누기", () => {
+  it("3개 이하는 한 줄", () => {
+    expect(buttonChoiceRows(1)).toEqual([1]);
+    expect(buttonChoiceRows(2)).toEqual([2]);
+    expect(buttonChoiceRows(3)).toEqual([3]);
+  });
+  it("홀수는 첫 줄 3개 + 나머지 2개씩", () => {
+    expect(buttonChoiceRows(5)).toEqual([3, 2]);
+    expect(buttonChoiceRows(7)).toEqual([3, 2, 2]);
+    expect(buttonChoiceRows(9)).toEqual([3, 2, 2, 2]);
+  });
+  it("짝수는 2개씩", () => {
+    expect(buttonChoiceRows(4)).toEqual([2, 2]);
+    expect(buttonChoiceRows(6)).toEqual([2, 2, 2]);
+  });
+  it("세로 정렬은 한 줄에 하나, 0개는 빈 배열", () => {
+    expect(buttonChoiceRows(3, "vertical")).toEqual([1, 1, 1]);
+    expect(buttonChoiceRows(0)).toEqual([]);
+  });
+});
+
+describe("버튼 선택 값 처리", () => {
+  const block = (multiple: boolean) =>
+    ({ blockType: "FIELD", fieldType: "button_choice", label: "이용타입", required: true, sortOrder: 0, options: { choices: ["장기렌트", "자동차리스"], multiple } }) as FormBlock;
+  it("라디오·체크박스처럼 인덱스 → 라벨로 접수하고, 필수 검증한다", () => {
+    expect(isMultiPick(block(false))).toBe(false);
+    expect(isMultiPick(block(true))).toBe(true);
+    expect(fieldAnswer(block(true), "1,0")).toBe("장기렌트, 자동차리스");
+    expect(fieldBlockError(block(false), "")).toContain("선택");
+    expect(fieldBlockError(block(false), "0")).toBeNull();
   });
 });

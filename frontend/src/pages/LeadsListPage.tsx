@@ -1,4 +1,4 @@
-import { OPTION_FIELD_TYPES, choiceAsField, fieldSaveValues } from "@leadpot/public-ui";
+import { OPTION_FIELD_TYPES, choiceAsField, fieldSaveValues, isMultiPick, type FormBlock } from "@leadpot/public-ui";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
@@ -35,6 +35,12 @@ import { useSelection } from "../lib/useSelection";
 import { toast } from "../lib/toast";
 
 // ISO 타임스탬프 → KST 기준 YYYY-MM-DD (날짜 범위 필터 비교용)
+/** 수기 등록 입력 모양 — '버튼 선택'은 단일이면 라디오(선택박스), 다중이면 체크박스와 같은 값을 만든다. */
+function manualFieldType(b: FormBlock): string {
+  if (b.fieldType === "button_choice") return isMultiPick(b) ? "checkbox" : "radio";
+  return b.fieldType || "text";
+}
+
 function kstDate(iso: string): string {
   return new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
 }
@@ -157,7 +163,7 @@ export function LeadsListPage() {
         seen.add(b.label);
         out.push({
           label: b.label,
-          fieldType: b.fieldType || "text",
+          fieldType: manualFieldType(b),
           required: Boolean(b.required),
           placeholder: b.placeholder || undefined,
           // 수기 등록도 공개 폼 접수와 같은 값이 들어가게 선택지의 DB 저장값으로 고른다.
@@ -169,7 +175,7 @@ export function LeadsListPage() {
           seen.add(q);
           // 스텝형 질문도 기본형 항목과 같은 입력으로 — 카드형은 단일=라디오, 다중=체크박스와 같은 값을 만든다.
           const f = choiceAsField(b);
-          const at = f.fieldType === "single" ? "radio" : f.fieldType === "multi" ? "checkbox" : f.fieldType || "text";
+          const at = f.fieldType === "single" ? "radio" : f.fieldType === "multi" ? "checkbox" : manualFieldType(f);
           const list = fieldSaveValues(f);
           out.push({
             label: q,

@@ -12,7 +12,9 @@ export { PublicFormPageView } from "./components/PublicFormPageView";
 export { HtmlBlock } from "./components/HtmlBlock";
 export {
   LandingCtaButton,
+  SubmitCtaButton,
   CTA_BUTTON_EFFECTS,
+  CTA_FONT_SIZES,
   CTA_RADII,
   CTA_SIZES,
   CTA_TEXT_EFFECTS,
@@ -21,6 +23,7 @@ export {
 } from "./components/LandingCtaButton";
 export { PhoneInput3 } from "./components/PhoneInput3";
 export { RadioGroupInput } from "./components/RadioGroupInput";
+export { ButtonChoiceInput } from "./components/ButtonChoiceInput";
 export { AddressInput } from "./components/AddressInput";
 
 export { ConsentItemRow } from "./components/formRenderers/ConsentItemRow";
@@ -65,6 +68,10 @@ export {
   fieldDefaultValue,
   isCardAnswerType,
   isListField,
+  isMultiPick,
+  buttonChoiceLayout,
+  buttonChoiceRows,
+  type ButtonChoiceLayout,
   normalizeAnswerType,
   parsePicked,
   stepAnswerType,

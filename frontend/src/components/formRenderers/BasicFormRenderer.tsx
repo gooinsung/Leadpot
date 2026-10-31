@@ -2,10 +2,14 @@ import type { FormBlock, FormInput } from "../../api/client";
 import { ConsentView } from "./ConsentView";
 import {
   AddressInput,
+  ButtonChoiceInput,
+  buttonChoiceLayout,
+  isMultiPick,
   FormTextBlock,
   HtmlBlock,
   PhoneInput3,
   RadioGroupInput,
+  SubmitCtaButton,
   descEmphasisClass,
   fieldDefaultValue,
   groupRows,
@@ -26,13 +30,13 @@ export function BasicFormRenderer({ form }: { form: FormInput }) {
 
       <ConsentView config={form.consentConfig} accent={s.accentColor} />
 
-      <button
-        className="btn"
-        style={{ width: "100%", marginTop: 8, background: s.buttonColor, color: s.buttonText }}
-        type="button"
-      >
-        {submitLabel}
-      </button>
+      <SubmitCtaButton
+        styleConfig={form.styleConfig}
+        background={s.buttonColor}
+        color={s.buttonText}
+        style={{ width: "100%", marginTop: 8 }}
+        label={submitLabel}
+      />
     </div>
   );
 }
@@ -99,6 +103,14 @@ export function FieldView({ block, accent, bare }: { block: FormBlock; accent: s
             <option key={i} value={c}>{c || `선택지 ${i + 1}`}</option>
           ))}
         </select>
+      ) : type === "button_choice" ? (
+        <ButtonChoiceInput
+          choices={choices}
+          picked={typeof di === "number" && choices[di] != null ? [di] : []}
+          multiple={isMultiPick(block)}
+          layout={buttonChoiceLayout(block.options?.layout)}
+          accent={accent}
+        />
       ) : type === "radio" || type === "checkbox" ? (
         <div className="sfr-list">
           {choices.map((c, i) => (
