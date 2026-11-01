@@ -225,6 +225,9 @@ public class LeadService {
     private static final int INBOX_MAX_SIZE = 100;
 
     /** {@link #inbox(Long, String, String, Long, String, String, String, String, String, boolean, boolean, Integer, Integer)} — '오늘' 보기 없이. */
+    /** 외부 API 전달(아웃바운드 웹훅, V40) 최신 결과가 실패. {@code OutboundWebhookService.Result#status} 와 같은 값. */
+    static final String OUTBOUND_FAILED = "FAILED";
+
     @Transactional(readOnly = true)
     public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
             String from, String to, String utmKey, String utmValue,
@@ -256,6 +259,21 @@ public class LeadService {
     public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
             String from, String to, String utmKey, String utmValue,
             boolean unseen, boolean today, List<String> tags, String tagMode, Integer page, Integer size) {
+        return inbox(ownerId, status, q, formId, category, from, to, utmKey, utmValue, unseen, today, false,
+                tags, tagMode, page, size);
+    }
+
+    /**
+     * '외부 API 전달 실패' 보기 포함(2026-11-01 사용자 지시) — {@code outboundFailed} 면 <b>가장 최근 전달 결과가 실패</b>인
+     * 리드만. 리드에는 최신 시도 결과만 남으므로(V40, 재전송하면 덮어씀) {@code outbound_webhook_status = FAILED} 가 곧
+     * '최근 내역이 실패'다 — 재전송에 성공한 리드는 자동으로 빠진다. 오늘·미확인처럼 세그먼트 보기라 숫자는
+     * 다른 필터 안에서 센다({@code counts.outboundFailed}).
+     */
+    @Transactional(readOnly = true)
+    public InboxResponse inbox(Long ownerId, String status, String q, Long formId, String category,
+            String from, String to, String utmKey, String utmValue,
+            boolean unseen, boolean today, boolean outboundFailed, List<String> tags, String tagMode,
+            Integer page, Integer size) {
         // 1) 내 폼(formId → 이름, 태그)
         Map<Long, String> nameById = new LinkedHashMap<>();
         Map<Long, List<String>> formTags = new LinkedHashMap<>();
@@ -278,7 +296,7 @@ public class LeadService {
         int pageSize = size == null || size <= 0 ? INBOX_DEFAULT_SIZE : Math.min(size, INBOX_MAX_SIZE);
         if (nameById.isEmpty()) {
             return new InboxResponse(List.of(), 0, 0, pageSize,
-                    new InboxResponse.Counts(0, 0, 0, List.of(), List.of(), Map.of(), Map.of()));
+                    new InboxResponse.Counts(0, 0, 0, 0, List.of(), List.of(), Map.of(), Map.of()));
         }
         List<Long> formIds = new ArrayList<>(nameById.keySet());
 
@@ -342,6 +360,7 @@ public class LeadService {
         long scopedCount = 0;
         long unseenCount = 0;
         long todayCount = 0;
+        long outboundFailedCount = 0;
         for (Lead l : all) {
             if (formId != null && !formId.equals(l.getFormId())) {
                 continue;
@@ -378,7 +397,11 @@ public class LeadService {
             if (isToday) {
                 todayCount++;
             }
-            if ((unseen && !isUnseen) || (today && !isToday)) {
+            boolean isOutboundFailed = OUTBOUND_FAILED.equals(l.getOutboundWebhookStatus());
+            if (isOutboundFailed) {
+                outboundFailedCount++;
+            }
+            if ((unseen && !isUnseen) || (today && !isToday) || (outboundFailed && !isOutboundFailed)) {
                 continue;
             }
             filtered.add(l);
@@ -392,11 +415,12 @@ public class LeadService {
                 .map(l -> new InboxResponse.Item(l.getId(), l.getFormId(), nameById.get(l.getFormId()),
                         l.getCategory(),
                         l.getAnswers(), l.getStatus(), l.statusKey(), l.getTags(), l.getUtm(),
-                        l.getCreatedAt(), l.getSeenAt()))
+                        l.getCreatedAt(), l.getSeenAt(), l.getOutboundWebhookStatus()))
                 .toList();
 
         return new InboxResponse(items, filtered.size(), pageIndex, pageSize,
-                new InboxResponse.Counts(scopedCount, unseenCount, todayCount, byForm, byCategory, byStatus, statusNames));
+                new InboxResponse.Counts(scopedCount, unseenCount, todayCount, outboundFailedCount, byForm, byCategory,
+                        byStatus, statusNames));
     }
 
     /** 리드의 출처 리드폼 태그 + 들어온 랜딩 태그를 합쳐 고른 태그와 맞는지(AND: 모두 · OR: 하나라도). */

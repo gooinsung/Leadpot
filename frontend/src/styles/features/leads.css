@@ -492,3 +492,14 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
   border: 1px solid var(--border);
   border-radius: 12px;
 }
+/* 외부 API 전달 최신 결과 실패(2026-11-01) — 목록 행의 빨간 칩. '전달 실패' 탭과 같은 기준. */
+.il-outfail {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #c0202d;
+  background: color-mix(in srgb, #e03131 12%, transparent);
+}

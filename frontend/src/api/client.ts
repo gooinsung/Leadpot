@@ -543,11 +543,15 @@ export interface InboxItem {
   createdAt: string;
   /** 내(마케터)가 열어본 시각. null = '미확인'(V32). 상태와 무관하다. */
   seenAt: string | null;
+  /** 외부 API 전달(V40) 최신 결과 — SUCCESS | FAILED | null(전달한 적 없음). */
+  outboundWebhookStatus: string | null;
 }
 export interface InboxCounts {
   all: number;
   unseen: number;
   today: number;
+  /** 외부 API 전달 최신 결과가 실패인 리드 수(다른 필터 안에서). 0 이면 '전달 실패' 탭을 숨긴다. */
+  outboundFailed: number;
   byForm: { formId: number; formName: string; count: number }[];
   /** 분야별 리드 수(V34) — 분야 드롭다운 옵션. 분야 있는 폼의 리드만. */
   byCategory: { name: string; count: number }[];
@@ -577,6 +581,8 @@ export interface InboxFilter {
   unseen?: boolean;
   /** '오늘' 보기 — from/to 기간 안에서 오늘 접수분만. */
   today?: boolean;
+  /** '전달 실패' 보기 — 외부 API 전달 최신 결과가 실패인 리드만(재전송에 성공하면 빠진다). */
+  outboundFailed?: boolean;
   /** 리드폼·랜딩 태그(V46) — 출처 리드폼 + 들어온 랜딩 태그 기준. */
   tags?: string[];
   /** and(기본) = 모두 포함 · or = 하나라도. */
@@ -638,6 +644,7 @@ export function getInbox(filter: InboxFilter = {}): Promise<InboxResponse> {
   }
   if (filter.unseen) p.set("unseen", "true");
   if (filter.today) p.set("today", "true");
+  if (filter.outboundFailed) p.set("outboundFailed", "true");
   (filter.tags ?? []).forEach((t) => p.append("tag", t));
   if (filter.tags?.length && filter.tagMode === "or") p.set("tagMode", "or");
   if (filter.page != null) p.set("page", String(filter.page));
