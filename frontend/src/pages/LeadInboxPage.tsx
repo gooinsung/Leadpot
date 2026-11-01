@@ -59,7 +59,8 @@ function useIsNarrow(): boolean {
  */
 export function LeadInboxPage() {
   // 세그먼트(전체/오늘/미확인) + 셀렉트 3개(상태/폼/기간)
-  const [view, setView] = useState<"all" | "today" | "unseen">("all");
+  // 전달 실패 = 외부 API 전달(아웃바운드 웹훅) 최신 결과가 실패인 리드(2026-11-01). 재전송에 성공하면 빠진다.
+  const [view, setView] = useState<"all" | "today" | "unseen" | "outboundFailed">("all");
   const [statusFilter, setStatusFilter] = useState("");
   const [formFilter, setFormFilter] = useState<number | null>(null);
   // 분야 필터(V34) — 폼에 지정한 업종 구분(개인회생 등)으로 거른다. "오늘 개인회생 전반" 용.
@@ -109,6 +110,7 @@ export function LeadInboxPage() {
         unseen: view === "unseen",
         // '오늘'은 기간을 덮어쓰지 않고 기간 안에서 좁힌다 — 세그먼트 숫자도 서버가 같은 필터 안에서 센다.
         today: view === "today",
+        outboundFailed: view === "outboundFailed",
         from: fromDate || undefined,
         to: toDate || undefined,
         status: statusFilter || undefined,
@@ -462,8 +464,12 @@ export function LeadInboxPage() {
                   ["all", "전체", counts?.all],
                   ["today", "오늘", counts?.today],
                   ["unseen", "미확인", counts?.unseen],
+                  ["outboundFailed", "전달 실패", counts?.outboundFailed],
                 ] as const
-              ).map(([key, label, n]) => (
+              )
+                // '전달 실패'는 실패가 있을 때만(외부 API 전달을 안 쓰는 계정엔 안 보인다). 보고 있는 중엔 0이 돼도 남긴다.
+                .filter(([key, , n]) => key !== "outboundFailed" || (n ?? 0) > 0 || view === key)
+                .map(([key, label, n]) => (
                 <button
                   key={key}
                   type="button"
@@ -660,6 +666,11 @@ function InboxCard({
         <span className="tnum" style={{ flex: "none" }}>{phone ? maskPhone(phone) : "—"}</span>
         {item.category && (
           <span className="il-cat" title={`분야: ${item.category}`}>{item.category}</span>
+        )}
+        {item.outboundWebhookStatus === "FAILED" && (
+          <span className="il-outfail" title="외부 API 전달 최신 결과가 실패입니다. 리드를 열어 재전송할 수 있습니다.">
+            전달 실패
+          </span>
         )}
         {source && (
           <span

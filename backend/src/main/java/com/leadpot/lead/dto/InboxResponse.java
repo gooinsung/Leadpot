@@ -33,7 +33,9 @@ public record InboxResponse(
             Map<String, Object> utm,
             Instant createdAt,
             /** 마케터가 열어본 시각. null 이면 '미확인'(V32). 상태와 무관하다. */
-            Instant seenAt) {
+            Instant seenAt,
+            /** 외부 API 전달(V40) 최신 결과 — SUCCESS | FAILED | null(전달한 적 없음). 목록의 '전달 실패' 표시용. */
+            String outboundWebhookStatus) {
     }
 
     /** 사이드 rail 카운트(전체 기준). */
@@ -41,6 +43,8 @@ public record InboxResponse(
             long all,
             long unseen,
             long today,
+            /** 외부 API 전달 최신 결과가 실패인 리드 수(다른 필터 안에서). 0 이면 화면이 '전달 실패' 탭을 숨긴다. */
+            long outboundFailed,
             List<FormCount> byForm,
             /** 분야별 리드 수(V35) — 분야 드롭다운 옵션. 분야가 새겨진 리드만, 많은 순. */
             List<CategoryCount> byCategory,

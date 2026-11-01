@@ -215,6 +215,45 @@ class InboxTest {
                 null, null, 0, 25).total()).isEqualTo(5);
     }
 
+    @Test
+    @DisplayName("전달 실패 보기 — 외부 API 전달 최신 결과가 실패인 리드만, 숫자는 다른 필터 안에서 센다")
+    void outboundFailedView() {
+        // setUp 의 4건 중: formA 2건 실패, formB 1건 성공, 나머지 1건은 전달한 적 없음
+        List<Lead> leads = leadRepository.findByFormIdInAndDeletedAtIsNullOrderByCreatedAtDesc(
+                List.of(formA.getId(), formB.getId()));
+        java.time.Instant now = java.time.Instant.now();
+        int failedA = 0;
+        for (Lead l : leads) {
+            if (l.getFormId().equals(formA.getId()) && failedA < 2) {
+                l.setOutboundWebhookResult("FAILED", 500, "err", now);
+                failedA++;
+            } else if (l.getFormId().equals(formB.getId())) {
+                l.setOutboundWebhookResult("SUCCESS", 200, "ok", now);
+            }
+            leadRepository.save(l);
+        }
+
+        InboxResponse r = leadService.inbox(owner.getId(), null, null, null, null, null, null, null, null,
+                false, false, true, null, null, 0, 25);
+        assertThat(r.total()).isEqualTo(2);
+        assertThat(r.items()).allMatch(i -> "FAILED".equals(i.outboundWebhookStatus()));
+        assertThat(r.counts().outboundFailed()).isEqualTo(2);
+        assertThat(r.counts().all()).isEqualTo(4); // 세그먼트 숫자는 보기와 무관하게 필터 범위 전체
+
+        // 재전송에 성공하면(최신 결과가 SUCCESS) 빠진다
+        Lead retried = leadRepository.findById(r.items().get(0).id()).orElseThrow();
+        retried.setOutboundWebhookResult("SUCCESS", 200, "ok", now);
+        leadRepository.save(retried);
+        assertThat(leadService.inbox(owner.getId(), null, null, null, null, null, null, null, null,
+                false, false, true, null, null, 0, 25).total()).isEqualTo(1);
+
+        // 다른 필터(폼) 안에서 센다 — formB 에는 실패가 없다
+        InboxResponse onlyB = leadService.inbox(owner.getId(), null, null, formB.getId(), null, null, null, null,
+                null, false, false, true, null, null, 0, 25);
+        assertThat(onlyB.total()).isZero();
+        assertThat(onlyB.counts().outboundFailed()).isZero();
+    }
+
     private User marketer(String email, String sub) {
         User u = new User(email, passwordEncoder.encode("pw12345678"), "마케터", null);
         u.setSubdomain(sub);
