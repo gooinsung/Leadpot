@@ -85,6 +85,21 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
             @Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
 
     /**
+     * 리드 리포트 문자(V47) — 기간(반열림 [from, to)) 안에 접수된 본인 소유 활성 리드를 <b>리드폼별로</b> 센다.
+     * 결과 행: {@code [formId(Long), count(Long)]}.
+     */
+    @Query("select l.formId, count(l) from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
+            + "and l.deletedAt is null and l.createdAt >= :from and l.createdAt < :to group by l.formId")
+    List<Object[]> countByOwnerBetweenGroupedByForm(@Param("ownerId") Long ownerId,
+            @Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
+
+    /** 리드 리포트 비교용 — 기간(반열림 [from, to)) 안의 본인 소유 활성 리드 수. */
+    @Query("select count(l) from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
+            + "and l.deletedAt is null and l.createdAt >= :from and l.createdAt < :to")
+    long countByOwnerBetween(@Param("ownerId") Long ownerId,
+            @Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
+
+    /**
      * 자동 승인 대상 — 한 리드폼에서 <b>기준 시각 이후에 접수됐고</b> 유예 기간이 지난 활성 리드.
      *
      * <p>{@code since} 조건이 있어야 소급 적용을 막을 수 있다(설정을 켠 시점 이후 접수분만).

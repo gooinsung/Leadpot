@@ -8,6 +8,7 @@ import {
   type MessageLogItem,
   type SmsStatus,
 } from "../api/client";
+import { LeadReportCard } from "../components/LeadReportCard";
 import { Loading } from "../components/Loading";
 import { TopBar } from "../components/TopBar";
 import { toast } from "../lib/toast";
@@ -17,6 +18,7 @@ const RECIPIENT_LABEL: Record<string, string> = {
   ADVERTISER: "광고주",
   LEAD: "고객",
   TEST: "테스트",
+  REPORT: "나(리포트)",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -187,6 +189,8 @@ export function SmsPage() {
                 </p>
               </div>
             )}
+
+            <LeadReportCard />
 
             <div style={{ marginTop: 20 }}>
               <div className="dash-sub" style={{ marginBottom: 8 }}>

@@ -477,3 +477,18 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
   .dashboard.with-drawer { padding-right: 452px; }
 }
 
+
+/* 리드 리포트 문자 미리보기(문자 발송 화면, V47) — 실제 문자처럼 줄바꿈을 그대로 보여준다. */
+.lead-report-preview {
+  margin: 6px 0 4px;
+  padding: 12px 14px;
+  max-width: 360px;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}

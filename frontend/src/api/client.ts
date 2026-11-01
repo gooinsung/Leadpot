@@ -1894,6 +1894,43 @@ export interface SmsSendResult {
   bytes: number;
 }
 
+/**
+ * 리드 리포트 문자(V47) — 아침 9시(오늘 00~09시)·밤 12시(어제 하루) 접수 건수를 마케터 본인에게 LMS 로.
+ * 건수만 담고(개인정보 없음), 0건이면 보내지 않는다. 문자 권한·월 상한을 그대로 탄다.
+ */
+export interface LeadReportSettings {
+  morningEnabled: boolean;
+  dailyEnabled: boolean;
+  /** 받을 번호. 빈 값 = 계정 연락처. */
+  phone: string;
+  /** 계정 연락처(마스킹) — 받을 번호를 비웠을 때 쓰인다. */
+  accountPhone: string;
+  /** 지금 리포트(LMS)를 보낼 수 없는 사유. null 이면 켤 수 있다. */
+  denyReason: string | null;
+}
+
+export type LeadReportKind = "MORNING" | "DAILY";
+
+export interface LeadReportPreview {
+  /** null = 해당 구간 접수 0건(발송되지 않음). */
+  text: string | null;
+  total: number;
+  channel: string | null;
+  bytes: number;
+}
+
+export function getLeadReport(): Promise<LeadReportSettings> {
+  return request<LeadReportSettings>("/api/lead-report");
+}
+
+export function updateLeadReport(input: { morningEnabled: boolean; dailyEnabled: boolean; phone: string }): Promise<LeadReportSettings> {
+  return request<LeadReportSettings>("/api/lead-report", { method: "PUT", body: input });
+}
+
+export function previewLeadReport(kind: LeadReportKind): Promise<LeadReportPreview> {
+  return request<LeadReportPreview>(`/api/lead-report/preview?kind=${kind}`);
+}
+
 export function getSmsStatus(): Promise<SmsStatus> {
   return request<SmsStatus>("/api/sms/status");
 }
