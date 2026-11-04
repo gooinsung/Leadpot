@@ -4,6 +4,7 @@ import {
   ApiError,
   getHealth,
   getInbox,
+  getLeadPace,
   getRevenue,
   getStats,
   leadsCount,
@@ -11,7 +12,9 @@ import {
   listLandings,
   updateSubdomain,
   type InboxItem,
+  type LeadPace,
 } from "../api/client";
+import { LeadPaceCard } from "../components/LeadPaceCard";
 import { useAuth } from "../lib/authContext";
 import { TopBar } from "../components/TopBar";
 import { leadStatusClass, leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
@@ -40,10 +43,13 @@ export function DashboardPage() {
   const [todayRevenue, setTodayRevenue] = useState<number | null>(null);
   const [monthRevenue, setMonthRevenue] = useState<number | null>(null);
   const [statusNames, setStatusNames] = useState<Record<string, string>>({});
+  // '접수 페이스' — 오늘 지금까지 vs 어제 이시간 · 평상시 이시간(2026-11-04). 실패하면 카드를 숨긴다.
+  const [pace, setPace] = useState<LeadPace | null | "error">(null);
 
   useEffect(() => {
     getHealth().then(() => setHealth("ok")).catch(() => setHealth("error"));
     leadsCount().then((r) => setTodayNewLeads(r.todayNew)).catch(() => setTodayNewLeads(0));
+    getLeadPace().then(setPace).catch(() => setPace("error"));
     listForms().then((f) => setFormCount(f.length)).catch(() => setFormCount(0));
     listLandings().then((l) => setLandingCount(l.length)).catch(() => setLandingCount(0));
     // 오늘 유입(전체 접속 수) — 통계 API 를 오늘 범위로 조회
@@ -132,6 +138,8 @@ export function DashboardPage() {
             <div className="k-val">{num(landingCount)}</div>
           </div>
         </div>
+
+        <LeadPaceCard pace={pace} />
 
         {/* 리디자인 §5: 빈 공간 회수 — 왼쪽 '오늘 들어온 리드' 미리보기, 오른쪽 서브도메인 카드 */}
         <div className="dash-cols">

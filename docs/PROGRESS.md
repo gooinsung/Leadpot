@@ -8,6 +8,9 @@
 
 ## 📍 지금 위치
 
+- **✅ 대시보드 '접수 페이스' 카드 (2026-11-04, 사용자 요청)**: 오늘 00:00~지금까지 접수를 **어제 이시간**·**평상시 이시간**(최근 7일 같은 시간대 평균)과 비교해 "평소보다 N% 많이/적게/비슷하게 들어오는 중" + 막대 3줄로 대강 보여준다. ±15% 미만 또는 1건 미만 차이는 "비슷"으로 처리.
+  - 백엔드 `GET /api/leads/pace` → `LeadPaceResponse(today, yesterday, usual, usualDays, asOf)`. KST 기준, 계산은 순수 함수 `LeadService.computePace`(테스트 `LeadPaceTest`). 쿼리는 최근 8일치 `createdAt` 만 읽음.
+  - 프론트 `components/LeadPaceCard.tsx` + `styles/features/dashboard.css`, `DashboardPage` KPI 줄 아래에 배치. API 실패 시 카드 숨김. 모바일 레이아웃 확인 완료.
 - **✅ 리드 화면 '전달 실패' 보기 (2026-11-01, 원격 세션, 사용자 지시)**:
   - 리드(인박스) 세그먼트 [전체 · 오늘 · 미확인 · **전달 실패 N**] — **외부 API 전달(아웃바운드 웹훅, V40) 최신 결과가 실패**인 리드만.
     리드에는 최신 시도 결과만 남으므로(재전송하면 덮어씀) `outbound_webhook_status = FAILED` 가 곧 '가장 최근 내역이 실패'다.

@@ -719,6 +719,19 @@ export function leadsCount(): Promise<{ total: number; todayNew: number }> {
   return request<{ total: number; todayNew: number }>("/api/leads/count");
 }
 
+/** 대시보드 '접수 페이스' — 모든 값은 KST 00:00 ~ asOf(HH:mm) 누적 접수 수. usual 은 최근 usualDays 일 평균. */
+export interface LeadPace {
+  today: number;
+  yesterday: number;
+  usual: number;
+  usualDays: number;
+  asOf: string;
+}
+
+export function getLeadPace(): Promise<LeadPace> {
+  return request<LeadPace>("/api/leads/pace");
+}
+
 // ---------- 광고주 확인 여부(V33) ----------
 // "광고주가 이 리드를 보기는 했나"를 시각 한 칸이 아니라 요약 + 이력으로 답한다. 마케터 전용.
 

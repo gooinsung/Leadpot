@@ -1,0 +1,83 @@
+/* ============================================================
+   Leadpot · features/dashboard.css — 대시보드 전용
+   '접수 페이스' 카드(오늘 vs 어제 이시간 · 평상시 이시간). DashboardPage / LeadPaceCard
+   토큰: styles/tokens.css · 구조 지도: styles/README.md
+   ============================================================ */
+
+.pace-card {
+  margin-bottom: 24px;
+}
+.pace-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pace-verdict {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 10px 0 12px;
+}
+.pace-rows {
+  display: grid;
+  gap: 8px;
+}
+.pace-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 64px 140px;
+  gap: 12px;
+  align-items: center;
+}
+.pace-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pace-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.pace-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0.45;
+  transition: width 0.4s ease;
+}
+.pace-fill-today {
+  background: var(--indigo);
+  opacity: 1;
+}
+.pace-num {
+  font-size: 14px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+.pace-diff {
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* 접수는 많을수록 좋다 → 많음=초록, 적음=빨강 */
+.pace-up { color: var(--green-ink); }
+.pace-down { color: var(--rose-ink); }
+.pace-flat { color: var(--muted); }
+
+@media (max-width: 640px) {
+  .pace-row {
+    grid-template-columns: 84px minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .pace-diff {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
+  .pace-diff:empty { display: none; }
+}
