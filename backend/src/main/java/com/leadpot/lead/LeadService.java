@@ -605,6 +605,40 @@ public class LeadService {
                 LocalDate.now(KST).atStartOfDay(KST).toInstant());
     }
 
+    /** '접수 페이스'에서 평상시 평균을 내는 일수(어제부터 거슬러 올라감). */
+    static final int PACE_USUAL_DAYS = 7;
+
+    /** 대시보드 '접수 페이스' — 지금 접수량을 어제 이시간·평상시 이시간과 비교(2026-11-04 사용자 요청). */
+    @Transactional(readOnly = true)
+    public com.leadpot.lead.dto.LeadPaceResponse pace(Long ownerId) {
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.now(KST);
+        Instant since = now.toLocalDate().minusDays(PACE_USUAL_DAYS).atStartOfDay(KST).toInstant();
+        return computePace(leadRepository.findCreatedAtByOwnerSince(ownerId, since), now, PACE_USUAL_DAYS);
+    }
+
+    /**
+     * 접수 시각 목록으로 페이스 계산(순수 함수 — 테스트용으로 분리).
+     * 각 날짜 d 에 대해 [d 00:00, d 의 now 와 같은 시각) 구간 접수를 센다. 오늘은 지금까지(포함).
+     */
+    static com.leadpot.lead.dto.LeadPaceResponse computePace(List<Instant> createdAts,
+            java.time.ZonedDateTime now, int usualDays) {
+        java.time.LocalTime cut = now.toLocalTime();
+        LocalDate today = now.toLocalDate();
+        long[] perDay = new long[usualDays + 1]; // [0]=오늘, [1]=어제, ...
+        for (Instant at : createdAts) {
+            java.time.ZonedDateTime z = at.atZone(KST);
+            long back = ChronoUnit.DAYS.between(z.toLocalDate(), today);
+            if (back < 0 || back > usualDays) continue;
+            boolean within = back == 0 ? !z.toLocalTime().isAfter(cut) : z.toLocalTime().isBefore(cut);
+            if (within) perDay[(int) back]++;
+        }
+        long sum = 0;
+        for (int i = 1; i <= usualDays; i++) sum += perDay[i];
+        double usual = Math.round(sum * 10.0 / usualDays) / 10.0;
+        String asOf = String.format("%02d:%02d", cut.getHour(), cut.getMinute());
+        return new com.leadpot.lead.dto.LeadPaceResponse(perDay[0], perDay[1], usual, usualDays, asOf);
+    }
+
     @Transactional(readOnly = true)
     public long countByForm(Long ownerId, Long formId) {
         formService.get(ownerId, formId);

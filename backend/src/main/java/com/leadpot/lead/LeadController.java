@@ -66,6 +66,12 @@ public class LeadController {
                 "todayNew", leadService.countTodayByOwner(userId(jwt)));
     }
 
+    /** 대시보드 '접수 페이스' — 오늘 지금까지 접수 vs 어제 이시간 · 평상시(최근 7일 평균) 이시간. */
+    @GetMapping("/pace")
+    public com.leadpot.lead.dto.LeadPaceResponse pace(@AuthenticationPrincipal Jwt jwt) {
+        return leadService.pace(userId(jwt));
+    }
+
     /**
      * 통합 인박스(U1): 내 모든 리드폼의 리드를 한 스트림으로. 필터·페이징 + 사이드 rail 카운트.
      * unseen=true 면 미확인(신규 NEW)만.
