@@ -1,0 +1,188 @@
+<!-- 차드림 장기렌트 랜딩 — 리드팟 HTML 블록용 (html/head/body 없음) -->
+<!-- 🖼️ IMG: 로 표시된 src 는 자리표시 이미지입니다. 실제 이미지 주소로 바꿔주세요. -->
+<style>
+  .cd{--navy:#0b1b3f;--blue:#1f5eff;--yellow:#ffd23f;--red:#ff3b3b;--gray:#6b7280;--bg:#f4f6fb;
+      font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#111;
+      max-width:480px;margin:0 auto;background:#fff;line-height:1.45;word-break:keep-all;overflow:hidden}
+  .cd *{box-sizing:border-box}
+  .cd img{display:block;max-width:100%;height:auto}
+  .cd section{padding:56px 20px;text-align:center}
+  .cd h2{font-size:26px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px}
+  .cd .sub{font-size:16px;color:var(--gray);margin:0 0 28px}
+  .cd .hl{color:var(--blue)}
+  .cd .mark{background:linear-gradient(transparent 60%,var(--yellow) 60%)}
+
+  /* 헤더 */
+  .cd-hero{background:var(--navy);color:#fff;padding:40px 20px 48px!important}
+  .cd-logo{width:140px;margin:0 auto 24px}
+  .cd-badge{display:inline-block;background:var(--red);color:#fff;font-size:14px;font-weight:700;
+      padding:6px 14px;border-radius:999px;margin-bottom:16px}
+  .cd-hero h1{font-size:30px;font-weight:900;line-height:1.3;margin:0 0 24px;letter-spacing:-0.8px}
+  .cd-hero h1 em{font-style:normal;color:var(--yellow)}
+  .cd-hero-img{border-radius:16px;margin:0 auto}
+
+  /* 컨텐츠1 수수료 */
+  .cd-fee{background:var(--bg)}
+  .cd-big{font-size:96px;font-weight:900;line-height:1;color:var(--red);letter-spacing:-3px;margin:8px 0 12px}
+  .cd-fee .lead{font-size:20px;font-weight:700;margin:0 0 24px}
+  .cd-calc{background:#fff;border-radius:16px;padding:8px 20px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+  .cd-calc div{display:flex;justify-content:space-between;align-items:center;padding:14px 0;font-size:16px}
+  .cd-calc div+div{border-top:1px dashed #ddd}
+  .cd-calc b{color:var(--red);font-size:19px}
+  .cd-arrow{font-size:32px;margin:24px 0 8px}
+  .cd-zero{background:var(--navy);color:#fff;border-radius:20px;padding:28px 20px}
+  .cd-zero p{margin:0;font-size:18px}
+  .cd-zero strong{display:block;font-size:64px;font-weight:900;color:var(--yellow);line-height:1.1;margin:6px 0}
+  .cd-zero-sub{font-size:18px;font-weight:700;margin:28px 0 0}
+
+  /* 컨텐츠2 이유 */
+  .cd-why-list{display:grid;gap:12px;text-align:left}
+  .cd-why-item{display:flex;gap:14px;align-items:center;background:var(--bg);border-radius:16px;padding:18px}
+  .cd-why-item .ico{font-size:34px;flex:none;width:52px;height:52px;display:grid;place-items:center;
+      background:#fff;border-radius:14px}
+  .cd-why-item b{display:block;font-size:18px;margin-bottom:2px}
+  .cd-why-item span{font-size:15px;color:var(--gray)}
+
+  /* 컨텐츠3 후기 */
+  .cd-review{background:var(--bg)}
+  .cd-rv-list{display:grid;gap:14px;text-align:left}
+  .cd-rv{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+  .cd-rv img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#e5e7eb}
+  .cd-rv-body{padding:16px 18px 18px}
+  .cd-rv-star{color:#ffb800;font-size:16px;letter-spacing:2px}
+  .cd-rv-car{font-size:14px;font-weight:700;color:var(--blue);margin:4px 0 6px}
+  .cd-rv-txt{font-size:16px;margin:0 0 8px;font-weight:600}
+  .cd-rv-name{font-size:14px;color:var(--gray)}
+
+  /* 컨텐츠4 비밀견적 */
+  .cd-secret .oops{font-size:40px;font-weight:900;margin:0 0 8px}
+  .cd-secret h2{font-size:24px}
+  .cd-27{display:inline-flex;align-items:baseline;gap:4px;margin:28px 0 8px}
+  .cd-27 small{font-size:18px;font-weight:700}
+  .cd-27 strong{font-size:80px;font-weight:900;color:var(--blue);line-height:1;letter-spacing:-2px}
+  .cd-secret .desc{font-size:18px;font-weight:700;margin:0}
+  .cd-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px}
+  .cd-chips span{background:var(--bg);border-radius:999px;padding:8px 14px;font-size:15px;font-weight:600}
+
+  /* CTA */
+  .cd-cta{background:var(--blue);color:#fff;padding-bottom:calc(56px + env(safe-area-inset-bottom))!important}
+  .cd-cta p{font-size:20px;margin:0 0 4px;font-weight:600}
+  .cd-cta h2{font-size:30px;font-weight:900;margin:0 0 24px}
+  .cd-btn{display:block;width:100%;border:0;cursor:pointer;background:var(--yellow);color:var(--navy);
+      font-size:20px;font-weight:900;padding:20px;border-radius:14px;box-shadow:0 6px 0 #d9a800;
+      animation:cd-pulse 1.6s infinite}
+  .cd-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #d9a800}
+  @keyframes cd-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+  @media (prefers-reduced-motion:reduce){.cd-btn{animation:none}}
+</style>
+
+<div class="cd">
+
+  <!-- [헤더] -->
+  <section class="cd-hero">
+    <!-- 🖼️ IMG: 차드림 로고 -->
+    <img class="cd-logo" src="https://placehold.co/280x80/0b1b3f/ffd23f?text=CHADREAM" alt="차드림">
+    <div class="cd-badge">🚨 업계 최초 공개</div>
+    <h1>장기렌트업계의<br><em>비밀을 폭로합니다</em></h1>
+    <!-- 🖼️ IMG: 메인 차량 이미지 -->
+    <img class="cd-hero-img" src="https://placehold.co/880x560/1f2d55/ffffff?text=Main+Car" alt="장기렌트 차량">
+  </section>
+
+  <!-- [컨텐츠1] 수수료 -->
+  <section class="cd-fee">
+    <div class="cd-big">14%</div>
+    <p class="lead">😱 영업사원이 가져가는 <span class="mark">수수료</span>입니다</p>
+    <div class="cd-calc">
+      <div><span>🚗 3천만원 차량</span><b>4,200,000원</b></div>
+      <div><span>🚙 5천만원 차량</span><b>7,000,000원</b></div>
+    </div>
+    <div class="cd-arrow">👇</div>
+    <div class="cd-zero">
+      <p>차드림의 수수료는</p>
+      <strong>0원</strong>
+      <p>입니다 🙌</p>
+    </div>
+    <p class="cd-zero-sub">영업사원 수수료가 없기에<br><span class="hl">진짜 최저가</span>를 드릴 수 있습니다</p>
+  </section>
+
+  <!-- [컨텐츠2] 장기렌트가 유리한 이유 — ⚠️ 원본 사이트 문구로 교체 필요 -->
+  <section class="cd-why">
+    <h2>장기렌트가 <span class="hl">유리한 이유</span></h2>
+    <p class="sub">할부·리스와 비교해보세요</p>
+    <div class="cd-why-list">
+      <div class="cd-why-item"><div class="ico">💸</div><div><b>초기비용 0원</b><span>목돈 없이 바로 출고</span></div></div>
+      <div class="cd-why-item"><div class="ico">🛡️</div><div><b>보험료 포함</b><span>사고 나도 보험료 할증 없음</span></div></div>
+      <div class="cd-why-item"><div class="ico">🧾</div><div><b>세금 걱정 끝</b><span>취등록세·자동차세 포함</span></div></div>
+      <div class="cd-why-item"><div class="ico">📉</div><div><b>부채 NO</b><span>신용·대출한도 영향 최소화</span></div></div>
+      <div class="cd-why-item"><div class="ico">🏢</div><div><b>사업자 비용처리</b><span>렌트료 전액 경비 인정</span></div></div>
+    </div>
+  </section>
+
+  <!-- [컨텐츠3] 고객 후기 — ⚠️ 아래 3개는 자리표시 예시입니다. 원본 사이트의 실제 후기로 반드시 교체하세요 -->
+  <section class="cd-review">
+    <h2>⭐ 고객 <span class="hl">후기</span></h2>
+    <p class="sub">직접 받아보신 분들의 이야기</p>
+    <div class="cd-rv-list">
+      <div class="cd-rv">
+        <!-- 🖼️ IMG: 후기 사진 1 -->
+        <img src="https://placehold.co/800x600/e5e7eb/9ca3af?text=Review+1" alt="고객 후기 1">
+        <div class="cd-rv-body">
+          <div class="cd-rv-star">★★★★★</div>
+          <div class="cd-rv-car">차종 입력</div>
+          <p class="cd-rv-txt">"후기 내용 입력"</p>
+          <div class="cd-rv-name">김○○ 고객님</div>
+        </div>
+      </div>
+      <div class="cd-rv">
+        <!-- 🖼️ IMG: 후기 사진 2 -->
+        <img src="https://placehold.co/800x600/e5e7eb/9ca3af?text=Review+2" alt="고객 후기 2">
+        <div class="cd-rv-body">
+          <div class="cd-rv-star">★★★★★</div>
+          <div class="cd-rv-car">차종 입력</div>
+          <p class="cd-rv-txt">"후기 내용 입력"</p>
+          <div class="cd-rv-name">이○○ 고객님</div>
+        </div>
+      </div>
+      <div class="cd-rv">
+        <!-- 🖼️ IMG: 후기 사진 3 -->
+        <img src="https://placehold.co/800x600/e5e7eb/9ca3af?text=Review+3" alt="고객 후기 3">
+        <div class="cd-rv-body">
+          <div class="cd-rv-star">★★★★★</div>
+          <div class="cd-rv-car">차종 입력</div>
+          <p class="cd-rv-txt">"후기 내용 입력"</p>
+          <div class="cd-rv-name">박○○ 고객님</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- [컨텐츠4] 비밀견적 -->
+  <section class="cd-secret">
+    <p class="oops">아참! 💡</p>
+    <h2>차드림 비밀견적은<br><span class="mark">사전상담이 필요 없습니다</span></h2>
+    <div class="cd-27"><small>최대</small><strong>27</strong><small>곳</small></div>
+    <p class="desc">견적을 한눈에 확인하고<br>충분히 비교하세요 🔍</p>
+    <div class="cd-chips"><span>📞 전화 압박 X</span><span>⏱️ 10초 신청</span><span>📊 한눈에 비교</span></div>
+  </section>
+
+  <!-- [CTA] 리드팟 CTA 버튼(.landing-cta)이 있으면 그걸 눌러주고, 없으면 아래쪽 폼으로 스크롤 -->
+  <section class="cd-cta">
+    <p>⚡ 10초만에 신청하고</p>
+    <h2>최저가 견적 받아보기</h2>
+    <button type="button" class="cd-btn" id="cd-cta-btn">무료 견적 받기 👉</button>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('cd-cta-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var cta = document.querySelector('.landing-cta');
+      if (cta) { cta.click(); return; }
+      var form = document.querySelector('form');
+      if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  })();
+</script>
