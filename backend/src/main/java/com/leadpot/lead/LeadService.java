@@ -639,6 +639,70 @@ public class LeadService {
         return new com.leadpot.lead.dto.LeadPaceResponse(perDay[0], perDay[1], usual, usualDays, asOf);
     }
 
+    /** 리드폼별 페이스 계산 입력 한 줄(접수 1건). */
+    record FormHit(Long formId, String formName, Instant at) {
+    }
+
+    /** 대시보드 '리드폼별 오늘 추이' — 리드폼마다 오늘 접수를 어제·최근 7일과 비교(2026-11-05 사용자 요청). */
+    @Transactional(readOnly = true)
+    public com.leadpot.lead.dto.FormPaceResponse formPace(Long ownerId) {
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.now(KST);
+        Instant since = now.toLocalDate().minusDays(PACE_USUAL_DAYS).atStartOfDay(KST).toInstant();
+        List<FormHit> hits = new ArrayList<>();
+        for (Object[] r : leadRepository.findFormPaceRowsByOwnerSince(ownerId, since)) {
+            hits.add(new FormHit((Long) r[0], (String) r[1], (Instant) r[2]));
+        }
+        return computeFormPace(hits, now, PACE_USUAL_DAYS);
+    }
+
+    /**
+     * 리드폼별 페이스 계산(순수 함수 — 테스트용으로 분리). 같은 시간대 규칙은 {@link #computePace} 와 같고,
+     * 하루 전체 기준(어제 하루·최근 N일 하루 평균)을 더 센다. 오늘 이후(미래 시각) 접수는 무시한다.
+     */
+    static com.leadpot.lead.dto.FormPaceResponse computeFormPace(List<FormHit> hits,
+            java.time.ZonedDateTime now, int usualDays) {
+        java.time.LocalTime cut = now.toLocalTime();
+        LocalDate today = now.toLocalDate();
+        // formId → [0..usualDays] 같은 시간대 누적, [usualDays+1 ..] 하루 전체(인덱스 = usualDays+1+back)
+        Map<Long, long[]> counts = new LinkedHashMap<>();
+        Map<Long, String> names = new LinkedHashMap<>();
+        for (FormHit h : hits) {
+            java.time.ZonedDateTime z = h.at().atZone(KST);
+            long back = ChronoUnit.DAYS.between(z.toLocalDate(), today);
+            if (back < 0 || back > usualDays) continue;
+            if (back == 0 && z.toLocalTime().isAfter(cut)) continue;
+            long[] c = counts.computeIfAbsent(h.formId(), k -> new long[(usualDays + 1) * 2]);
+            names.putIfAbsent(h.formId(), h.formName());
+            boolean within = back == 0 || z.toLocalTime().isBefore(cut);
+            if (within) c[(int) back]++;
+            c[usualDays + 1 + (int) back]++;
+        }
+        List<com.leadpot.lead.dto.FormPaceResponse.Item> items = new ArrayList<>();
+        for (Map.Entry<Long, long[]> e : counts.entrySet()) {
+            long[] c = e.getValue();
+            long sameSum = 0;
+            long fullSum = 0;
+            for (int i = 1; i <= usualDays; i++) {
+                sameSum += c[i];
+                fullSum += c[usualDays + 1 + i];
+            }
+            items.add(new com.leadpot.lead.dto.FormPaceResponse.Item(e.getKey(), names.get(e.getKey()),
+                    c[0], c[1], round1((double) sameSum / usualDays),
+                    c[usualDays + 2], round1((double) fullSum / usualDays), fullSum));
+        }
+        items.sort(java.util.Comparator
+                .comparingLong(com.leadpot.lead.dto.FormPaceResponse.Item::today).reversed()
+                .thenComparing(java.util.Comparator
+                        .comparingDouble(com.leadpot.lead.dto.FormPaceResponse.Item::dailyAvg).reversed())
+                .thenComparing(com.leadpot.lead.dto.FormPaceResponse.Item::formId));
+        String asOf = String.format("%02d:%02d", cut.getHour(), cut.getMinute());
+        return new com.leadpot.lead.dto.FormPaceResponse(asOf, usualDays, items);
+    }
+
+    private static double round1(double v) {
+        return Math.round(v * 10.0) / 10.0;
+    }
+
     @Transactional(readOnly = true)
     public long countByForm(Long ownerId, Long formId) {
         formService.get(ownerId, formId);

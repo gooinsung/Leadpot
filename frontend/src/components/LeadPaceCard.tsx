@@ -1,23 +1,12 @@
 import type { LeadPace } from "../api/client";
+import { compare, fmt, type Tone } from "../lib/pace";
 
 /**
  * 대시보드 '접수 페이스' 카드(2026-11-04 사용자 요청).
  * 오늘 지금 시각까지 접수가 어제 이시간 · 평상시(최근 7일 평균) 이시간보다 얼마나 많은지/적은지 대강 보여준다.
  */
 
-type Tone = "up" | "down" | "flat";
-
-// "대강" 보는 용도라 ±15% 미만이거나 차이가 1건 미만이면 "비슷"으로 본다(작은 숫자의 1건 차이로 요란하지 않게).
-function compare(today: number, base: number): { tone: Tone; diff: number; pct: number | null } {
-  const diff = Math.round((today - base) * 10) / 10;
-  const pct = base > 0 ? Math.round((diff / base) * 100) : null;
-  const flat = Math.abs(diff) < 1 || (pct != null && Math.abs(pct) < 15);
-  return { tone: flat ? "flat" : diff > 0 ? "up" : "down", diff, pct };
-}
-
-const fmt = (n: number) => (Number.isInteger(n) ? n.toLocaleString("ko-KR") : n.toFixed(1));
-
-function DiffLine({ today, base }: { today: number; base: number }) {
+export function DiffLine({ today, base }: { today: number; base: number }) {
   const { tone, diff, pct } = compare(today, base);
   const sign = diff > 0 ? "+" : diff < 0 ? "−" : "±";
   const arrow = tone === "up" ? "▲" : tone === "down" ? "▼" : "–";

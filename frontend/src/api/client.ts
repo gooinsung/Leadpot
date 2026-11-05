@@ -732,6 +732,28 @@ export function getLeadPace(): Promise<LeadPace> {
   return request<LeadPace>("/api/leads/pace");
 }
 
+/** 대시보드 '리드폼별 오늘 추이' 한 줄. today·yesterday·usual 은 같은 시간대(00:00~asOf), 나머지는 하루 전체 기준. */
+export interface FormPaceItem {
+  formId: number;
+  formName: string;
+  today: number;
+  yesterday: number;
+  usual: number;
+  yesterdayTotal: number;
+  dailyAvg: number;
+  weekTotal: number;
+}
+
+export interface FormPace {
+  asOf: string;
+  usualDays: number;
+  items: FormPaceItem[];
+}
+
+export function getFormPace(): Promise<FormPace> {
+  return request<FormPace>("/api/leads/pace/forms");
+}
+
 // ---------- 광고주 확인 여부(V33) ----------
 // "광고주가 이 리드를 보기는 했나"를 시각 한 칸이 아니라 요약 + 이력으로 답한다. 마케터 전용.
 

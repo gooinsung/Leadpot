@@ -81,3 +81,72 @@
   }
   .pace-diff:empty { display: none; }
 }
+
+/* ---------- '리드폼별 오늘 추이' 표(2026-11-05) — FormPaceCard ---------- */
+.fpace-card {
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.fpace-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+}
+.fpace-table {
+  border-top: 1px solid var(--border);
+}
+.fpace-table td {
+  vertical-align: top;
+}
+.fpace-r {
+  text-align: right;
+  white-space: nowrap;
+}
+.fpace-name {
+  font-weight: 700;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fpace-today {
+  font-size: 15px;
+}
+/* 셀 안에서 숫자 아래 줄에 차이를 붙인다 */
+.fpace-table .pace-diff,
+.fpace-sub {
+  display: block;
+  margin-top: 2px;
+}
+.fpace-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.fpace-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--surface-2);
+}
+.fpace-badge-up { color: var(--green-ink); background: var(--green-soft); }
+.fpace-badge-down { color: var(--rose-ink); background: var(--rose-soft); }
+.fpace-badge-flat { color: var(--muted); }
+.fpace-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  padding-bottom: 14px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 640px) {
+  .fpace-name { max-width: 140px; }
+}
