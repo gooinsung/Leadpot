@@ -147,6 +147,21 @@
   padding-bottom: 14px;
   border-top: 1px solid var(--border);
 }
+.fpace-tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 0;
+  padding-bottom: 12px;
+}
+.fpace-tools .input {
+  flex: 1 1 200px;
+  min-width: 0;
+  width: auto;
+}
+.fpace-tools select.input {
+  flex: 0 1 220px;
+}
 @media (max-width: 640px) {
   .fpace-name { max-width: 140px; }
 }

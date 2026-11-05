@@ -22,6 +22,7 @@ import { LandingEditPage } from "./pages/LandingEditPage";
 import { PublicLandingPage } from "./pages/PublicLandingPage";
 import { PublicSitePage, SiteNotFound } from "./pages/PublicSitePage";
 import { StatsPage } from "./pages/StatsPage";
+import { TrendPage } from "./pages/TrendPage";
 import { StatsReportPage } from "./pages/StatsReportPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { AdvertisersPage } from "./pages/AdvertisersPage";
@@ -209,6 +210,14 @@ function App() {
         element={
           <ProtectedRoute>
             <LandingEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trend"
+        element={
+          <ProtectedRoute>
+            <TrendPage />
           </ProtectedRoute>
         }
       />
