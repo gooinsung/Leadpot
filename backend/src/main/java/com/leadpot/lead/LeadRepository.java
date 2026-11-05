@@ -69,6 +69,11 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
             + "and l.deletedAt is null and l.createdAt >= :since")
     List<java.time.Instant> findCreatedAtByOwnerSince(@Param("ownerId") Long ownerId, @Param("since") java.time.Instant since);
 
+    // 대시보드 '리드폼별 오늘 추이' — [리드폼 id, 리드폼 이름, 접수 시각] 만(엔티티 전체를 읽지 않음)
+    @Query("select l.formId, f.name, l.createdAt from Lead l, Form f where l.formId = f.id and f.ownerId = :ownerId "
+            + "and l.deletedAt is null and l.createdAt >= :since")
+    List<Object[]> findFormPaceRowsByOwnerSince(@Param("ownerId") Long ownerId, @Param("since") java.time.Instant since);
+
     // 본인 소유 리드폼들의 전체 활성 리드 (통계 집계용)
     @Query("select l from Lead l where l.formId in (select f.id from Form f where f.ownerId = :ownerId) "
             + "and l.deletedAt is null")

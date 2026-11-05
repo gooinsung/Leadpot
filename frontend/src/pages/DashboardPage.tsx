@@ -5,6 +5,7 @@ import {
   getHealth,
   getInbox,
   getLeadPace,
+  getFormPace,
   getRevenue,
   getStats,
   leadsCount,
@@ -13,8 +14,10 @@ import {
   updateSubdomain,
   type InboxItem,
   type LeadPace,
+  type FormPace,
 } from "../api/client";
 import { LeadPaceCard } from "../components/LeadPaceCard";
+import { FormPaceCard } from "../components/FormPaceCard";
 import { useAuth } from "../lib/authContext";
 import { TopBar } from "../components/TopBar";
 import { leadStatusClass, leadStatusLabel, maskPhone, pickName, pickPhone, summarizeAnswers } from "../lib/leadDisplay";
@@ -45,11 +48,14 @@ export function DashboardPage() {
   const [statusNames, setStatusNames] = useState<Record<string, string>>({});
   // '접수 페이스' — 오늘 지금까지 vs 어제 이시간 · 평상시 이시간(2026-11-04). 실패하면 카드를 숨긴다.
   const [pace, setPace] = useState<LeadPace | null | "error">(null);
+  // '리드폼별 오늘 추이' — 리드폼마다 오늘 vs 어제 · 최근 7일(2026-11-05). 실패하면 카드를 숨긴다.
+  const [formPace, setFormPace] = useState<FormPace | null | "error">(null);
 
   useEffect(() => {
     getHealth().then(() => setHealth("ok")).catch(() => setHealth("error"));
     leadsCount().then((r) => setTodayNewLeads(r.todayNew)).catch(() => setTodayNewLeads(0));
     getLeadPace().then(setPace).catch(() => setPace("error"));
+    getFormPace().then(setFormPace).catch(() => setFormPace("error"));
     listForms().then((f) => setFormCount(f.length)).catch(() => setFormCount(0));
     listLandings().then((l) => setLandingCount(l.length)).catch(() => setLandingCount(0));
     // 오늘 유입(전체 접속 수) — 통계 API 를 오늘 범위로 조회
@@ -140,6 +146,7 @@ export function DashboardPage() {
         </div>
 
         <LeadPaceCard pace={pace} />
+        <FormPaceCard data={formPace} />
 
         {/* 리디자인 §5: 빈 공간 회수 — 왼쪽 '오늘 들어온 리드' 미리보기, 오른쪽 서브도메인 카드 */}
         <div className="dash-cols">

@@ -72,6 +72,12 @@ public class LeadController {
         return leadService.pace(userId(jwt));
     }
 
+    /** 대시보드 '리드폼별 오늘 추이' — 리드폼마다 오늘 vs 어제 · 최근 7일(같은 시간대 + 하루 평균). */
+    @GetMapping("/pace/forms")
+    public com.leadpot.lead.dto.FormPaceResponse formPace(@AuthenticationPrincipal Jwt jwt) {
+        return leadService.formPace(userId(jwt));
+    }
+
     /**
      * 통합 인박스(U1): 내 모든 리드폼의 리드를 한 스트림으로. 필터·페이징 + 사이드 rail 카운트.
      * unseen=true 면 미확인(신규 NEW)만.

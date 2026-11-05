@@ -8,6 +8,14 @@
 
 ## 📍 지금 위치
 
+- **✅ 대시보드 '리드폼별 오늘 추이' 표 (2026-11-05, 사용자 요청 — 위치는 사용자가 맡김 → 대시보드 '접수 페이스' 카드 바로 아래)**:
+  리드폼마다 **오늘 지금까지** 접수를 **어제 이시간**·**7일 평균 이시간**과 비교(차이 건수·%) + 판정 배지(평소보다 N% ↑/↓/비슷, 기준은
+  '접수 페이스'와 같은 ±15%·1건) + **7일 하루 평균**(7일 합계)·**어제 하루** 전체. 최근 7일(오늘 포함) 접수가 있는 리드폼만, 오늘 많은 순.
+  8개 넘으면 '더 보기'. 행 클릭 → 그 리드폼 리드 목록(`/forms/{id}/leads`).
+  - 백엔드 `GET /api/leads/pace/forms` → `FormPaceResponse(asOf, usualDays, items[])`. 계산은 순수 함수 `LeadService.computeFormPace`
+    (테스트 `FormPaceTest`), 쿼리 `LeadRepository.findFormPaceRowsByOwnerSince` 는 [formId, 이름, createdAt] 만 읽음. DB 변경 없음.
+  - 프론트 `components/FormPaceCard.tsx`, 비교 규칙은 `lib/pace.ts` 로 빼서 기존 `LeadPaceCard` 와 공유. API 실패 시 카드 숨김.
+  - 확인: tsc·oxlint, Playwright(API 목킹) 1280·375px(모바일은 표만 카드 안 가로 스크롤, 페이지 폭 375 유지).
 - **✅ 대시보드 '접수 페이스' 카드 (2026-11-04, 사용자 요청)**: 오늘 00:00~지금까지 접수를 **어제 이시간**·**평상시 이시간**(최근 7일 같은 시간대 평균)과 비교해 "평소보다 N% 많이/적게/비슷하게 들어오는 중" + 막대 3줄로 대강 보여준다. ±15% 미만 또는 1건 미만 차이는 "비슷"으로 처리.
   - 백엔드 `GET /api/leads/pace` → `LeadPaceResponse(today, yesterday, usual, usualDays, asOf)`. KST 기준, 계산은 순수 함수 `LeadService.computePace`(테스트 `LeadPaceTest`). 쿼리는 최근 8일치 `createdAt` 만 읽음.
   - 프론트 `components/LeadPaceCard.tsx` + `styles/features/dashboard.css`, `DashboardPage` KPI 줄 아래에 배치. API 실패 시 카드 숨김. 모바일 레이아웃 확인 완료.
