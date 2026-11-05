@@ -36,6 +36,7 @@ const NAV: NavSection[] = [
     items: [
       { to: "/dashboard", label: "대시보드" },
       { to: "/inbox", label: "리드" },
+      { to: "/trend", label: "오늘 추이" },
     ],
   },
   {
