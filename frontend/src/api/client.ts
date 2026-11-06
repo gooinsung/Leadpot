@@ -490,7 +490,8 @@ export interface Lead {
   /** 내(마케터)가 열어본 시각. null = '미확인'. 리드 상태와 무관하다(V32). */
   seenAt: string | null;
   /** 아웃바운드 웹훅(외부 API 전달) 최신 시도 결과. null = 아직 시도한 적 없음(연동 꺼짐 포함). */
-  outboundWebhookStatus: "SUCCESS" | "FAILED" | null;
+  /** PENDING = 미전송 일괄 전송으로 대기열에 들어가 아직 결과가 없는 상태. null = 시도한 적 없음. */
+  outboundWebhookStatus: "SUCCESS" | "FAILED" | "PENDING" | null;
   outboundWebhookCode: number | null;
   outboundWebhookResponse: string | null;
   outboundWebhookSentAt: string | null;
@@ -873,6 +874,32 @@ export function updateLeadTags(id: number, tags: string[]): Promise<Lead> {
 /** 아웃바운드 웹훅(외부 API 전달) 재시도 — 그 자리에서 다시 호출하고 최신 결과가 담긴 리드를 돌려준다. */
 export function retryOutboundWebhook(id: number): Promise<Lead> {
   return request<Lead>(`/api/leads/${id}/webhook-out/retry`, { method: "POST" });
+}
+
+/** 외부 API 전달 '미전송 일괄 전송' 조회/요청 결과. */
+export interface OutboundUnsent {
+  /** 미전송 건수(전송 요청이면 이번에 넣은 건 포함). */
+  total: number;
+  /** 이번에 전송 대기열에 넣은 건수 — 조회만 할 때는 0. */
+  queued: number;
+  /** 한 번에 보내는 상한(1000건)을 넘어 아직 남은 미전송 건수. */
+  remaining: number;
+}
+
+/** 외부 API 전달 연동 전에 들어와 한 번도 전송 안 된 리드 수. from/to 는 yyyy-MM-dd(KST), 비우면 제한 없음. */
+export function getOutboundUnsent(formId: number, from?: string, to?: string): Promise<OutboundUnsent> {
+  const q = new URLSearchParams({ formId: String(formId) });
+  if (from) q.set("from", from);
+  if (to) q.set("to", to);
+  return request<OutboundUnsent>(`/api/leads/webhook-out/unsent?${q.toString()}`);
+}
+
+/** 미전송 리드를 지금 일괄 전송 — 서버가 한 건씩 비동기로 보낸다. */
+export function sendOutboundUnsent(formId: number, from?: string, to?: string): Promise<OutboundUnsent> {
+  return request<OutboundUnsent>("/api/leads/webhook-out/send-unsent", {
+    method: "POST",
+    body: { formId, from: from || null, to: to || null },
+  });
 }
 
 /** 리드 메모/이력 목록(오래된 순). */

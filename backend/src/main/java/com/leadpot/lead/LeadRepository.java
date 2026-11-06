@@ -130,4 +130,19 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     @Query("select f.ownerId, count(l) from Lead l join Form f on l.formId = f.id "
             + "where l.deletedAt is null group by f.ownerId")
     List<Object[]> countActiveGroupedByOwner();
+
+    /**
+     * 외부 API 전달 '미전송 일괄 전송'(2026-11-06) — 한 번도 전송 시도가 없는(status null) 활성 리드를
+     * 접수 기간 [from, to) 안에서 오래된 순으로. 연동을 켜기 전에 들어온 리드를 지금 보내기 위한 조회.
+     */
+    @Query("select l from Lead l where l.formId = :formId and l.deletedAt is null "
+            + "and l.outboundWebhookStatus is null and l.createdAt >= :from and l.createdAt < :to "
+            + "order by l.createdAt asc, l.id asc")
+    List<Lead> findOutboundUnsent(@Param("formId") Long formId, @Param("from") java.time.Instant from,
+            @Param("to") java.time.Instant to, org.springframework.data.domain.Pageable page);
+
+    @Query("select count(l) from Lead l where l.formId = :formId and l.deletedAt is null "
+            + "and l.outboundWebhookStatus is null and l.createdAt >= :from and l.createdAt < :to")
+    long countOutboundUnsent(@Param("formId") Long formId, @Param("from") java.time.Instant from,
+            @Param("to") java.time.Instant to);
 }

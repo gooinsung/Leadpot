@@ -113,6 +113,51 @@ public class OutboundWebhookService {
         return call(url, method, params);
     }
 
+    /** 일괄 전송 대기 표시 — 큐에 넣은 리드를 이 상태로 먼저 찍어 두면, 두 번 눌러도 '미전송' 조회에 다시 잡히지 않는다. */
+    public static final String STATUS_PENDING = "PENDING";
+
+    /**
+     * 외부 API 전달 연동을 켜기 <b>전에</b> 들어와 한 번도 전송되지 않은 리드들을 지금 보낸다(사용자 지시 2026-11-06).
+     * 호출부(LeadService)의 트랜잭션 안에서 파라미터를 스냅샷으로 확정하고 리드를 {@link #STATUS_PENDING} 으로 찍은 뒤,
+     * 커밋 후 전용 스레드에서 <b>한 건씩 순서대로</b> 보낸다(받는 쪽에 몰아서 쏘지 않는다). 결과는 건별로 덮어쓴다.
+     * 서버가 도중에 재시작되면 남은 건은 PENDING 으로 남는다 — 리드 상세의 [재시도]로 개별 전송할 수 있다.
+     *
+     * @return 큐에 넣은 건수
+     */
+    public int dispatchBulk(Form form, List<Lead> leads) {
+        if (!active(form)) {
+            throw new InvalidSubmissionException("이 리드폼은 외부 API 전달 연동이 꺼져 있습니다.");
+        }
+        String url = str(form.getSettingsConfig().get("outboundWebhookUrl"));
+        String method = method(form);
+        Instant now = Instant.now();
+        List<Map.Entry<Long, Map<String, String>>> jobs = new java.util.ArrayList<>();
+        for (Lead lead : leads) {
+            jobs.add(Map.entry(lead.getId(), buildParams(form, lead)));
+            lead.setOutboundWebhookResult(STATUS_PENDING, null, null, now);
+        }
+        if (jobs.isEmpty()) {
+            return 0;
+        }
+        runAfterCommit(() -> {
+            int failed = 0;
+            for (Map.Entry<Long, Map<String, String>> job : jobs) {
+                Result r;
+                try {
+                    r = call(url, method, job.getValue());
+                } catch (RuntimeException e) {
+                    r = new Result(false, null, e.toString());
+                }
+                if (!r.success()) {
+                    failed++;
+                }
+                resultWriter.write(job.getKey(), r);
+            }
+            log.info("아웃바운드 웹훅 일괄 전송 완료(form={}): {}건 중 실패 {}건", form.getId(), jobs.size(), failed);
+        });
+        return jobs.size();
+    }
+
     private boolean active(Form form) {
         Map<String, Object> fs = form.getSettingsConfig();
         return fs != null && Boolean.TRUE.equals(fs.get("outboundWebhookEnabled"))

@@ -10,6 +10,7 @@ import {
   listLeadNotes,
   resolveAsRequest,
   retryOutboundWebhook,
+  getForm,
   updateLeadStatus,
   updateLeadTags,
   ApiError,
@@ -95,6 +96,8 @@ export function LeadSidePanel({
   // 광고주가 이 리드를 보기는 했는지(V33). 실패해도 상세 자체는 떠야 하므로 null 로 두고 섹션만 접는다.
   const [advActivity, setAdvActivity] = useState<LeadAdvertiserActivity | null>(null);
   const [advOpen, setAdvOpen] = useState(false);
+  // 이 리드의 리드폼에 외부 API 전달이 켜져 있는지 — 한 번도 전송 안 된 리드에 [지금 전송]을 띄울지 판단한다.
+  const [outboundEnabled, setOutboundEnabled] = useState(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -111,6 +114,13 @@ export function LeadSidePanel({
       setAsHistory(as);
       setAdvActivity(adv);
       getLeadStatusOptions(l.formId).then(setOptions).catch(() => setOptions([]));
+      setOutboundEnabled(false);
+      getForm(l.formId)
+        .then((f) => {
+          const c = f.settingsConfig;
+          setOutboundEnabled(c?.outboundWebhookEnabled === true && !!(c?.outboundWebhookUrl as string | undefined)?.trim());
+        })
+        .catch(() => setOutboundEnabled(false));
       return l;
     } catch {
       setLead(null);
@@ -178,7 +188,7 @@ export function LeadSidePanel({
       setLead(updated);
       onChanged?.(updated);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "재시도에 실패했습니다.");
+      setError(e instanceof ApiError ? e.message : "전송에 실패했습니다.");
     } finally {
       setBusy(false);
     }
@@ -306,31 +316,48 @@ export function LeadSidePanel({
     </div>
   );
 
-  /** 아웃바운드 웹훅(외부 API 전달) 최신 결과 — 시도한 적 있을 때만 보인다. */
-  const webhookSection = lead && lead.outboundWebhookSentAt && (
+  /**
+   * 아웃바운드 웹훅(외부 API 전달) 최신 결과 — 시도한 적 있을 때, 또는 연동이 켜진 리드폼의 미전송 리드일 때 보인다.
+   * 미전송 = 연동을 켜기 전에 들어온 리드 → [지금 전송]으로 바로 보낸다(사용자 지시 2026-11-06).
+   */
+  const webhookStatus = lead?.outboundWebhookStatus;
+  const webhookSection = lead && (lead.outboundWebhookSentAt || outboundEnabled) && (
     <div className={split ? "card card-pad" : ""}>
       <div className="ip-section-label" style={split ? { marginTop: 0 } : undefined}>외부 API 전달</div>
       <div className="ip-answer">
         <span className="ip-k">결과</span>
         <span className="ip-v">
-          <span className={`badge ${lead.outboundWebhookStatus === "SUCCESS" ? "b-normal" : "b-bad"}`}>
-            {lead.outboundWebhookStatus === "SUCCESS" ? "성공" : "실패"}
-            {lead.outboundWebhookCode != null && ` · HTTP ${lead.outboundWebhookCode}`}
-          </span>
+          {!webhookStatus ? (
+            <span className="badge">미전송</span>
+          ) : webhookStatus === "PENDING" ? (
+            <span className="badge">전송 대기</span>
+          ) : (
+            <span className={`badge ${webhookStatus === "SUCCESS" ? "b-normal" : "b-bad"}`}>
+              {webhookStatus === "SUCCESS" ? "성공" : "실패"}
+              {lead.outboundWebhookCode != null && ` · HTTP ${lead.outboundWebhookCode}`}
+            </span>
+          )}
         </span>
       </div>
-      <div className="ip-answer">
-        <span className="ip-k">전송 시각</span>
-        <span className="ip-v">{fmtDateTime(lead.outboundWebhookSentAt)}</span>
-      </div>
+      {lead.outboundWebhookSentAt && (
+        <div className="ip-answer">
+          <span className="ip-k">{webhookStatus === "PENDING" ? "대기 등록" : "전송 시각"}</span>
+          <span className="ip-v">{fmtDateTime(lead.outboundWebhookSentAt)}</span>
+        </div>
+      )}
       {lead.outboundWebhookResponse && (
         <div className="ip-answer">
           <span className="ip-k">응답값</span>
           <span className="ip-v" style={{ wordBreak: "break-all" }}>{lead.outboundWebhookResponse}</span>
         </div>
       )}
+      {!webhookStatus && (
+        <p className="dash-sub" style={{ margin: "4px 0 0" }}>외부 API 전달 연동을 켜기 전에 들어온 DB입니다.</p>
+      )}
       <div className="ip-actions">
-        <button className="btn btn-ghost btn-sm" disabled={busy} onClick={retryWebhook}>재시도</button>
+        <button className="btn btn-ghost btn-sm" disabled={busy} onClick={retryWebhook}>
+          {webhookStatus ? "재시도" : "지금 전송"}
+        </button>
       </div>
     </div>
   );
