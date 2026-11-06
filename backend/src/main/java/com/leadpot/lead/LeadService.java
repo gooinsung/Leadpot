@@ -863,6 +863,55 @@ public class LeadService {
         return LeadResponse.from(lead);
     }
 
+    /** 미전송 일괄 전송 한 번에 큐에 넣는 최대 건수 — 넘으면 남은 건수를 알려 주고 다시 누르게 한다. */
+    static final int OUTBOUND_BULK_MAX = 1000;
+
+    /** 외부 API 전달 '미전송' 리드 수(본인 리드폼만). from/to 는 KST 날짜(yyyy-MM-dd), 비우면 제한 없음. */
+    @Transactional(readOnly = true)
+    public com.leadpot.lead.dto.OutboundUnsentResponse countOutboundUnsent(Long ownerId, Long formId, String from, String to) {
+        formService.get(ownerId, formId); // 소유권 확인(아니면 404)
+        Instant[] range = unsentRange(from, to);
+        long n = leadRepository.countOutboundUnsent(formId, range[0], range[1]);
+        return new com.leadpot.lead.dto.OutboundUnsentResponse(n, 0, n);
+    }
+
+    /**
+     * 외부 API 전달 연동을 켜기 전에 들어온(한 번도 전송 안 된) 리드를 지금 일괄 전송한다(본인 리드폼만).
+     * 실제 호출은 커밋 후 비동기로 한 건씩 — 응답은 큐에 넣은 건수와 남은 미전송 건수다.
+     */
+    @Transactional
+    public com.leadpot.lead.dto.OutboundUnsentResponse sendOutboundUnsent(Long ownerId, Long formId, String from, String to) {
+        formService.get(ownerId, formId); // 소유권 확인(아니면 404)
+        Form form = formService.getEntity(formId);
+        Instant[] range = unsentRange(from, to);
+        List<Lead> targets = leadRepository.findOutboundUnsent(formId, range[0], range[1],
+                org.springframework.data.domain.PageRequest.of(0, OUTBOUND_BULK_MAX));
+        int queued = outboundWebhookService.dispatchBulk(form, targets);
+        long total = leadRepository.countOutboundUnsent(formId, range[0], range[1]); // flush 후 PENDING 은 빠진다
+        return new com.leadpot.lead.dto.OutboundUnsentResponse(queued + total, queued, total);
+    }
+
+    private static Instant[] unsentRange(String from, String to) {
+        Instant f;
+        Instant t;
+        try {
+            f = startOfDay(from);
+            t = endOfDay(to);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new com.leadpot.common.error.InvalidSubmissionException("날짜 형식이 올바르지 않습니다.");
+        }
+        if (f == null) {
+            f = Instant.EPOCH;
+        }
+        if (t == null) {
+            t = Instant.parse("9999-01-01T00:00:00Z");
+        }
+        if (!f.isBefore(t)) {
+            throw new com.leadpot.common.error.InvalidSubmissionException("시작일이 종료일보다 늦습니다.");
+        }
+        return new Instant[] {f, t};
+    }
+
     /** 리드 메모/이력 목록(오래된 순). 작성자 역할(마케터/광고주)을 함께 내려 화면이 표기한다. */
     @Transactional(readOnly = true)
     public List<LeadNoteResponse> listNotes(Long ownerId, Long leadId) {

@@ -33,6 +33,7 @@ import { FormRenderer } from "../components/formRenderers/FormRenderer";
 import { ImageUploadField } from "../components/ImageUploadField";
 import { PixelFields } from "../components/PixelFields";
 import { WebhookLeadPanel } from "../components/WebhookLeadPanel";
+import { OutboundUnsentPanel } from "../components/OutboundUnsentPanel";
 import { CtaStyleFields } from "../components/CtaStyleFields";
 import { useAuth } from "../lib/authContext";
 import { toast } from "../lib/toast";
@@ -1790,6 +1791,7 @@ export function FormEditPage() {
                   <span className="dash-sub" style={{ fontSize: 12 }}>
                     실제 전송 결과(성공/실패·응답값)는 각 리드 상세에서 확인하고 재시도할 수 있습니다.
                   </span>
+                  {!isNew && id && <OutboundUnsentPanel formId={Number(id)} />}
                 </div>
               )}
             </div>

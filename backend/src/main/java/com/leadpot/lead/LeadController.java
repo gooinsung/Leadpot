@@ -115,6 +115,22 @@ public class LeadController {
         return leadService.retryOutboundWebhook(userId(jwt), id);
     }
 
+    /** 외부 API 전달 연동을 켜기 전에 들어온(한 번도 전송 안 된) 리드 수 — 일괄 전송 확인창용. */
+    @GetMapping("/webhook-out/unsent")
+    public com.leadpot.lead.dto.OutboundUnsentResponse outboundUnsent(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam Long formId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        return leadService.countOutboundUnsent(userId(jwt), formId, from, to);
+    }
+
+    /** 미전송 리드를 지금 일괄 전송(비동기, 한 건씩). 큐에 넣은 건수와 남은 건수를 돌려준다. */
+    @PostMapping("/webhook-out/send-unsent")
+    public com.leadpot.lead.dto.OutboundUnsentResponse sendOutboundUnsent(@AuthenticationPrincipal Jwt jwt,
+            @jakarta.validation.Valid @RequestBody com.leadpot.lead.dto.OutboundUnsentRequest req) {
+        return leadService.sendOutboundUnsent(userId(jwt), req.formId(), req.from(), req.to());
+    }
+
     /**
      * 이 리드를 <b>광고주가 보기는 했는지</b>(V33). 요약(최초/최근 열람·열람 횟수·행동 여부)과 시간순 이력.
      * 마케터 전용이다 — 광고주 화면에는 확인 여부를 노출하지 않는다.
