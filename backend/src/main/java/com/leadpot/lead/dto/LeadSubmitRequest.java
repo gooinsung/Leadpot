@@ -14,7 +14,9 @@ public record LeadSubmitRequest(
         Map<String, Object> utm,
         String groupTag,
         /** 웹훅 유입 멱등성 키(V39). 우리 공개 폼(SELF) 제출은 항상 null — {@link WebhookLeadService} 만 채운다. */
-        String externalId) {
+        String externalId,
+        /** 휴대폰 본인인증 통과 토큰(V48). 인증을 켠 리드폼만 필요 — {@code PhoneVerificationService#consume}. */
+        String phoneVerificationToken) {
 
     public List<Map<String, Object>> answersOrEmpty() {
         return answers == null ? List.of() : answers;

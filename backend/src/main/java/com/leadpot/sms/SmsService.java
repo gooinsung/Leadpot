@@ -158,18 +158,39 @@ public class SmsService {
      * 이력은 똑같이 남는다 — 본인확인 문자도 우리 비용이므로 추적이 필요하다.
      */
     public MessageLog sendVerification(Long userId, String to, String text) {
-        SmsRequest req = SmsRequest.to(userId, to, text, MessageLog.TO_AUTH);
-        String channel = SolapiSmsSender.channelOf(text, null);
-        SmsCredentials cred = resolveCredentials(userId, null);
+        return sendIdentityCheck(SmsRequest.to(userId, to, text, MessageLog.TO_AUTH), null);
+    }
+
+    /**
+     * 리드폼 방문자 휴대폰 인증번호(V48). 비밀번호 재설정과 같은 이유로 <b>V25 계정 권한 검사를 타지 않고
+     * 월 사용량에도 넣지 않는다</b> — 사용자 결정(2026-11-09): 인증 문자 비용은 리드팟이 부담한다.
+     * 발송량은 호출부({@code PhoneVerificationService})가 쿨다운·번호/IP/폼별 일일 상한으로 조인다.
+     *
+     * @param ownerId    리드폼 주인 — 이력이 그 마케터의 발송 이력에 '인증번호'로 남는다
+     * @param loggedText 이력에 남길 본문. 인증번호를 가린 문장을 넘긴다(마케터 화면에 방문자 번호가 보이면 안 된다)
+     */
+    public MessageLog sendLeadVerification(Long ownerId, Long formId, String to, String text, String loggedText) {
+        SmsRequest req = new SmsRequest(ownerId, to, text, MessageLog.TO_VERIFY, formId, null, null, null, null,
+                null, null);
+        return sendIdentityCheck(req, loggedText);
+    }
+
+    /** 본인확인 문자 공통 — 권한 검사 없이 자격증명·번호만 보고 보낸다. */
+    private MessageLog sendIdentityCheck(SmsRequest req, String loggedText) {
+        String channel = SolapiSmsSender.channelOf(req.text(), null);
+        SmsCredentials cred = resolveCredentials(req.ownerId(), null);
         if (cred == null || !cred.usable()) {
-            return skip(req, channel, "문자 발송 설정이 없습니다. 발신번호·API 키를 확인해주세요.");
+            return skip(req, channel, "문자 발송 설정이 없습니다. 발신번호·API 키를 확인해주세요.", loggedText);
         }
-        if (PhoneNumbers.normalize(to) == null) {
-            return skip(req, channel, "수신번호가 없거나 형식이 올바르지 않습니다.");
+        if (PhoneNumbers.normalize(req.to()) == null) {
+            return skip(req, channel, "수신번호가 없거나 형식이 올바르지 않습니다.", loggedText);
         }
-        SmsSender.SmsResult result = sender.send(cred, to, text);
+        SmsSender.SmsResult result = sender.send(cred, req.to(), req.text());
         MessageLog entry = base(req, result.channel(),
                 result.ok() ? MessageLog.STATUS_SENT : MessageLog.STATUS_FAILED, cred.system());
+        if (loggedText != null) {
+            entry.setRenderedBody(loggedText);
+        }
         entry.setProviderMessageId(result.providerMessageId());
         entry.setError(cut(result.error(), 500));
         logWriter.record(entry);
@@ -295,7 +316,15 @@ public class SmsService {
 
     /** 보내지 않고 사유만 남긴다. 조용히 사라지면 마케터가 알 수 없으므로 반드시 기록한다. */
     private MessageLog skip(SmsRequest req, String channel, String reason) {
+        return skip(req, channel, reason, null);
+    }
+
+    /** @param loggedText null 이 아니면 본문 대신 이력에 남길 문장(인증번호를 가린 것). */
+    private MessageLog skip(SmsRequest req, String channel, String reason, String loggedText) {
         MessageLog entry = base(req, channel, MessageLog.STATUS_SKIPPED, true);
+        if (loggedText != null) {
+            entry.setRenderedBody(loggedText);
+        }
         entry.setError(reason);
         logWriter.record(entry);
         return entry;

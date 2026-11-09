@@ -32,6 +32,8 @@ public class MessageLog {
     public static final String TO_REPORT = "REPORT";
     /** 계정 본인확인(비밀번호 재설정 인증번호, V36). 마케팅 발송이 아니라 월 사용량 집계에서 뺀다. */
     public static final String TO_AUTH = "AUTH";
+    /** 리드폼 방문자 휴대폰 인증번호(V48). 리드팟 부담이라 AUTH 처럼 월 사용량 집계에서 뺀다. */
+    public static final String TO_VERIFY = "VERIFY";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
