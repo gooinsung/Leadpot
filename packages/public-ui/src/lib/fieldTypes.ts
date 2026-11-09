@@ -306,6 +306,30 @@ export function resolveDateBound(spec: unknown, today: Date = new Date()): strin
   return undefined;
 }
 
+/**
+ * '선택 불가' 체크박스(지난 날짜·오늘·내일) — 사용자 지시 2026-11-09. 따로 저장하지 않고 **최소 날짜(minDate)의
+ * 오늘 기준 값**으로 표현한다: 지난 날짜 불가 = `+0`, 오늘 불가 = `+1`, 내일 불가 = `+2`.
+ * 브라우저 달력은 '시작~끝' 범위만 막을 수 있어 앞쪽 날짜는 함께 막힌다(오늘 불가 → 지난 날짜도 불가).
+ */
+export type BlockedDay = "past" | "today" | "tomorrow";
+const BLOCKED_LEVEL: Record<BlockedDay, number> = { past: 0, today: 1, tomorrow: 2 };
+
+/** 지금 최소 날짜 설정으로 막혀 있는 날. 고정 날짜·제한 없음이면 전부 false. */
+export function blockedDays(minDate: unknown): Record<BlockedDay, boolean> {
+  const level = isRelativeDateBound(minDate) ? Number(minDate) : -Infinity;
+  return { past: level >= 0, today: level >= 1, tomorrow: level >= 2 };
+}
+
+/** 체크박스 하나를 켜고/끈 뒤의 최소 날짜 값. 켜면 그날까지 막고, 끄면 그 전날까지만 막는다. */
+export function minDateAfterToggle(minDate: unknown, day: BlockedDay, checked: boolean): string {
+  const level = BLOCKED_LEVEL[day];
+  if (checked) {
+    const cur = isRelativeDateBound(minDate) ? Number(minDate) : -Infinity;
+    return cur > level ? (minDate as string) : `+${level}`;
+  }
+  return level === 0 ? "" : `+${level - 1}`;
+}
+
 /** 날짜 항목의 [최소, 최대] — input 의 min/max 와 검증이 같은 값을 쓴다. */
 export function dateRange(block: FormBlock): { min?: string; max?: string } {
   return { min: resolveDateBound(block.options?.minDate), max: resolveDateBound(block.options?.maxDate) };

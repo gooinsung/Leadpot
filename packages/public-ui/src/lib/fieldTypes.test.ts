@@ -18,6 +18,8 @@ import {
   normalizeAnswerType,
   splitAddressDetail,
   stepAnswerType,
+  blockedDays,
+  minDateAfterToggle,
 } from "./fieldTypes";
 
 const field = (p: Partial<FormBlock>): FormBlock => ({ sortOrder: 0, blockType: "FIELD", ...p }) as FormBlock;
@@ -173,5 +175,25 @@ describe("버튼 선택 값 처리", () => {
     expect(fieldAnswer(block(true), "1,0")).toBe("장기렌트, 자동차리스");
     expect(fieldBlockError(block(false), "")).toContain("선택");
     expect(fieldBlockError(block(false), "0")).toBeNull();
+  });
+});
+
+describe("날짜 선택 불가 체크박스", () => {
+  it("최소 날짜(오늘 기준)에서 막힌 날을 읽는다", () => {
+    expect(blockedDays("")).toEqual({ past: false, today: false, tomorrow: false });
+    expect(blockedDays("+0")).toEqual({ past: true, today: false, tomorrow: false });
+    expect(blockedDays("+1")).toEqual({ past: true, today: true, tomorrow: false });
+    expect(blockedDays("+5")).toEqual({ past: true, today: true, tomorrow: true });
+    expect(blockedDays("2026-01-01")).toEqual({ past: false, today: false, tomorrow: false });
+  });
+
+  it("켜면 그날까지 막고, 끄면 그 전날까지만 막는다", () => {
+    expect(minDateAfterToggle("", "today", true)).toBe("+1");
+    expect(minDateAfterToggle("+0", "tomorrow", true)).toBe("+2");
+    expect(minDateAfterToggle("+5", "past", true)).toBe("+5"); // 이미 더 넓게 막혀 있으면 그대로
+    expect(minDateAfterToggle("2026-01-01", "past", true)).toBe("+0");
+    expect(minDateAfterToggle("+2", "tomorrow", false)).toBe("+1");
+    expect(minDateAfterToggle("+1", "today", false)).toBe("+0");
+    expect(minDateAfterToggle("+2", "past", false)).toBe("");
   });
 });
