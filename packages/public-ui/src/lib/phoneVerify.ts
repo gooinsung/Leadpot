@@ -18,6 +18,9 @@ export interface PhoneVerifyState {
   resendAt: number;
 }
 
+/** 인증 없이 제출하려 할 때 메시지 — 서버(PhoneVerificationService.consume)와 같은 문장. 빨간 볼드로 강조한다. */
+export const PHONE_VERIFY_REQUIRED = "휴대폰 인증을 완료해주세요.";
+
 export const phoneDigits = (v: string | undefined | null) => (v ?? "").replace(/\D/g, "");
 
 /** 휴대폰(01x, 10~11자리)인가 — 유선 번호로는 문자를 받을 수 없다. 서버 판정과 같다. */
