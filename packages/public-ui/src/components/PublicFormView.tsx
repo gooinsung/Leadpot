@@ -32,7 +32,7 @@ import {
 } from "../lib/fieldTypes";
 import { PhoneInput3 } from "./PhoneInput3";
 import { PhoneVerifyBox } from "./PhoneVerifyBox";
-import { phoneDigits, phoneVerifyKey, phoneVerifyToken, type PhoneVerifyState } from "../lib/phoneVerify";
+import { PHONE_VERIFY_REQUIRED, phoneDigits, phoneVerifyKey, phoneVerifyToken, type PhoneVerifyState } from "../lib/phoneVerify";
 import { AddressInput } from "./AddressInput";
 import { RadioGroupInput } from "./RadioGroupInput";
 import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
@@ -120,10 +120,12 @@ export function PublicFormView({
     [form.formType, form.requirePhoneVerification, sorted],
   );
   const [phoneVerify, setPhoneVerify] = useState<PhoneVerifyState | null>(null);
+  /** 인증 없이 제출을 누른 횟수 — 바뀔 때마다 인증 버튼이 흔들리며 시선을 끈다. */
+  const [verifyNudge, setVerifyNudge] = useState(0);
   /** 해당 칸이 인증 대상이면 그 아래에 붙일 인증 칸. */
   function verifySlot(key: string): ReactNode {
     if (key !== verifyKey) return null;
-    return <PhoneVerifyBox formId={form.id} phone={values[key] ?? ""} state={phoneVerify} onState={setPhoneVerify} accent={style.accentColor} />;
+    return <PhoneVerifyBox formId={form.id} phone={values[key] ?? ""} state={phoneVerify} onState={setPhoneVerify} accent={style.accentColor} nudge={verifyNudge} />;
   }
 
   // ---- 계산기(CALC) ----
@@ -242,7 +244,7 @@ export function PublicFormView({
     // 인증 대상 번호를 입력했으면 인증(또는 문자 발송 불가 안내)까지 끝나야 제출된다. 비어 있으면(선택 항목) 통과.
     if (verifyKey) {
       const phone = values[verifyKey] ?? "";
-      if (phoneDigits(phone) && !phoneVerifyToken(phoneVerify, phone)) return "휴대폰 인증을 완료해주세요.";
+      if (phoneDigits(phone) && !phoneVerifyToken(phoneVerify, phone)) return PHONE_VERIFY_REQUIRED;
     }
     return null;
   }
@@ -253,6 +255,7 @@ export function PublicFormView({
     const err = validateAll();
     if (err) {
       setSubmitError(err);
+      if (err === PHONE_VERIFY_REQUIRED) setVerifyNudge((n) => n + 1);
       return;
     }
     setSubmitting(true);
@@ -281,7 +284,10 @@ export function PublicFormView({
       onSubmitted?.();
     } catch (err) {
       // 인증 토큰이 만료·사용됨으로 거절되면 인증 칸을 처음으로 돌려 다시 받게 한다.
-      if (verifyKey && err instanceof ApiError && err.message.includes("인증")) setPhoneVerify(null);
+      if (verifyKey && err instanceof ApiError && err.message.includes("인증")) {
+        setPhoneVerify(null);
+        setVerifyNudge((n) => n + 1);
+      }
       setSubmitError(err instanceof ApiError ? err.message : "제출에 실패했습니다.");
     } finally {
       setSubmitting(false);
@@ -319,7 +325,7 @@ export function PublicFormView({
             />
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
-          {submitError && <p className="auth-error">{submitError}</p>}
+          {submitError && <SubmitError message={submitError} />}
           <SubmitCtaButton
             styleConfig={form.styleConfig}
             type="submit"
@@ -682,7 +688,7 @@ function StepFlow(props: {
             <LiveField key={i} block={b} idx={1000 + i} value={values[`c${i}`] ?? ""} onChange={(v) => setVal(`c${i}`, v)} accent={style.accentColor} extra={verifySlot(`c${i}`)} />
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
-          {submitError && <p className="auth-error">{submitError}</p>}
+          {submitError && <SubmitError message={submitError} />}
         </div>
       )}
 
@@ -704,5 +710,15 @@ function StepFlow(props: {
         )}
       </div>
     </div>
+  );
+}
+
+/** 제출 오류 문구. 휴대폰 인증을 건너뛴 경우는 빨간 볼드로 강조한다(사용자 요청 2026-11-09). */
+function SubmitError({ message }: { message: string }) {
+  const verify = message === PHONE_VERIFY_REQUIRED || message.includes("휴대폰 인증");
+  return (
+    <p className={verify ? "auth-error pv-required-error" : "auth-error"} role="alert">
+      {message}
+    </p>
   );
 }

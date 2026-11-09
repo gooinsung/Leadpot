@@ -22,6 +22,7 @@ export function PhoneVerifyBox({
   state,
   onState,
   accent,
+  nudge = 0,
 }: {
   formId: number;
   /** 연락처 칸에 입력된 값(하이픈 포함 가능). */
@@ -29,6 +30,8 @@ export function PhoneVerifyBox({
   state: PhoneVerifyState | null;
   onState: (s: PhoneVerifyState | null) => void;
   accent: string;
+  /** 인증 없이 제출을 누를 때마다 1씩 오른다 — 바뀌면 지금 눌러야 할 버튼을 흔들고 화면 가운데로 데려온다. */
+  nudge?: number;
 }) {
   const digits = phoneDigits(phone);
   // 다른 번호로 받은 상태는 이 번호에는 무효다.
@@ -38,6 +41,21 @@ export function PhoneVerifyBox({
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const codeRef = useRef<HTMLInputElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [shaking, setShaking] = useState(false);
+
+  // 인증을 건너뛰고 제출하려 하면: 인증 칸을 화면 가운데로 스크롤 + 버튼 흔들기.
+  useEffect(() => {
+    if (!nudge) return;
+    boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setShaking(false);
+    const start = setTimeout(() => setShaking(true), 30); // 연속으로 눌러도 애니메이션이 다시 시작되게
+    const stop = setTimeout(() => setShaking(false), 900);
+    return () => {
+      clearTimeout(start);
+      clearTimeout(stop);
+    };
+  }, [nudge]);
 
   // 번호가 바뀌면 입력하던 인증번호·에러를 비운다.
   useEffect(() => {
@@ -108,12 +126,20 @@ export function PhoneVerifyBox({
   const left = sent ? Math.max(0, Math.ceil((cur.expiresAt - now) / 1000)) : 0;
   const resendLeft = sent ? Math.max(0, Math.ceil((cur.resendAt - now) / 1000)) : 0;
   const expired = sent && left === 0;
+  // 번호를 다 입력했는데 아직 인증번호를 안 받았으면 버튼이 은은하게 맥박치며 "이걸 눌러주세요" 신호를 준다.
+  const invite = !sent && !busy && isMobileDigits(digits);
 
   return (
-    <div className="pv">
+    <div className="pv" ref={boxRef}>
       {!sent ? (
-        <button type="button" className="pv-btn" style={{ background: accent }} disabled={busy || !digits} onClick={send}>
-          {busy ? "보내는 중…" : "인증번호 받기"}
+        <button
+          type="button"
+          className={`pv-btn${invite ? " pv-invite" : ""}${shaking ? " pv-shake" : ""}`}
+          style={{ background: accent, ["--pv-accent" as string]: accent }}
+          disabled={busy || !digits}
+          onClick={send}
+        >
+          {busy ? "보내는 중…" : invite ? "👉 인증번호 받기" : "인증번호 받기"}
         </button>
       ) : (
         <>
@@ -138,7 +164,7 @@ export function PhoneVerifyBox({
               />
               {!expired && <span className="pv-timer">{formatLeft(left)}</span>}
             </div>
-            <button type="button" className="pv-btn pv-btn-confirm" style={{ background: accent }} disabled={busy || expired || code.length !== 6} onClick={confirm}>
+            <button type="button" className={`pv-btn pv-btn-confirm${shaking ? " pv-shake" : ""}`} style={{ background: accent }} disabled={busy || expired || code.length !== 6} onClick={confirm}>
               {busy ? "확인 중…" : "확인"}
             </button>
           </div>
