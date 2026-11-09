@@ -215,11 +215,34 @@ export interface LeadSubmitInput {
   answers: LeadAnswer[];
   consents: LeadConsent[];
   utm?: Record<string, unknown> | null;
+  /** 휴대폰 본인인증 통과 토큰(인증을 켠 리드폼만). */
+  phoneVerificationToken?: string | null;
 }
 
 /** 공개 리드폼 제출(비로그인). */
 export function submitLead(input: LeadSubmitInput): Promise<{ id: number; ok: boolean }> {
   return request<{ id: number; ok: boolean }>("/api/public/leads", { method: "POST", body: input });
+}
+
+// ---------- 휴대폰 본인인증(V48) ----------
+/**
+ * 인증번호 발송 결과. `FALLBACK` 은 문자를 보내지 못한 경우 — 인증 없이(미인증으로) 접수할 수 있도록
+ * 서버가 `token` 을 바로 준다(사용자 결정 2026-11-09).
+ */
+export interface PhoneCodeSendResult {
+  mode: "SENT" | "FALLBACK";
+  token: string | null;
+  codeTtlSeconds: number;
+  cooldownSeconds: number;
+}
+
+export function sendPhoneCode(formId: number, phone: string): Promise<PhoneCodeSendResult> {
+  return request<PhoneCodeSendResult>("/api/public/verify/phone/send", { method: "POST", body: { formId, phone } });
+}
+
+/** 인증번호 확인 → 접수 때 함께 보낼 통과 토큰. */
+export function confirmPhoneCode(formId: number, phone: string, code: string): Promise<{ token: string }> {
+  return request<{ token: string }>("/api/public/verify/phone/confirm", { method: "POST", body: { formId, phone, code } });
 }
 
 // ---------- 랜딩페이지 ----------

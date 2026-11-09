@@ -180,7 +180,7 @@ GET/PUT/DELETE /api/landings/{id}
 POST   /api/landings/{id}/forms         (폼 연결)
 GET    /api/public/landings/{slug}      (공개 렌더 데이터, 비로그인)
 POST   /api/public/leads                (폼 제출 수신, 비로그인)
-POST   /api/public/verify/phone/send|confirm   (본인인증, 후기)
+POST   /api/public/verify/phone/send|confirm   (본인인증 — 문자 인증번호, V48 구현 2026-11-09)
 GET    /api/leads?landing=&form=&status=&q=     (리드 목록)
 PATCH  /api/leads/bulk                   (상태 일괄 변경/삭제)
 GET    /api/leads/export                 (CSV/엑셀)
@@ -196,7 +196,7 @@ GET    /api/leads/export                 (CSV/엑셀)
 - **리드 목록/상태/CSV 내보내기**
 - SSL·리드 접근 권한
 
-**본인인증(휴대폰)** 은 외부 SMS/인증 서비스가 필요하므로 **2차** 로 두되, 데이터 모델·폼 옵션 자리는 지금부터 마련(`require_phone_verification`).
+**본인인증(휴대폰)** 은 2026-11-09 **문자 인증번호 방식**으로 구현했다(V48 `phone_verifications`, 기존 솔라피 계정 사용·리드팟 부담, 첫 번째 연락처 항목 대상, 문자 발송 불가 시 미인증 접수). PASS 실명인증은 별도 업체 계약이 필요해 미도입.
 
 ## 9. 외부 서비스 의존 (유료)
 

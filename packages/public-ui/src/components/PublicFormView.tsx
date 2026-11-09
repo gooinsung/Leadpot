@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { HtmlBlock } from "./HtmlBlock";
 import { SubmitCtaButton } from "./LandingCtaButton";
 import { ButtonChoiceInput } from "./ButtonChoiceInput";
@@ -31,6 +31,8 @@ import {
   stepAnswerType,
 } from "../lib/fieldTypes";
 import { PhoneInput3 } from "./PhoneInput3";
+import { PhoneVerifyBox } from "./PhoneVerifyBox";
+import { phoneDigits, phoneVerifyKey, phoneVerifyToken, type PhoneVerifyState } from "../lib/phoneVerify";
 import { AddressInput } from "./AddressInput";
 import { RadioGroupInput } from "./RadioGroupInput";
 import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
@@ -110,6 +112,19 @@ export function PublicFormView({
 
   const style = resolveStyle(form);
   const sorted = useMemo(() => [...form.blocks].sort((a, b) => a.sortOrder - b.sortOrder), [form]);
+
+  // ---- 휴대폰 본인인증(V48) ----
+  // 인증 대상은 첫 번째 연락처 항목 하나. 상태는 여기서 들고 있어 스텝형에서 단계를 오가도 유지된다.
+  const verifyKey = useMemo(
+    () => phoneVerifyKey(form.formType, Boolean(form.requirePhoneVerification), sorted),
+    [form.formType, form.requirePhoneVerification, sorted],
+  );
+  const [phoneVerify, setPhoneVerify] = useState<PhoneVerifyState | null>(null);
+  /** 해당 칸이 인증 대상이면 그 아래에 붙일 인증 칸. */
+  function verifySlot(key: string): ReactNode {
+    if (key !== verifyKey) return null;
+    return <PhoneVerifyBox formId={form.id} phone={values[key] ?? ""} state={phoneVerify} onState={setPhoneVerify} accent={style.accentColor} />;
+  }
 
   // ---- 계산기(CALC) ----
   // 계산은 여기서(브라우저에서) 끝난다 — 서버 왕복이 없어 결과가 즉시 뜨고 임베드에서도 그대로 돈다.
@@ -224,6 +239,11 @@ export function PublicFormView({
         if (e) return e;
       }
     }
+    // 인증 대상 번호를 입력했으면 인증(또는 문자 발송 불가 안내)까지 끝나야 제출된다. 비어 있으면(선택 항목) 통과.
+    if (verifyKey) {
+      const phone = values[verifyKey] ?? "";
+      if (phoneDigits(phone) && !phoneVerifyToken(phoneVerify, phone)) return "휴대폰 인증을 완료해주세요.";
+    }
     return null;
   }
 
@@ -237,7 +257,14 @@ export function PublicFormView({
     }
     setSubmitting(true);
     try {
-      await submitLead({ formId: form.id, landingPageId: landingPageId ?? null, answers: buildAnswers(), consents: buildConsents(), utm: parseUtm() });
+      await submitLead({
+        formId: form.id,
+        landingPageId: landingPageId ?? null,
+        answers: buildAnswers(),
+        consents: buildConsents(),
+        utm: parseUtm(),
+        phoneVerificationToken: verifyKey ? phoneVerifyToken(phoneVerify, values[verifyKey] ?? "") : null,
+      });
       firePixelLead(trackingConfig); // 전환(Lead) 픽셀 발사 — 각 플랫폼이 클릭ID로 자체 귀속
       const success = form.successConfig;
       if (success?.mode === "redirect" && success?.redirectUrl) {
@@ -253,6 +280,8 @@ export function PublicFormView({
       setSubmitted(true);
       onSubmitted?.();
     } catch (err) {
+      // 인증 토큰이 만료·사용됨으로 거절되면 인증 칸을 처음으로 돌려 다시 받게 한다.
+      if (verifyKey && err instanceof ApiError && err.message.includes("인증")) setPhoneVerify(null);
       setSubmitError(err instanceof ApiError ? err.message : "제출에 실패했습니다.");
     } finally {
       setSubmitting(false);
@@ -276,7 +305,6 @@ export function PublicFormView({
 
   return (
     <>
-      {form.requirePhoneVerification && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
       {form.formType === "BASIC" ? (
         <form onSubmit={onSubmit}>
           {sorted.map((b, i) => (
@@ -287,6 +315,7 @@ export function PublicFormView({
               value={values[`f${i}`] ?? ""}
               onChange={(v) => setVal(`f${i}`, v)}
               accent={style.accentColor}
+              extra={verifySlot(`f${i}`)}
             />
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
@@ -319,6 +348,7 @@ export function PublicFormView({
           calcGate={calculator?.gate ?? null}
           calcPreGateLoading={calculator?.preGateLoading ?? null}
           calcContactStepLabel={calculator?.contactStepLabel ?? "진단 결과"}
+          verifySlot={verifySlot}
         />
       )}
     </>
@@ -334,6 +364,8 @@ type LiveFieldProps = {
   accent?: string;
   /** 항목명·설명을 그리지 않는다 — 스텝형 질문처럼 제목을 바깥에서 따로 그릴 때. */
   bare?: boolean;
+  /** 입력칸 바로 아래에 붙일 것(휴대폰 본인인증 칸). */
+  extra?: ReactNode;
 };
 
 function LiveBlock(props: LiveFieldProps) {
@@ -360,7 +392,7 @@ function LiveBlock(props: LiveFieldProps) {
  * 입력 항목 하나. 기본형 항목·스텝형 질문(choiceAsField 로 변환)·스텝형 연락처 항목이 모두 이걸로 그려진다 —
  * 입력 유형(lib/fieldTypes)을 늘리면 여기 분기 하나로 두 폼에 함께 반영된다.
  */
-function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps) {
+function LiveField({ block, idx, value, onChange, accent, bare, extra }: LiveFieldProps) {
   const type = block.fieldType || "text";
   const picked = isListField(type) ? parsePicked(value) : [];
   const multi = isMultiPick(block);
@@ -422,6 +454,7 @@ function LiveField({ block, idx, value, onChange, accent, bare }: LiveFieldProps
       ) : (
         <input id={`fld-${idx}`} className="input" type={inputType} {...(type === "date" ? dateRange(block) : type === "number" ? numberRange(block) : {})} inputMode={type === "number" ? "numeric" : type === "email" ? "email" : undefined} placeholder={block.placeholder ?? ""} required={block.required} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
+      {extra}
     </div>
   );
 }
@@ -471,8 +504,10 @@ function StepFlow(props: {
   calcPreGateLoading: CalculatorDef["preGateLoading"] | null;
   /** 계산기가 있을 때 연락처 단계 진행 표시줄 라벨. */
   calcContactStepLabel: string;
+  /** 연락처 항목 키(`c{i}`)가 인증 대상이면 그 아래에 붙일 휴대폰 인증 칸. */
+  verifySlot: (key: string) => ReactNode;
 }) {
-  const { sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, styleConfig, submitLabel, submitting, submitError, onSubmit, calcView, calcGate, calcPreGateLoading, calcContactStepLabel } = props;
+  const { verifySlot, sorted, contactMessage, contactDescription, consentItems, values, setVal, choices, setChoices, agreed, setAgreed, step, setStep, style, styleConfig, submitLabel, submitting, submitError, onSubmit, calcView, calcGate, calcPreGateLoading, calcContactStepLabel } = props;
   const choiceBlocks = sorted.filter((b) => b.blockType === "CHOICE");
   const contactBlocks = sorted.filter((b) => b.blockType === "FIELD");
   /**
@@ -644,7 +679,7 @@ function StepFlow(props: {
             </p>
           )}
           {contactBlocks.map((b, i) => (
-            <LiveField key={i} block={b} idx={1000 + i} value={values[`c${i}`] ?? ""} onChange={(v) => setVal(`c${i}`, v)} accent={style.accentColor} />
+            <LiveField key={i} block={b} idx={1000 + i} value={values[`c${i}`] ?? ""} onChange={(v) => setVal(`c${i}`, v)} accent={style.accentColor} extra={verifySlot(`c${i}`)} />
           ))}
           <ConsentInputs items={consentItems} agreed={agreed} setAgreed={setAgreed} accent={style.accentColor} />
           {submitError && <p className="auth-error">{submitError}</p>}

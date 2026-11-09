@@ -768,6 +768,9 @@ export function LeadsListPage() {
                   </span>
                   <span className="fl-name">
                     <span className="fl-name-text">{name}</span>
+                    {l.phoneVerified && (
+                      <span className="fl-flag verified" title="휴대폰 문자 인증을 통과한 리드">인증</span>
+                    )}
                     {!trashed && dupIds.has(l.id) && (
                       <span className="fl-flag dup" title={`중복 판정 항목: ${uniqueFieldLabels.join(", ")}`}>중복</span>
                     )}

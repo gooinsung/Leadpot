@@ -50,6 +50,7 @@ public class LeadService {
     private final CustomLeadStatusRepository customStatusRepository;
     private final LeadAsRequestService asRequestService;
     private final com.leadpot.auth.UserRepository userRepository;
+    private final com.leadpot.phoneverify.PhoneVerificationService phoneVerificationService;
 
     public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
             FormService formService, IpBlockService ipBlockService, NotificationService notificationService,
@@ -57,7 +58,8 @@ public class LeadService {
             SiteIpBlockService siteIpBlockService, LeadStatusService leadStatusService,
             CustomLeadStatusRepository customStatusRepository, LeadAsRequestService asRequestService,
             com.leadpot.auth.UserRepository userRepository,
-            com.leadpot.landing.LandingPageRepository landingRepository) {
+            com.leadpot.landing.LandingPageRepository landingRepository,
+            com.leadpot.phoneverify.PhoneVerificationService phoneVerificationService) {
         this.leadRepository = leadRepository;
         this.leadNoteRepository = leadNoteRepository;
         this.formService = formService;
@@ -70,6 +72,7 @@ public class LeadService {
         this.asRequestService = asRequestService;
         this.userRepository = userRepository;
         this.landingRepository = landingRepository;
+        this.phoneVerificationService = phoneVerificationService;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -98,6 +101,10 @@ public class LeadService {
         }
         validate(form, req);
         checkDuplicates(form, req, visitor);
+        // 휴대폰 본인인증(V48) — 인증을 켠 폼은 통과 토큰이 있어야 받는다. 화면이 아니라 여기가 최종 관문이다.
+        // 웹훅 등 외부 유입은 방문자가 우리 폼을 거치지 않으므로 인증 대상이 아니다.
+        boolean phoneVerified = !external
+                && phoneVerificationService.consume(form, req.answersOrEmpty(), req.phoneVerificationToken());
 
         Lead lead = new Lead();
         lead.setFormId(form.getId());
@@ -113,7 +120,7 @@ public class LeadService {
         lead.setLeadValue(com.leadpot.form.LeadValues.of(form.getSettingsConfig()));
         lead.setGroupTag(req.groupTag());
         // 상태는 엔티티 기본값(NEW). 변경은 LeadStatusService 단일 관문으로만 한다(V29).
-        lead.setPhoneVerified(false); // 본인인증 연동 전까지 false
+        lead.setPhoneVerified(phoneVerified);
         lead.setSubmitterIp(cut(visitor.ip(), 64));
         lead.setUserAgent(cut(visitor.userAgent(), 1024));
         lead.setReferer(cut(visitor.referer(), 1024));
