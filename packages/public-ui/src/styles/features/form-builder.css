@@ -819,3 +819,93 @@
   outline: 2px solid var(--indigo);
   outline-offset: 2px;
 }
+
+/* ---- 휴대폰 본인인증 칸(V48) — 첫 번째 연락처 항목 바로 아래. 공개 폼은 99% 모바일이라 큰 탭 타깃·16px 입력. ---- */
+.pv {
+  margin-top: 8px;
+}
+.pv-btn {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pv-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pv-row {
+  display: flex;
+  gap: 8px;
+}
+.pv-code-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.pv-code-wrap .pv-code {
+  width: 100%;
+  font-size: 16px; /* iOS 자동 확대 방지 */
+  letter-spacing: 2px;
+  padding-right: 56px; /* 타이머 자리 */
+}
+.pv-timer {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rose, #e5484d);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.pv-btn-confirm {
+  width: auto;
+  flex: none;
+  padding: 0 18px;
+}
+.pv-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pv-resend {
+  flex: none;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pv-resend:disabled {
+  text-decoration: none;
+  cursor: default;
+}
+.pv-done {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.pv-note {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pv-error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--rose, #e5484d);
+}

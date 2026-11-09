@@ -285,6 +285,12 @@ export function LeadSidePanel({
   const visitorSection = lead && (
     <div className="card card-pad ip-answers">
       <div className="ip-section-label" style={{ marginTop: 0 }}>방문자</div>
+      {lead.phoneVerified && (
+        <div className="ip-answer">
+          <span className="ip-k">휴대폰 인증</span>
+          <span className="ip-v">✓ 문자 인증 완료</span>
+        </div>
+      )}
       <div className="ip-answer">
         <span className="ip-k">기기</span>
         <span className="ip-v">{[lead.device, lead.os, lead.browser].filter(Boolean).join(" · ") || "-"}</span>

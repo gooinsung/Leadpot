@@ -364,6 +364,8 @@ th.sel-col, td.sel-col { width: 34px; padding-right: 0; }
   background: var(--surface-2); color: var(--muted);
 }
 .fl-flag.dup { background: var(--rose-soft); color: var(--rose-ink); }
+/* 휴대폰 문자 인증 통과(V48) — 상태가 아니라 신뢰 플래그라 인디고. */
+.fl-flag.verified { background: var(--indigo-soft); color: var(--indigo-ink); }
 /* 👁 광고주 확인 — 성과가 아니라 플래그다. 그린은 성과(완료·전환)에만(U7). */
 .fl-flag.seen { background: var(--surface-2); color: var(--muted); }
 /* 태그 칩 — 요약 줄 끝에 붙는다(클릭하면 그 태그로 필터) */

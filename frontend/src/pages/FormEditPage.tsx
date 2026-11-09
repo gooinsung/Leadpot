@@ -1339,8 +1339,15 @@ export function FormEditPage() {
                 <input type="checkbox" checked={requirePhone} onChange={(e) => setRequirePhone(e.target.checked)} /> 휴대폰 본인인증 사용
               </label>
               <p className="dash-sub" style={{ marginTop: 6 }}>
-                켜면 제출 시 본인인증을 요구합니다. (외부 인증 연동은 추후 제공 — 지금은 옵션 자리)
+                켜면 방문자가 <strong>첫 번째 연락처 항목</strong>으로 문자 인증번호를 받아 입력해야 제출할 수 있습니다.
+                인증한 리드는 DB 목록에 "인증" 표시가 붙습니다. 인증 문자 비용은 리드팟이 부담합니다.
+                (인증 문자를 보낼 수 없는 상황이면 접수를 막지 않고 미인증으로 받습니다.)
               </p>
+              {requirePhone && !(formType === "BASIC" ? blocks : contactFields).some((b) => b.blockType === "FIELD" && b.fieldType === "tel") && (
+                <p className="auth-error" style={{ marginTop: 6 }}>
+                  연락처 항목이 없어 인증이 동작하지 않습니다. 입력 유형이 '연락처'인 항목을 추가해주세요.
+                </p>
+              )}
               <div className="dedup-row" style={{ marginTop: 14 }}>
                 <label className="fr-check">
                   <input type="checkbox" checked={allowSameIp} onChange={(e) => setAllowSameIp(e.target.checked)} /> 동일 IP 접수 허용
