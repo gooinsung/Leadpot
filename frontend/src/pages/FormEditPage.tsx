@@ -50,6 +50,8 @@ import {
   groupRows,
   INPUT_FIELD_TYPES,
   isRelativeDateBound,
+  blockedDays,
+  minDateAfterToggle,
   resolveDateBound,
   OPTION_FIELD_TYPES,
   STEP_ANSWER_TYPES,
@@ -2129,6 +2131,7 @@ function FieldTypeExtras({ type, values, onChange }: { type: string; values: Fie
   if (type === "date") {
     return (
       <div className="block-row" style={{ flexWrap: "wrap" }}>
+        <BlockedDaysEditor minDate={values.minDate ?? ""} onChange={(v) => onChange({ minDate: v })} />
         <DateBoundEditor label="선택 가능한 최소 날짜" value={values.minDate ?? ""} onChange={(v) => onChange({ minDate: v })} />
         <DateBoundEditor label="선택 가능한 최대 날짜" value={values.maxDate ?? ""} onChange={(v) => onChange({ maxDate: v })} />
       </div>
@@ -2163,6 +2166,34 @@ function FieldTypeExtras({ type, values, onChange }: { type: string; values: Fie
     );
   }
   return null;
+}
+
+/**
+ * 지난 날짜·오늘·내일 선택 불가 체크박스(사용자 지시 2026-11-09). 최소 날짜(오늘 기준) 값을 바꾸는 바로가기라
+ * 아래 '최소 날짜' 칸과 항상 같이 움직인다. 달력은 범위로만 막을 수 있어 뒤 날짜를 막으면 앞 날짜도 막힌다.
+ */
+function BlockedDaysEditor({ minDate, onChange }: { minDate: string; onChange: (v: string) => void }) {
+  const blocked = blockedDays(minDate);
+  const items = [
+    { day: "past", label: "지난 날짜 선택 불가" },
+    { day: "today", label: "오늘 선택 불가" },
+    { day: "tomorrow", label: "내일 선택 불가" },
+  ] as const;
+  return (
+    <div className="field" style={{ flexBasis: "100%" }}>
+      <label>선택 불가 날짜</label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+        {items.map((it) => (
+          <label key={it.day} className="fr-check">
+            <input type="checkbox" checked={blocked[it.day]} onChange={(e) => onChange(minDateAfterToggle(minDate, it.day, e.target.checked))} /> {it.label}
+          </label>
+        ))}
+      </div>
+      <span className="field-optional" style={{ marginTop: 4 }}>
+        달력은 이어진 기간만 막을 수 있어서, 오늘을 막으면 지난 날짜도, 내일을 막으면 오늘·지난 날짜도 함께 막힙니다.
+      </span>
+    </div>
+  );
 }
 
 /** 날짜 범위 한쪽 — 제한 없음 / 특정 날짜 / 오늘부터 N일 후. 값 형식은 public-ui resolveDateBound 참고. */
