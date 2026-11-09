@@ -276,7 +276,6 @@ export function PublicFormView({
 
   return (
     <>
-      {form.requirePhoneVerification && <div className="phone-verify-note">🔒 제출 시 휴대폰 본인인증 필요</div>}
       {form.formType === "BASIC" ? (
         <form onSubmit={onSubmit}>
           {sorted.map((b, i) => (
