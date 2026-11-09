@@ -25,6 +25,8 @@ export { PhoneInput3 } from "./components/PhoneInput3";
 export { RadioGroupInput } from "./components/RadioGroupInput";
 export { ButtonChoiceInput } from "./components/ButtonChoiceInput";
 export { AddressInput } from "./components/AddressInput";
+export { RegionSelect } from "./components/RegionSelect";
+export { ALL_SIDO, REGIONS, allowedSido, isRegionComplete, sigunguOf, splitRegion } from "./lib/regions";
 
 export { ConsentItemRow } from "./components/formRenderers/ConsentItemRow";
 export {

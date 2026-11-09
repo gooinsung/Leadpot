@@ -50,6 +50,7 @@ import {
   groupRows,
   INPUT_FIELD_TYPES,
   isRelativeDateBound,
+  ALL_SIDO,
   blockedDays,
   minDateAfterToggle,
   resolveDateBound,
@@ -213,6 +214,8 @@ interface StepData {
   maxNumber?: string;
   /** 주소 유형 — 지번 주소로 저장. */
   jibun?: boolean;
+  /** '지역 선택' — 보여줄 시/도(비면 전국). */
+  regions?: string[];
   /** '버튼 선택' — 다중 선택 여부 / 정렬("horizontal"|"vertical"). */
   multiple?: boolean;
   layout?: string;
@@ -526,6 +529,7 @@ export function FormEditPage() {
               minNumber: (b.content?.minNumber as string) || "",
               maxNumber: (b.content?.maxNumber as string) || "",
               jibun: b.content?.jibun === true,
+              regions: Array.isArray(b.content?.regions) ? (b.content.regions as string[]) : [],
               multiple: b.content?.multiple === true,
               layout: buttonChoiceLayout(b.content?.layout),
               calcInput: (b.content?.calcInput as string) || null,
@@ -712,6 +716,7 @@ export function FormEditPage() {
               minNumber: s.answerType === "number" ? s.minNumber || "" : "",
               maxNumber: s.answerType === "number" ? s.maxNumber || "" : "",
               jibun: isAddressType(s.answerType) && s.jibun === true,
+              regions: s.answerType === "region" ? s.regions ?? [] : [],
               multiple: s.answerType === "button_choice" && s.multiple === true,
               layout: s.answerType === "button_choice" ? buttonChoiceLayout(s.layout) : "",
               // 계산기 입력 표시 — 공개 폼이 이 키로 답을 모아 계산한다(단계 순서를 바꿔도 안 깨진다).
@@ -1174,7 +1179,7 @@ export function FormEditPage() {
                           </div>
                           <FieldTypeExtras
                             type={s.answerType}
-                            values={{ minDate: s.minDate, maxDate: s.maxDate, minNumber: s.minNumber, maxNumber: s.maxNumber, jibun: s.jibun }}
+                            values={{ minDate: s.minDate, maxDate: s.maxDate, minNumber: s.minNumber, maxNumber: s.maxNumber, jibun: s.jibun, regions: s.regions }}
                             onChange={(p) => patchStep(i, p)}
                           />
                         </>
@@ -2090,6 +2095,7 @@ function isAddressType(t: string | null | undefined): boolean {
 }
 
 type FieldExtraValues = {
+  regions?: string[];
   minDate?: string;
   maxDate?: string;
   minNumber?: string;
@@ -2107,6 +2113,9 @@ type FieldExtraValues = {
  *  - 버튼 선택: 단일/다중 · 가로/세로 정렬. 사용자 지시 2026-10-31.
  */
 function FieldTypeExtras({ type, values, onChange }: { type: string; values: FieldExtraValues; onChange: (p: FieldExtraValues) => void }) {
+  if (type === "region") {
+    return <RegionPicker value={values.regions ?? []} onChange={(regions) => onChange({ regions })} />;
+  }
   if (type === "button_choice") {
     const layout = buttonChoiceLayout(values.layout);
     return (
@@ -2166,6 +2175,36 @@ function FieldTypeExtras({ type, values, onChange }: { type: string; values: Fie
     );
   }
   return null;
+}
+
+/**
+ * '지역 선택'에서 방문자에게 보여줄 시/도 고르기(사용자 지시 2026-11-09). 아무것도 안 고르면 전국.
+ * 구/시는 고른 시/도의 전체 목록이 자동으로 나온다.
+ */
+function RegionPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const all = value.length === 0;
+  function toggle(sido: string, checked: boolean) {
+    const next = checked ? [...value, sido] : value.filter((s) => s !== sido);
+    onChange(ALL_SIDO.filter((s) => next.includes(s))); // 전국 순서 유지
+  }
+  return (
+    <div className="field" style={{ marginTop: 10 }}>
+      <label>보여줄 시/도</label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
+        <label className="fr-check">
+          <input type="checkbox" checked={all} onChange={() => onChange([])} /> 전국
+        </label>
+        {ALL_SIDO.map((s) => (
+          <label key={s} className="fr-check">
+            <input type="checkbox" checked={value.includes(s)} onChange={(e) => toggle(s, e.target.checked)} /> {s}
+          </label>
+        ))}
+      </div>
+      <span className="field-optional" style={{ marginTop: 4 }}>
+        고른 시/도만 첫 칸에 나오고, 두 번째 칸에는 그 시/도의 구/시가 자동으로 나옵니다. 리드에는 "서울 강남구"처럼 한 칸으로 저장됩니다.
+      </span>
+    </div>
+  );
 }
 
 /**
@@ -2396,6 +2435,7 @@ function BlockFields({
               minNumber: block.options?.minNumber as string | undefined,
               maxNumber: block.options?.maxNumber as string | undefined,
               jibun: block.options?.jibun === true,
+              regions: Array.isArray(block.options?.regions) ? (block.options?.regions as string[]) : [],
               multiple: block.options?.multiple === true,
               layout: block.options?.layout as string | undefined,
             }}

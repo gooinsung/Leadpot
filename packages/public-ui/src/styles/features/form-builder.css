@@ -944,3 +944,13 @@
     outline-offset: 2px;
   }
 }
+
+/* '지역 선택' — [시/도] [구/시] 두 칸을 반반으로(사용자 지시 2026-11-09). 모바일 375px 에서도 한 줄에 들어간다. */
+.region-row {
+  display: flex;
+  gap: 8px;
+}
+.region-row .input {
+  flex: 1;
+  min-width: 0;
+}

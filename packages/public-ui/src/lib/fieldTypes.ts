@@ -1,5 +1,6 @@
 import type { FormBlock } from "../api/client";
 import { lookupAddressParts, type AddressParts } from "./addressParts";
+import { isRegionComplete, splitRegion } from "./regions";
 
 /**
  * 입력 항목 유형 — **기본형과 스텝형이 함께 쓰는 단일 출처**.
@@ -20,6 +21,7 @@ export const INPUT_FIELD_TYPES: readonly { value: string; label: string }[] = [
   { value: "date", label: "날짜" },
   { value: "address", label: "주소 (우편번호 검색)" },
   { value: "address_detail", label: "주소 + 상세주소 (우편번호 검색 + 동·호수)" },
+  { value: "region", label: "지역 선택 (시/도 → 구/시)" },
   { value: "select", label: "선택박스" },
   { value: "radio", label: "라디오버튼 (단일 선택)" },
   { value: "checkbox", label: "체크박스 (중복 선택)" },
@@ -147,6 +149,7 @@ export function choiceAsField(block: FormBlock): FormBlock {
       minNumber: block.content?.minNumber,
       maxNumber: block.content?.maxNumber,
       jibun: block.content?.jibun,
+      regions: block.content?.regions,
       multiple: block.content?.multiple,
       layout: block.content?.layout,
     },
@@ -374,6 +377,12 @@ export function fieldBlockError(block: FormBlock, value: string | undefined): st
     const picks = parseGroupPicks(value, rows.length);
     const ri = picks.findIndex((ci) => ci == null || list[ci] == null);
     return ri < 0 ? null : `'${name}'의 '${rows[ri] || `질문 ${ri + 1}`}' 항목을 선택해주세요.`;
+  }
+  if (type === "region") {
+    // 시/도만 고르고 구/시를 빼먹은 경우를 잡는다(세종처럼 아래 단계가 없는 곳은 시/도만으로 완성).
+    const [sido] = splitRegion(value);
+    if (!sido) return block.required ? `'${name}' 시/도를 선택해주세요.` : null;
+    return isRegionComplete(value) ? null : `'${name}' 구/시를 선택해주세요.`;
   }
   if (type === "address_detail") {
     const [base, detail] = splitAddressDetail(value);

@@ -9,6 +9,7 @@ import {
   HtmlBlock,
   PhoneInput3,
   RadioGroupInput,
+  RegionSelect,
   SubmitCtaButton,
   descEmphasisClass,
   fieldDefaultValue,
@@ -133,6 +134,8 @@ export function FieldView({ block, accent, bare }: { block: FormBlock; accent: s
         />
       ) : type === "tel" ? (
         <PhoneInput3 value="" onChange={() => {}} readOnly />
+      ) : type === "region" ? (
+        <RegionSelect value="" onChange={() => {}} regions={block.options?.regions} readOnly />
       ) : type === "address" || type === "address_detail" ? (
         <AddressInput value="" onChange={() => {}} placeholder={block.placeholder ?? ""} readOnly withDetail={type === "address_detail"} />
       ) : (

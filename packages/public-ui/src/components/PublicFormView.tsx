@@ -34,6 +34,7 @@ import { PhoneInput3 } from "./PhoneInput3";
 import { PhoneVerifyBox } from "./PhoneVerifyBox";
 import { PHONE_VERIFY_REQUIRED, phoneDigits, phoneVerifyKey, phoneVerifyToken, type PhoneVerifyState } from "../lib/phoneVerify";
 import { AddressInput } from "./AddressInput";
+import { RegionSelect } from "./RegionSelect";
 import { RadioGroupInput } from "./RadioGroupInput";
 import { ConsentItemRow } from "./formRenderers/ConsentItemRow";
 import { parseUtm } from "../lib/utm";
@@ -455,6 +456,8 @@ function LiveField({ block, idx, value, onChange, accent, bare, extra }: LiveFie
         <RadioGroupInput id={`fld-${idx}`} name={`fld-${idx}`} rows={groupRows(block)} choices={choices} value={value} onChange={onChange} accent={accent} />
       ) : type === "tel" ? (
         <PhoneInput3 id={`fld-${idx}`} value={value} onChange={onChange} required={block.required} />
+      ) : type === "region" ? (
+        <RegionSelect id={`fld-${idx}`} value={value} onChange={onChange} regions={block.options?.regions} required={block.required} />
       ) : type === "address" || type === "address_detail" ? (
         <AddressInput id={`fld-${idx}`} value={value} onChange={onChange} placeholder={block.placeholder ?? ""} required={block.required} withDetail={type === "address_detail"} jibun={block.options?.jibun === true} />
       ) : (
