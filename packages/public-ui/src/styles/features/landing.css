@@ -109,6 +109,13 @@
   background: var(--pub-surface);
   min-height: 100vh;
 }
+/* 페이지 맨 끝이 CTA 버튼(버튼 → 오버레이/풀스크린)이면 버튼이 화면 바닥에 딱 붙어 보인다
+   (사용자 지시 2026-11-12). 그 경우에만 하단 여백 + 홈 인디케이터(safe-area)만큼 띄운다 —
+   이미지로 끝나는 랜딩에 빈 띠가 생기지 않도록 마지막 블록이 버튼(또는 버튼 설명)일 때로 한정. */
+.landing-public-inner:has(> .landing-cta:last-child),
+.landing-public-inner:has(> .landing-cta-desc:last-child) {
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+}
 .landing-img {
   display: block;
   width: 100%;
