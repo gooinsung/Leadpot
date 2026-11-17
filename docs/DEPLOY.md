@@ -1,5 +1,9 @@
 # docs/DEPLOY.md — Leadpot 배포 체크리스트
 
+> 🗑️ **2026-11-17: 리드팟은 Oracle VM 을 더 이상 쓰지 않는다.** 이 문서의 VM 관련 내용(부록 A·B·C 포함)은
+> **기록용**이며, 여기서 가리키는 `docker-compose.prod.yml`·`Dockerfile.runtime`·`deploy/`·`deploy-frontend.yml` 은
+> 삭제됐다. 지금 배포 구성은 [CLAUDE.md](../CLAUDE.md) §6 을 본다.
+
 > ⚠️ **현재 실제로 돌고 있는 구성은 [부록 C](#부록-c-실제-배포-파이프라인-2026-08-04-실측) 다. 거기부터 읽어라.**
 > 본문·부록 A·B 는 **초기 계획**이라 실제와 다른 곳이 있다(프론트=Pages ❌, DB=VM 내 Postgres ❌).
 >
