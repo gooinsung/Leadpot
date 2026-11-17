@@ -72,8 +72,9 @@ DB 가 Neon → Railway Postgres 로 코드 거의 안 건드리고 옮겨간 �
 어렵지 않다 — 단, `renderer/` 는 OpenNext 어댑터로 Cloudflare Workers 런타임에 맞춰 빌드하므로
 다른 플랫폼으로 옮기려면 그 부분만 다시 빌드 설정을 맞춰야 한다.)
 
-- Oracle VM 은 **아직 켜져 있다**(롤백 안전망, `docs/SSR-LANDING-PLAN.md` §7 Phase 6 관찰 기간
-  종료 후 종료 예정) — 정적 파일은 이제 서빙하지 않고 비어 있는 상태.
+- 🗑️ **Oracle VM 은 리드팟에서 더 이상 쓰지 않는다(2026-11-17 정리).** VM 배포 워크플로·VM 전용 파일
+  (`deploy-frontend.yml`·`docker-compose.prod.yml`·`backend/Dockerfile.runtime`·`deploy/nginx-leadpot-api.conf`)을
+  삭제했고, VM 인스턴스 자체는 사용자가 개인 용도로 계속 쓴다 — **리드팟 배포·롤백 경로로 쓰지 말 것.**
 
 ---
 
@@ -244,10 +245,9 @@ npm run dev
 |---|---|---|---|
 | [deploy-frontend-cloudflare.yml](.github/workflows/deploy-frontend-cloudflare.yml) | `frontend/**`·`packages/public-ui/**` | `npm run build`(`VITE_API_BASE_URL` 주입) → `cloudflare/pages-action` | Cloudflare Pages(`leadpot-app`, `app.leadpot.kr`) |
 | [deploy-renderer.yml](.github/workflows/deploy-renderer.yml) | `renderer/**`·`packages/public-ui/**` | `npm run deploy`(OpenNext 빌드 + `wrangler deploy`) | Cloudflare Workers(`leadpot-renderer`, `{sub}.leadpot.kr/{id}` + 구 `go` 호스트·구 도메인 `*.lead-pot.com` 302 리다이렉트) |
-| [deploy-frontend.yml](.github/workflows/deploy-frontend.yml) | `frontend/**` | rsync 로 Oracle VM `/var/www/leadpot/` | Oracle VM(**이제 실제 트래픽 안 받음** — 관찰 기간 동안의 롤백 안전망일 뿐, 정리 예정) |
 
 - 필요한 저장소 시크릿: `CLOUDFLARE_API_TOKEN`(Workers Scripts:Edit + Cloudflare Pages:Edit +
-  Account Settings:Read) · `CLOUDFLARE_ACCOUNT_ID` · (VM 용) `VM_SSH_KEY`·`VM_HOST`·`VM_USER`.
+  Account Settings:Read) · `CLOUDFLARE_ACCOUNT_ID`.
 - `NEXT_PUBLIC_*`(렌더러)·`VITE_*`(프론트)는 **빌드 시점에** 번들에 박히므로 워크플로의 `env:` 에서
   프로덕션 값을 넣어 빌드한다 — Cloudflare 대시보드의 런타임 변수와는 별개다.
 - 백엔드(`api.leadpot.kr`, 구 `api.lead-pot.com` 병행)는 **Railway 가 자체 GitHub 연동으로 독립 배포**한다 — 이 저장소의
@@ -263,10 +263,11 @@ npm run dev
 - 🗑️ **`deploy-backend.yml`(VM 에 백엔드를 따로 배포하던 옛 워크플로)은 2026-09-07 삭제했다.**
   VM `~/Leadpot/.env` 가 가리키던 Neon 접속정보가 Neon 삭제로 죽어서, VM 컨테이너가 뜨자마자
   Flyway DB 연결에 실패하고 매번 헬스체크 타임아웃으로 실패하고 있었다. 실제 트래픽은 Railway 만
-  받으니 서비스 영향은 없었다. `backend/Dockerfile.runtime`·`docker-compose.prod.yml`(이 워크플로
-  전용 산출물)은 VM 완전 종료 때 같이 정리 예정.
-- Oracle VM 은 [SSR-LANDING-PLAN.md](docs/SSR-LANDING-PLAN.md) §7 Phase 6 의 2~3일 관찰 기간이
-  끝나면 종료한다 — 그때 `deploy-frontend.yml` 도 함께 삭제.
+  받으니 서비스 영향은 없었다.
+- 🗑️ **2026-11-17 Oracle VM 정리 완료**: 마지막 VM 배포 워크플로 `deploy-frontend.yml`(트래픽 없는 웹루트로
+  rsync 만 하던 잔재)과 VM 전용 산출물(`docker-compose.prod.yml`·`backend/Dockerfile.runtime`·
+  `deploy/nginx-leadpot-api.conf`)을 삭제했다. 저장소 시크릿 `VM_SSH_KEY`·`VM_HOST`·`VM_USER` 도 삭제 대상.
+  솔라피 허용 IP 에서 옛 VM IP 제거(`0.0.0.0/0` 만 남김). VM 인스턴스는 사용자 개인 용도로 남는다.
 
 ---
 

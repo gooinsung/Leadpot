@@ -8,6 +8,16 @@
 
 ## 📍 지금 위치
 
+- **🗑️ 리드팟의 Oracle VM 사용 종료 (2026-11-17, 사용자 지시 — VM 인스턴스는 사용자 개인 용도로 유지)**:
+  - **저장소(이 커밋)**: VM 배포 워크플로 `deploy-frontend.yml` 삭제(트래픽 없는 `/var/www/leadpot` 로 rsync 만 하던 잔재 —
+    11-17 까지도 매 push 마다 돌고 있었다) + VM 전용 파일 `docker-compose.prod.yml`·`backend/Dockerfile.runtime`·
+    `deploy/nginx-leadpot-api.conf` 삭제(Railway 는 `backend/Dockerfile` 로 소스 빌드라 무관). 문서 갱신.
+  - **사용자 완료**: 솔라피 허용 IP 에서 `129.225.198.2`(리드팟오라클서버) 삭제 — `0.0.0.0/0` 만 남음(이게 있어서
+    Railway 에서 문자가 나가고 있었다. 지우면 발송이 전부 막히므로 **건드리지 말 것**).
+  - **사용자가 할 일(남음)**: ① GitHub 저장소 시크릿 `VM_SSH_KEY`·`VM_HOST`·`VM_USER` 삭제 ② VM 안 리드팟 잔재 삭제
+    (`leadpot-backend` 컨테이너·이미지·`uploads` 볼륨, `~/Leadpot`, Nginx `leadpot-*.conf`, `/var/www/leadpot`,
+    `/etc/nginx/ssl/lead-pot.*`, `authorized_keys` 의 `leadpot-ci-deploy` 줄) ③ Cloudflare `lead-pot.com` 존의
+    `*` A `129.225.198.2` → `AAAA 100::`(Proxied, 추가 먼저 → A 삭제) ④ Cloudflare Origin 인증서(`*.lead-pot.com`) 폐기.
 - **✅ 휴대폰 인증 재전송 2분 쿨다운 + 인증번호 4자리 (2026-11-17, 사용자 지시, 브랜치 `claude/optimistic-hypatia-jxkyvh`)**:
   - **재전송**: 같은 리드폼·번호로 24시간 안에 **처음 두 번은 바로** 보내고, **세 번째부터는 직전 발송 후 2분**이 지나야 보낸다
     (`PhoneVerificationService.FREE_SENDS=2`·`RESEND_COOLDOWN=2분`). 서버가 발송 응답의 `cooldownSeconds` 로

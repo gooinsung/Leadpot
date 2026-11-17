@@ -3,9 +3,8 @@ name: Deploy Frontend (Cloudflare Pages)
 # frontend/** 또는 packages/public-ui/** 가 바뀌어 main 에 push 되면 관리 앱을
 # Cloudflare Pages 로도 배포한다(docs/SSR-LANDING-PLAN.md Phase 5 — HOSTING-MIGRATION-PLAN 흡수).
 #
-# 🔴 **이게 app.leadpot.kr(구 app.lead-pot.com) 의 실제 배포 경로다**(2026-09-07 컷오버, 2026-10-24 도메인 전환). 나란히 도는
-# deploy-frontend.yml(Oracle VM)은 트래픽을 안 받는 잔재이므로, 이 워크플로가 실패하면
-# 관리 앱은 배포되지 않는다 — VM 쪽이 성공해도 소용없다(2026-09-22 실제로 겪음).
+# 🔴 **이게 app.leadpot.kr(구 app.lead-pot.com) 의 유일한 배포 경로다**(2026-09-07 컷오버, 2026-10-24 도메인 전환).
+# 예전에 나란히 돌던 Oracle VM 배포(deploy-frontend.yml)는 2026-11-17 삭제했다.
 #
 # 필요한 저장소 시크릿(Settings → Secrets and variables → Actions → New repository secret):
 #   CLOUDFLARE_API_TOKEN   — Account: Cloudflare Pages:Edit 권한의 API 토큰

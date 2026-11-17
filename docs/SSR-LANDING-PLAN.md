@@ -454,7 +454,7 @@ API 호출 자체는 CPU 시간에 안 잡히지만(I/O 대기라 무관), 페�
 ### Phase 7 — 정리
 - [ ] [CLAUDE.md](../CLAUDE.md) §2 표·§3 아키텍처·§6 배포법 갱신 — `app`·`*` 모두 Cloudflare 로
 - [ ] [HOSTING-MIGRATION-PLAN.md](HOSTING-MIGRATION-PLAN.md) Phase B 를 "이 문서로 완료 처리"로 갱신
-- [ ] `.github/workflows/deploy-frontend.yml` 삭제(Pages 가 대체)
+- [x] `.github/workflows/deploy-frontend.yml` 삭제(Pages 가 대체) — 2026-11-17
 - [ ] [PROGRESS.md](PROGRESS.md)·[ROADMAP.md](ROADMAP.md) 갱신
 - [ ] I3 SEO 항목을 "해소됨"으로 정리
 

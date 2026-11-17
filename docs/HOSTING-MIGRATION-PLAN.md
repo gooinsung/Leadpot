@@ -1,5 +1,9 @@
 # docs/HOSTING-MIGRATION-PLAN.md — 호스팅 이전 계획 (Oracle VM → Railway + Cloudflare Pages)
 
+> ✅ **완료(2026-11-17)** — 백엔드 Railway(2026-08-09)·프론트 Cloudflare(2026-09-07) 이전에 이어, VM 배포
+> 워크플로·VM 전용 파일을 삭제해 리드팟의 Oracle VM 사용을 끝냈다. VM 인스턴스는 사용자 개인 용도로 남는다.
+> 아래 본문은 **기록용**이다(지금 구성은 CLAUDE.md §2·§3·§6).
+
 > **작성 2026-08-07 (gooin PC). 상태: 🔄 진행 중 — Phase A(백엔드 → Railway) 컷오버 완료 2026-08-09(`611d3eb`).**
 > **남은 것: A5~C (프론트 → Cloudflare Pages, VM 종료).** 아래 본문의 Phase A 절차는 이미 끝난 내용이다.
 > 기준 커밋 `61adf17` · **Flyway V28** · 백엔드 테스트 212개 통과.
@@ -314,7 +318,7 @@ DNS 전환 기간에는 **VM 과 Railway 두 백엔드가 같은 Neon DB 를 동
       일찍 지웠다: VM 의 Neon 접속정보가 Neon 삭제로 죽어서(비용 문제로 Neon → Railway Postgres 전환,
       §0 P1 참고) 이 워크플로가 2026-09-02 부터 매번 실패만 하고 있었다(서비스엔 영향 없었음 —
       Railway 가 이미 독립적으로 배포 중이었으므로). 고쳐서 살릴 이유가 없어 곧바로 삭제.
-- [ ] `.github/workflows/deploy-frontend.yml` 삭제 (Pages 가 대체)
+- [x] `.github/workflows/deploy-frontend.yml` 삭제 (Pages 가 대체) — 2026-11-17
 - [ ] `backend/Dockerfile.runtime` 삭제 (jar 전송 방식 전용이라 쓸모 없어짐) · `docker-compose.prod.yml` 처리 결정
 - [ ] `deploy/nginx-leadpot-api.conf` — 기록용으로 남기고 "구 구성" 주석
 - [ ] **[CLAUDE.md](../CLAUDE.md) §2 표 · §3 아키텍처 · §6 배포법 전면 갱신** ← 잊지 말 것

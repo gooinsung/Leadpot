@@ -198,7 +198,7 @@ Pages 콘텐츠가 나오는지 확인(같은 자산을 VM 도 서빙하고 있�
 ## 7. 안정화 후 정리
 
 - Oracle VM 종료
-- `.github/workflows/deploy-frontend.yml`(VM 배포) 삭제
+- ✅ `.github/workflows/deploy-frontend.yml`(VM 배포) 삭제 — 2026-11-17
 - `docs/HOSTING-MIGRATION-PLAN.md` 를 "완료"로 갱신
 - `docs/SSR-LANDING-PLAN.md` §7 Phase 5·Phase 7 체크리스트 갱신, `docs/PROGRESS.md` 갱신
 - 이 문서(`docs/PHASE5-CLOUDFLARE-HANDOFF.md`)는 다 끝나면 지워도 된다(일회성 실행 가이드)
