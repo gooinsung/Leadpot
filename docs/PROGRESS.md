@@ -14,10 +14,14 @@
     `deploy/nginx-leadpot-api.conf` 삭제(Railway 는 `backend/Dockerfile` 로 소스 빌드라 무관). 문서 갱신.
   - **사용자 완료**: 솔라피 허용 IP 에서 `129.225.198.2`(리드팟오라클서버) 삭제 — `0.0.0.0/0` 만 남음(이게 있어서
     Railway 에서 문자가 나가고 있었다. 지우면 발송이 전부 막히므로 **건드리지 말 것**).
-  - **사용자가 할 일(남음)**: ① GitHub 저장소 시크릿 `VM_SSH_KEY`·`VM_HOST`·`VM_USER` 삭제 ② VM 안 리드팟 잔재 삭제
-    (`leadpot-backend` 컨테이너·이미지·`uploads` 볼륨, `~/Leadpot`, Nginx `leadpot-*.conf`, `/var/www/leadpot`,
-    `/etc/nginx/ssl/lead-pot.*`, `authorized_keys` 의 `leadpot-ci-deploy` 줄) ③ Cloudflare `lead-pot.com` 존의
-    `*` A `129.225.198.2` → `AAAA 100::`(Proxied, 추가 먼저 → A 삭제) ④ Cloudflare Origin 인증서(`*.lead-pot.com`) 폐기.
+  - **✅ 사용자 완료(2026-11-17)**: ① GitHub 저장소 시크릿 `VM_SSH_KEY`·`VM_HOST`·`VM_USER` 삭제 ② VM 안 리드팟 잔재 삭제
+    (`leadpot-backend` 컨테이너·이미지·`leadpot_uploads` 볼륨·`postgres:18` 이미지, `~/Leadpot`, Nginx `leadpot-*.conf`,
+    `/var/www/leadpot`, `/etc/nginx/ssl/lead-pot.*`, `authorized_keys` 의 `leadpot-ci-deploy` 줄) ③ Cloudflare `lead-pot.com`
+    존의 `*` A `129.225.198.2` → `AAAA 100::`(Proxied) ④ Cloudflare Origin 인증서(`*.lead-pot.com`) 폐기.
+  - ⚠️ **발견**: VM 의 `leadpot-backend` 컨테이너가 정지된 줄 알았는데 **재시작을 반복하고 있었다**(`restart: unless-stopped` +
+    죽은 Neon 접속정보 → 기동 실패 → 재기동, `dockerd` 누적 CPU 1256분). 9월 초 옛 `deploy-backend.yml` 이 다시 띄운 것으로
+    추정. 서비스 영향은 없었고 이번에 삭제했다.
+  - VM 에 남긴 것(사용자 개인 용도): Docker·Nginx 본체, 스왑 2GB, 80·443 방화벽 개방.
 - **✅ 휴대폰 인증 재전송 2분 쿨다운 + 인증번호 4자리 (2026-11-17, 사용자 지시, 브랜치 `claude/optimistic-hypatia-jxkyvh`)**:
   - **재전송**: 같은 리드폼·번호로 24시간 안에 **처음 두 번은 바로** 보내고, **세 번째부터는 직전 발송 후 2분**이 지나야 보낸다
     (`PhoneVerificationService.FREE_SENDS=2`·`RESEND_COOLDOWN=2분`). 서버가 발송 응답의 `cooldownSeconds` 로
