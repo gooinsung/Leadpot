@@ -41,8 +41,13 @@ public class PhoneVerificationService {
     static final Duration CODE_TTL = Duration.ofMinutes(3);
     /** 통과 토큰 유효시간 — 인증 뒤 나머지 항목을 채우고 제출할 여유. */
     static final Duration TOKEN_TTL = Duration.ofMinutes(30);
-    /** 재발송 쿨다운(프론트도 같은 시간으로 버튼을 잠근다). */
-    static final Duration RESEND_COOLDOWN = Duration.ofSeconds(60);
+    /**
+     * 쿨다운 없이 바로 보내주는 발송 횟수(24시간, 폼·번호 기준). 번호를 잘못 넣었거나 문자가 늦게 온
+     * 경우를 위해 처음 두 번은 바로 다시 받게 해준다 — 사용자 결정(2026-11-17).
+     */
+    static final int FREE_SENDS = 2;
+    /** {@link #FREE_SENDS} 를 다 쓴 뒤의 재발송 간격(프론트도 같은 시간으로 버튼을 잠그고 타이머를 보여준다). */
+    static final Duration RESEND_COOLDOWN = Duration.ofMinutes(2);
     /** 번호별 24시간 발송 상한 — 특정인을 겨냥한 문자 폭탄 방어. */
     static final int DAILY_CAP_PER_PHONE = 5;
     /** IP 별 24시간 발송 상한 — 번호를 바꿔 가며 쏘는 비용 공격 방어. */
@@ -77,12 +82,14 @@ public class PhoneVerificationService {
         String phoneHash = VerifyCodes.hash(phone);
         Instant now = Instant.now();
 
+        long sentBefore = repository.countByFormIdAndPhoneHashAndSmsSentTrueAndCreatedAtAfter(form.getId(),
+                phoneHash, now.minus(Duration.ofHours(24)));
         Optional<PhoneVerification> latest = repository
                 .findTopByFormIdAndPhoneHashAndSmsSentTrueOrderByCreatedAtDesc(form.getId(), phoneHash);
-        if (latest.isPresent() && latest.get().getCreatedAt() != null
+        if (sentBefore >= FREE_SENDS && latest.isPresent() && latest.get().getCreatedAt() != null
                 && latest.get().getCreatedAt().isAfter(now.minus(RESEND_COOLDOWN))) {
             long wait = Duration.between(now, latest.get().getCreatedAt().plus(RESEND_COOLDOWN)).toSeconds() + 1;
-            throw new RateLimitedException("인증번호를 이미 보냈습니다. " + wait + "초 후에 다시 요청할 수 있어요.");
+            throw new RateLimitedException("인증번호를 이미 보냈습니다. " + formatWait(wait) + " 후에 다시 요청할 수 있어요.");
         }
 
         String ipKey = cut(ip, 64);
@@ -101,7 +108,9 @@ public class PhoneVerificationService {
             return new SendResult(PhoneVerification.FALLBACK, issueToken(v, now), 0, 0);
         }
         v.markSmsSent();
-        return new SendResult("SENT", null, CODE_TTL.toSeconds(), RESEND_COOLDOWN.toSeconds());
+        // 이번 발송으로 무료 횟수를 다 썼으면 다음 발송부터 쿨다운이 걸린다 — 화면이 그 시간만큼 버튼을 잠근다.
+        long cooldown = sentBefore + 1 >= FREE_SENDS ? RESEND_COOLDOWN.toSeconds() : 0;
+        return new SendResult("SENT", null, CODE_TTL.toSeconds(), cooldown);
     }
 
     /**
@@ -242,6 +251,16 @@ public class PhoneVerificationService {
 
     private static String message(String code) {
         return "[리드팟] 인증번호는 [" + code + "] 입니다. 3분 안에 입력해주세요.";
+    }
+
+    /** 125 → "2분 5초", 40 → "40초". */
+    static String formatWait(long seconds) {
+        long m = seconds / 60;
+        long sec = seconds % 60;
+        if (m == 0) {
+            return sec + "초";
+        }
+        return sec == 0 ? m + "분" : m + "분 " + sec + "초";
     }
 
     private static String str(Object o) {

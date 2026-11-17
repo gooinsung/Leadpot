@@ -25,7 +25,7 @@ public class PhoneVerification {
     public static final String VERIFIED = "VERIFIED";
     public static final String FALLBACK = "FALLBACK";
 
-    /** 틀린 입력 허용 횟수. 6자리 숫자는 시도 제한이 없으면 뚫린다. */
+    /** 틀린 입력 허용 횟수. 4자리 숫자는 시도 제한이 없으면 금방 뚫린다. */
     public static final int MAX_ATTEMPTS = 5;
 
     @Id

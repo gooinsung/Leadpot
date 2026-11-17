@@ -17,9 +17,15 @@ final class VerifyCodes {
     private VerifyCodes() {
     }
 
-    /** 000000~999999 균등 분포 6자리. 엔트로피 부족은 시도 횟수 제한으로 메운다. */
+    /**
+     * 0000~9999 균등 분포 4자리(사용자 결정 2026-11-17 — 방문자가 옮겨 적기 쉽게).
+     * 엔트로피(1만 가지)는 시도 횟수 제한({@link PhoneVerification#MAX_ATTEMPTS}회 → 한 번호당 맞힐 확률 0.05%)과
+     * 3분 만료·발송 상한으로 메운다.
+     */
+    static final int CODE_LENGTH = 4;
+
     static String newCode() {
-        return String.format("%06d", RANDOM.nextInt(1_000_000));
+        return String.format("%04d", RANDOM.nextInt(10_000));
     }
 
     /** 접수 때 내는 통과 토큰(32바이트, URL-safe). 대입이 불가능한 길이라 시도 제한이 필요 없다. */

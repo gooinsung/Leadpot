@@ -11,6 +11,9 @@ public interface PhoneVerificationRepository extends JpaRepository<PhoneVerifica
     Optional<PhoneVerification> findTopByFormIdAndPhoneHashAndSmsSentTrueOrderByCreatedAtDesc(Long formId,
             String phoneHash);
 
+    /** 이 폼·번호로 보낸 횟수 — 처음 {@code FREE_SENDS} 번은 쿨다운 없이 보낸다. */
+    long countByFormIdAndPhoneHashAndSmsSentTrueAndCreatedAtAfter(Long formId, String phoneHash, Instant after);
+
     /** 번호별 하루 발송 상한(특정인을 겨냥한 문자 폭탄 방어). 폼과 무관하게 센다. */
     long countByPhoneHashAndSmsSentTrueAndCreatedAtAfter(String phoneHash, Instant after);
 
