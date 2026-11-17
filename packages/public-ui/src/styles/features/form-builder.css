@@ -894,6 +894,12 @@
   text-decoration: none;
   cursor: default;
 }
+/* 재전송 대기 타이머(2분 쿨다운) — 숫자 폭이 흔들리지 않게 고정폭 숫자 */
+.pv-resend-timer {
+  margin-left: 2px;
+  color: var(--text, inherit);
+  font-variant-numeric: tabular-nums;
+}
 .pv-done {
   margin-top: 8px;
   font-size: 14px;

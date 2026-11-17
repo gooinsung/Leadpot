@@ -6,7 +6,10 @@ import { isMobileDigits, phoneDigits, type PhoneVerifyState } from "../lib/phone
 /**
  * 리드폼 휴대폰 본인인증 칸(V48) — 첫 번째 연락처 항목 바로 아래에 붙는다.
  *
- * [인증번호 받기] → 6자리 입력 + 남은 시간 → [확인] → "✓ 인증 완료".
+ * [인증번호 받기] → 4자리 입력 + 남은 시간 → [확인] → "✓ 인증 완료".
+ *
+ * 재전송: 처음 두 번은 바로 다시 받을 수 있고, 그 뒤로는 2분에 한 번 — 서버가 내려준 `cooldownSeconds`
+ * 만큼 [다시 받기] 버튼을 잠그고 남은 시간(m:ss)을 보여준다(사용자 결정 2026-11-17).
  * 상태는 부모(PublicFormView)가 들고 있다 — 스텝형에서 '이전'으로 갔다 와서 이 칸이 다시 그려져도
  * 인증이 풀리지 않게 하기 위해서다. 상태에 번호를 같이 담아 두고, 입력한 번호가 바뀌면
  * 그 상태는 무효로 본다(다시 인증).
@@ -99,8 +102,8 @@ export function PhoneVerifyBox({
   async function confirm() {
     if (!cur) return;
     const c = code.replace(/\D/g, "");
-    if (c.length !== 6) {
-      setError("인증번호 6자리를 입력해주세요.");
+    if (c.length !== CODE_LENGTH) {
+      setError(`인증번호 ${CODE_LENGTH}자리를 입력해주세요.`);
       return;
     }
     setBusy(true);
@@ -152,26 +155,32 @@ export function PhoneVerifyBox({
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 pattern="[0-9]*"
-                maxLength={6}
-                placeholder="인증번호 6자리"
+                maxLength={CODE_LENGTH}
+                placeholder={`인증번호 ${CODE_LENGTH}자리`}
                 aria-label="인증번호"
                 value={code}
                 disabled={expired}
                 onChange={(e) => {
                   setError("");
-                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, CODE_LENGTH));
                 }}
               />
               {!expired && <span className="pv-timer">{formatLeft(left)}</span>}
             </div>
-            <button type="button" className={`pv-btn pv-btn-confirm${shaking ? " pv-shake" : ""}`} style={{ background: accent }} disabled={busy || expired || code.length !== 6} onClick={confirm}>
+            <button type="button" className={`pv-btn pv-btn-confirm${shaking ? " pv-shake" : ""}`} style={{ background: accent }} disabled={busy || expired || code.length !== CODE_LENGTH} onClick={confirm}>
               {busy ? "확인 중…" : "확인"}
             </button>
           </div>
           <div className="pv-sub">
             {expired ? <span>인증번호가 만료되었습니다.</span> : <span>문자로 받은 인증번호를 입력해주세요.</span>}
             <button type="button" className="pv-resend" disabled={busy || resendLeft > 0} onClick={send}>
-              {resendLeft > 0 ? `재전송 (${resendLeft}초)` : "인증번호 다시 받기"}
+              {resendLeft > 0 ? (
+                <>
+                  다시 받기 <span className="pv-resend-timer">{formatLeft(resendLeft)}</span>
+                </>
+              ) : (
+                "인증번호 다시 받기"
+              )}
             </button>
           </div>
         </>
@@ -180,6 +189,9 @@ export function PhoneVerifyBox({
     </div>
   );
 }
+
+/** 인증번호 자릿수 — 서버(VerifyCodes.CODE_LENGTH)와 같아야 한다. */
+const CODE_LENGTH = 4;
 
 function formatLeft(sec: number): string {
   const m = Math.floor(sec / 60);

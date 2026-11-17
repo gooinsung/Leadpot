@@ -41,7 +41,8 @@ import com.leadpot.sms.SmsSender;
  * <p>지켜야 하는 것:
  * <ol>
  * <li><b>최종 관문은 접수(서버)</b> — 인증을 켠 폼은 토큰 없이·남의 번호 토큰으로·재사용 토큰으로 접수되면 안 된다.</li>
- * <li><b>시도 제한·쿨다운</b> — 6자리 무제한 대입, 연타 발송(문자 비용)이 막혀야 한다.</li>
+ * <li><b>시도 제한·쿨다운</b> — 4자리 무제한 대입, 연타 발송(문자 비용)이 막혀야 한다.
+ * 단 처음 두 번은 쿨다운 없이 보낸다(사용자 결정 2026-11-17).</li>
  * <li><b>문자를 못 보내면 미인증으로 받는다</b>(사용자 결정 2026-11-09) — 접수는 되고 phone_verified=false.</li>
  * </ol>
  *
@@ -56,7 +57,7 @@ import com.leadpot.sms.SmsSender;
 class PhoneVerificationTest {
 
     private static final String PHONE = "010-1234-5678";
-    private static final Pattern CODE = Pattern.compile("\\[(\\d{6})]");
+    private static final Pattern CODE = Pattern.compile("\\[(\\d{4})]");
 
     @MockitoBean
     private SmsSender smsSender;
@@ -127,11 +128,34 @@ class PhoneVerificationTest {
     }
 
     @Test
-    @DisplayName("쿨다운 안의 재발송은 막는다(문자 비용 방어)")
+    @DisplayName("처음 두 번은 바로 보내고, 세 번째부터는 2분 쿨다운으로 막는다(문자 비용 방어)")
     void cooldown() {
-        service.send(form.getId(), PHONE, "1.1.1.1");
+        var first = service.send(form.getId(), PHONE, "1.1.1.1");
+        assertThat(first.cooldownSeconds()).isZero(); // 두 번째는 바로 받을 수 있다
+
+        var second = service.send(form.getId(), PHONE, "1.1.1.1");
+        assertThat(second.mode()).isEqualTo("SENT");
+        assertThat(second.cooldownSeconds()).isEqualTo(120); // 이제부터 화면이 2분 타이머를 띄운다
+
         assertThatThrownBy(() -> service.send(form.getId(), PHONE, "1.1.1.1"))
-                .isInstanceOf(RateLimitedException.class);
+                .isInstanceOf(RateLimitedException.class)
+                .hasMessageContaining("분");
+    }
+
+    @Test
+    @DisplayName("인증번호는 4자리 숫자다")
+    void fourDigitCode() {
+        service.send(form.getId(), PHONE, "1.1.1.1");
+        assertThat(sentCode()).matches("\\d{4}");
+        assertThat(VerifyCodes.newCode()).matches("\\d{4}");
+    }
+
+    @Test
+    @DisplayName("대기 시간 문구")
+    void formatWait() {
+        assertThat(PhoneVerificationService.formatWait(40)).isEqualTo("40초");
+        assertThat(PhoneVerificationService.formatWait(120)).isEqualTo("2분");
+        assertThat(PhoneVerificationService.formatWait(125)).isEqualTo("2분 5초");
     }
 
     @Test
@@ -139,7 +163,7 @@ class PhoneVerificationTest {
     void wrongCodeLocks() {
         service.send(form.getId(), PHONE, "1.1.1.1");
         String code = sentCode();
-        String wrong = code.equals("000000") ? "111111" : "000000";
+        String wrong = code.equals("0000") ? "1111" : "0000";
         for (int i = 0; i < PhoneVerification.MAX_ATTEMPTS; i++) {
             assertThatThrownBy(() -> service.confirm(form.getId(), PHONE, wrong))
                     .isInstanceOf(InvalidSubmissionException.class);
