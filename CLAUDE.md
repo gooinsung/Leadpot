@@ -253,6 +253,10 @@ npm run dev
 - 백엔드(`api.leadpot.kr`, 구 `api.lead-pot.com` 병행)는 **Railway 가 자체 GitHub 연동으로 독립 배포**한다 — 이 저장소의
   워크플로가 아니다. `backend/**` push 시 Railway 대시보드에서 자동으로 빌드·배포되고, 환경변수는
   Railway Variables 로 관리한다(무중단 롤링 배포).
+- 🔐 **광고 매체 연동(V49, [docs/AD-AUTOMATION-PLAN.md](docs/AD-AUTOMATION-PLAN.md))** 은 Railway Variables 의
+  `APP_AD_CREDENTIALS_KEY`(32바이트 base64, 고객 광고계정 키 암호화용)가 있어야 매체를 연결할 수 있다 — **잃거나 바꾸면
+  저장된 연결을 전부 다시 등록해야 한다.** 급히 끌 때는 `APP_AD_AUTOMATION_ENABLED=false`(리드 접수엔 영향 없음).
+  이 기능은 편의 기능이라 리드팟 본 서비스와 철저히 분리한다는 것이 사용자 원칙이다(접수 경로에서 매체 호출 금지).
 - DB 는 **Railway Postgres**다(Railway 가 직접 호스팅, 예전 Neon 은 삭제됨 — 위 §2·§3 참고).
   VM 안에 Postgres 컨테이너를 띄우지 않는다.
 - 🔴 **와일드카드 Workers 라우트(`*.leadpot.kr/*`·`*.lead-pot.com/*` → `leadpot-renderer`)는 `app.` 도
