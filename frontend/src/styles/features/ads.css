@@ -1,0 +1,123 @@
+/* 광고 연동 · 자동화 규칙(/ad-automation) — 관리 화면 전용. 접두어 .ads-* */
+
+.ads-tabs {
+  margin: 4px 0 18px;
+}
+
+.ads-grid {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.ads-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ads-help {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.ads-warn {
+  border-color: var(--amber, #f5a524);
+  background: var(--amber-soft, #fff8e6);
+  color: var(--amber-ink, #7a4b00);
+}
+
+.ads-rule {
+  margin-bottom: 12px;
+}
+
+.ads-rule-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ads-rule-name {
+  font-weight: 700;
+  font-size: var(--fs-md);
+}
+
+.ads-rule-flow {
+  margin: 8px 0 6px;
+  font-size: var(--fs-sm);
+}
+
+.ads-rule-flow b {
+  color: var(--indigo-ink, inherit);
+}
+
+.ads-targets {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.ads-paused {
+  margin-top: 8px;
+  font-size: var(--fs-sm);
+  color: var(--rose-ink, #a1123a);
+}
+
+.ads-picker {
+  border: 1px dashed var(--line, #dfe3ea);
+  border-radius: var(--radius, 10px);
+  padding: 12px;
+}
+
+.ads-campaigns {
+  max-height: 280px;
+  overflow: auto;
+  margin-top: 8px;
+}
+
+.ads-campaigns label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  font-size: var(--fs-sm);
+}
+
+.ads-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.ads-check input {
+  margin-top: 3px;
+  flex: none;
+}
+
+.ads-muted {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.ads-guide ol {
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+.ads-guide li + li {
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .ads-rule-head {
+    align-items: flex-start;
+  }
+}

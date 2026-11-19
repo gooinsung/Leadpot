@@ -2306,3 +2306,185 @@ export async function downloadQuotePdf(id: number, filename: string): Promise<vo
 }
 
 export { BASE_URL };
+
+// ---------- 광고 연동 · 자동화 규칙 (V49, docs/AD-AUTOMATION-PLAN.md) ----------
+// 매체·입력 칸·조건·동작 종류는 서버 카탈로그(/catalog)가 내려준다 — 매체가 늘어도 화면 코드를 고치지 않는다.
+
+export interface AdCredentialField {
+  key: string;
+  label: string;
+  secret: boolean;
+  placeholder: string;
+  help: string;
+}
+
+export interface AdPlatformInfo {
+  platform: string;
+  label: string;
+  supported: boolean;
+  fields: AdCredentialField[];
+}
+
+export interface AdTypeInfo {
+  type: string;
+  label: string;
+}
+
+export interface AdCatalog {
+  enabled: boolean;
+  encryptionReady: boolean;
+  platforms: AdPlatformInfo[];
+  conditions: AdTypeInfo[];
+  actions: AdTypeInfo[];
+}
+
+export interface AdConnection {
+  id: number;
+  platform: string;
+  platformLabel: string;
+  label: string;
+  credentialsHint: string | null;
+  status: "ACTIVE" | "INVALID";
+  statusMessage: string | null;
+  createdAt: string;
+}
+
+export interface AdConnectionInput {
+  platform?: string;
+  label?: string;
+  credentials?: Record<string, string>;
+}
+
+export interface AdAccountItem {
+  id: string;
+  name: string;
+}
+
+export interface AdCampaignItem {
+  id: string;
+  name: string;
+  active: boolean;
+  statusLabel: string;
+  readOnly: boolean;
+}
+
+export interface AdRuleTarget {
+  connectionId: number;
+  connectionLabel?: string | null;
+  platform?: string | null;
+  accountId: string;
+  campaignId: string;
+  campaignName: string;
+}
+
+export interface AdRule {
+  id: number;
+  name: string;
+  formId: number;
+  formName: string | null;
+  enabled: boolean;
+  pausedReason: string | null;
+  conditionType: string;
+  conditionConfig: Record<string, unknown>;
+  conditionText: string;
+  actionType: string;
+  actionLabel: string;
+  notifySuccess: boolean;
+  lastFiredPeriod: string | null;
+  lastFiredAt: string | null;
+  targets: AdRuleTarget[];
+}
+
+export interface AdRuleInput {
+  name: string;
+  formId: number;
+  enabled: boolean;
+  conditionType: string;
+  conditionConfig: Record<string, unknown>;
+  actionType: string;
+  actionConfig: Record<string, unknown>;
+  notifySuccess: boolean;
+  targets: AdRuleTarget[];
+}
+
+export interface AdActionLogItem {
+  id: number;
+  createdAt: string;
+  trigger: "RULE" | "MANUAL";
+  ruleId: number | null;
+  ruleName: string | null;
+  platform: string;
+  platformLabel: string;
+  campaignId: string | null;
+  campaignName: string | null;
+  action: string;
+  success: boolean;
+  message: string | null;
+}
+
+const AD = "/api/ad-automation";
+
+export function getAdCatalog(): Promise<AdCatalog> {
+  return request<AdCatalog>(`${AD}/catalog`);
+}
+
+export function listAdConnections(): Promise<AdConnection[]> {
+  return request<AdConnection[]>(`${AD}/connections`);
+}
+
+export function createAdConnection(input: AdConnectionInput): Promise<AdConnection> {
+  return request<AdConnection>(`${AD}/connections`, { method: "POST", body: input });
+}
+
+export function updateAdConnection(id: number, input: AdConnectionInput): Promise<AdConnection> {
+  return request<AdConnection>(`${AD}/connections/${id}`, { method: "PUT", body: input });
+}
+
+export function deleteAdConnection(id: number): Promise<void> {
+  return request<void>(`${AD}/connections/${id}`, { method: "DELETE" });
+}
+
+export function listAdAccounts(connectionId: number): Promise<AdAccountItem[]> {
+  return request<AdAccountItem[]>(`${AD}/connections/${connectionId}/accounts`);
+}
+
+export function listAdCampaigns(connectionId: number, accountId: string): Promise<AdCampaignItem[]> {
+  return request<AdCampaignItem[]>(
+    `${AD}/connections/${connectionId}/campaigns?accountId=${encodeURIComponent(accountId)}`,
+  );
+}
+
+export function setAdCampaignStatus(
+  connectionId: number,
+  campaignId: string,
+  input: { accountId: string; campaignName: string; active: boolean },
+): Promise<{ success: boolean; message: string | null }> {
+  return request(`${AD}/connections/${connectionId}/campaigns/${encodeURIComponent(campaignId)}/status`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export function listAdRules(): Promise<AdRule[]> {
+  return request<AdRule[]>(`${AD}/rules`);
+}
+
+export function createAdRule(input: AdRuleInput): Promise<AdRule> {
+  return request<AdRule>(`${AD}/rules`, { method: "POST", body: input });
+}
+
+export function updateAdRule(id: number, input: AdRuleInput): Promise<AdRule> {
+  return request<AdRule>(`${AD}/rules/${id}`, { method: "PUT", body: input });
+}
+
+export function setAdRuleEnabled(id: number, enabled: boolean): Promise<AdRule> {
+  return request<AdRule>(`${AD}/rules/${id}/enabled`, { method: "PUT", body: { enabled } });
+}
+
+export function deleteAdRule(id: number): Promise<void> {
+  return request<void>(`${AD}/rules/${id}`, { method: "DELETE" });
+}
+
+export function listAdActionLogs(limit = 100): Promise<AdActionLogItem[]> {
+  return request<AdActionLogItem[]>(`${AD}/logs?limit=${limit}`);
+}

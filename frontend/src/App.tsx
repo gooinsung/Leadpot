@@ -36,6 +36,8 @@ import { AdvertiserLeadsPage } from "./pages/AdvertiserLeadsPage";
 import { AdvertiserIntegrationsPage } from "./pages/AdvertiserIntegrationsPage";
 import { AdvertiserReportPage } from "./pages/AdvertiserReportPage";
 import { AdvertiserGuidePage } from "./pages/AdvertiserGuidePage";
+import { AdAutomationPage } from "./pages/AdAutomationPage";
+import { AdGuideKarrotPage } from "./pages/AdGuideKarrotPage";
 import { ClientLoginPage } from "./pages/ClientLoginPage";
 import { ClientResetPasswordPage } from "./pages/ClientResetPasswordPage";
 import { InviteAcceptPage } from "./pages/InviteAcceptPage";
@@ -251,6 +253,22 @@ function App() {
         element={
           <ProtectedRoute>
             <SmsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ad-automation"
+        element={
+          <ProtectedRoute>
+            <AdAutomationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ad-automation/guide/karrot"
+        element={
+          <ProtectedRoute>
+            <AdGuideKarrotPage />
           </ProtectedRoute>
         }
       />
