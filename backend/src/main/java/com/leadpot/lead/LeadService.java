@@ -51,6 +51,7 @@ public class LeadService {
     private final LeadAsRequestService asRequestService;
     private final com.leadpot.auth.UserRepository userRepository;
     private final com.leadpot.phoneverify.PhoneVerificationService phoneVerificationService;
+    private final com.leadpot.adautomation.AdAutomationTrigger adAutomationTrigger;
 
     public LeadService(LeadRepository leadRepository, LeadNoteRepository leadNoteRepository,
             FormService formService, IpBlockService ipBlockService, NotificationService notificationService,
@@ -59,7 +60,8 @@ public class LeadService {
             CustomLeadStatusRepository customStatusRepository, LeadAsRequestService asRequestService,
             com.leadpot.auth.UserRepository userRepository,
             com.leadpot.landing.LandingPageRepository landingRepository,
-            com.leadpot.phoneverify.PhoneVerificationService phoneVerificationService) {
+            com.leadpot.phoneverify.PhoneVerificationService phoneVerificationService,
+            com.leadpot.adautomation.AdAutomationTrigger adAutomationTrigger) {
         this.leadRepository = leadRepository;
         this.leadNoteRepository = leadNoteRepository;
         this.formService = formService;
@@ -73,6 +75,7 @@ public class LeadService {
         this.userRepository = userRepository;
         this.landingRepository = landingRepository;
         this.phoneVerificationService = phoneVerificationService;
+        this.adAutomationTrigger = adAutomationTrigger;
     }
 
     /** 방문자 정보(요청 헤더에서 추출한 값). */
@@ -135,6 +138,13 @@ public class LeadService {
         notificationService.notifyNewLead(form, lead, () -> isLikelyDuplicate(form, req));
         // 아웃바운드 웹훅(외부 API 전달) — 연동이 꺼져 있으면 내부에서 조용히 아무 일도 하지 않는다.
         outboundWebhookService.dispatchOnLead(form, lead);
+        // 광고 자동화(V49, docs/AD-AUTOMATION-PLAN.md) — 커밋 후 별도 스레드에서 규칙 확인만 예약한다.
+        // 편의 기능이라 접수와 철저히 무관해야 한다: 여기서는 DB 조회·매체 호출을 하지 않고, 무슨 일이 있어도
+        // 접수를 실패시키지 않는다(트리거 내부도 예외를 삼키지만 한 번 더 감싼다).
+        try {
+            adAutomationTrigger.onLeadSubmitted(form.getId());
+        } catch (RuntimeException ignored) { // NOSONAR — 접수 보호가 우선
+        }
         return lead.getId();
     }
 
