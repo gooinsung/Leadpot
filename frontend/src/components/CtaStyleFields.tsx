@@ -51,7 +51,7 @@ export function CtaStyleFields({
       </div>
       <div className="block-row">
         <div className="field" style={{ flex: 1 }}>
-          <label>모서리</label>
+          <label>모양</label>
           <select className="input" value={st.radius} onChange={(e) => onPatch({ btnRadius: e.target.value })}>
             {CTA_RADII.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
