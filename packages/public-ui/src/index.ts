@@ -6,7 +6,7 @@
 export * from "./api/client";
 export { ADDRESS_TOKENS, type AddressParts } from "./lib/addressParts";
 
-export { LandingView } from "./components/LandingView";
+export { LandingView, floatingWrap } from "./components/LandingView";
 export { PublicFormView } from "./components/PublicFormView";
 export { PublicFormPageView } from "./components/PublicFormPageView";
 export { HtmlBlock } from "./components/HtmlBlock";

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { getLandingLive, recordEvent, recordEventBeacon, recordVisit, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
 import { LandingCtaButton } from "./LandingCtaButton";
@@ -24,6 +24,19 @@ function blockStyle(b: LandingBlock): CSSProperties {
   const base: CSSProperties = { marginTop: px(b.mt), marginBottom: px(b.mb) };
   if (b.full) return { ...base, marginLeft: 0, marginRight: 0, paddingLeft: 0, paddingRight: 0, width: "100%" };
   return { ...base, marginLeft: px(b.mx), marginRight: px(b.mx) };
+}
+
+/**
+ * '화면 아래에 고정'(block.floating)을 켠 CTA 버튼은 스크롤해도 화면 하단에 붙어 있는 플로팅 버튼으로 감싼다
+ * (사용자 요청 2026-11-23). 블록 여백(mt/mb/mx)은 플로팅에선 쓰지 않는다. 편집기 미리보기도 같은 함수를 쓴다.
+ */
+export function floatingWrap(b: LandingBlock, key: number, cta: ReactNode): ReactNode {
+  if (!b.floating) return cta;
+  return (
+    <div key={key} className="landing-floating-cta">
+      {cta}
+    </div>
+  );
 }
 
 /**
@@ -206,13 +219,13 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
               // 오버레이/풀스크린 CTA 버튼 색은 연결된 리드폼의 버튼 색(styleConfig.buttonColor)을 따라간다 —
               // 고정된 초록색 대신 리드폼 편집기에서 지정한 색과 일치해야 한다(블록에서 따로 지정하면 그 색).
               const btnStyle = resolveStyle(form);
-              return (
-                <LandingCtaButton key={i} block={b} baseColor={btnStyle.buttonColor} baseTextColor={btnStyle.buttonText} style={ms}
+              return floatingWrap(b, i,
+                <LandingCtaButton key={i} block={b} baseColor={btnStyle.buttonColor} baseTextColor={btnStyle.buttonText} style={b.floating ? undefined : ms}
                   onClick={() => {
                     open(form);
                     // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
                     recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
-                  }} />
+                  }} />,
               );
             }
             return (
@@ -227,12 +240,12 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
             if (!html.trim()) return null;
             if (b.trigger === "overlay" || b.trigger === "fullscreen") {
               const open = b.trigger === "fullscreen" ? setFullscreenEmbed : setOverlayEmbed;
-              return (
-                <LandingCtaButton key={i} block={b} baseColor="#12b886" baseTextColor="#ffffff" style={ms}
+              return floatingWrap(b, i,
+                <LandingCtaButton key={i} block={b} baseColor="#12b886" baseTextColor="#ffffff" style={b.floating ? undefined : ms}
                   onClick={() => {
                     open(allowIframeScroll(html));
                     recordEvent({ landingPageId: landing.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
-                  }} />
+                  }} />,
               );
             }
             return <HtmlBlock key={i} className="landing-embed" style={ms} html={html} />;

@@ -4,7 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FolderSelect } from "../components/FolderTree";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
-import { HtmlBlock, LandingCtaButton, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
+import { HtmlBlock, LandingCtaButton, floatingWrap, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
 import { CtaStyleFields } from "../components/CtaStyleFields";
 import { ConceptColorField } from "../components/ConceptColorField";
 import {
@@ -432,6 +432,7 @@ export function LandingEditPage() {
                       const isFullscreen = b.trigger === "fullscreen";
                       // 실제 공개 렌더(LandingView)와 같은 컴포넌트 — 버튼 색은 연결된 리드폼 색(블록에서 지정하면 그 색).
                       const btnStyle = detail ? resolveStyle(detail) : undefined;
+                      if (b.floating) return floatingWrap(b, i, <LandingCtaButton block={b} baseColor={btnStyle?.buttonColor ?? "#12b886"} baseTextColor={btnStyle?.buttonText ?? "#fff"} />);
                       return (
                         <div key={i} style={ms}>
                           <LandingCtaButton block={b} baseColor={btnStyle?.buttonColor ?? "#12b886"} baseTextColor={btnStyle?.buttonText ?? "#fff"} />
@@ -446,6 +447,7 @@ export function LandingEditPage() {
                   if (b.type === "EMBED") {
                     const html = (b.html as string) || "";
                     if (b.trigger === "overlay" || b.trigger === "fullscreen") {
+                      if (b.floating) return floatingWrap(b, i, <LandingCtaButton block={b} baseColor="#12b886" baseTextColor="#ffffff" />);
                       return (
                         <div key={i} style={ms}>
                           <LandingCtaButton block={b} baseColor="#12b886" baseTextColor="#ffffff" />
@@ -502,6 +504,10 @@ function TriggerFields({ block, onPatch, fullscreenLabel }: { block: LandingBloc
             <label>버튼 아래 설명(선택)</label>
             <input className="input" placeholder="예: 상담 신청 후 24시간 내 연락드립니다" value={(block.buttonDescription as string) ?? ""} onChange={(e) => onPatch({ buttonDescription: e.target.value })} />
           </div>
+          <label className="fr-check" style={{ marginBottom: 8 }} title="스크롤을 내려도 버튼이 화면 아래에 계속 붙어 있어요. 랜딩에 하나만 켜는 걸 권장해요.">
+            <input type="checkbox" checked={!!block.floating} onChange={(e) => onPatch({ floating: e.target.checked || undefined })} />
+            화면 아래에 고정(스크롤해도 계속 보이는 플로팅 버튼)
+          </label>
           <CtaStyleFields block={block} onPatch={onPatch} />
         </>
       )}
