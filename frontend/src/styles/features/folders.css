@@ -378,3 +378,9 @@
   white-space: nowrap;
   text-decoration: none;
 }
+
+/* 리드폼 — 사용 중인 랜딩(목록 열·편집 화면 머리줄) */
+.form-usage { font-size: 13px; line-height: 1.5; }
+.form-usage a { color: var(--indigo); text-decoration: none; }
+.form-usage a:hover { text-decoration: underline; }
+.form-usage-line { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }

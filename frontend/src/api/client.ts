@@ -1091,6 +1091,8 @@ export interface LandingSummary {
   folderId: number | null;
   /** 자유 태그(V46). 후보 목록은 리드폼과 공용. */
   tags: string[];
+  /** 이 랜딩의 리드폼 블록이 연결한 리드폼 id — '이 리드폼을 쓰는 랜딩' 표시용. */
+  formIds: number[];
   updatedAt: string;
 }
 export function listLandings(): Promise<LandingSummary[]> {

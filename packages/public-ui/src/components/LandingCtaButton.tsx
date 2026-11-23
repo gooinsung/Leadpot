@@ -51,6 +51,8 @@ export const CTA_RADII: readonly { value: string; label: string }[] = [
   { value: "pill", label: "알약형(기본)" },
   { value: "round", label: "둥근 사각" },
   { value: "square", label: "각진 사각" },
+  // 띠: 화면 가로를 여백 없이 꽉 채우는 직사각형(랜딩 CTA 전용 레이아웃 — 리드폼 제출 버튼에선 각진 모서리만).
+  { value: "band", label: "가로 꽉 찬 띠(여백 없음)" },
 ];
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;

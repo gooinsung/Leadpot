@@ -36,6 +36,8 @@ import { WebhookLeadPanel } from "../components/WebhookLeadPanel";
 import { OutboundUnsentPanel } from "../components/OutboundUnsentPanel";
 import { CtaStyleFields } from "../components/CtaStyleFields";
 import { useAuth } from "../lib/authContext";
+import { useFormUsage } from "../lib/useFormUsage";
+import { FormUsageCell } from "../components/FormUsageCell";
 import { toast } from "../lib/toast";
 import {
   CALCULATORS,
@@ -324,6 +326,7 @@ export function FormEditPage() {
   // 자유 태그(V46) — 기존 리드폼은 체크할 때마다 바로 저장, 새 리드폼은 만들 때 함께 저장한다(목록에서는 보기·검색만).
   const [tags, setTags] = useState<string[]>([]);
   const tagPool = useTagPool();
+  const formUsage = useFormUsage();
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]); // 내 폼들의 기존 분야(datalist)
   const [formType, setFormType] = useState<FormType>("BASIC");
 
@@ -962,6 +965,12 @@ export function FormEditPage() {
                 }}
               />
             </div>
+            {!isNew && (
+              <div className="form-usage-line">
+                <span className="dash-sub" style={{ fontSize: 12.5, flex: "none" }}>사용 중인 랜딩</span>
+                <FormUsageCell landings={formUsage.usageOf(Number(id))} loaded={formUsage.loaded} max={10} />
+              </div>
+            )}
           </div>
           <div className="edit-actions">
             {isNew && <FolderSelect kind="FORM" value={newFolderId} onChange={setNewFolderId} />}
