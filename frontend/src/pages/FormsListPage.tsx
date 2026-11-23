@@ -14,6 +14,8 @@ import { ListFilterBar } from "../components/ListFilterBar";
 import { matchesQuery, matchesTags, parseSort, sortList, type ListSort } from "../lib/listFilter";
 import { TagChips } from "../components/TagPicker";
 import { useTagFilterParams, useTagPool } from "../lib/useListTags";
+import { useFormUsage, usageWarning } from "../lib/useFormUsage";
+import { FormUsageCell } from "../components/FormUsageCell";
 
 const FORM_SORTS: ListSort[] = ["updated", "created", "name", "revenue", "oldest"];
 
@@ -21,6 +23,7 @@ export function FormsListPage() {
   const navigate = useNavigate();
   const [forms, setForms] = useState<FormSummary[]>([]);
   const revenue = useRevenueByEntity();
+  const usage = useFormUsage();
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -122,7 +125,8 @@ export function FormsListPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   async function onBulkDelete() {
     if (sel.count === 0 || bulkBusy) return;
-    if (!window.confirm(`선택한 리드폼 ${sel.count}개를 삭제할까요? 수집된 리드도 함께 사라질 수 있습니다.`)) return;
+    const used = [...new Map([...sel.selected].flatMap((fid) => usage.usageOf(fid)).map((l) => [l.id, l])).values()];
+    if (!window.confirm(`선택한 리드폼 ${sel.count}개를 삭제할까요? 수집된 리드도 함께 사라질 수 있습니다.${usageWarning(used)}`)) return;
     setBulkBusy(true);
     const { ok, fail } = await runBulk([...sel.selected], deleteForm);
     setBulkBusy(false);
@@ -160,7 +164,7 @@ export function FormsListPage() {
   }
 
   async function onDelete(id: number, name: string) {
-    if (!window.confirm(`'${name}' 리드폼을 삭제할까요?`)) return;
+    if (!window.confirm(`'${name}' 리드폼을 삭제할까요?${usageWarning(usage.usageOf(id))}`)) return;
     try {
       await deleteForm(id);
       toast.success(`'${name}' 리드폼을 삭제했습니다.`);
@@ -270,6 +274,7 @@ export function FormsListPage() {
                           <th>분야</th>
                           <th>유형</th>
                           <th>항목 수</th>
+                          <th>사용 중인 랜딩</th>
                           <th className="num"><RevenueHeader period={revenue.period} onChange={revenue.setPeriod} /></th>
                           <th>수정일</th>
                           <th></th>
@@ -312,6 +317,7 @@ export function FormsListPage() {
                               </span>
                             </td>
                             <td className="num nowrap" data-label="항목">{f.blockCount}</td>
+                            <td data-label="랜딩"><FormUsageCell landings={usage.usageOf(f.id)} loaded={usage.loaded} /></td>
                             <td className="num nowrap" data-label="수익"><RevenueCell row={revenue.byForm.get(f.id)} /></td>
                             <td className="num nowrap" data-label="수정" title={new Date(f.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(f.updatedAt)}</td>
                             <td className="list-actions-cell" onClick={(e) => e.stopPropagation()}>
