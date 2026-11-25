@@ -8,6 +8,12 @@
 
 ## 📍 지금 위치
 
+- **🔄 랜딩 블록 등장 애니메이션 — 설계 작성, 사용자 승인 대기 (2026-11-25, 사용자 요청, 브랜치 `claude/confident-albattani-9wint0`)**:
+  - 블록마다 스크롤 등장 애니메이션(페이드업·서서히·확대·좌/우 슬라이드 + 지연)을 고르게 하는 기능. 사용자가 '블록별 설정(A안)' 선택.
+    HTML 블록 안쪽 요소도 `data-lp-anim` 속성으로 개별 등장. 백엔드·DB 변경 없음(블록 키 `anim`·`animDelay`).
+  - 설계: [superpowers/specs/2026-11-25-landing-block-animation-design.md](superpowers/specs/2026-11-25-landing-block-animation-design.md).
+  - ⏭️ 다음: 사용자 승인 → 구현 계획 작성 → public-ui(훅·CSS·LandingView) + 편집기(LandingEditPage) 구현 → 375px 검증.
+
 - **✅ 랜딩 CTA '화면 아래에 고정'(플로팅 버튼) (2026-11-23, 사용자 요청, PR 병합으로 배포)**:
   - 리드폼·외부 폼 블록(버튼 → 오버레이/풀스크린)에 체크박스 '화면 아래에 고정' 추가(`block.floating`). 켜면 버튼이 스크롤해도
     화면 하단(본문 폭 최대 480px, safe-area 대응)에 붙어 있고, 탭하면 기존처럼 모달/풀스크린. 띠 모양이면 바닥에 여백 없이 붙는다.
