@@ -1,5 +1,5 @@
 "use client";
-import { useLayoutEffect, useEffect, type CSSProperties, type ReactNode } from "react";
+import { useLayoutEffect, useEffect, type CSSProperties, type ReactNode, type RefObject } from "react";
 import type { LandingBlock } from "../api/client";
 import { ANIM_ON_CLASS, clampAnimDelay, resolveBlockAnim } from "../lib/blockAnim";
 
@@ -39,10 +39,14 @@ export function withAnim(b: LandingBlock, key: number, node: ReactNode): ReactNo
  * - HTML 블록 스크립트가 나중에 그린 요소나, 편집기에서 다시 만들어진 래퍼는 MutationObserver 로 잡는다.
  * - IntersectionObserver 가 없거나 '동작 줄이기'면 클래스를 붙이지 않는다(= 전부 그대로 보인다).
  */
-export function useRevealAnimations(root: HTMLElement | null, enabled: boolean): void {
-  // ref 객체가 아니라 요소를 받는다 — 편집기 미리보기는 iframe 포털이라 요소가 나중 렌더에 붙는데,
-  // 그때 다시 실행되려면 요소가 의존성에 있어야 한다(콜백 ref + state 로 넘길 것).
+export function useRevealAnimations(target: RefObject<HTMLElement | null> | HTMLElement | null, enabled: boolean): void {
+  // 두 가지 방식으로 받는다.
+  // - ref 객체(공개 랜딩 LandingView): 요소가 같은 커밋에 붙으므로 ref 로 충분하다.
+  //   ⚠️ 공개 랜딩에서 콜백 ref + state 를 쓰면 마운트 직후 LandingView 가 한 번 더 렌더되고, 그때 React 가
+  //   HTML 블록의 innerHTML 을 다시 써서 블록 스크립트가 만든 내용(외부 폼·카운트다운 등)이 지워진다(실측 2026-11-25, PR #72 회귀).
+  // - 요소(편집기 미리보기): iframe 포털이라 요소가 나중 렌더에 붙으므로 콜백 ref + state 로 넘겨 다시 실행되게 한다.
   useIsoLayoutEffect(() => {
+    const root = target && "current" in target ? target.current : target;
     if (!enabled || !root) return;
     const doc = root.ownerDocument;
     const win = doc.defaultView as (Window & typeof globalThis & { __lpAnim?: boolean }) | null;
@@ -102,5 +106,5 @@ export function useRevealAnimations(root: HTMLElement | null, enabled: boolean):
       win.clearTimeout(bottomTimer);
       html.classList.remove(ANIM_ON_CLASS);
     };
-  }, [root, enabled]);
+  }, [target, enabled]);
 }
