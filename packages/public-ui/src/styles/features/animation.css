@@ -1,0 +1,59 @@
+/* ---------- 랜딩 블록 등장 애니메이션(2026-11-25) ----------
+   lib/blockAnim.ts · components/AnimWrap.tsx 참고.
+   - `anim` 을 고른 블록만 `.lp-anim[data-lp-anim]` 래퍼로 감싼다(안 고른 블록은 DOM 그대로).
+   - HTML 블록 안쪽 요소도 `data-lp-anim` 속성만 붙이면 같은 규칙을 탄다.
+   - 숨김은 `<html class="lp-anim-on">` 일 때만 — JS 가 없으면(크롤러·광고 심사) 전부 보인다.
+   - 화면에 들어오면 훅이 `.lp-in` 을 붙여 원위치로 0.7초 전환(한 번만). */
+
+.lp-anim {
+  display: block;
+}
+
+.lp-anim-on [data-lp-anim] {
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--lp-anim-delay, 0ms);
+}
+.lp-anim-on [data-lp-anim]:not(.lp-in) {
+  opacity: 0;
+}
+.lp-anim-on [data-lp-anim="fade-up"]:not(.lp-in) {
+  transform: translateY(28px);
+}
+.lp-anim-on [data-lp-anim="zoom-in"]:not(.lp-in) {
+  transform: scale(0.9);
+}
+.lp-anim-on [data-lp-anim="slide-left"]:not(.lp-in) {
+  transform: translateX(-40px);
+}
+.lp-anim-on [data-lp-anim="slide-right"]:not(.lp-in) {
+  transform: translateX(40px);
+}
+
+/* 오른쪽에서 들어오는 요소의 시작 위치 때문에 모바일에서 가로 스크롤이 생기지 않게 본문을 가로로 잘라낸다.
+   clip 은 스크롤 컨테이너를 만들지 않아 sticky·fixed 에 영향이 없다. */
+.lp-anim-on .landing-public-inner,
+.lp-anim-on .lp-preview-device {
+  overflow-x: clip;
+}
+
+/* '동작 줄이기' 기기에서는 숨기지도 움직이지도 않는다(부팅 스크립트·훅도 클래스를 붙이지 않지만 이중 안전장치). */
+@media (prefers-reduced-motion: reduce) {
+  .lp-anim-on [data-lp-anim],
+  .lp-anim-on [data-lp-anim]:not(.lp-in) {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* landing.css 의 자식 선택자(>) 규칙이 래퍼로 감싼 CTA 에도 똑같이 걸리게 한다. */
+.landing-public-inner:has(> .lp-anim:last-child > .landing-cta:last-child),
+.landing-public-inner:has(> .lp-anim:last-child > .landing-cta-desc:last-child) {
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+}
+.landing-public-inner:has(> .lp-anim > .landing-cta-radius-band),
+.lp-preview-device:has(> .lp-anim > div > .landing-cta-radius-band) {
+  overflow-x: clip;
+}

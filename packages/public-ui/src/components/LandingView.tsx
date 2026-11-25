@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { getLandingLive, recordEvent, recordEventBeacon, recordVisit, type FormDetail, type LandingBlock, type LandingLive, type PublicLanding } from "../api/client";
 import { HtmlBlock } from "./HtmlBlock";
+import { useRevealAnimations, withAnim } from "./AnimWrap";
+import { ANIM_BOOT_SCRIPT, usesAnimations } from "../lib/blockAnim";
 import { LandingCtaButton } from "./LandingCtaButton";
 import { PublicFormView } from "./PublicFormView";
 import { resolveConceptBg, resolveStyle } from "./formRenderers/formStyle";
@@ -186,6 +188,69 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
     recordEvent({ landingPageId: landing.id, eventType: "click", target });
   }
 
+  // 등장 애니메이션(2026-11-25) — 블록 `anim` 또는 HTML 안 `data-lp-anim` 을 쓰는 랜딩에만 켠다.
+  const innerRef = useRef<HTMLDivElement>(null);
+  const animOn = useMemo(() => usesAnimations(landing.content), [landing.content]);
+  useRevealAnimations(innerRef, animOn);
+
+  /** 블록 하나 렌더 — 등장 애니메이션 래퍼(withAnim)는 바깥에서 감싼다. */
+  function renderBlock(b: LandingBlock, i: number): ReactNode {
+    const ms = blockStyle(b);
+
+    if (b.type === "IMAGE") {
+      const url = b.url as string;
+      return url ? <img key={i} className="landing-img" src={url} alt={(b.alt as string) || ""} style={ms} /> : null;
+    }
+    if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
+    if (b.type === "HTML") {
+      const raw = (b.html as string) || "";
+      // "구글 광고용" 랜딩은 스크립트·iframe 을 먼저 제거한 뒤 실시간 마커를 채운다(§5-5, V41).
+      const safe = landing.googleAdsSafe ? sanitizeHtml(raw) : raw;
+      const html = live ? hydrateLiveMarkers(safe, live) : safe;
+      return <HtmlBlock key={i} className="landing-html" style={ms} html={html} />;
+    }
+    if (b.type === "FORM") {
+      const form = formOf(b);
+      if (!form) return null;
+      if (b.trigger === "overlay" || b.trigger === "fullscreen") {
+        const open = b.trigger === "fullscreen" ? setFullscreenForm : setOverlayForm;
+        // 오버레이/풀스크린 CTA 버튼 색은 연결된 리드폼의 버튼 색(styleConfig.buttonColor)을 따라간다 —
+        // 고정된 초록색 대신 리드폼 편집기에서 지정한 색과 일치해야 한다(블록에서 따로 지정하면 그 색).
+        const btnStyle = resolveStyle(form);
+        return floatingWrap(b, i,
+          <LandingCtaButton key={i} block={b} baseColor={btnStyle.buttonColor} baseTextColor={btnStyle.buttonText} style={b.floating ? undefined : ms}
+            onClick={() => {
+              open(form);
+              // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
+              recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
+            }} />,
+        );
+      }
+      return (
+        <div key={i} className="landing-form-card" style={ms}>
+          <PublicFormView form={form} landingPageId={landing.id} trackingConfig={form.trackingConfig} />
+        </div>
+      );
+    }
+    if (b.type === "EMBED") {
+      // 외부 폼 — 사용자가 일부러 넣은 임베드 코드라 '구글 광고용'이어도 그대로 둔다(사용자 결정 2026-10-20).
+      const html = (b.html as string) || "";
+      if (!html.trim()) return null;
+      if (b.trigger === "overlay" || b.trigger === "fullscreen") {
+        const open = b.trigger === "fullscreen" ? setFullscreenEmbed : setOverlayEmbed;
+        return floatingWrap(b, i,
+          <LandingCtaButton key={i} block={b} baseColor="#12b886" baseTextColor="#ffffff" style={b.floating ? undefined : ms}
+            onClick={() => {
+              open(allowIframeScroll(html));
+              recordEvent({ landingPageId: landing.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
+            }} />,
+        );
+      }
+      return <HtmlBlock key={i} className="landing-embed" style={ms} html={html} />;
+    }
+    return null;
+  }
+
   // 랜딩페이지 전체 배경 컬러(V43, styleConfig 아닌 랜딩 자체 설정) — 사용자 결정(2026-09-08):
   // "입력폼이 아니라 랜딩페이지 자체에 배경 컬러를 선택할 수 있게".
   // ⚠️ .landing-public 이 아니라 .landing-public-inner 에 적용해야 한다 — 모바일(≈375~480px,
@@ -196,62 +261,10 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
   return (
     <div className="landing-public" onClickCapture={handleContentClick}>
       {hasToast && live && <RecentToast recent={live.recent} />}
-      <div className="landing-public-inner" style={pageBg ? { background: pageBg } : undefined}>
-        {landing.content.map((b, i) => {
-          const ms = blockStyle(b);
-          if (b.type === "IMAGE") {
-            const url = b.url as string;
-            return url ? <img key={i} className="landing-img" src={url} alt={(b.alt as string) || ""} style={ms} /> : null;
-          }
-          if (b.type === "TEXT") return <p key={i} className="landing-text" style={ms}>{(b.text as string) || ""}</p>;
-          if (b.type === "HTML") {
-            const raw = (b.html as string) || "";
-            // "구글 광고용" 랜딩은 스크립트·iframe 을 먼저 제거한 뒤 실시간 마커를 채운다(§5-5, V41).
-            const safe = landing.googleAdsSafe ? sanitizeHtml(raw) : raw;
-            const html = live ? hydrateLiveMarkers(safe, live) : safe;
-            return <HtmlBlock key={i} className="landing-html" style={ms} html={html} />;
-          }
-          if (b.type === "FORM") {
-            const form = formOf(b);
-            if (!form) return null;
-            if (b.trigger === "overlay" || b.trigger === "fullscreen") {
-              const open = b.trigger === "fullscreen" ? setFullscreenForm : setOverlayForm;
-              // 오버레이/풀스크린 CTA 버튼 색은 연결된 리드폼의 버튼 색(styleConfig.buttonColor)을 따라간다 —
-              // 고정된 초록색 대신 리드폼 편집기에서 지정한 색과 일치해야 한다(블록에서 따로 지정하면 그 색).
-              const btnStyle = resolveStyle(form);
-              return floatingWrap(b, i,
-                <LandingCtaButton key={i} block={b} baseColor={btnStyle.buttonColor} baseTextColor={btnStyle.buttonText} style={b.floating ? undefined : ms}
-                  onClick={() => {
-                    open(form);
-                    // I5: CTA(폼 열기) 클릭 기록 → 전환 퍼널 중간 단계 + 요소 클릭 통계
-                    recordEvent({ landingPageId: landing.id, formId: form.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
-                  }} />,
-              );
-            }
-            return (
-              <div key={i} className="landing-form-card" style={ms}>
-                <PublicFormView form={form} landingPageId={landing.id} trackingConfig={form.trackingConfig} />
-              </div>
-            );
-          }
-          if (b.type === "EMBED") {
-            // 외부 폼 — 사용자가 일부러 넣은 임베드 코드라 '구글 광고용'이어도 그대로 둔다(사용자 결정 2026-10-20).
-            const html = (b.html as string) || "";
-            if (!html.trim()) return null;
-            if (b.trigger === "overlay" || b.trigger === "fullscreen") {
-              const open = b.trigger === "fullscreen" ? setFullscreenEmbed : setOverlayEmbed;
-              return floatingWrap(b, i,
-                <LandingCtaButton key={i} block={b} baseColor="#12b886" baseTextColor="#ffffff" style={b.floating ? undefined : ms}
-                  onClick={() => {
-                    open(allowIframeScroll(html));
-                    recordEvent({ landingPageId: landing.id, eventType: "form_open", target: (b.buttonLabel as string) || "신청하기" });
-                  }} />,
-              );
-            }
-            return <HtmlBlock key={i} className="landing-embed" style={ms} html={html} />;
-          }
-          return null;
-        })}
+      <div ref={innerRef} className="landing-public-inner" style={pageBg ? { background: pageBg } : undefined}>
+        {/* 등장 애니메이션 부팅 — SSR HTML 을 읽는 도중 실행돼 첫 페인트 전에 숨김을 켠다(lib/blockAnim.ts). 쓰는 랜딩에만. */}
+        {animOn && <script dangerouslySetInnerHTML={{ __html: ANIM_BOOT_SCRIPT }} />}
+        {landing.content.map((b, i) => withAnim(b, i, renderBlock(b, i)))}
       </div>
 
       {overlayForm && (
