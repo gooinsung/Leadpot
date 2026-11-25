@@ -85,6 +85,12 @@ export function StatsPage() {
   const [forms, setForms] = useState<FormSummary[]>([]);
   // 태그로 '대상' 목록 거르기(사용자 요청 2026-11-25) — 고른 태그가 달린 랜딩·리드폼만 대상 목록에 남긴다.
   const [tagFilter, setTagFilter] = useState("");
+  // 입력하는 대로 통계를 다시 부르되, 글자마다 부르지 않게 0.3초 멈췄을 때 반영한다.
+  const [tagQuery, setTagQuery] = useState("");
+  useEffect(() => {
+    const t = window.setTimeout(() => setTagQuery(tagFilter.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [tagFilter]);
   const tagPool = useTagPool();
   const shownLandings = useMemo(() => (tagFilter.trim() ? landings.filter((l) => tagMatches(l.tags, tagFilter)) : landings), [landings, tagFilter]);
   const shownForms = useMemo(() => (tagFilter.trim() ? forms.filter((f) => tagMatches(f.tags, tagFilter)) : forms), [forms, tagFilter]);
@@ -110,12 +116,13 @@ export function StatsPage() {
   }, [preset]);
 
   const filter = useMemo(() => {
-    const f: { from: string; to: string; landingId?: number; formId?: number; utmKey?: string; utmValue?: string } = { from, to };
+    const f: { from: string; to: string; landingId?: number; formId?: number; utmKey?: string; utmValue?: string; tag?: string } = { from, to };
     if (target.startsWith("landing:")) f.landingId = Number(target.slice(8));
     else if (target.startsWith("form:")) f.formId = Number(target.slice(5));
     if (utmSel) { f.utmKey = utmSel.key; f.utmValue = utmSel.value; }
+    if (tagQuery) f.tag = tagQuery;
     return f;
-  }, [from, to, target, utmSel]);
+  }, [from, to, target, utmSel, tagQuery]);
 
   useEffect(() => {
     if (!from || !to) return;
@@ -161,6 +168,7 @@ export function StatsPage() {
     if (filter.landingId != null) p.set("landingId", String(filter.landingId));
     if (filter.formId != null) p.set("formId", String(filter.formId));
     if (utmSel) { p.set("utmKey", utmSel.key); p.set("utmValue", utmSel.value); }
+    if (filter.tag) p.set("tag", filter.tag);
     window.open(`/stats/report?${p.toString()}`, "_blank");
   }
 
@@ -217,7 +225,7 @@ export function StatsPage() {
                   if (!item || !tagMatches(item.tags, q)) setTarget("all");
                 }
               }}
-              title="입력한 글자가 들어간 태그가 달린 랜딩·리드폼만 '대상' 목록에 보여요"
+              title="입력한 글자가 들어간 태그가 달린 랜딩·리드폼의 통계만 보여줘요('대상' 목록도 함께 걸러져요)"
             />
             <datalist id="stats-tag-options">
               {tagPool.pool.map((t) => <option key={t} value={t} />)}

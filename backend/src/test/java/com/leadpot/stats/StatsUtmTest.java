@@ -88,6 +88,24 @@ class StatsUtmTest {
         assertThat(media.rows()).extracting(StatsResponse.UtmRow::value).contains("meta");
     }
 
+    @Test
+    @DisplayName("태그 필터: 태그(부분 일치·# 무시)가 맞는 리드폼의 방문·리드만, 안 맞으면 0")
+    void tagFilter() {
+        form.setTags(List.of("두피문신"));
+        formRepository.saveAndFlush(form);
+
+        StatsResponse hit = statsService.overview(owner.getId(), null, null, null, null, null, null, "#두피");
+        assertThat(hit.summary().totalVisits()).isEqualTo(4);
+        assertThat(hit.summary().leads()).isEqualTo(2);
+
+        StatsResponse miss = statsService.overview(owner.getId(), null, null, null, null, null, null, "안과");
+        assertThat(miss.summary().totalVisits()).isZero();
+        assertThat(miss.summary().leads()).isZero();
+
+        StatsResponse blank = statsService.overview(owner.getId(), null, null, null, null, null, null, "  ");
+        assertThat(blank.summary().leads()).isEqualTo(2);
+    }
+
     private void saveVisit(Map<String, Object> utm, String ipHash) {
         Visit v = new Visit();
         v.setOwnerId(owner.getId());
