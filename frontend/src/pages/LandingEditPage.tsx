@@ -1,10 +1,21 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Loading } from "../components/Loading";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FolderSelect } from "../components/FolderTree";
 import { SearchableSelect } from "../components/SearchableSelect";
 import { DevicePreviewFrame } from "../components/DevicePreviewFrame";
-import { HtmlBlock, LandingCtaButton, floatingWrap, resolveStyle, sanitizeHtml } from "@leadpot/public-ui";
+import {
+  BLOCK_ANIMS,
+  BLOCK_ANIM_DELAYS,
+  HtmlBlock,
+  LandingCtaButton,
+  floatingWrap,
+  resolveStyle,
+  sanitizeHtml,
+  useRevealAnimations,
+  usesAnimations,
+  withAnim,
+} from "@leadpot/public-ui";
 import { CtaStyleFields } from "../components/CtaStyleFields";
 import { ConceptColorField } from "../components/ConceptColorField";
 import {
@@ -92,6 +103,9 @@ export function LandingEditPage() {
   const formOptions = forms.map((f) => ({ value: f.id, label: f.name }));
   const [formDetails, setFormDetails] = useState<Record<number, FormDetail>>({});
   const [device, setDevice] = useState<"mobile" | "pc">("mobile");
+  // 미리보기 등장 애니메이션 — 공개 랜딩과 같은 훅. 미리보기 컨테이너는 iframe 포털에 나중에 붙으므로 콜백 ref + state.
+  const [previewEl, setPreviewEl] = useState<HTMLDivElement | null>(null);
+  useRevealAnimations(previewEl, usesAnimations(blocks));
   // 미리보기 높이는 화면에 맞춘다 — 기기 iframe 이 이 높이를 채우고 스크롤도 그 안에서만 일어난다.
   const [previewH, setPreviewH] = useState(() => previewHeight());
   const [loading, setLoading] = useState(!isNew);
@@ -322,6 +336,10 @@ export function LandingEditPage() {
                         <HtmlImageUploadButton type="landing" onInsert={(h) => patch(i, { html: appendHtml((b.html as string) ?? "", h) })} />
                       </div>
                       <textarea className="input" rows={3} value={(b.html as string) ?? ""} onChange={(e) => patch(i, { html: e.target.value })} />
+                      <span className="field-optional" style={{ marginTop: 4, fontSize: 12 }}>
+                        HTML 안의 요소에 <code>data-lp-anim="fade-up"</code> 을 붙이면 그 요소만 따로 등장해요
+                        (fade · zoom-in · slide-left · slide-right 도 가능, 지연은 <code>data-lp-anim-delay="200"</code>).
+                      </span>
                     </div>
                   )}
                   {b.type === "FORM" && (
@@ -384,6 +402,25 @@ export function LandingEditPage() {
                       <span>좌우 여백 없이 화면 전체 폭 사용</span>
                     </label>
                   )}
+                  {/* 등장 애니메이션 — 화면 하단 고정 버튼은 제외(lib/blockAnim.ts, 2026-11-25) */}
+                  {!b.floating && (
+                    <div className="block-margins">
+                      <span className="mini-label">등장 애니메이션 — 스크롤해서 화면에 들어올 때 한 번 재생</span>
+                      <div className="block-margin-item">
+                        <span>효과</span>
+                        <select className="input" value={(b.anim as string) ?? ""} onChange={(e) => patch(i, { anim: e.target.value || undefined, ...(e.target.value ? {} : { animDelay: undefined }) })}>
+                          <option value="">없음</option>
+                          {BLOCK_ANIMS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="block-margin-item">
+                        <span>지연</span>
+                        <select className="input" value={String((b.animDelay as number) ?? 0)} disabled={!b.anim} onChange={(e) => patch(i, { animDelay: Number(e.target.value) || undefined })}>
+                          {BLOCK_ANIM_DELAYS.map((d) => <option key={d} value={d}>{d === 0 ? "바로" : `${d / 1000}초`}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               <div className="add-block-row">
@@ -409,9 +446,9 @@ export function LandingEditPage() {
                 예전처럼 박스만 좁히면 @media 가 브라우저 창 폭을 봐서 미리보기만 어긋났다. */}
             <div className={`lp-preview-stage ${device}`}>
               <DevicePreviewFrame width={device === "mobile" ? 375 : 1280} fitHeight={previewH}>
-              <div className="lp-preview-device in-frame" style={bgColor ? { background: bgColor } : undefined}>
+              <div ref={setPreviewEl} className="lp-preview-device in-frame" style={bgColor ? { background: bgColor } : undefined}>
                 {blocks.length === 0 && <p className="dash-sub" style={{ padding: 24, textAlign: "center" }}>블록을 추가하면 미리보기가 표시됩니다.</p>}
-                {blocks.map((b, i) => {
+                {blocks.map((b, i) => withAnim(b, i, ((): ReactNode => {
                   const ms = blockStyle(b);
                   if (b.type === "IMAGE")
                     return (b.url as string)
@@ -462,7 +499,7 @@ export function LandingEditPage() {
                       : <div key={i} className="fr-img-ph" style={{ margin: 16, ...ms }}>외부 폼 코드를 넣어주세요</div>;
                   }
                   return null;
-                })}
+                })()))}
               </div>
               </DevicePreviewFrame>
             </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useLayoutEffect, useEffect, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { useLayoutEffect, useEffect, type CSSProperties, type ReactNode } from "react";
 import type { LandingBlock } from "../api/client";
 import { ANIM_ON_CLASS, clampAnimDelay, resolveBlockAnim } from "../lib/blockAnim";
 
@@ -30,7 +30,7 @@ export function withAnim(b: LandingBlock, key: number, node: ReactNode): ReactNo
 }
 
 /**
- * `ref` 안의 `[data-lp-anim]`(블록 래퍼 + HTML 블록 안쪽 요소)을 지켜보다 화면에 들어오면 `.lp-in` 을 붙인다(한 번만).
+ * `root` 안의 `[data-lp-anim]`(블록 래퍼 + HTML 블록 안쪽 요소)을 지켜보다 화면에 들어오면 `.lp-in` 을 붙인다(한 번만).
  *
  * - 문서(`<html>`)에 `lp-anim-on` 을 붙여 숨김 CSS 를 켠다 — SSR 에선 부팅 스크립트가 먼저 붙여 두었고,
  *   클라이언트 렌더(관리 앱 미리보기·CSR 공개 페이지)에선 여기서 첫 페인트 전에 붙인다.
@@ -39,9 +39,10 @@ export function withAnim(b: LandingBlock, key: number, node: ReactNode): ReactNo
  * - HTML 블록 스크립트가 나중에 그린 요소나, 편집기에서 다시 만들어진 래퍼는 MutationObserver 로 잡는다.
  * - IntersectionObserver 가 없거나 '동작 줄이기'면 클래스를 붙이지 않는다(= 전부 그대로 보인다).
  */
-export function useRevealAnimations(ref: RefObject<HTMLElement | null>, enabled: boolean): void {
+export function useRevealAnimations(root: HTMLElement | null, enabled: boolean): void {
+  // ref 객체가 아니라 요소를 받는다 — 편집기 미리보기는 iframe 포털이라 요소가 나중 렌더에 붙는데,
+  // 그때 다시 실행되려면 요소가 의존성에 있어야 한다(콜백 ref + state 로 넘길 것).
   useIsoLayoutEffect(() => {
-    const root = ref.current;
     if (!enabled || !root) return;
     const doc = root.ownerDocument;
     const win = doc.defaultView as (Window & typeof globalThis & { __lpAnim?: boolean }) | null;
@@ -101,5 +102,5 @@ export function useRevealAnimations(ref: RefObject<HTMLElement | null>, enabled:
       win.clearTimeout(bottomTimer);
       html.classList.remove(ANIM_ON_CLASS);
     };
-  }, [ref, enabled]);
+  }, [root, enabled]);
 }

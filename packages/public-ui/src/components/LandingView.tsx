@@ -189,9 +189,9 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
   }
 
   // 등장 애니메이션(2026-11-25) — 블록 `anim` 또는 HTML 안 `data-lp-anim` 을 쓰는 랜딩에만 켠다.
-  const innerRef = useRef<HTMLDivElement>(null);
+  const [innerEl, setInnerEl] = useState<HTMLDivElement | null>(null);
   const animOn = useMemo(() => usesAnimations(landing.content), [landing.content]);
-  useRevealAnimations(innerRef, animOn);
+  useRevealAnimations(innerEl, animOn);
 
   /** 블록 하나 렌더 — 등장 애니메이션 래퍼(withAnim)는 바깥에서 감싼다. */
   function renderBlock(b: LandingBlock, i: number): ReactNode {
@@ -261,7 +261,7 @@ export function LandingView({ landing, initialLive = null }: { landing: PublicLa
   return (
     <div className="landing-public" onClickCapture={handleContentClick}>
       {hasToast && live && <RecentToast recent={live.recent} />}
-      <div ref={innerRef} className="landing-public-inner" style={pageBg ? { background: pageBg } : undefined}>
+      <div ref={setInnerEl} className="landing-public-inner" style={pageBg ? { background: pageBg } : undefined}>
         {/* 등장 애니메이션 부팅 — SSR HTML 을 읽는 도중 실행돼 첫 페인트 전에 숨김을 켠다(lib/blockAnim.ts). 쓰는 랜딩에만. */}
         {animOn && <script dangerouslySetInnerHTML={{ __html: ANIM_BOOT_SCRIPT }} />}
         {landing.content.map((b, i) => withAnim(b, i, renderBlock(b, i)))}
