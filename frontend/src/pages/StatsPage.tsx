@@ -17,6 +17,13 @@ import { trackingKeyLabel } from "../lib/tracking";
 import { toast } from "../lib/toast";
 import { useTagPool } from "../lib/useListTags";
 
+/** 태그 검색 — 입력한 글자가 들어간 태그가 하나라도 있으면 일치(대소문자·앞의 # 무시). */
+function tagMatches(tags: string[] | null | undefined, q: string): boolean {
+  const needle = q.trim().replace(/^#/, "").toLowerCase();
+  if (!needle) return true;
+  return (tags ?? []).some((t) => t.toLowerCase().includes(needle));
+}
+
 type Preset = "today" | "7d" | "30d" | "custom";
 
 /** 유입별 비교 표의 축(자체 파라미터 4종) — 백엔드 byUtmTables 와 같은 키. */
@@ -79,8 +86,8 @@ export function StatsPage() {
   // 태그로 '대상' 목록 거르기(사용자 요청 2026-11-25) — 고른 태그가 달린 랜딩·리드폼만 대상 목록에 남긴다.
   const [tagFilter, setTagFilter] = useState("");
   const tagPool = useTagPool();
-  const shownLandings = useMemo(() => (tagFilter ? landings.filter((l) => (l.tags ?? []).includes(tagFilter)) : landings), [landings, tagFilter]);
-  const shownForms = useMemo(() => (tagFilter ? forms.filter((f) => (f.tags ?? []).includes(tagFilter)) : forms), [forms, tagFilter]);
+  const shownLandings = useMemo(() => (tagFilter.trim() ? landings.filter((l) => tagMatches(l.tags, tagFilter)) : landings), [landings, tagFilter]);
+  const shownForms = useMemo(() => (tagFilter.trim() ? forms.filter((f) => tagMatches(f.tags, tagFilter)) : forms), [forms, tagFilter]);
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -191,31 +198,31 @@ export function StatsPage() {
               </span>
             )}
           </div>
-          {tagPool.pool.length > 0 && (
-            <div className="sf-group">
-              <span className="sf-label">태그</span>
-              <select
-                value={tagFilter}
-                onChange={(e) => {
-                  const t = e.target.value;
-                  setTagFilter(t);
-                  // 지금 고른 대상이 새 태그에 없으면 '전체'로 — 목록에 없는 대상이 선택된 채 남지 않게.
-                  if (t && target !== "all") {
-                    const [kind, raw] = target.split(":");
-                    const id = Number(raw);
-                    const has = kind === "landing"
-                      ? landings.some((l) => l.id === id && (l.tags ?? []).includes(t))
-                      : forms.some((f) => f.id === id && (f.tags ?? []).includes(t));
-                    if (!has) setTarget("all");
-                  }
-                }}
-                title="고른 태그가 달린 랜딩·리드폼만 '대상' 목록에 보여요"
-              >
-                <option value="">전체 태그</option>
-                {tagPool.pool.map((t) => <option key={t} value={t}>#{t}</option>)}
-              </select>
-            </div>
-          )}
+          <div className="sf-group">
+            <span className="sf-label">태그</span>
+            <input
+              className="sf-tag-search"
+              type="search"
+              list="stats-tag-options"
+              placeholder="태그 검색 (예: 두피문신)"
+              value={tagFilter}
+              onChange={(e) => {
+                const q = e.target.value;
+                setTagFilter(q);
+                // 지금 고른 대상이 검색 결과에 없으면 '전체'로 — 목록에 없는 대상이 선택된 채 남지 않게.
+                if (q.trim() && target !== "all") {
+                  const [kind, raw] = target.split(":");
+                  const id = Number(raw);
+                  const item = kind === "landing" ? landings.find((l) => l.id === id) : forms.find((f) => f.id === id);
+                  if (!item || !tagMatches(item.tags, q)) setTarget("all");
+                }
+              }}
+              title="입력한 글자가 들어간 태그가 달린 랜딩·리드폼만 '대상' 목록에 보여요"
+            />
+            <datalist id="stats-tag-options">
+              {tagPool.pool.map((t) => <option key={t} value={t} />)}
+            </datalist>
+          </div>
           <div className="sf-group">
             <span className="sf-label">대상</span>
             <select value={target} onChange={(e) => setTarget(e.target.value)}>
@@ -231,7 +238,7 @@ export function StatsPage() {
                 </optgroup>
               )}
             </select>
-            {tagFilter && shownLandings.length + shownForms.length === 0 && (
+            {tagFilter.trim() && shownLandings.length + shownForms.length === 0 && (
               <span className="dash-sub" style={{ fontSize: 12 }}>이 태그가 달린 랜딩·리드폼이 없어요</span>
             )}
           </div>
