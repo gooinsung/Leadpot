@@ -15,6 +15,7 @@ import { TopBar } from "../components/TopBar";
 import { BarCard, EntityTable, TrendChart, UtmValueTable, bucketize, type Grain } from "../components/StatsCharts";
 import { trackingKeyLabel } from "../lib/tracking";
 import { toast } from "../lib/toast";
+import { useTagPool } from "../lib/useListTags";
 
 type Preset = "today" | "7d" | "30d" | "custom";
 
@@ -75,6 +76,11 @@ export function StatsPage() {
 
   const [landings, setLandings] = useState<LandingSummary[]>([]);
   const [forms, setForms] = useState<FormSummary[]>([]);
+  // 태그로 '대상' 목록 거르기(사용자 요청 2026-11-25) — 고른 태그가 달린 랜딩·리드폼만 대상 목록에 남긴다.
+  const [tagFilter, setTagFilter] = useState("");
+  const tagPool = useTagPool();
+  const shownLandings = useMemo(() => (tagFilter ? landings.filter((l) => (l.tags ?? []).includes(tagFilter)) : landings), [landings, tagFilter]);
+  const shownForms = useMemo(() => (tagFilter ? forms.filter((f) => (f.tags ?? []).includes(tagFilter)) : forms), [forms, tagFilter]);
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -185,21 +191,49 @@ export function StatsPage() {
               </span>
             )}
           </div>
+          {tagPool.pool.length > 0 && (
+            <div className="sf-group">
+              <span className="sf-label">태그</span>
+              <select
+                value={tagFilter}
+                onChange={(e) => {
+                  const t = e.target.value;
+                  setTagFilter(t);
+                  // 지금 고른 대상이 새 태그에 없으면 '전체'로 — 목록에 없는 대상이 선택된 채 남지 않게.
+                  if (t && target !== "all") {
+                    const [kind, raw] = target.split(":");
+                    const id = Number(raw);
+                    const has = kind === "landing"
+                      ? landings.some((l) => l.id === id && (l.tags ?? []).includes(t))
+                      : forms.some((f) => f.id === id && (f.tags ?? []).includes(t));
+                    if (!has) setTarget("all");
+                  }
+                }}
+                title="고른 태그가 달린 랜딩·리드폼만 '대상' 목록에 보여요"
+              >
+                <option value="">전체 태그</option>
+                {tagPool.pool.map((t) => <option key={t} value={t}>#{t}</option>)}
+              </select>
+            </div>
+          )}
           <div className="sf-group">
             <span className="sf-label">대상</span>
             <select value={target} onChange={(e) => setTarget(e.target.value)}>
               <option value="all">전체</option>
-              {landings.length > 0 && (
+              {shownLandings.length > 0 && (
                 <optgroup label="랜딩페이지">
-                  {landings.map((l) => <option key={`l${l.id}`} value={`landing:${l.id}`}>{l.title}</option>)}
+                  {shownLandings.map((l) => <option key={`l${l.id}`} value={`landing:${l.id}`}>{l.title}</option>)}
                 </optgroup>
               )}
-              {forms.length > 0 && (
+              {shownForms.length > 0 && (
                 <optgroup label="리드폼">
-                  {forms.map((f) => <option key={`f${f.id}`} value={`form:${f.id}`}>{f.name}</option>)}
+                  {shownForms.map((f) => <option key={`f${f.id}`} value={`form:${f.id}`}>{f.name}</option>)}
                 </optgroup>
               )}
             </select>
+            {tagFilter && shownLandings.length + shownForms.length === 0 && (
+              <span className="dash-sub" style={{ fontSize: 12 }}>이 태그가 달린 랜딩·리드폼이 없어요</span>
+            )}
           </div>
           {utmSel && (
             <div className="sf-group">
