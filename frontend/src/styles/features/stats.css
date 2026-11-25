@@ -154,6 +154,7 @@
   font-size: 13px;
 }
 .sf-dates input,
+.stats-filter .sf-tag-search,
 .stats-filter select {
   padding: 6px 10px;
   border: 1px solid var(--border);
@@ -316,4 +317,7 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+}
+.stats-filter .sf-tag-search {
+  width: 180px;
 }

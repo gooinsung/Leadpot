@@ -406,7 +406,8 @@
     min-width: 0;
     max-width: 100%;
   }
-  .app-shell .sf-group select {
+  .app-shell .sf-group select,
+  .app-shell .sf-group .sf-tag-search {
     flex: 1 1 0;
     min-width: 0;
     max-width: 100%;
