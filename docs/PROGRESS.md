@@ -8,6 +8,19 @@
 
 ## 📍 지금 위치
 
+- **🔄 랜딩 블록 등장 애니메이션 — 구현·검증 완료, 미배포 (2026-11-25, 사용자 요청, 브랜치 `claude/confident-albattani-9wint0`)**:
+  - 편집기 블록마다 '등장 애니메이션'(아래에서 위로·서서히·확대·왼쪽/오른쪽에서) + '지연'(바로~0.5초). 스크롤해서 화면에 들어올 때
+    한 번 0.7초 재생. HTML 블록 안쪽 요소는 `data-lp-anim="fade-up"`(+ `data-lp-anim-delay`)로 개별 등장. 화면 하단 고정 CTA 제외.
+  - 백엔드·DB 변경 없음(블록 키 `anim`·`animDelay`). `anim` 없는 랜딩은 출력 DOM 동일(부팅 스크립트·래퍼 없음).
+  - 코드: public-ui `lib/blockAnim.ts`(값 해석·부팅 스크립트) · `components/AnimWrap.tsx`(withAnim 래퍼·useRevealAnimations 훅) ·
+    `styles/features/animation.css` · LandingView · 관리 앱 LandingEditPage(설정 UI·미리보기).
+  - 안전장치: 숨김은 `<html class="lp-anim-on">` 일 때만 — SSR 부팅 스크립트가 첫 페인트 전 부착, JS 없음(크롤러)·하이드레이션 실패(3초)·
+    '동작 줄이기'면 전부 표시. 맨 끝 짧은 요소는 페이지 끝 도달 시 재생(실측 버그 수정).
+  - 검증: public-ui vitest(신규 6건), tsc(public-ui·관리 앱), 관리 앱 build, SSR+하이드레이션 Playwright 375px(정상·JS 꺼짐·
+    하이드레이션 실패·동작 줄이기, 가로 스크롤 없음), 편집기 미리보기(가짜 API)에서 스크롤 재생·효과 변경 재생 확인.
+  - 참고: 편집기에서 아무 블록이나 고치면 미리보기 HTML 블록 내용이 다시 그려진다(기존 동작) → 안쪽 애니메이션은 스크롤 시 다시 재생.
+  - 설계·계획: [specs](superpowers/specs/2026-11-25-landing-block-animation-design.md) · [plans](superpowers/plans/2026-11-25-landing-block-animation.md).
+  - ⏭️ 다음: PR → main 병합(Pages·렌더러 자동 배포) → 실제 공개 랜딩에서 모바일 확인.
 - **✅ 랜딩 CTA '화면 아래에 고정'(플로팅 버튼) (2026-11-23, 사용자 요청, PR 병합으로 배포)**:
   - 리드폼·외부 폼 블록(버튼 → 오버레이/풀스크린)에 체크박스 '화면 아래에 고정' 추가(`block.floating`). 켜면 버튼이 스크롤해도
     화면 하단(본문 폭 최대 480px, safe-area 대응)에 붙어 있고, 탭하면 기존처럼 모달/풀스크린. 띠 모양이면 바닥에 여백 없이 붙는다.

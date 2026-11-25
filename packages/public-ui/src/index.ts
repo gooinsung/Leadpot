@@ -10,6 +10,8 @@ export { LandingView, floatingWrap } from "./components/LandingView";
 export { PublicFormView } from "./components/PublicFormView";
 export { PublicFormPageView } from "./components/PublicFormPageView";
 export { HtmlBlock } from "./components/HtmlBlock";
+export { withAnim, useRevealAnimations } from "./components/AnimWrap";
+export { BLOCK_ANIMS, BLOCK_ANIM_DELAYS, usesAnimations, type BlockAnim } from "./lib/blockAnim";
 export {
   LandingCtaButton,
   SubmitCtaButton,

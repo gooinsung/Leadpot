@@ -29,6 +29,7 @@
 @import "./styles/features/dashboard.css";
 @import "@leadpot/public-ui/src/styles/features/form-builder.css";
 @import "@leadpot/public-ui/src/styles/features/landing.css";
+@import "@leadpot/public-ui/src/styles/features/animation.css";
 @import "@leadpot/public-ui/src/styles/features/public.css";
 @import "./styles/features/leads.css";
 @import "./styles/features/advertiser.css";

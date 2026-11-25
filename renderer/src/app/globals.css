@@ -12,5 +12,6 @@
 
 @import "@leadpot/public-ui/src/styles/features/form-builder.css";
 @import "@leadpot/public-ui/src/styles/features/landing.css";
+@import "@leadpot/public-ui/src/styles/features/animation.css";
 @import "@leadpot/public-ui/src/styles/features/public.css";
 @import "@leadpot/public-ui/src/styles/features/calculator.css";
