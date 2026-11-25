@@ -1240,6 +1240,8 @@ export interface StatsFilter {
   /** 유입 필터 — 키·값 둘 다 있어야 적용. 걸면 요약·추이·카드 전부 그 유입만으로 재계산 */
   utmKey?: string;
   utmValue?: string;
+  /** 태그 검색어(부분 일치·# 무시) — 그 태그가 달린 랜딩·리드폼의 방문·리드만으로 재계산 */
+  tag?: string;
 }
 export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
   const p = new URLSearchParams();
@@ -1251,6 +1253,7 @@ export function getStats(filter: StatsFilter = {}): Promise<StatsOverview> {
     p.set("utmKey", filter.utmKey);
     p.set("utmValue", filter.utmValue);
   }
+  if (filter.tag?.trim()) p.set("tag", filter.tag.trim());
   const qs = p.toString();
   return request<StatsOverview>(`/api/stats/overview${qs ? `?${qs}` : ""}`);
 }
@@ -1293,6 +1296,7 @@ export async function downloadStatsReport(filter: StatsFilter, sections: string[
       formId: filter.formId ?? null,
       utmKey: filter.utmKey && filter.utmValue ? filter.utmKey : null,
       utmValue: filter.utmKey && filter.utmValue ? filter.utmValue : null,
+      tag: filter.tag?.trim() || null,
       sections,
     }),
   });

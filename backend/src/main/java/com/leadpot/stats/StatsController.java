@@ -37,8 +37,9 @@ public class StatsController {
             @RequestParam(required = false) Long landingId,
             @RequestParam(required = false) Long formId,
             @RequestParam(required = false) String utmKey,
-            @RequestParam(required = false) String utmValue) {
-        return statsService.overview(Long.valueOf(jwt.getSubject()), from, to, landingId, formId, utmKey, utmValue);
+            @RequestParam(required = false) String utmValue,
+            @RequestParam(required = false) String tag) {
+        return statsService.overview(Long.valueOf(jwt.getSubject()), from, to, landingId, formId, utmKey, utmValue, tag);
     }
 
     /** 수익 요약 — 대시보드(오늘·이번 달)·리드폼/랜딩 목록(기간 수익)용 가벼운 조회. */
@@ -57,7 +58,7 @@ public class StatsController {
     @PostMapping("/export")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal Jwt jwt, @RequestBody StatsExportRequest req) {
         StatsResponse stats = statsService.overview(Long.valueOf(jwt.getSubject()),
-                req.from(), req.to(), req.landingId(), req.formId(), req.utmKey(), req.utmValue());
+                req.from(), req.to(), req.landingId(), req.formId(), req.utmKey(), req.utmValue(), req.tag());
         byte[] body = exportService.xlsx(stats, req.sections());
         String filename = "stats_" + stats.from() + "_" + stats.to() + ".xlsx";
         return ResponseEntity.ok()
@@ -75,6 +76,8 @@ public class StatsController {
             Long formId,
             String utmKey,
             String utmValue,
+            /** 태그 검색어(부분 일치) — 화면의 태그 검색과 같다. */
+            String tag,
             List<String> sections) {
     }
 }

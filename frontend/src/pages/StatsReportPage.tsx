@@ -8,7 +8,7 @@ import { trackingKeyLabel } from "../lib/tracking";
 /**
  * 통계 보고서 화면 — 인쇄/PDF 저장용(브라우저 인쇄 → PDF).
  * 통계 페이지의 [보고서·엑셀] 모달에서 새 탭으로 열린다. 정의는 전부 쿼리스트링으로 받는다:
- * from·to·landingId·formId·utmKey·utmValue·sections(쉼표)·name(보고서 이름).
+ * from·to·landingId·formId·utmKey·utmValue·tag·sections(쉼표)·name(보고서 이름).
  * "보고서 정의 = 기간 + 필터 + 섹션" — 나중 '광고주 리포트 발송'도 이 화면을 재사용한다.
  */
 export function StatsReportPage() {
@@ -24,6 +24,7 @@ export function StatsReportPage() {
   const formId = sp.get("formId");
   const utmKey = sp.get("utmKey");
   const utmValue = sp.get("utmValue");
+  const tag = sp.get("tag");
 
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [error, setError] = useState(false);
@@ -36,10 +37,11 @@ export function StatsReportPage() {
       formId: formId ? Number(formId) : undefined,
       utmKey: utmKey ?? undefined,
       utmValue: utmValue ?? undefined,
+      tag: tag ?? undefined,
     })
       .then(setStats)
       .catch(() => setError(true));
-  }, [from, to, landingId, formId, utmKey, utmValue]);
+  }, [from, to, landingId, formId, utmKey, utmValue, tag]);
 
   const has = (k: string) => sections.includes(k);
   const buckets = useMemo(() => (stats ? bucketize(stats.byDay, "day") : []), [stats]);
@@ -65,6 +67,7 @@ export function StatsReportPage() {
         <p className="report-meta">
           기간 {stats.from} ~ {stats.to}
           {utmKey && utmValue && <> · 유입 {trackingKeyLabel(utmKey)} = {utmValue}</>}
+          {tag && <> · 태그 #{tag}</>}
           <> · 생성 {new Date().toLocaleString("ko-KR")}</>
         </p>
       </header>

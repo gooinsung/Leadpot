@@ -63,6 +63,16 @@ public class StatsService {
     @Transactional(readOnly = true)
     public StatsResponse overview(Long ownerId, LocalDate from, LocalDate to, Long landingId, Long formId,
             String utmKey, String utmValue) {
+        return overview(ownerId, from, to, landingId, formId, utmKey, utmValue, null);
+    }
+
+    /**
+     * {@code tag} 를 주면 그 글자가 들어간 태그(대소문자·앞의 # 무시, 부분 일치)가 달린 <b>랜딩 또는 리드폼</b>의
+     * 방문·리드·이벤트만 남긴다(사용자 요청 2026-11-25 — 수집통계 태그 검색). 랜딩·리드폼 대상 필터와 함께 쓰면 둘 다 만족해야 한다.
+     */
+    @Transactional(readOnly = true)
+    public StatsResponse overview(Long ownerId, LocalDate from, LocalDate to, Long landingId, Long formId,
+            String utmKey, String utmValue, String tag) {
         // 기간 정규화(KST). 미지정 시 최근 30일. 최대 366일로 제한.
         LocalDate today = LocalDate.now(KST);
         if (to == null) to = today;
@@ -93,6 +103,24 @@ public class StatsService {
                 .filter(e -> fLanding == null || fLanding.equals(e.getLandingPageId()))
                 .filter(e -> fForm == null || fForm.equals(e.getFormId()))
                 .toList();
+
+        // 태그 필터 — 태그가 맞는 랜딩이나 리드폼에 속한 것만.
+        String tagNeedle = tagNeedle(tag);
+        if (tagNeedle != null) {
+            java.util.Set<Long> tagLandings = new java.util.HashSet<>();
+            for (LandingPage lp : landingRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId)) {
+                if (tagMatches(lp.getTags(), tagNeedle)) tagLandings.add(lp.getId());
+            }
+            java.util.Set<Long> tagForms = new java.util.HashSet<>();
+            for (Form f : formRepository.findByOwnerIdOrderByUpdatedAtDesc(ownerId)) {
+                if (tagMatches(f.getTags(), tagNeedle)) tagForms.add(f.getId());
+            }
+            java.util.function.BiPredicate<Long, Long> inTag = (lid, fid) ->
+                    (lid != null && tagLandings.contains(lid)) || (fid != null && tagForms.contains(fid));
+            leads = leads.stream().filter(l -> inTag.test(l.getLandingPageId(), l.getFormId())).toList();
+            visits = visits.stream().filter(v -> inTag.test(v.getLandingPageId(), v.getFormId())).toList();
+            events = events.stream().filter(e -> inTag.test(e.getLandingPageId(), e.getFormId())).toList();
+        }
 
         // 유입별 비교 표는 유입 필터가 걸리기 전 데이터로 만든다 — 한 값을 골라도 표에서 다른 값과 비교할 수 있게.
         Function<Lead, Long> utmValueFn = leadValueFn(ownerId);
@@ -158,6 +186,21 @@ public class StatsService {
                 funnel(uniqueVisits, events, totalLeads),
                 byEvent(events),
                 journey(uniqueVisits, events));
+    }
+
+    /** 태그 검색어 정규화 — 앞뒤 공백·앞의 # 제거, 소문자. 비면 null(필터 없음). */
+    static String tagNeedle(String tag) {
+        if (tag == null) return null;
+        String t = tag.trim().replaceFirst("^#", "").trim().toLowerCase(java.util.Locale.ROOT);
+        return t.isEmpty() ? null : t;
+    }
+
+    static boolean tagMatches(List<String> tags, String needle) {
+        if (tags == null) return false;
+        for (String t : tags) {
+            if (t != null && t.toLowerCase(java.util.Locale.ROOT).contains(needle)) return true;
+        }
+        return false;
     }
 
     /**
