@@ -12,10 +12,8 @@ import { RowMenu } from "../components/RowMenu";
 import { fmtShortDateTime } from "../lib/format";
 import { ListFilterBar } from "../components/ListFilterBar";
 import { matchesQuery, matchesTags, parseSort, sortList, type ListSort } from "../lib/listFilter";
-import { TagChips } from "../components/TagPicker";
 import { useTagFilterParams, useTagPool } from "../lib/useListTags";
 import { useFormUsage, usageWarning } from "../lib/useFormUsage";
-import { FormUsageCell } from "../components/FormUsageCell";
 
 const FORM_SORTS: ListSort[] = ["updated", "created", "name", "revenue", "oldest"];
 
@@ -274,7 +272,6 @@ export function FormsListPage() {
                           <th>분야</th>
                           <th>유형</th>
                           <th>항목 수</th>
-                          <th>사용 중인 랜딩</th>
                           <th className="num"><RevenueHeader period={revenue.period} onChange={revenue.setPeriod} /></th>
                           <th>수정일</th>
                           <th></th>
@@ -301,14 +298,8 @@ export function FormsListPage() {
                             <td className="sel-col" onClick={(e) => e.stopPropagation()}>
                               <input type="checkbox" checked={sel.selected.has(f.id)} onChange={() => sel.toggle(f.id)} aria-label="선택" />
                             </td>
-                            <td className="list-title">
-                              {f.name}
-                              {(f.tags ?? []).length > 0 && (
-                                <div className="list-tags">
-                                  <TagChips tags={f.tags} />
-                                </div>
-                              )}
-                            </td>
+                            {/* 태그·사용 중인 랜딩은 목록에서 빼고 상세(편집) 화면 머리줄에서 본다(2026-11-26). 태그 필터·삭제 경고는 유지 */}
+                            <td className="list-title">{f.name}</td>
                             <td className="nowrap" data-label="분야">{f.category ? <span className="pill">{f.category}</span> : <span className="dash-sub">—</span>}</td>
                             <td className="nowrap" data-label="유형">
                               {/* 리디자인 §6: 기본형=인디고 soft · 스텝형=그린 soft */}
@@ -317,7 +308,6 @@ export function FormsListPage() {
                               </span>
                             </td>
                             <td className="num nowrap" data-label="항목">{f.blockCount}</td>
-                            <td data-label="랜딩"><FormUsageCell landings={usage.usageOf(f.id)} loaded={usage.loaded} /></td>
                             <td className="num nowrap" data-label="수익"><RevenueCell row={revenue.byForm.get(f.id)} /></td>
                             <td className="num nowrap" data-label="수정" title={new Date(f.updatedAt).toLocaleString("ko-KR")}>{fmtShortDateTime(f.updatedAt)}</td>
                             <td className="list-actions-cell" onClick={(e) => e.stopPropagation()}>
